@@ -1,0 +1,27 @@
+# ==========================================
+# 1. CREDENCIALES Y VARIABLES DE ENTORNO (CRÍTICO)
+# ==========================================
+backend/config/.env
+*.env
+.env.*
+
+# ==========================================
+# 2. EDITORES DE CÓDIGO Y SISTEMA OPERATIVO
+# ==========================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 3. LOGS Y CACHÉ
+# ==========================================
+backend/logs/php_errors.log
+*.log
+*.cache
+
+# ==========================================
+# 4. DEPENDENCIAS (Si usas Composer o NPM a futuro)
+# ==========================================
+vendor/
+node_modules/

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Gestión</title>
+    <link rel="icon" href="assets/img/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Animación para el fondo del lado izquierdo */
+        .bg-shapes {
+            background-image: radial-gradient(circle at 15% 50%, rgba(255, 255, 255, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 255, 255, 0.08), transparent 25%);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans antialiased text-gray-900">
+    <div class="min-h-screen flex w-full">
+
+        <div
+            class="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-[#003087] to-blue-600 items-center justify-center relative overflow-hidden bg-shapes">
+
+            <div class="relative z-10 text-center text-white p-12 flex flex-col items-center">
+                <div class="bg-white/10 p-8 rounded-3xl backdrop-blur-md border border-white/20 mb-10 shadow-2xl">
+                    <img src="assets/img/logografico.png" alt="Granja Rinconada del Sur"
+                        class="h-32 object-contain drop-shadow-lg">
+                </div>
+
+                <h2 class="text-4xl font-extrabold mb-4 tracking-tight">Granja Rinconada del Sur</h2>
+                <p class="text-blue-100 text-lg max-w-md font-light">Sistema de análisis y visualización de gráficos</p>
+            </div>
+
+        </div>
+
+        <div class="w-full lg:w-2/5 flex items-center justify-center p-6 sm:p-12 bg-white">
+
+            <div class="w-full max-w-md space-y-8">
+
+                <div class="flex justify-center lg:hidden mb-4">
+                    <div class="bg-[#003087] p-4 rounded-2xl shadow-lg inline-block">
+                        <img src="assets/img/logografico.png" alt="Logo" class="h-12 object-contain">
+                    </div>
+                </div>
+
+                <div class="text-center lg:text-left">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">¡Bienvenido de nuevo!</h1>
+                    <p class="text-gray-500">Por favor, ingresa tus credenciales para continuar.</p>
+                </div>
+
+                <form id="loginForm" class="space-y-6 mt-8">
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2" for="usuario">Usuario</label>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i
+                                    class="fas fa-user text-gray-400 group-focus-within:text-blue-600 transition-colors"></i>
+                            </div>
+                            <input type="text" id="usuario" name="usuario" required
+                                class="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                                placeholder="Ingresa tu código de usuario">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2" for="password">Contraseña</label>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i
+                                    class="fas fa-lock text-gray-400 group-focus-within:text-blue-600 transition-colors"></i>
+                            </div>
+                            <input type="password" id="password" name="password" required
+                                class="block w-full pl-11 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                                placeholder="••••••••">
+
+                            <button type="button" id="togglePassword"
+                                class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-blue-600 focus:outline-none transition-colors">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="errorMessage"
+                        class="hidden flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Usuario o contraseña incorrectos.</span>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-xl font-semibold shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/50">
+                        <span>Ingresar al Sistema</span>
+                        <i class="fas fa-arrow-right text-sm"></i>
+                    </button>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="loading"
+        class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity">
+        <div
+            class="bg-white px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-[scaleIn_0.2s_ease-out]">
+            <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+            <p class="text-gray-700 font-medium">Validando credenciales...</p>
+        </div>
+    </div>
+
+    <style>
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script src="core/config.js"></script>
+    <script src="modules/auth/auth.service.js"></script>
+    <script src="modules/auth/login.controller.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.has('error_sso')) {
+                sessionStorage.clear();
+
+                // Log técnico oculto
+                if (urlParams.has('debug')) {
+                    console.error("🛑 [SSO Error Técnico]:", urlParams.get('debug'));
+                }
+
+                // Mostrar mensaje genérico en la UI
+                const errorMessageDiv = document.getElementById('errorMessage');
+                const errorTextSpan = errorMessageDiv?.querySelector('span');
+
+                if (errorMessageDiv && errorTextSpan) {
+                    errorTextSpan.textContent = urlParams.get('error_sso');
+                    errorMessageDiv.classList.remove('hidden');
+                    errorMessageDiv.classList.add('flex');
+                }
+
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+    </script>
+
+</body>
+
+</html>

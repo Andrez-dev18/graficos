@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Gestión de Pollo - Múltiples Dashboards">
+    <title>Sistema Graficos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="icon" href="assets/img/favicon.ico">
+
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/dashboard-style.css">
+
+    <style>
+        html,
+        body {
+            overflow: hidden;
+            height: 100%;
+            height: 100dvh;
+        }
+
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .content-wrapper main {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        #dashboardFrame {
+            display: block;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            border: none;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 350px;
+            background: linear-gradient(180deg, #163a9c 0%, #1a43c7 100%);
+            transition: transform 0.3s ease, width 0.3s ease;
+            z-index: 1000;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.collapsed {
+            width: 140px;
+            overflow-x: auto;
+        }
+
+        /* Scrollbar del sidebar: track transparente (vertical y horizontal) */
+        .sidebar nav::-webkit-scrollbar,
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .sidebar nav::-webkit-scrollbar-track,
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar nav::-webkit-scrollbar-corner,
+        .sidebar::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        .sidebar nav::-webkit-scrollbar-thumb,
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .sidebar nav::-webkit-scrollbar-thumb:hover,
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .sidebar nav,
+        .sidebar {
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+        }
+
+        .toggle-sidebar-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-sidebar-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .menu-item {
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            min-height: 48px;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: none;
+        }
+
+        .menu-item.active {
+            background: rgba(255, 255, 255, 0.15);
+            border-left: 4px solid #60a5fa;
+        }
+
+        /* Alineación del contenido del item */
+        .menu-item>span {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .menu-item>span>span {
+            display: block;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            line-height: 1.3;
+            text-align: left;
+        }
+
+        /* ==================================================
+           COMPORTAMIENTO DEL SIDEBAR COLAPSADO (ESTILO CLÁSICO + HOVER UX)
+           ================================================== */
+        @media (min-width: 1024px) {
+
+            /* 1. Ocultar los submenús al colapsar para mantener el orden */
+            .sidebar.collapsed .submenu {
+                display: none !important;
+            }
+
+            /* 2. Restaurar el diseño que te gustaba: Ícono centrado arriba y texto abajo */
+            .sidebar.collapsed .menu-item {
+                justify-content: center;
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+                min-height: 65px;
+                /* Le damos un poco más de altura para que quepa el texto */
+            }
+
+            /* Ocultar la flechita de la derecha (chevron) */
+            .sidebar.collapsed .menu-item>i {
+                display: none !important;
+            }
+
+            /* Apilar verticalmente el ícono y el texto */
+            .sidebar.collapsed .menu-item>span {
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                width: 100%;
+            }
+
+            /* Formato del texto: pequeñito, centrado y que baje a la siguiente línea si es largo */
+            .sidebar.collapsed .menu-item>span>span {
+                font-size: 10.5px !important;
+                /* Tamaño ideal para que se lea pero no sature */
+                text-align: center !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                line-height: 1.1 !important;
+            }
+
+            /* Ocultar el texto del logo ("Sistema Gestión") arriba y centrar el ícono principal */
+            .sidebar.collapsed .sidebar-brand-text {
+                display: none !important;
+            }
+
+            .sidebar.collapsed .sidebar-brand-row {
+                justify-content: center;
+            }
+
+            /* Ocultar textos de usuario al colapsar y centrar el avatar */
+            .sidebar.collapsed .sidebar-user-text {
+                display: none !important;
+            }
+
+            .sidebar.collapsed .sidebar-user-section summary {
+                justify-content: center;
+            }
+
+        }
+
+        .sidebar.collapsed #accesoDirectoContainer p {
+            display: none !important;
+            /* Oculta el texto "Acceso rápido" */
+        }
+
+        .sidebar.collapsed #accesoDirectoContainer .flex {
+            justify-content: center !important;
+            /* Centra el botón visible */
+        }
+
+        .sidebar.collapsed #accesoDirectoContainer .flex button:not(:first-child) {
+            display: none !important;
+            /* Oculta todos los botones menos el primero */
+        }
+
+        /* Cuando el menú está tamaño Tablet (siempre 140px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            #accesoDirectoContainer p {
+                display: none !important;
+            }
+
+            #accesoDirectoContainer .flex {
+                justify-content: center !important;
+            }
+
+            #accesoDirectoContainer .flex button:not(:first-child) {
+                display: none !important;
+            }
+        }
+
+        .menu-item>span>i {
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .menu-item>i {
+            flex-shrink: 0;
+            margin-left: auto;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* estado activo para enlaces y botones */
+        .menu-link.active,
+        .menu-item.active,
+        .submenu-toggle.active {
+            color: white !important;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+            font-weight: 600;
+        }
+
+        /* alternativa visual: sombra / fondo para botones activos */
+        .menu-item.active,
+        .submenu-toggle.active {
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 4 6px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Submenu */
+        .submenu.hidden {
+            display: none !important;
+        }
+
+        .submenu:not(.hidden) {
+            display: block;
+        }
+
+        .menu-link {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            line-height: 1.4;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        /* Hover para los enlaces que no están activos */
+        .menu-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .submenu-toggle {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            line-height: 1.3;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .submenu-toggle:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .menu-link.active {
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            border-radius: 8px;
+            /* Mantiene el borde curvo al seleccionarse */
+        }
+
+        .submenu-toggle.active {
+            background: rgba(255, 255, 255, 0.12) !important;
+            border-radius: 8px;
+        }
+
+        /* Content area - margin controlado por JS (syncContentMargin) */
+        .content-wrapper {
+            transition: margin-left 0.3s ease;
+        }
+
+        @media (min-width: 1024px) {
+            .sidebar {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                display: none;
+            }
+
+            .menu-toggle-mobile {
+                display: none;
+            }
+        }
+
+        /* Tablet: sidebar colapsado (140px) + contenido al lado cuando está abierto (768-1023px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 140px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            /* Forzar estilo colapsado en tablet: iconos centrados, sin ellipsis */
+            .sidebar.collapsed,
+            .sidebar:not(.collapsed) {
+                width: 140px;
+            }
+
+            .sidebar .sidebar-brand-text {
+                display: none !important;
+            }
+
+            .sidebar .sidebar-brand-row {
+                justify-content: center;
+            }
+
+            .sidebar .menu-item {
+                justify-content: center;
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
+            .sidebar .menu-item>i {
+                display: none;
+            }
+
+            .sidebar .menu-item>span {
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .sidebar .menu-item>span>span {
+                font-size: 10px;
+                text-align: center;
+                line-height: 1.1;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+
+            .sidebar .menu-link {
+                font-size: 10px;
+                text-align: center;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+
+            .sidebar .submenu {
+                padding-left: 10px !important;
+            }
+
+            .sidebar .sidebar-user-text {
+                display: none !important;
+            }
+
+            .sidebar .sidebar-user-section summary {
+                justify-content: center;
+            }
+        }
+
+        /* Móvil: ocultar sidebar (< 768px) */
+        @media (max-width: 767px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                display: block;
+            }
+        }
+
+        /* Animaciones */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Dashboard iframe - altura fija para scroll único */
+        #dashboardFrame {
+            width: 100%;
+            border: none;
+            background: #f9fafb;
+        }
+
+        /* Loading */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar rounded-r-2xl">
+        <!-- Logo/Header -->
+        <div class="p-6 border-b border-blue-700">
+            <div class="flex items-center justify-between sidebar-brand-row">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-15 bg-transparent rounded-lg flex items-center justify-center shrink-0">
+                        <a href="index.html" onclick="volverAlInicio()">
+                            <img src="assets/img/logografico.png" alt="logo_empresa">
+                        </a>
+                    </div>
+                    <div class="sidebar-brand-text">
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-white font-bold text-lg leading-none">Sistema</h2>
+                            <a href="index.html" onclick="volverAlInicio()"
+                                class="w-7 h-7 flex items-center justify-center rounded-md transition duration-200"
+                                title="Ir al inicio">
+                                <i class="fas fa-home text-white text-xs"></i>
+                            </a>
+                        </div>
+                        <p class="text-blue-300 text-xs">Análisis Graficos</p>
+                    </div>
+                </div>
+
+                <button onclick="toggleSidebarCollapse()"
+                    class="lg:hidden text-white hover:text-blue-200 p-1 ml-auto -mr-1">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <div class="mt-6 pt-4 border-blue-700/50 sidebar-user-section">
+                <details class="relative w-full group">
+                    <summary class="flex items-center gap-3 cursor-pointer select-none list-none">
+                        <div
+                            class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0 transition group-hover:bg-white/30">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                        <div class="text-left sidebar-user-text overflow-hidden flex-1">
+                            <p id="username" class="text-sm font-semibold text-white truncate">Usuario Admin</p>
+                            <p id="dni" class="text-xs text-blue-300 truncate">Administrador</p>
+                        </div>
+                        <i
+                            class="fas fa-chevron-down text-blue-300 text-xs sidebar-user-text transition group-hover:text-white"></i>
+                    </summary>
+
+                    <div
+                        class="absolute left-0 mt-3 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+                        <a href="#" onclick="abrirModalPassword(); event.preventDefault();"
+                            class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100 font-medium transition-colors">
+                            <i class="fas fa-key mr-2 text-gray-400"></i> Cambiar contraseña
+                        </a>
+                        <a href="#" onclick="cerrarSesion(); event.preventDefault();"
+                            class="block px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i> Cerrar sesión
+                        </a>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Menu -->
+        <!-- Navbar actualizado -->
+        <nav id="navMenuPrincipal" class="p-4 space-y-2 overflow-y-auto" style="max-height: calc(100vh - 130px);"></nav>
+
+
+
+        <script>
+            function toggleSubmenu(id, btn) {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const isOpening = el.classList.contains('hidden');
+
+                if (isOpening) {
+
+                    const isNivel1 = btn.classList.contains('menu-item');
+
+                    if (isNivel1) {
+                        document.querySelectorAll('.menu-group > .submenu').forEach(submenu => {
+                            if (submenu.id !== id && !submenu.classList.contains('hidden')) {
+                                submenu.classList.add('hidden');
+                                const hermanoBtn = submenu.previousElementSibling;
+                                const flecha = hermanoBtn?.querySelector('.fa-chevron-down');
+                                if (flecha) flecha.classList.remove('rotate-180');
+                            }
+                        });
+                    } else {
+
+                        const padreContainer = el.closest('.submenu');
+                        if (padreContainer) {
+                            padreContainer.querySelectorAll(':scope > div > .submenu, :scope > .submenu').forEach(submenu => {
+                                if (submenu.id !== id && !submenu.classList.contains('hidden')) {
+                                    submenu.classList.add('hidden');
+                                    const hermanoBtn = submenu.previousElementSibling;
+                                    const flecha = hermanoBtn?.querySelector('.fa-chevron-right');
+                                    if (flecha) flecha.classList.remove('rotate-90');
+                                }
+                            });
+                        }
+                    }
+                }
+
+                el.classList.toggle('hidden');
+
+                if (btn) {
+                    const flechaAbajo = btn.querySelector('.fa-chevron-down');
+                    const flechaDerecha = btn.querySelector('.fa-chevron-right');
+
+                    if (flechaAbajo) flechaAbajo.classList.toggle('rotate-180');
+                    if (flechaDerecha) flechaDerecha.classList.toggle('rotate-90');
+                }
+            }
+        </script>
+
+    </aside>
+
+    <!-- Overlay -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebarCollapse()"></div>
+
+    <!-- Main Content -->
+    <div class="content-wrapper">
+        <!-- Top Bar -->
+        <header
+            class="bg-white shadow-sm relative sm:sticky top-0 sm:top-3 z-50 mx-0 sm:mx-4 rounded-none sm:rounded-xl transition-all">
+            <div class="px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between w-full">
+
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button
+                        class="text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg flex items-center justify-center transition-colors outline-none shrink-0"
+                        onclick="toggleSidebarCollapse()">
+                        <i class="fas fa-bars text-sm sm:text-lg"></i>
+                    </button>
+
+                    <div class="flex flex-col justify-center">
+                        <h1
+                            class="text-sm sm:text-lg font-bold text-gray-800 leading-none tracking-tight truncate max-w-[180px] sm:max-w-none">
+                            Sistema de análisis y visualización de gráficos</h1>
+                        <p id="dashboardTitle"
+                            class="text-[10px] sm:text-sm text-blue-500 font-medium mt-0.5 sm:mt-1 empty:hidden"></p>
+                    </div>
+                </div>
+
+                <button onclick="openSearchModal()" title="Buscar Dashboard (Ctrl+K)"
+                    class="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-lg sm:rounded-xl transition-colors border border-gray-200/80 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 shrink-0">
+                    <i class="fas fa-search text-xs sm:text-base"></i>
+                    <span class="text-sm font-medium hidden sm:block">Buscar...</span>
+                    <span
+                        class="hidden lg:flex items-center gap-1 text-[10px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-300 shadow-sm text-gray-400">
+                        Ctrl K
+                    </span>
+                </button>
+
+            </div>
+        </header>
+
+
+        <!-- Dashboard Content -->
+        <main class="flex flex-col flex-1 min-h-0 p-0 sm:p-6 relative">
+            <div id="loadingIndicator" class="loading hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+
+            <iframe id="dashboardFrame" class="flex-1 min-h-0 w-full" src="">
+            </iframe>
+        </main>
+    </div>
+
+    <div id="modalPassword"
+        class="fixed inset-0 bg-black/50 z-[9999] hidden flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-lock text-blue-500 mr-2"></i> Cambiar Contraseña
+                </h3>
+                <button onclick="cerrarModalPassword()" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
+                    <div class="relative group">
+                        <i
+                            class="fas fa-unlock-alt absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 Z-10"></i>
+                        <input type="password" id="oldPassword" placeholder="••••••••"
+                            class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow Z-0">
+                        <button type="button" onclick="togglePasswordVisibility('oldPassword', this)"
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 outline-none focus:outline-none transition-colors">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
+                    <div class="relative group">
+                        <i class="fas fa-key absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 Z-10"></i>
+                        <input type="password" id="newPassword" placeholder="••••••••"
+                            class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow Z-0">
+                        <button type="button" onclick="togglePasswordVisibility('newPassword', this)"
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 outline-none focus:outline-none transition-colors">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar Nueva Contraseña</label>
+                    <div class="relative group">
+                        <i
+                            class="fas fa-check-circle absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 Z-10"></i>
+                        <input type="password" id="confirmPassword" placeholder="••••••••"
+                            class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow Z-0">
+                        <button type="button" onclick="togglePasswordVisibility('confirmPassword', this)"
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 outline-none focus:outline-none transition-colors">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                    <p id="passwordErrorMsg" class="text-red-500 text-xs mt-1 hidden"></p>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                <button onclick="cerrarModalPassword()"
+                    class="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                    Cancelar
+                </button>
+                <button id="btnGuardarPassword"
+                    class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2">
+                    <i class="fas fa-save"></i> Actualizar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="searchModal"
+        class="fixed inset-0 bg-gray-900/60 z-[10000] hidden flex items-start justify-center pt-[10vh] sm:pt-[15vh] backdrop-sm transition-opacity"
+        onclick="closeSearchModalOnBg(event)">
+        <div
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden mx-4 flex flex-col animate-[fadeIn_0.2s_ease-out] border border-gray-200">
+
+            <div class="flex items-center px-6 py-5 border-b border-gray-100">
+                <i class="fas fa-search text-blue-500 text-2xl"></i>
+                <input type="text" id="searchInput" placeholder="¿A dónde quieres ir?..."
+                    class="w-full bg-transparent border-none focus:ring-0 text-xl text-gray-700 px-5 placeholder-gray-400 outline-none"
+                    autocomplete="off">
+                <button onclick="closeSearchModal()" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <span
+                        class="text-xs font-bold border border-gray-300 rounded px-2 py-1 bg-gray-50 hover:bg-red-50 hover:border-red-200">ESC</span>
+                </button>
+            </div>
+
+            <div id="searchResults" class="max-h-[50vh] overflow-y-auto bg-gray-50/50 p-3">
+            </div>
+
+            <div
+                class="bg-gray-50 border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-6 text-xs text-gray-400">
+                <span class="flex items-center gap-2"><kbd
+                        class="bg-white border border-gray-200 rounded px-1.5 py-0.5 shadow-sm text-gray-500 font-sans">↑↓</kbd>
+                    para navegar</span>
+                <span class="flex items-center gap-2"><kbd
+                        class="bg-white border border-gray-200 rounded px-1.5 py-0.5 shadow-sm text-gray-500 font-sans">Enter</kbd>
+                    para seleccionar</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // AUTO-ENRUTAMIENTO DESDE OTRA PESTAÑA
+        window.restauracionActiva = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Mantenemos la numeración que ya tenías
+            autoNumerarMenus();
+
+            const params = new URLSearchParams(window.location.search);
+            const vista = params.get('vista');
+            const fecha = params.get('fecha');
+            const empresa = params.get('empresa');
+            const proveedor = params.get('proveedor');
+            const provincia = params.get('provincia');
+
+            // --- CASO A: Enrutamiento explícito (Alta prioridad) ---
+            if (vista === 'vivo-aqp' && fecha) {
+                let iframeUrl = `dashboard-comercializacion.html?fecha=${fecha}`;
+                if (empresa) iframeUrl += `&empresa=${empresa}`;
+
+                setTimeout(() => {
+                    loadDashboardAndData(iframeUrl, 'vivo-aqp', `Gestión Pollo Arequipa`);
+                    setTimeout(() => { window.enrutamientoActivo = false; }, 1000);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 50);
+                return;
+            }
+
+            if (vista === 'vivo-provincia' && fecha) {
+                let iframeUrl = `dashboard-comercializacion.html?fecha=${fecha}`;
+                if (proveedor) iframeUrl += `&proveedor=${proveedor}`;
+                if (provincia) iframeUrl += `&provincia=${provincia}`;
+
+                setTimeout(() => {
+                    loadDashboardAndData(iframeUrl, 'vivo-provincia', `Gestión Pollo Provincias`);
+                    setTimeout(() => { window.enrutamientoActivo = false; }, 1000);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 50);
+                return;
+            }
+
+            // --- CASO B: Restaurar última página tras F5 ---
+            const lastUrl = sessionStorage.getItem('last_dashboard_url');
+            const lastTipo = sessionStorage.getItem('last_dashboard_tipo');
+            const lastTitle = sessionStorage.getItem('last_dashboard_title');
+
+            if (lastUrl) {
+                window.restauracionActiva = true;
+
+                setTimeout(() => {
+                    loadDashboardAndData(lastUrl, lastTipo, lastTitle);
+
+                    document.querySelectorAll('.menu-link').forEach(link => {
+                        if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(lastUrl)) {
+                            selectMenuItem(link);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        window.restauracionActiva = false;
+                    }, 500);
+
+                }, 50);
+            }
+        });
+
+        function autoNumerarMenus() {
+            // 1. Encontrar todos los bloques principales (Nivel 1)
+            const menusPrincipales = document.querySelectorAll('.menu-group:not(.hidden)');
+
+            menusPrincipales.forEach((grupo, index) => {
+                const numeroPrincipal = index + 1; // 1, 2, 3...
+
+                // Numerar el botón del nivel 1
+                const spanPrincipal = grupo.querySelector('button.menu-item span.font-medium');
+                if (spanPrincipal) {
+                    aplicarNumeroAutomatico(spanPrincipal, `${numeroPrincipal}.-`);
+                }
+
+                // 2. Buscar el contenedor del submenú
+                const primerSubmenu = grupo.querySelector(':scope > .submenu');
+                if (primerSubmenu) {
+                    numerarNivel(primerSubmenu, `${numeroPrincipal}`);
+                }
+            });
+        }
+
+        function numerarNivel(contenedor, prefijoPadre) {
+            // 🔹 CORRECCIÓN MAGISTRAL: 
+            // Buscamos los items, pero SOLO ignoramos los que están dentro de un 
+            // ".menu-sub-control" que haya sido ocultado por el menuController.
+            // (Ya no ignoramos los ".submenu.hidden" porque esos son solo menús cerrados/colapsados)
+            const todosItems = Array.from(contenedor.querySelectorAll('.submenu-toggle, .menu-link'))
+                .filter(item => {
+                    const controlDePermisosOculto = item.closest('.menu-sub-control.hidden');
+                    return !controlDePermisosOculto;
+                });
+
+            const itemsEsteNivel = todosItems.filter(item => {
+                return item.closest('.submenu') === contenedor;
+            });
+
+            itemsEsteNivel.forEach((item, index) => {
+                const numeroActual = `${prefijoPadre}.${index + 1}`;
+                const nodoTexto = item.querySelector('span') || item;
+
+                const formatoNumero = numeroActual.split('.').length === 2 ? `${numeroActual}.-` : `${numeroActual}.`;
+                aplicarNumeroAutomatico(nodoTexto, formatoNumero);
+
+                if (item.classList.contains('submenu-toggle')) {
+                    const padreCercano = item.parentElement;
+                    const submenuHijo = padreCercano.querySelector('.submenu') || item.nextElementSibling;
+
+                    if (submenuHijo && submenuHijo.classList.contains('submenu')) {
+                        numerarNivel(submenuHijo, numeroActual);
+                    }
+                }
+            });
+        }
+
+        function aplicarNumeroAutomatico(elemento, numeroString) {
+            Array.from(elemento.childNodes).forEach(nodo => {
+                if (nodo.nodeType === 3 && nodo.nodeValue.trim() !== '') {
+                    // 🔹 CORRECCIÓN: Limpiamos los espacios en blanco iniciales de forma más estricta
+                    // Esto borrará cualquier "1.3.1. " manual que hayas dejado en el HTML 
+                    // para reemplazarlo por el número dinámico real.
+                    const textoLimpio = nodo.nodeValue.replace(/^\s*[\d\.\-]+\s+/, '').trim();
+                    nodo.nodeValue = ` ${numeroString} ${textoLimpio}`;
+                }
+            });
+        }
+    </script>
+
+    <script>
+        // =========================================================
+        // CARGA DE DASHBOARDS Y LOADING
+        // =========================================================
+        window.enrutamientoActivo = new URLSearchParams(window.location.search).has('vista');
+        function showLoading() {
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').classList.add('hidden');
+        }
+
+        function loadDashboardAndData(dashboardUrl, tipo, title) {
+            const defaultUrl = window.moduloInicialPorDefecto ? window.moduloInicialPorDefecto.url : 'principal.html';
+
+            // ESCUDO: Bloquea regreso involuntario al inicio si estamos restaurando tras F5 o enrutando
+            if ((window.enrutamientoActivo || window.restauracionActiva) && (dashboardUrl === defaultUrl || dashboardUrl === 'principal.html' || dashboardUrl === '')) {
+                return;
+            }
+
+            // GUARDAR ESTADO ACTIVO
+            if (dashboardUrl && dashboardUrl !== defaultUrl && dashboardUrl !== 'principal.html') {
+                sessionStorage.setItem('last_dashboard_url', dashboardUrl);
+                sessionStorage.setItem('last_dashboard_tipo', tipo);
+                sessionStorage.setItem('last_dashboard_title', title);
+            } else {
+                sessionStorage.removeItem('last_dashboard_url');
+                sessionStorage.removeItem('last_dashboard_tipo');
+                sessionStorage.removeItem('last_dashboard_title');
+            }
+
+            const frame = document.getElementById('dashboardFrame');
+            const titulo = document.getElementById('dashboardTitle');
+
+            titulo.textContent = title || 'Dashboard';
+            showLoading();
+
+            const run = () => {
+                try {
+                    if (frame.contentWindow && typeof frame.contentWindow.cargarDatos === 'function') {
+                        frame.contentWindow.cargarDatos(tipo);
+                    }
+                } finally {
+                    hideLoading();
+                }
+            };
+
+            if (frame.src.includes(dashboardUrl)) {
+                run();
+            } else {
+                frame.onload = run;
+                frame.src = dashboardUrl;
+            }
+
+            // Ocultar menú en móviles
+            if (window.innerWidth < 1024) {
+                toggleSidebarCollapse();
+            }
+        }
+
+        function volverAlInicio() {
+            sessionStorage.removeItem('last_dashboard_url');
+            sessionStorage.removeItem('last_dashboard_tipo');
+            sessionStorage.removeItem('last_dashboard_title');
+
+            if (window.moduloInicialPorDefecto) {
+                const m = window.moduloInicialPorDefecto;
+                loadDashboardAndData(m.url, m.tipo_param || '', m.titulo || m.nom_mod);
+                if (window.menuPrincipal && m.tipo !== 'main') {
+                    window.menuPrincipal.seleccionarModuloPorUrl(m.url);
+                }
+            } else {
+                loadDashboardAndData('principal.html', '', 'Dashboard Principal');
+            }
+        }
+
+        // =========================================================
+        // LÓGICA DE SIDEBAR, EFECTO HOVER Y RESPONSIVE
+        // =========================================================
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const contentWrapper = document.querySelector('.content-wrapper');
+
+        function initSidebar() {
+            if (window.innerWidth >= 1024) {
+                // PC: Inicia siempre en modo "Hover" (no fijado y colapsado)
+                sidebar.classList.remove('pinned');
+                sidebar.classList.add('collapsed');
+                sidebar.classList.add('open');
+                overlay.classList.remove('active');
+            } else if (window.innerWidth >= 768) {
+                // Tablet
+                sidebar.classList.add('open');
+                sidebar.classList.remove('collapsed');
+                sidebar.classList.remove('pinned');
+                overlay.classList.remove('active');
+            } else {
+                // Móvil
+                sidebar.classList.remove('open');
+                sidebar.classList.remove('collapsed');
+                sidebar.classList.remove('pinned');
+                overlay.classList.remove('active');
+            }
+            syncContentMargin();
+        }
+
+        function syncContentMargin() {
+            if (!contentWrapper) return;
+            if (window.innerWidth >= 1024) {
+                // 🔹 MAGIA DEL BOTÓN HAMBURGUESA: 
+                // Si está fijado (pinned), empujamos el panel 350px para que el menú no tape los gráficos.
+                // Si no está fijado, el panel regresa a 140px y el menú flotará por encima.
+                contentWrapper.style.marginLeft = sidebar.classList.contains('pinned') ? '350px' : '140px';
+            } else if (window.innerWidth >= 768) {
+                contentWrapper.style.marginLeft = sidebar.classList.contains('open') ? '140px' : '0px';
+            } else {
+                contentWrapper.style.marginLeft = '0px';
+            }
+        }
+
+        // Efecto Hover (Solo para PC)
+        sidebar.addEventListener('mouseenter', () => {
+            if (window.innerWidth >= 1024) {
+                sidebar.classList.remove('collapsed'); // Crece a 350px
+            }
+        });
+
+        sidebar.addEventListener('mouseleave', () => {
+            // 🔹 CONDICIÓN DE ORO: Solo se vuelve a encoger si NO está fijado con el candado
+            if (window.innerWidth >= 1024 && !sidebar.classList.contains('pinned')) {
+                sidebar.classList.add('collapsed'); // Se achica a 140px
+            }
+        });
+
+        function toggleSidebarCollapse() {
+            if (window.innerWidth >= 1024) {
+                // PC: El botón actúa como candado (Pin / Unpin)
+                sidebar.classList.toggle('pinned');
+
+                if (sidebar.classList.contains('pinned')) {
+                    sidebar.classList.remove('collapsed'); // Lo forzamos a quedarse abierto
+                } else {
+                    sidebar.classList.add('collapsed'); // Lo regresamos al comportamiento Hover
+                }
+            } else {
+                // Tablet / Móvil: Comportamiento normal
+                sidebar.classList.toggle('open');
+                if (window.innerWidth < 768) {
+                    overlay.classList.toggle('active', sidebar.classList.contains('open'));
+                }
+            }
+            syncContentMargin();
+        }
+
+        // Escuchar cambios de pantalla e inicializar
+        window.addEventListener('resize', initSidebar);
+        initSidebar();
+
+        // =========================================================
+        // LÓGICA DE MENÚ ACTIVO Y SELECCIÓN
+        // =========================================================
+        function markActiveElement(element) {
+            document.querySelectorAll('.menu-link.active, .menu-item.active, .submenu-toggle.active')
+                .forEach(el => el.classList.remove('active'));
+
+            if (!element) return;
+            element.classList.add('active');
+
+            const parentToggle = findParentToggleButton(element);
+            if (parentToggle) parentToggle.classList.add('active');
+
+            const menuGroup = element.closest('.menu-group');
+            if (menuGroup) {
+                const topMenuItem = menuGroup.querySelector('.menu-item');
+                if (topMenuItem) topMenuItem.classList.add('active');
+            }
+        }
+
+        function findParentToggleButton(el) {
+            let node = el;
+            while (node && node !== document) {
+                if (node.classList && node.classList.contains('submenu')) {
+                    let prev = node.previousElementSibling;
+                    if (prev && prev.tagName === 'BUTTON') return prev;
+                }
+                node = node.parentElement;
+            }
+            node = el.closest('.menu-group');
+            if (node) {
+                const innerToggle = node.querySelector('.submenu-toggle');
+                if (innerToggle) return innerToggle;
+            }
+            return null;
+        }
+
+        function selectMenuItem(element) {
+            markActiveElement(element);
+        }
+
+        function activateAndLoad(buttonOrLink, dashboardUrl, tipo, title) {
+            markActiveElement(buttonOrLink);
+            loadDashboardAndData(dashboardUrl, tipo, title);
+        }
+
+        function togglePasswordVisibility(inputId, btnEl) {
+            const input = document.getElementById(inputId);
+            const icon = btnEl.querySelector('i');
+
+            if (!input || !icon) return;
+
+            if (input.type === 'password') {
+                // Mostrar contraseña
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                btnEl.title = "Ocultar contraseña";
+            } else {
+                // Ocultar contraseña
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                btnEl.title = "Mostrar contraseña";
+            }
+        }
+
+        function abrirModalPassword() {
+            // Al abrir, cerramos el dropdown de usuario para que no quede estorbando visualmente
+            const details = document.querySelector('.sidebar-user-section details');
+            if (details) details.removeAttribute('open');
+
+            // Mostramos el modal y limpiamos los campos
+            document.getElementById('modalPassword').classList.remove('hidden');
+            document.getElementById('oldPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('passwordErrorMsg').classList.add('hidden');
+
+            const passwordInputs = ['oldPassword', 'newPassword', 'confirmPassword'];
+
+            passwordInputs.forEach(id => {
+                const input = document.getElementById(id);
+                // Buscamos el botón del ojo que está justo después del input
+                const btnIcon = input?.nextElementSibling?.querySelector('i');
+
+                if (input && btnIcon) {
+                    input.value = ''; // Limpiamos valor
+                    input.type = 'password'; // Forzamos tipo password
+                    btnIcon.classList.remove('fa-eye-slash'); // Reseteamos icono a ojo abierto
+                    btnIcon.classList.add('fa-eye');
+                }
+            });
+
+            document.getElementById('passwordErrorMsg').classList.add('hidden');
+        }
+
+        function cerrarModalPassword() {
+            document.getElementById('modalPassword').classList.add('hidden');
+        }
+
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="core/config.js"></script>
+    <script src="modules/auth/auth.service.js"></script>
+    <script src="modules/menu/modulosControl.service.js"></script>
+    <script src="modules/menu/menuNav.controller.js"></script>
+    <script src="modules/menu/cambiarContra.controller.js"></script>
+    <script src="core/session.controller.js"></script>
+    <script src="core/utils/sessionUtils.js"></script>
+    <script src="core/utils/searchMenuPrincipal.js"></script>
+
+    <!-- User-related scripts
+    <script src="js/config/config.user.js"></script>
+    <script src="js/services/user.service.js"></script>
+    <script src="js/controllers/user.controller.js"></script>
+     -->
+</body>
+
+</html>

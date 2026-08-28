@@ -1,0 +1,106 @@
+/* ============================================
+   CSS RESPONSIVE PARA DASHBOARDS
+   Hace que el contenido ocupe todo el ancho
+   cuando se oculta el sidebar lateral
+   ============================================ */
+
+/* Resetear márgenes y asegurar ancho completo */
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+/* overflow-x: hidden solo si no está en modo single-scroll (index inyecta single-scroll) */
+body:not(.single-scroll) {
+    overflow-x: hidden;
+}
+
+/* Contenedor principal - ocupa todo el ancho disponible */
+.container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    box-sizing: border-box;
+}
+
+/* Reducir padding en pantallas pequeñas */
+@media (max-width: 1023px) {
+    .container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+}
+
+/* Secciones ocupan todo el ancho */
+section {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Header responsive */
+header {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Tabla responsive */
+.overflow-x-auto {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#dataTable {
+    width: 100% !important;
+}
+
+.dataTables_wrapper {
+    width: 100% !important;
+}
+
+/* Modal responsive */
+#modal .bg-white,
+#modal > div > div {
+    max-width: 95vw;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    #modal .bg-white,
+    #modal > div > div {
+        max-width: 90vw;
+    }
+}
+
+@media (min-width: 1280px) {
+    #modal .bg-white,
+    #modal > div > div {
+        max-width: 1152px; /* max-w-6xl */
+    }
+}
+
+/* Asegurar que los formularios se ajusten */
+form {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Grid responsive para filtros */
+.grid {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Botones en móvil */
+@media (max-width: 640px) {
+    .flex.flex-wrap.gap-3 {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    .flex.flex-wrap.gap-3 button {
+        width: 100%;
+    }
+}
