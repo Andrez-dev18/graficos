@@ -28,7 +28,7 @@ class HistorialService
         $usuario = $this->getUsuarioSesion();
 
         $data = [
-            'id_programa'       => 2,
+            'id_programa'       => 5,
             'cod_usuario'    => $usuario['codigo'],
             'nom_usuario'    => $usuario['nombre'],
             'accion'         => $accion,
@@ -55,7 +55,7 @@ class HistorialService
         $client['ubicacion_gps'] = $ubicacionGPS; // Sobrescribir con la real
 
         $data = [
-            'id_programa'       => 2,
+            'id_programa'       => 5,
             'cod_usuario'       => $cod,
             'nom_usuario'       => $nom,
             'accion'            => $accion,

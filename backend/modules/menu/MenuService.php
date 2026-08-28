@@ -16,7 +16,7 @@ class MenuService
             throw new Exception("Faltan datos de identificación del usuario.");
         }
 
-        $modulosPlanos = $this->repo->getMenuPermitido($usuarioCodigo, $epre, '2');
+        $modulosPlanos = $this->repo->getMenuPermitido($usuarioCodigo, $epre, '5');
 
         return $this->construirArbol($modulosPlanos);
     }
@@ -44,12 +44,12 @@ class MenuService
 
     public function listarTodos()
     {
-        return $this->repo->listarModulosMenu('2');
+        return $this->repo->listarModulosMenu('5');
     }
 
     public function listarGrupos()
     {
-        return $this->repo->listarModulosGrupos('2');
+        return $this->repo->listarModulosGrupos('5');
     }
 
     public function obtenerPorId($id)
@@ -69,7 +69,7 @@ class MenuService
             $datos['tipo_param'] = null;
         }
 
-        $datos['id_programa'] = '2';
+        $datos['id_programa'] = '5';
 
         return $this->repo->guardar($datos);
     }
@@ -82,7 +82,7 @@ class MenuService
             throw new Exception("El módulo no existe.");
         }
 
-        if ($modulo['tipo'] === 'group' && $this->repo->tieneHijos($modulo['cod_mod'], '2')) {
+        if ($modulo['tipo'] === 'group' && $this->repo->tieneHijos($modulo['cod_mod'], '5')) {
             throw new Exception("No puedes eliminar este grupo porque tiene sub-módulos dentro. Elimina o mueve los sub-módulos primero.");
         }
 

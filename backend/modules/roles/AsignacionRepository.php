@@ -10,7 +10,7 @@ class AsignacionRepository
         $this->conn = $db;
     }
 
-    // 1. DataTables: Trae usuarios globales + los nombres de los roles que tienen en Planta Beneficio (Programa 2)
+    // 1. DataTables: Trae usuarios globales
     public function getUsuariosRolesDataTable($start, $length, $searchValue, $epre = 'RS')
     {
         $sqlBase = "FROM usuario u WHERE u.epre = :epre AND u.estado = 'A'";
@@ -35,7 +35,7 @@ class AsignacionRepository
                         (SELECT GROUP_CONCAT(r.nom_rol SEPARATOR '||') 
                          FROM adm_usuario_rol ur 
                          INNER JOIN adm_rol r ON ur.cod_rol = r.cod_rol 
-                         WHERE ur.codigo = u.codigo AND ur.epre = u.epre AND r.id_programa = 2) as roles_asignados
+                         WHERE ur.codigo = u.codigo AND ur.epre = u.epre AND r.id_programa = 5) as roles_asignados
                     " . $sqlBase . " 
                     ORDER BY CASE WHEN roles_asignados IS NOT NULL THEN 0 ELSE 1 END ASC, 
                              u.codigo ASC 
@@ -57,22 +57,22 @@ class AsignacionRepository
         ];
     }
 
-    // 2. Traer todos los roles activos del Programa 2 para pintar las "tarjetas" en el modal
-    public function obtenerRolesDisponibles($idPrograma = '2')
+    // 2. Traer todos los roles activos del Programa 5 para pintar las "tarjetas" en el modal
+    public function obtenerRolesDisponibles($idPrograma = '5')
     {
         $stmt = $this->conn->prepare("SELECT cod_rol, nom_rol, descripcion FROM adm_rol WHERE activo = 1 AND id_programa = :idProg ORDER BY nom_rol");
         $stmt->execute([':idProg' => $idPrograma]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // 3. Traer solo los CÓDIGOS de rol de un usuario específico para marcar los checkboxes en Planta (Programa 2)
+    // 3. Traer solo los CÓDIGOS de rol de un usuario específico para marcar los checkboxes en Planta (Programa 5)
     public function obtenerRolesDeUsuario($codigo, $epre = 'RS')
     {
 
         $sql = "SELECT ur.cod_rol 
                 FROM adm_usuario_rol ur
                 INNER JOIN adm_rol r ON ur.cod_rol = r.cod_rol
-                WHERE ur.codigo = :codigo AND ur.epre = :epre AND r.id_programa = 2";
+                WHERE ur.codigo = :codigo AND ur.epre = :epre AND r.id_programa = 5";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([':codigo' => $codigo, ':epre' => $epre]);
@@ -87,7 +87,7 @@ class AsignacionRepository
 
             $sqlDel = "DELETE ur FROM adm_usuario_rol ur 
                        INNER JOIN adm_rol r ON ur.cod_rol = r.cod_rol 
-                       WHERE ur.codigo = :codigo AND ur.epre = :epre AND r.id_programa = 2";
+                       WHERE ur.codigo = :codigo AND ur.epre = :epre AND r.id_programa = 5";
             $stmtDel = $this->conn->prepare($sqlDel);
             $stmtDel->execute([':codigo' => $codigo, ':epre' => $epre]);
 

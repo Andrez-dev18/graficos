@@ -29,7 +29,7 @@ class AsignacionService
         }
 
         return [
-            'roles_disponibles' => $this->repo->obtenerRolesDisponibles('2'),
+            'roles_disponibles' => $this->repo->obtenerRolesDisponibles('5'),
             'roles_usuario'     => $this->repo->obtenerRolesDeUsuario($codigoUsuario, $epre)
         ];
     }

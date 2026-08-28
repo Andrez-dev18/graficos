@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - asignacion de roles</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+
+
+    <link rel="stylesheet" href="../../assets/css/dashboard-styles.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard-style.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard-responsive.css">
+
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div class="container mx-auto px-4 py-6">
+
+        <section class="bg-white rounded-2xl card-shadow p-6 slide-down">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-gray-700 flex items-center gap-2">
+                    <i class="fas fa-users text-indigo-600"></i>
+                    Usuarios del Sistema
+                </h2>
+
+            </div>
+
+            <div class="table-scroll overflow-x-auto">
+                <table class="min-w-full" id="dataTableAsignacion">
+                    <thead
+                        class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white sticky top-0 text-sm uppercase">
+                        <tr>
+                            <th class="px-4 py-3 text-center font-semibold w-12">#</th>
+                            <th class="px-4 py-3 text-center font-semibold w-24">Código</th>
+                            <th class="px-4 py-3 text-left font-semibold">Nombre Completo</th>
+                            <th class="px-4 py-3 text-left font-semibold w-1/3">Roles Asignados</th>
+                            <th class="px-4 py-3 text-center font-semibold w-24">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBodyAsignacion" class="text-sm text-gray-700 divide-y divide-gray-200">
+
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="modalAsignacion"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 transition-opacity"
+        style="display: none; overflow-y: auto;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full transform transition-all">
+
+            <div
+                class="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 rounded-t-2xl flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fas fa-users-cog"></i> Gestionar Roles del Usuario
+                </h3>
+                <button id="btnCerrarModalAsignacion" class="text-white hover:text-gray-200 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6">
+                <div class="bg-indigo-50 border-l-4 border-indigo-500 p-3 rounded-r-lg mb-5">
+                    <p id="asig_nombre_usuario" class="font-bold text-gray-800 uppercase text-sm">JUAN PÉREZ GARCÍA</p>
+                    <p id="asig_codigo_usuario" class="text-xs text-indigo-600 font-mono mt-0.5">Código: U001</p>
+                </div>
+
+                <p class="text-sm text-gray-600 mb-3 font-medium">Selecciona los roles que tendrá este usuario en el
+                    sistema:</p>
+
+                <form id="formAsignacion">
+                    <input type="hidden" id="asig_codigo_oculto" name="codigo">
+
+                    <div id="contenedorTarjetasRoles" class="max-h-72 overflow-y-auto pr-1 space-y-2">
+
+                        <label
+                            class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer transition-all hover:border-indigo-300 has-[:checked]:bg-indigo-50/60 has-[:checked]:border-indigo-500 has-[:checked]:shadow-sm">
+                            <div class="mt-0.5">
+                                <input type="checkbox" name="roles[]" value="ADMIN"
+                                    class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer">
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-bold text-gray-800 text-sm">Administrador del Sistema</p>
+                                <p class="text-xs text-gray-500 mt-0.5">ADMIN - Acceso total a todos los módulos del
+                                    sistema</p>
+                            </div>
+                        </label>
+
+                        <label
+                            class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer transition-all hover:border-indigo-300 has-[:checked]:bg-indigo-50/60 has-[:checked]:border-indigo-500 has-[:checked]:shadow-sm">
+                            <div class="mt-0.5">
+                                <input type="checkbox" name="roles[]" value="SUPERVISOR"
+                                    class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer">
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-bold text-gray-800 text-sm">Supervisor de Operaciones</p>
+                                <p class="text-xs text-gray-500 mt-0.5">SUPERVISOR - Solo ve sus propios trabajadores
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-5 border-t border-gray-100 mt-5">
+                        <button type="button" id="btnCancelarAsignacion"
+                            class="px-5 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors text-sm">
+                            <i class="fas fa-times mr-1"></i> Cancelar
+                        </button>
+                        <button type="submit" id="btnGuardarAsignacion"
+                            class="px-5 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold shadow transition-colors flex items-center gap-2 text-sm">
+                            <i class="fas fa-save"></i> Guardar roles
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Loading -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-2xl">
+            <i class="fas fa-spinner fa-spin text-4xl text-purple-600 mb-2"></i>
+            <p class="text-gray-700">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="../../core/config.js"></script>
+    <script src="asignacion.service.js"></script>
+    <script src="asignacion.controller.js"></script>
+
+</body>
+
+</html>

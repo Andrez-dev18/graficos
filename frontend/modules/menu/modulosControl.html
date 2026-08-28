@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - modulos control </title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+
+
+    <link rel="stylesheet" href="../../assets/css/dashboard-styles.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard-style.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard-responsive.css">
+
+
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div class="container mx-auto px-4 py-6">
+
+        <!-- Acciones -->
+        <section class="bg-white rounded-2xl card-shadow p-4 mb-4 slide-down">
+            <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-tools text-purple-600"></i>
+                Acciones
+            </h2>
+            <div class="flex flex-wrap gap-3 items-center justify-between">
+                <div class="flex flex-wrap gap-3">
+                    <button id="btnNuevo"
+                        class="bg-green-600 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow btn-hover-scale">
+                        <i class="fas fa-plus mr-2"></i>
+                        Nuevo Módulo
+                    </button>
+                    <button id="btnActualizar"
+                        class="bg-blue-700 hover:bg-blue-900 text-white font-semibold py-2 px-4 rounded-lg shadow btn-hover-scale">
+                        <i class="fas fa-sync-alt mr-2"></i>
+                        Actualizar
+                    </button>
+                </div>
+
+
+            </div>
+        </section>
+
+
+        <!-- Tabla -->
+        <section class="bg-white rounded-2xl card-shadow p-6 slide-down">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-gray-700 flex items-center gap-2">
+                    <i class="fas fa-list-ul text-purple-600"></i>
+                    Jerarquía del dashboard
+                </h2>
+
+                <div class="flex items-center gap-4 w-full md:w-auto">
+                    <div class="relative w-full md:w-64">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-500"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar en dashboard..."
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm">
+                    </div>
+                    <div class="text-right hidden sm:block">
+                        <p class="text-xs text-gray-400 font-semibold uppercase">Programa</p>
+                        <p class="text-sm font-bold text-gray-700">Planta Beneficio</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-scroll overflow-x-auto">
+                <table class="min-w-full" id="dataTable">
+                    <thead class="bg-gradient-to-r from-blue-800 to-blue-800 text-white sticky top-0 text-sm uppercase">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Nivel</th>
+                            <th class="px-4 py-3 text-left font-semibold">Módulo</th>
+                            <th class="px-4 py-3 text-left font-semibold">Cod_Mod</th>
+                            <th class="px-4 py-3 text-center font-semibold">Tipo</th>
+                            <th class="px-4 py-3 text-left font-semibold">Parent_Cod</th>
+                            <th class="px-4 py-3 text-left font-semibold">Label_Short</th>
+                            <th class="px-4 py-3 text-left font-semibold">Tipo_Param</th>
+                            <th class="px-4 py-3 text-left font-semibold">Título</th>
+                            <th class="px-4 py-3 text-center font-semibold">Orden</th>
+                            <th class="px-4 py-3 text-center font-semibold">Opciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-sm text-gray-700 divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="10" class="text-center py-8 text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2 text-purple-500"></i><br>
+                                Cargando jerarquía...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4"
+        style="display: none; overflow-y: auto;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8 transform transition-all">
+
+            <div
+                class="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 rounded-t-2xl flex justify-between items-center">
+                <h3 id="modalTitle" class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fas fa-sitemap"></i> Nuevo Módulo
+                </h3>
+                <button id="btnCerrarModal" class="text-white hover:text-gray-200 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6">
+                <form id="moduloForm" class="space-y-6">
+                    <input type="hidden" id="mod_id" name="id">
+                    <input type="hidden" id="mod_id_programa" name="id_programa" value="2">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Código de Módulo (cod_mod)
+                                *</label>
+                            <input type="text" id="mod_cod_mod" name="cod_mod" required placeholder="Ej: itm-ventas-01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                            <p class="text-xs text-gray-400 mt-1">Identificador único. Usa prefijos grp-, sub-, itm-</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                            <select id="mod_tipo" name="tipo" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white">
+                                <option value="item">Item (Módulo Menú Lateral)</option>
+                                <option value="group">Group (Carpeta/Agrupador)</option>
+                                <option value="main">Main (Pantalla Principal / Inicio)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Módulo (nom_mod)
+                                *</label>
+                            <input type="text" id="mod_nom_mod" name="nom_mod" required
+                                placeholder="Ej: Reporte de Ventas"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Módulo Padre
+                                (parent_cod)</label>
+                            <select id="mod_parent_cod" name="parent_cod"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white">
+                                <option value="">-- Ninguno (Es nivel principal) --</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Label Short</label>
+                                <input type="text" id="mod_label_short" name="label_short" placeholder="Ej: Ventas"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Icono (FontAwesome)</label>
+                                <input type="text" id="mod_icono" name="icono" placeholder="Ej: fas fa-chart-bar"
+                                    value="fas fa-circle"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Orden de aparición *</label>
+                            <input type="number" id="mod_orden" name="orden" required value="1" min="1"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ruta del Archivo (url)</label>
+                            <input type="text" id="mod_url" name="url"
+                                placeholder="Ej: dashboard-ventas.html (Solo para items)"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Parámetro (tipo_param)</label>
+                            <input type="text" id="mod_tipo_param" name="tipo_param" placeholder="Ej: ventas-norte"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Título del Iframe
+                                (titulo)</label>
+                            <input type="text" id="mod_titulo" name="titulo" placeholder="Ej: Gestión de Ventas Norte"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">
+                        <button type="button" id="btnCancelar"
+                            class="px-6 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="btnGuardar"
+                            class="px-6 py-2 text-white bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold shadow transition-colors flex items-center gap-2">
+                            <i class="fas fa-save"></i> Guardar Módulo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Loading -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-2xl">
+            <i class="fas fa-spinner fa-spin text-4xl text-purple-600 mb-2"></i>
+            <p class="text-gray-700">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="../../core/config.js"></script>
+    <script src="modulosControl.service.js"></script>
+    <script src="modulosControl.controller.js"></script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            if (window.modulosControlController) {
+                window.modulosControlController.init();
+            } else {
+                //console.error('❌ modulosControlController no está disponible');
+            }
+
+        });
+
+    </script>
+
+
+</body>
+
+</html>

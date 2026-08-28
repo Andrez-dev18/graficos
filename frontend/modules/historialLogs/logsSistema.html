@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - logs historial</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard-styles.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard-responsive.css">
+
+</head>
+
+<style>
+    #filterContent {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.5s ease-in-out, opacity 0.4s ease, padding 0.3s ease;
+    }
+
+    #filterContent.show {
+        max-height: 1200px;
+        /* FIX: Aumentado para que no se corte en celulares */
+        opacity: 1;
+        padding-top: 1rem;
+    }
+</style>
+
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div class="container mx-auto px-4 py-6">
+
+        <!-- Filtros -->
+        <section class="bg-white rounded-2xl shadow-lg p-6 mb-6 slide-down">
+            <div class="flex items-center justify-between mb-4 border-b pb-3">
+                <h2 class="text-xl font-bold text-gray-700 flex items-center gap-2">
+                    <i class="fas fa-sliders-h text-purple-600"></i>
+                    Filtros de Búsqueda
+                </h2>
+                <div class="flex gap-3">
+                    <button id="btnToggleFiltros" class="text-gray-500 hover:text-purple-600 transition">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                    <button id="btnLimpiarFiltros" class="text-purple-600 hover:text-purple-700 font-semibold text-sm">
+                        <i class="fas fa-times-circle mr-1"></i>
+                        Limpiar filtros
+                    </button>
+                </div>
+            </div>
+
+            <div id="filterContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+
+                <div class="flex-grow">
+                    <label for="filtro_programa"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-desktop text-purple-600 w-4 text-center"></i> Sistema
+                    </label>
+                    <select id="filtro_programa"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="5" selected disabled>Sistema Graficos</option>
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="filtro_accion"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-bolt text-purple-600 w-4 text-center"></i> Acción
+                    </label>
+                    <select id="filtro_accion"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="filtro_tabla"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-table text-purple-600 w-4 text-center"></i> Tabla
+                    </label>
+                    <select id="filtro_tabla"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="filtro_dispositivo"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-mobile-alt text-purple-600 w-4 text-center"></i> Dispositivo
+                    </label>
+                    <select id="filtro_dispositivo"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="filtro_so"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fab fa-windows text-purple-600 w-4 text-center"></i> Sistema Op.
+                    </label>
+                    <select id="filtro_so"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="filtro_navegador"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fab fa-chrome text-purple-600 w-4 text-center"></i> Navegador
+                    </label>
+                    <select id="filtro_navegador"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="periodoTipo"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-clock text-purple-600 w-4 text-center"></i> Periodo
+                    </label>
+                    <select id="periodoTipo"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white">
+                        <option value="TODOS">Todos</option>
+                        <option value="ULTIMA_SEMANA">Última Semana</option>
+                        <option value="POR_MES">Por mes</option>
+                        <option value="ENTRE_MESES">Entre meses</option>
+                        <option value="POR_FECHA" selected>Por fecha</option>
+                        <option value="ENTRE_FECHAS">Entre fechas</option>
+                    </select>
+                </div>
+
+                <div id="periodoPorFecha" class="flex-grow">
+                    <label for="fechaUnica"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-calendar-day text-purple-600 w-4 text-center"></i> Fecha
+                    </label>
+                    <input id="fechaUnica" type="date"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <div id="periodoEntreFechas" class="hidden flex-grow col-span-1 md:col-span-2">
+                    <div class="flex flex-row gap-3">
+                        <div class="w-1/2">
+                            <label for="fechaInicio"
+                                class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                                <i class="fas fa-calendar-alt text-purple-600 w-4 text-center"></i> Desde
+                            </label>
+                            <input id="fechaInicio" type="date"
+                                class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div class="w-1/2">
+                            <label for="fechaFin"
+                                class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                                <i class="fas fa-calendar-check text-purple-600 w-4 text-center"></i> Hasta
+                            </label>
+                            <input id="fechaFin" type="date"
+                                class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="periodoPorMes" class="hidden flex-grow">
+                    <label for="mesUnico"
+                        class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                        <i class="fas fa-calendar text-purple-600 w-4 text-center"></i> Mes
+                    </label>
+                    <input id="mesUnico" type="month"
+                        class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <div id="periodoEntreMeses" class="hidden flex-grow col-span-1 md:col-span-2">
+                    <div class="flex flex-row gap-3">
+                        <div class="w-1/2">
+                            <label for="mesInicio"
+                                class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                                <i class="fas fa-calendar text-purple-600 w-4 text-center"></i> Mes (Desde)
+                            </label>
+                            <input id="mesInicio" type="month"
+                                class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div class="w-1/2">
+                            <label for="mesFin"
+                                class="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1 h-[24px]">
+                                <i class="fas fa-calendar text-purple-600 w-4 text-center"></i> Mes (Hasta)
+                            </label>
+                            <input id="mesFin" type="month"
+                                class="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-end col-span-1 md:col-span-2 xl:col-span-1 mt-2 xl:mt-0">
+                    <button id="btnAplicarFiltros"
+                        class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transform hover:-translate-y-0.5 transition-all w-full h-10">
+                        <i class="fas fa-search mr-2"></i> Consultar
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-2xl card-shadow p-6 slide-down">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-gray-700 flex items-center gap-2">
+                    <i class="fas fa-list-ul text-purple-600"></i>
+                    Historial de logs registrados
+                </h2>
+            </div>
+
+            <div class="table-scroll overflow-x-auto">
+                <table class="min-w-full whitespace-nowrap" id="dataTableRoles" style="width: 100%;">
+                    <thead
+                        class="bg-gradient-to-r from-purple-600 to-indigo-700 text-white text-sm uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3 text-center font-semibold">#</th>
+                            <th class="px-4 py-3 text-left font-semibold">programa</th>
+                            <th class="px-4 py-3 text-left font-semibold">id_programa</th>
+                            <th class="px-4 py-3 text-left font-semibold">cod_user</th>
+                            <th class="px-4 py-3 text-center font-semibold">nom user</th>
+                            <th class="px-4 py-3 text-center font-semibold">accion</th>
+                            <th class="px-4 py-3 text-center font-semibold">tabla_afectada</th>
+                            <th class="px-4 py-3 text-center font-semibold">registro_id</th>
+                            <th class="px-4 py-3 text-center font-semibold">datos_previos</th>
+                            <th class="px-4 py-3 text-center font-semibold">datos_nuevos</th>
+                            <th class="px-4 py-3 text-center font-semibold">descripcion</th>
+                            <th class="px-4 py-3 text-center font-semibold">fechaHora</th>
+                            <th class="px-4 py-3 text-center font-semibold">ip</th>
+                            <th class="px-4 py-3 text-center font-semibold">ubicacion</th>
+                            <th class="px-4 py-3 text-center font-semibold">dispositivo</th>
+                            <th class="px-4 py-3 text-center font-semibold">Sistema OP</th>
+                            <th class="px-4 py-3 text-center font-semibold">Navegador</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBodyRoles" class="text-sm text-gray-700 divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-2xl">
+            <i class="fas fa-spinner fa-spin text-4xl text-purple-600 mb-2"></i>
+            <p class="text-gray-700">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="../../core/config.js"></script>
+    <script src="log.service.js"></script>
+    <script src="log.controller.js"></script>
+
+
+
+</body>
+
+</html>

@@ -13,14 +13,14 @@ class RolService
 
     public function listarRoles()
     {
-        // Forzamos consistentemente al Programa 2
-        return $this->repo->listarRoles(2);
+        // Forzamos consistentemente al Programa 5
+        return $this->repo->listarRoles(5);
     }
 
     public function obtenerModulosArbol()
     {
-        // Sincronizado exactamente con el método del Repositorio para el Programa 2
-        return $this->repo->obtenerModulosPrograma(2);
+        // Sincronizado exactamente con el método del Repositorio para el Programa 5
+        return $this->repo->obtenerModulosPrograma(5);
     }
 
     public function obtenerPorId($id)
@@ -33,7 +33,7 @@ class RolService
 
     public function guardarRol($datos)
     {
-        $idPrograma = 2;
+        $idPrograma = 5;
         $isEdit = !empty($datos['is_edit']) && $datos['is_edit'] === 'true';
 
         if (empty($datos['cod_rol']) || empty($datos['nom_rol'])) {
@@ -44,7 +44,7 @@ class RolService
         $datos['cod_rol'] = strtoupper(trim(preg_replace('/\s+/', '_', $datos['cod_rol'])));
         $datos['id_programa'] = $idPrograma;
 
-        // 2. VALIDACIÓN GLOBAL: Evaluamos si existe en el Programa 2
+        // 2. VALIDACIÓN GLOBAL: Evaluamos si existe en el Programa 5
         $rolExistente = $this->repo->existeCodRol($datos['cod_rol'], $idPrograma);
 
         if ($rolExistente) {

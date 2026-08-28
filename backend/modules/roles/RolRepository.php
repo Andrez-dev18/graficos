@@ -10,7 +10,7 @@ class RolRepository
         $this->conn = $db;
     }
 
-    public function listarRoles($idPrograma = 2)
+    public function listarRoles($idPrograma = 5)
     {
         $query = "SELECT r.id, r.cod_rol, r.nom_rol, r.descripcion, r.activo, r.id_programa,
                          (SELECT COUNT(*) FROM adm_rol_progr_modulo rpm WHERE rpm.id_rol = r.id) as total_modulos
@@ -22,7 +22,7 @@ class RolRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function obtenerPorId($id, $idPrograma = 2)
+    public function obtenerPorId($id, $idPrograma = 5)
     {
         $stmt = $this->conn->prepare("SELECT * FROM adm_rol WHERE id = :id AND id_programa = :idPrograma");
         $stmt->execute([':id' => $id, ':idPrograma' => $idPrograma]);
@@ -37,7 +37,7 @@ class RolRepository
         return $rol;
     }
 
-    public function obtenerModulosPrograma($idPrograma = 2)
+    public function obtenerModulosPrograma($idPrograma = 5)
     {
         $query = "SELECT cod_mod, nom_mod, tipo, parent_cod, orden 
                   FROM amd_dashboard_modulos 
@@ -50,7 +50,7 @@ class RolRepository
 
     public function guardar($datos, $modulosPermitidos, $isEdit = false)
     {
-        $idPrograma = 2;
+        $idPrograma = 5;
 
         try {
             $this->conn->beginTransaction();
@@ -110,7 +110,7 @@ class RolRepository
 
     public function eliminar($id)
     {
-        $idPrograma = 2;
+        $idPrograma = 5;
 
         $sqlCheck = "SELECT COUNT(*) 
                      FROM adm_usuario_rol 
@@ -147,14 +147,14 @@ class RolRepository
 
     public function cambiarEstado($id, $estado)
     {
-        $stmt = $this->conn->prepare("UPDATE adm_rol SET activo = :estado WHERE id = :id AND id_programa = 2");
+        $stmt = $this->conn->prepare("UPDATE adm_rol SET activo = :estado WHERE id = :id AND id_programa = 5");
         return $stmt->execute([
             ':estado' => $estado,
             ':id' => $id
         ]);
     }
 
-    public function existeCodRol($codRol, $idPrograma = 2)
+    public function existeCodRol($codRol, $idPrograma = 5)
     {
         $query = "SELECT id, cod_rol FROM adm_rol WHERE cod_rol = :cod_rol AND id_programa = :id_programa LIMIT 1";
         $stmt = $this->conn->prepare($query);

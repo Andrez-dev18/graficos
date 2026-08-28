@@ -10,7 +10,7 @@ class MenuRepository
         $this->conn = $db;
     }
 
-    public function getMenuPermitido($usuarioCodigo, $epre, $idPrograma = '2')
+    public function getMenuPermitido($usuarioCodigo, $epre, $idPrograma = '5')
     {
         $query = "SELECT DISTINCT 
                     m.cod_mod, 
@@ -45,7 +45,7 @@ class MenuRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function listarModulosMenu($idPrograma = '2')
+    public function listarModulosMenu($idPrograma = '5')
     {
         $query = "SELECT * FROM amd_dashboard_modulos WHERE id_programa = :idPrograma ORDER BY parent_cod, orden";
         $stmt = $this->conn->prepare($query);
@@ -54,7 +54,7 @@ class MenuRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function listarModulosGrupos($idPrograma = '2')
+    public function listarModulosGrupos($idPrograma = '5')
     {
         $query = "SELECT cod_mod, nom_mod FROM amd_dashboard_modulos WHERE id_programa = :idPrograma AND tipo = 'group' ORDER BY orden";
         $stmt = $this->conn->prepare($query);
@@ -72,7 +72,7 @@ class MenuRepository
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function tieneHijos($codMod, $idPrograma = '2')
+    public function tieneHijos($codMod, $idPrograma = '5')
     {
         $query = "SELECT COUNT(*) as total FROM amd_dashboard_modulos WHERE parent_cod = :codMod AND id_programa = :idPrograma";
         $stmt = $this->conn->prepare($query);
@@ -92,8 +92,8 @@ class MenuRepository
         $label_short = !empty($datos['label_short']) ? $datos['label_short'] : null;
         $icono       = !empty($datos['icono']) ? $datos['icono'] : 'fas fa-circle';
 
-        // Forzar id_programa a '2' si no se especifica
-        $id_programa = !empty($datos['id_programa']) ? $datos['id_programa'] : '2';
+        // Forzar id_programa a '5' si no se especifica
+        $id_programa = !empty($datos['id_programa']) ? $datos['id_programa'] : '5';
 
         if (empty($datos['id'])) {
             $query = "INSERT INTO amd_dashboard_modulos 
