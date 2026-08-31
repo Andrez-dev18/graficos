@@ -4,6 +4,7 @@ class SaldosController {
         this.chartsMap = new Map();
         this.cacheData = {};
         this.currentPeriodo = { inicio: '', fin: '' };
+        this.puntoSeleccionado = null;
 
         this.msTipoGrafico = null;
         this.msCuentaVenta = null;
@@ -17,6 +18,7 @@ class SaldosController {
 
         this.inicializarComponentesFiltros();
         this.setupEventListeners();
+        this.setupModalEventListeners();
 
         PeriodoHelper.renderizarInputs();
         await this.cargarFiltrosIniciales();
@@ -100,6 +102,131 @@ class SaldosController {
             this.msNomCliente?.selectAll();
             this.sincronizarVisibilidadEnCaliente();
         });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#popup-menu-barra')) {
+                document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            }
+        });
+    }
+
+    setupModalEventListeners() {
+        const btnVerDatos = document.getElementById('btn-abrir-ver-datos');
+        const btnCerrarModal = document.getElementById('btn-cerrar-modal');
+        const modal = document.getElementById('modal-ver-datos');
+        const tabResumen = document.getElementById('tab-btn-resumen');
+        const tabCompletos = document.getElementById('tab-btn-completos');
+
+        btnVerDatos?.addEventListener('click', () => {
+            document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            if (this.puntoSeleccionado) {
+                this.abrirModalVerDatos();
+            }
+        });
+
+        btnCerrarModal?.addEventListener('click', () => {
+            modal?.classList.add('hidden');
+        });
+
+        // Cambio de Tabs en el Modal
+        tabResumen?.addEventListener('click', () => this.cambiarTabModal('resumen'));
+        tabCompletos?.addEventListener('click', () => this.cambiarTabModal('completos'));
+    }
+
+    async abrirModalVerDatos() {
+        const modal = document.getElementById('modal-ver-datos');
+        if (!modal || !this.puntoSeleccionado) return;
+
+        const { cuenta, fechaFormateada, saldofinal } = this.puntoSeleccionado;
+
+        document.getElementById('modal-titulo-vista').textContent = `Ver datos: Cuenta ${cuenta}`;
+        document.getElementById('modal-subtitulo-filas').textContent = `Día de fechacarga: ${fechaFormateada}`;
+
+        // Llenar pestaña Resumen
+        const tbodyResumen = document.getElementById('tbody-modal-resumen');
+        if (tbodyResumen) {
+            tbodyResumen.innerHTML = `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 border-r border-slate-200 font-semibold">${cuenta}</td>
+                    <td class="px-4 py-3 border-r border-slate-200">${fechaFormateada}</td>
+                    <td class="px-4 py-3 text-right font-bold text-slate-900">${this.formatearNumeroTableau(saldofinal, true)}</td>
+                </tr>
+            `;
+        }
+
+        this.cambiarTabModal('resumen');
+        modal.classList.remove('hidden');
+
+        // Cargar datos completos en background
+        await this.cargarDatosCompletosModal();
+    }
+
+    cambiarTabModal(tab) {
+        const tabResumen = document.getElementById('tab-btn-resumen');
+        const tabCompletos = document.getElementById('tab-btn-completos');
+        const vistaResumen = document.getElementById('vista-tab-resumen');
+        const vistaCompletos = document.getElementById('vista-tab-completos');
+
+        if (tab === 'resumen') {
+            tabResumen.className = 'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 transition-all text-left cursor-pointer';
+            tabCompletos.className = 'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all text-left cursor-pointer';
+            vistaResumen.classList.remove('hidden');
+            vistaCompletos.classList.add('hidden');
+        } else {
+            tabCompletos.className = 'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 transition-all text-left cursor-pointer';
+            tabResumen.className = 'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all text-left cursor-pointer';
+            vistaCompletos.classList.remove('hidden');
+            vistaResumen.classList.add('hidden');
+        }
+    }
+
+    async cargarDatosCompletosModal() {
+        const loader = document.getElementById('loader-modal-detalle');
+        const tabla = document.getElementById('tabla-modal-completos');
+        const tbody = document.getElementById('tbody-modal-completos');
+
+        loader?.classList.remove('hidden');
+        tabla?.classList.add('hidden');
+        if (tbody) tbody.innerHTML = '';
+
+        try {
+            const totalClientesOpciones = this.msNomCliente.options.length;
+            const selectedClientes = this.msNomCliente.getSelectedValues();
+            const clientesPayload = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+
+            const res = await this.service.obtenerDetalle({
+                cuentaventa: this.puntoSeleccionado.cuenta,
+                fechacarga: this.puntoSeleccionado.fecha,
+                clientes: clientesPayload
+            });
+
+            loader?.classList.add('hidden');
+
+            if (res.success && res.payload && res.payload.datos_completos) {
+                const filas = res.payload.datos_completos;
+                document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada})`;
+
+                tbody.innerHTML = filas.map(item => `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-2.5 border-r border-slate-200 font-medium">${item.cuentaventa}</td>
+                        <td class="px-4 py-2.5 border-r border-slate-200 whitespace-nowrap">${this.puntoSeleccionado.fechaFormateada}</td>
+                        <td class="px-4 py-2.5 border-r border-slate-200 text-slate-500 whitespace-nowrap">${this.formatearFechaCortaTableau(item.fechacarga)}</td>
+                        <td class="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">${item.nomcliente}</td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-900">${this.formatearNumeroTableau(item.saldofinal, true)}</td>
+                    </tr>
+                `).join('');
+
+                tabla?.classList.remove('hidden');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
+                tabla?.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error al cargar datos completos en el modal:', error);
+            loader?.classList.add('hidden');
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
+            tabla?.classList.remove('hidden');
+        }
     }
 
     async cargarFiltrosIniciales() {
@@ -317,9 +444,24 @@ class SaldosController {
         return `${day} de ${meses[month - 1]} de ${year}`;
     }
 
-    formatearNumeroTableau(numero) {
-        if (numero === null || numero === undefined) return '0';
-        return Math.round(Number(numero)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    formatearNumeroTableau(numero, incluirDecimales = true) {
+        if (numero === null || numero === undefined) return incluirDecimales ? '0,00' : '0';
+        const num = Number(numero);
+        if (isNaN(num)) return '0,00';
+
+        if (!incluirDecimales) {
+            return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        const partes = num.toFixed(2).split('.');
+        partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return partes.join(',');
+    }
+
+    formatearFechaCortaTableau(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = fechaStr.split('-').map(Number);
+        return `${day}/${month}/${year}`;
     }
 
     /**
@@ -402,6 +544,29 @@ class SaldosController {
                 }]
             },
             options: {
+                onClick: (event, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const fechaOriginal = datosCuenta[index].fecha;
+                        const fechaTexto = labelsFormateados[index];
+                        const monto = datosCuenta[index].saldofinal;
+
+                        self.puntoSeleccionado = {
+                            cuenta: cuenta,
+                            fecha: fechaOriginal,
+                            fechaFormateada: fechaTexto,
+                            saldofinal: monto
+                        };
+
+                        // Posicionar y mostrar el menú flotante 'Ver datos'
+                        const popup = document.getElementById('popup-menu-barra');
+                        if (popup) {
+                            popup.style.left = `${event.native.clientX + 10}px`;
+                            popup.style.top = `${event.native.clientY + 10}px`;
+                            popup.classList.remove('hidden');
+                        }
+                    }
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {

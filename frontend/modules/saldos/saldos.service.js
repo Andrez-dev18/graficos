@@ -1,13 +1,14 @@
 class saldosService {
     constructor() {
-        this.baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.API && AppConfig.API.BASE_URL) 
-            ? AppConfig.API.BASE_URL 
+        this.baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.API && AppConfig.API.BASE_URL)
+            ? AppConfig.API.BASE_URL
             : '';
     }
 
     ENDPOINTS = {
         FILTROS: '/saldosxCobrar/filtros',
         GRAFICODATA: '/saldosxCobrar/grafico',
+        DETALLE: '/saldosxCobrar/detalle',
     };
 
     /**
@@ -58,6 +59,32 @@ class saldosService {
             return data;
         } catch (error) {
             console.error('Error al obtener datos del gráfico en saldosService:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Obtiene el desglose completo para la barra seleccionada (Modal Ver Datos)
+     * @param {Object} params { cuentaventa, fechacarga, clientes }
+     */
+    async obtenerDetalle(params) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.DETALLE}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(params)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al obtener detalle en saldosService:', error);
             throw error;
         }
     }

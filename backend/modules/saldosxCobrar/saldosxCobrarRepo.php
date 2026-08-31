@@ -91,4 +91,48 @@ class saldosxCobrarRepo
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene el desglose completo de registros para una cuenta y fecha específica
+     */
+    public function getDetallePorCuentaYFecha($cuentaventa, $fechacarga, array $clientes = [])
+    {
+        $params = [
+            ':cuentaventa' => $cuentaventa,
+            ':fechacarga'  => $fechacarga
+        ];
+
+        $where = [
+            "cuentaventa = :cuentaventa",
+            "fechacarga = :fechacarga"
+        ];
+
+        if (!empty($clientes)) {
+            $clientesPlaceholders = [];
+            foreach ($clientes as $i => $cli) {
+                $ph = ":cli_" . $i;
+                $clientesPlaceholders[] = $ph;
+                $params[$ph] = $cli;
+            }
+            $where[] = "nomcliente IN (" . implode(', ', $clientesPlaceholders) . ")";
+        }
+
+        // Sin ORDER BY para mantener el orden natural de extracción de MyISAM tal cual Tableau
+        $sql = "SELECT 
+                    cuentaventa,
+                    fechacarga,
+                    codcliente,
+                    COALESCE(nomcliente, 'SIN NOMBRE') AS nomcliente,
+                    ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
+                FROM dmdocventas2
+                WHERE " . implode(' AND ', $where);
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
