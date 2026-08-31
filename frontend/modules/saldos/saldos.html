@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graficos saldos</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+
+</head>
+
+<body class="bg-gray-100 h-screen m-0 p-0">
+
+
+    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 relative">
+
+        <!-- BARRA SUPERIOR DE TABS ALINEADA AL BORDE EXTERIOR -->
+        <div id="cabecera-filtros"
+            class="flex flex-wrap items-center justify-between bg-white border-b border-slate-200/80 rounded-t-2xl transition-all">
+            <!-- TABS INTEGRADOS AL RAS DEL BORDE SUPERIOR E IZQUIERDO -->
+            <div class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Filtros dinámicos</h1>
+                    <p class="text-xs text-slate-500">Filtre por rango de fechas, tipo de gráfico, cuenta venta y nombre de cliente.
+                    </p>
+                </div>
+            </div>
+
+            <!-- BOTÓN TOGGLE PLEGAR / DESPLEGAR -->
+            <div class="px-3 py-2 sm:px-4">
+                <button id="btn-toggle-filtros" type="button"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
+                    <span id="label-toggle-filtros">Ocultar filtros</span>
+                    <svg id="icon-toggle-filtros" class="w-4 h-4 transition-transform duration-300" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DE FILTROS -->
+        <div id="contenedor-filtros-contenido" class="p-4 sm:p-5 transition-all duration-300">
+            <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+
+                <!-- 1. FILTRO FECHA CARGA (Rango) -->
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA CARGA
+                        (RANGO)</label>
+                    <div class="flex items-center gap-2">
+                        <input type="date" id="fecha-inicio" value="2021-10-01"
+                            class="bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm font-medium rounded-lg px-2.5 py-2 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
+                        <span class="text-slate-400 text-xs font-semibold">a</span>
+                        <input type="date" id="fecha-fin" value="2026-08-30"
+                            class="bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm font-medium rounded-lg px-2.5 py-2 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- 2. MULTI-SELECT TIPO DE GRÁFICOS -->
+                <div class="flex flex-col relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE
+                        GRÁFICO</label>
+                    <button id="ms-tipografico-btn" type="button"
+                        class="w-full sm:w-auto min-w-[210px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-tipografico-label" class="truncate">saltosXcobrarXbarra</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-tipografico-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <div class="relative mb-2">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="ms-tipografico-search" placeholder="Buscar tipo de gráfico..."
+                                class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800">
+                        </div>
+                        <div id="ms-tipografico-options" class="max-h-56 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 3. MULTI-SELECT CUENTA VENTA -->
+                <div class="flex flex-col relative">
+                    <label
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CUENTAVENTA</label>
+                    <button id="ms-cuentaventa-btn" type="button"
+                        class="w-full sm:w-auto min-w-[170px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-cuentaventa-label" class="truncate">Todos seleccionados</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-cuentaventa-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <div class="relative mb-2">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="ms-cuentaventa-search" placeholder="Buscar cuenta venta..."
+                                class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800">
+                        </div>
+                        <div id="ms-cuentaventa-options" class="max-h-56 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 4. MULTI-SELECT NOMCLIENTE -->
+                <div class="flex flex-col relative">
+                    <label
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">NOMCLIENTE</label>
+                    <button id="ms-nomcliente-btn" type="button"
+                        class="w-full sm:w-auto min-w-[220px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-nomcliente-label" class="truncate">Todos seleccionados</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-nomcliente-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <div class="relative mb-2">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="ms-nomcliente-search" placeholder="Buscar cliente..."
+                                class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800">
+                        </div>
+                        <div id="ms-nomcliente-options" class="max-h-60 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 5. DISPOSICIÓN DE PANELES (VERTICAL / HORIZONTAL) -->
+                <div class="flex flex-col">
+                    <label for="select-disposicion-graficos"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DISPOSICIÓN</label>
+                    <div class="relative inline-flex items-center">
+                        <div id="icono-disposicion-activa"
+                            class="absolute left-2.5 pointer-events-none text-slate-600 flex items-center">
+                            <svg id="icon-disp-vertical" class="w-4 h-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                            <svg id="icon-disp-horizontal" class="w-4 h-4 hidden" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 4v16M15 4v16M4 4h16M4 20h16"></path>
+                            </svg>
+                        </div>
+                        <select id="select-disposicion-graficos"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg pl-8 pr-8 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer appearance-none">
+                            <option value="vertical" selected>Vertical</option>
+                            <option value="horizontal">Horizontal</option>
+                        </select>
+                        <div class="absolute right-2.5 pointer-events-none text-slate-400 flex items-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="flex items-center gap-2 ml-auto sm:ml-0">
+                    <button id="btn-cargar" type="button"
+                        class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        <span>Cargar</span>
+                    </button>
+                    <button id="btn-limpiar" type="button"
+                        class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200 transition-all cursor-pointer">
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR DINÁMICO DE GRÁFICOS (TARJETAS INDEPENDIENTES) -->
+    <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-10">
+        <!-- Generado dinámicamente por app.js -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <script src="../../core/config.js"></script>
+    <script src="app.js"></script>
+
+
+</body>
+
+</html>
