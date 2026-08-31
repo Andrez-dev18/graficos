@@ -134,7 +134,19 @@ class SaldosController {
         const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
 
         if (modoDisposicion === 'horizontal') {
-            contenedor.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 pb-10 items-start';
+            // Contamos cuántas cuentas están seleccionadas/visibles actualmente
+            const totalVisibles = this.msCuentaVenta ? this.msCuentaVenta.getSelectedValues().length : 0;
+
+            if (totalVisibles === 1) {
+                // 1 gráfico: ocupa todo el ancho disponible
+                contenedor.className = 'grid grid-cols-1 gap-6 mt-6 pb-10 items-start';
+            } else if (totalVisibles === 2) {
+                // 2 gráficos: mitad y mitad (2 columnas exactas)
+                contenedor.className = 'grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pb-10 items-start';
+            } else {
+                // 3 o más gráficos: hasta 3 columnas
+                contenedor.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 pb-10 items-start';
+            }
         } else {
             contenedor.className = 'flex flex-col gap-6 mt-6 pb-10';
         }
@@ -155,6 +167,9 @@ class SaldosController {
         const selectedCuentas = this.msCuentaVenta.getSelectedValues();
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
+
+        // Recalcula el ancho de las columnas en caliente según la cantidad activa
+        this.aplicarLayoutGrid();
 
         // 1. Ocultar o mostrar tarjetas ya renderizadas en el DOM
         const tarjetas = contenedor.querySelectorAll('[data-cuenta-id]');
