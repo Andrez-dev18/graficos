@@ -292,6 +292,21 @@ class SaldosController {
         }
     }
 
+    formatearFechaTableau(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = fechaStr.split('-').map(Number);
+        const meses = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        ];
+        return `${day} de ${meses[month - 1]} de ${year}`;
+    }
+
+    formatearNumeroTableau(numero) {
+        if (numero === null || numero === undefined) return '0';
+        return Math.round(Number(numero)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
     /**
      * Crea el DOM de una tarjeta y su gráfico Chart.js
      */
@@ -300,17 +315,21 @@ class SaldosController {
         const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
         const canvasId = `chart-cuenta-${cuenta}`;
 
-        // Destruir chart previo en caso exista en memoria
         if (this.chartsMap.has(cuenta)) {
             this.chartsMap.get(cuenta).destroy();
             this.chartsMap.delete(cuenta);
         }
 
-        // Si ya existe la tarjeta en el DOM, la removemos para regenerarla limpia
         const tarjetaExistente = contenedor.querySelector(`[data-cuenta-id="${cuenta}"]`);
         if (tarjetaExistente) {
             tarjetaExistente.remove();
         }
+
+        // Formatear las fechas para el eje X
+        const labelsFormateados = datosCuenta.map(d => this.formatearFechaTableau(d.fecha));
+        const totalPuntos = datosCuenta.length;
+        const pxMinimoPorBarra = (modoDisposicion === 'horizontal') ? 34 : 40;
+        const anchoMinimoRequerido = totalPuntos * pxMinimoPorBarra;
 
         const tarjeta = document.createElement('div');
         tarjeta.setAttribute('data-cuenta-id', cuenta);
@@ -325,6 +344,7 @@ class SaldosController {
                         </svg>
                         Cuenta ${cuenta}
                     </span>
+                    <span class="text-xs text-slate-400 font-medium">(${totalPuntos} días registrados)</span>
                 </div>
                 <div class="flex items-center gap-2 text-[11px]">
                     <span class="text-slate-400 font-medium">Período: <strong class="text-slate-700 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong></span>
@@ -332,8 +352,9 @@ class SaldosController {
                 </div>
             </div>
 
-            <div class="relative w-full overflow-x-auto pb-2">
-                <div class="${modoDisposicion === 'horizontal' ? 'min-w-[480px]' : 'min-w-[700px]'} h-[300px]">
+            <!-- CONTENEDOR DEL CANVAS CON LA ALTURA DESEADA (520px) -->
+            <div class="relative w-full overflow-x-auto pb-3 custom-scrollbar">
+                <div style="width: max(100%, ${anchoMinimoRequerido}px); height: 550px;" class="relative">
                     <canvas id="${canvasId}"></canvas>
                 </div>
             </div>
@@ -342,45 +363,70 @@ class SaldosController {
         contenedor.appendChild(tarjeta);
 
         const canvasEl = document.getElementById(canvasId);
-
-        // Verificación de seguridad nativa de Chart.js
         const chartExistente = Chart.getChart(canvasEl);
         if (chartExistente) {
             chartExistente.destroy();
         }
 
+        const self = this;
         const ctx = canvasEl.getContext('2d');
         const nuevoChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: datosCuenta.map(d => d.fecha),
+                labels: labelsFormateados,
                 datasets: [{
-                    label: 'Saldofinal',
+                    label: 'saldofinal',
                     data: datosCuenta.map(d => d.saldofinal),
-                    backgroundColor: '#2a4fa0',
-                    hoverBackgroundColor: '#1d4ed8',
-                    borderRadius: 3,
-                    barPercentage: 0.65
+                    backgroundColor: '#4e79a7',
+                    hoverBackgroundColor: '#3b5f88',
+                    borderWidth: 0,
+                    borderRadius: 1,
+                    maxBarThickness: 32,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.9
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: { top: 25 } },
+                layout: {
+                    padding: { top: 35, bottom: 5, left: 10, right: 10 }
+                },
                 plugins: {
                     legend: { display: false },
                     datalabels: {
                         anchor: 'end',
                         align: 'top',
                         rotation: -90,
-                        offset: 4,
-                        color: '#2563eb',
-                        font: { size: 9, weight: 'bold' },
-                        formatter: (val) => new Intl.NumberFormat('es-PE').format(val)
+                        offset: 6,
+                        color: '#1e293b',
+                        font: { size: 10, weight: '500' },
+                        formatter: (val) => self.formatearNumeroTableau(val)
                     },
                     tooltip: {
+                        enabled: true,
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0f172a',
+                        bodyColor: '#334155',
+                        borderColor: '#cbd5e1',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        usePointStyle: false,
+                        titleFont: { size: 12, weight: 'normal' },
+                        bodyFont: { size: 12, family: 'sans-serif' },
+                        displayColors: false,
                         callbacks: {
-                            label: (ctx) => `Monto: S/. ${new Intl.NumberFormat('es-PE').format(ctx.raw)}`
+                            title: () => '', // Ocultamos el título default para armar la estructura personalizada
+                            label: (context) => {
+                                const fechaLabel = context.label;
+                                const valorFormateado = self.formatearNumeroTableau(context.raw);
+                                return [
+                                    `cuentaventa:        ${cuenta}`,
+                                    `Día de fechacarga: ${fechaLabel}`,
+                                    `saldofinal:            ${valorFormateado}`
+                                ];
+                            }
                         }
                     }
                 },
@@ -388,16 +434,19 @@ class SaldosController {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            callback: (v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : `${(v / 1000).toFixed(0)}k`,
-                            font: { size: 10 }
+                            callback: (v) => v === 0 ? '0K' : `${(v / 1000).toFixed(0)}K`,
+                            font: { size: 11 },
+                            color: '#64748b'
                         },
                         grid: { color: '#f1f5f9' }
                     },
                     x: {
                         ticks: {
-                            font: { size: 9 },
+                            font: { size: 11 },
+                            color: '#475569',
                             maxRotation: 90,
-                            minRotation: 90
+                            minRotation: 90,
+                            autoSkip: false
                         },
                         grid: { display: false }
                     }
