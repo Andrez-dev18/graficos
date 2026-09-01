@@ -236,7 +236,10 @@ class SaldosController {
                         <td class="px-4 py-2.5 border-r border-slate-200 font-medium">${item.cuentaventa}</td>
                         <td class="px-4 py-2.5 border-r border-slate-200 whitespace-nowrap">${this.puntoSeleccionado.fechaFormateada}</td>
                         <td class="px-4 py-2.5 border-r border-slate-200 text-slate-500 whitespace-nowrap">${this.formatearFechaCortaTableau(item.fechacarga)}</td>
+                        <td class="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600">${item.codcliente}</td>
                         <td class="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">${item.nomcliente}</td>
+                        <td class="px-4 py-2.5 border-r border-slate-200 text-slate-600 whitespace-nowrap">${item.condicionpago}</td>
+                        <td class="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600 whitespace-nowrap">${item.numerodoc}</td>
                         <td class="px-4 py-2.5 text-right font-bold text-slate-900">${this.formatearNumeroTableau(item.saldofinal, true)}</td>
                     </tr>
                 `).join('');

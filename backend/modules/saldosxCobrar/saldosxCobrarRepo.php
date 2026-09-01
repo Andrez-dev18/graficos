@@ -124,6 +124,8 @@ class saldosxCobrarRepo
                     fechacarga,
                     codcliente,
                     COALESCE(nomcliente, 'SIN NOMBRE') AS nomcliente,
+                    COALESCE(condicionpago, '-') AS condicionpago,
+                    COALESCE(numerodoc, '-') AS numerodoc,
                     ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
                 FROM dmdocventas2
                 WHERE " . implode(' AND ', $where);

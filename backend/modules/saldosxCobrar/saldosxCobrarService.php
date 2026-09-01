@@ -115,11 +115,13 @@ class saldosxCobrarService
             $monto = (float) $row['saldofinal'];
             $totalSaldofinal += $monto;
             return [
-                'cuentaventa' => $row['cuentaventa'],
-                'fechacarga'  => $row['fechacarga'],
-                'codcliente'  => $row['codcliente'],
-                'nomcliente'  => $row['nomcliente'],
-                'saldofinal'  => $monto
+                'cuentaventa'    => $row['cuentaventa'],
+                'fechacarga'     => $row['fechacarga'],
+                'codcliente'     => $row['codcliente'],
+                'nomcliente'     => $row['nomcliente'],
+                'condicionpago'  => $row['condicionpago'],
+                'numerodoc'      => $row['numerodoc'],
+                'saldofinal'     => $monto
             ];
         }, $detalleRaw);
 
