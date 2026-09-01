@@ -11,6 +11,7 @@ class saldosxCobrarService
     }
 
     /**
+     * FUNCIONES PARA GRAFICO DE BARRAS SALDOS POR COBRAR
      * Devuelve las opciones formateadas para los dropdowns de filtros
      */
     public function obtenerFiltrosIniciales()
@@ -137,4 +138,50 @@ class saldosxCobrarService
         ];
     }
 
+
+    /**
+     * FUNCIONES PARA GRAFICO DE LINEAS SALDOS POR COBRAR
+     */
+
+    /**
+     * Obtiene y formatea las opciones de filtros para la vista por zonas
+     */
+    public function obtenerFiltrosZona()
+    {
+        return $this->repo->getFiltrosZona();
+    }
+
+    /**
+     * Procesa la información agrupada por Cuenta y Zonas Fiscales
+     */
+    public function obtenerGraficoZona(array $filtros)
+    {
+        $rawRows = $this->repo->getSaldosPorZona($filtros);
+        $resultado = [];
+
+        foreach ($rawRows as $row) {
+            $cta  = $row['cuentaventa'];
+            $nom  = $row['nomcuentaventa'];
+            $zona = $row['zonafiscal'];
+
+            if (!isset($resultado[$cta])) {
+                $resultado[$cta] = [
+                    'cuentaventa'    => $cta,
+                    'nomcuentaventa' => $nom,
+                    'zonas'          => []
+                ];
+            }
+
+            if (!isset($resultado[$cta]['zonas'][$zona])) {
+                $resultado[$cta]['zonas'][$zona] = [];
+            }
+
+            $resultado[$cta]['zonas'][$zona][] = [
+                'fecha'      => $row['fechacarga'],
+                'saldofinal' => (float) $row['saldofinal']
+            ];
+        }
+
+        return $resultado;
+    }
 }

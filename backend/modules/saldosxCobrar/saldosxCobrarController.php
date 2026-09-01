@@ -89,4 +89,57 @@ class saldosxCobrarController
         exit;
     }
 
+
+    /**
+     * FUNCIONES PARA GRAFICO DE LINEAS SALDOS POR COBRAR
+     */
+    /**
+     * Endpoint POST: Opciones de filtros para SalxCobrarxZona
+     */
+    public function getFiltrosZona()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $filtros = $this->service->obtenerFiltrosZona();
+            echo json_encode([
+                'success' => true,
+                'data'    => $filtros
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener filtros de zona: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    /**
+     * Endpoint POST: Obtiene los datos consolidados para el gráfico por zona
+     */
+    public function getGraficoZona()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true) ?? $_POST;
+
+            $data = $this->service->obtenerGraficoZona($filtros);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => [
+                    'data' => $data
+                ]
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener datos por zona: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
 }

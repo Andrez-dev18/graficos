@@ -13,8 +13,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <style>
+        /* Scrollbars delgadas y estilizadas */
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
         .custom-scrollbar::-webkit-scrollbar {
-            height: 7px;
+            width: 6px;
+            /* Ancho del scroll vertical */
+            height: 6px;
+            /* Altura del scroll horizontal */
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
@@ -159,8 +168,8 @@
                     </div>
                 </div>
 
-                <!-- 4. MULTI-SELECT NOMCLIENTE -->
-                <div class="flex flex-col relative">
+                <!-- 4. MULTI-SELECT NOMCLIENTE (Barras) -->
+                <div id="wrapper-filtro-nomcliente" class="flex flex-col relative">
                     <label
                         class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">NOMCLIENTE</label>
                     <button id="ms-nomcliente-btn" type="button"
@@ -187,6 +196,71 @@
                                 class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800">
                         </div>
                         <div id="ms-nomcliente-options" class="max-h-60 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 4.1 MULTI-SELECT VENCIMIENTO (Líneas) -->
+                <div id="wrapper-filtro-vencimiento" class="hidden flex-col relative">
+                    <label
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">VENCIMIENTO</label>
+                    <button id="ms-vencimiento-btn" type="button"
+                        class="w-full sm:w-auto min-w-[170px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-vencimiento-label" class="truncate font-semibold text-slate-800">VENCIDO</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-vencimiento-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <input type="text" id="ms-vencimiento-search" placeholder="Buscar vencimiento..."
+                            class="w-full pl-3 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800 mb-2">
+                        <div id="ms-vencimiento-options" class="max-h-56 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 4.2 MULTI-SELECT DECISIÓN (Líneas) -->
+                <div id="wrapper-filtro-decision" class="hidden flex-col relative">
+                    <label
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DECISIÓN</label>
+                    <button id="ms-decision-btn" type="button"
+                        class="w-full sm:w-auto min-w-[170px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-decision-label" class="truncate font-semibold text-slate-800">Todos
+                            seleccionados</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-decision-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <input type="text" id="ms-decision-search" placeholder="Buscar decisión..."
+                            class="w-full pl-3 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800 mb-2">
+                        <div id="ms-decision-options" class="max-h-56 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 4.3 MULTI-SELECT OBSERVACIÓN (Líneas) -->
+                <div id="wrapper-filtro-observacion" class="hidden flex-col relative">
+                    <label
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">OBSERVACIÓN</label>
+                    <button id="ms-observacion-btn" type="button"
+                        class="w-full sm:w-auto min-w-[170px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-observacion-label" class="truncate font-semibold text-slate-800">Todos
+                            seleccionados</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-observacion-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <input type="text" id="ms-observacion-search" placeholder="Buscar observación..."
+                            class="w-full pl-3 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800 mb-2">
+                        <div id="ms-observacion-options" class="max-h-56 overflow-y-auto space-y-0.5 pr-1"></div>
                     </div>
                 </div>
 

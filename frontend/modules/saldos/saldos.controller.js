@@ -10,6 +10,10 @@ class SaldosController {
         this.msCuentaVenta = null;
         this.msNomCliente = null;
 
+        this.msVencimiento = null;
+        this.msDecision = null;
+        this.msObservacion = null;
+
         this.paletaColores = [
             { bar: '#4e79a7', hover: '#3b5f88', bgBadge: 'bg-blue-50', textBadge: 'text-blue-600', borderBadge: 'border-blue-100' },
             { bar: '#f28e2b', hover: '#c96f1b', bgBadge: 'bg-amber-50', textBadge: 'text-amber-600', borderBadge: 'border-amber-100' },
@@ -42,7 +46,7 @@ class SaldosController {
     }
 
     inicializarComponentesFiltros() {
-        // 1. Tipo de Gráfico
+        // 1. Tipo de Gráfico (Con onChange para alternar visibilidad de filtros)
         this.msTipoGrafico = new CustomMultiSelect({
             btnId: 'ms-tipografico-btn',
             labelId: 'ms-tipografico-label',
@@ -50,11 +54,13 @@ class SaldosController {
             searchId: 'ms-tipografico-search',
             optionsContainerId: 'ms-tipografico-options',
             options: [
-                { id: 'saltosXcobrarXbarra', label: 'saltosXcobrarXbarra', selected: true }
-            ]
+                { id: 'saltosXcobrarXbarra', label: 'saltosXcobrarXbarra', selected: true },
+                { id: '02SalxCobrarxZona', label: '02SalxCobrarxZona', selected: false }
+            ],
+            onChange: () => this.alternarVisibilidadFiltrosSegunTipo()
         });
 
-        // 2. Cuenta Venta (Al cambiar, solo oculta/muestra en caliente o carga las faltantes)
+        // 2. Cuenta Venta (Se mantiene igual)
         this.msCuentaVenta = new CustomMultiSelect({
             btnId: 'ms-cuentaventa-btn',
             labelId: 'ms-cuentaventa-label',
@@ -65,13 +71,43 @@ class SaldosController {
             onChange: () => this.sincronizarVisibilidadEnCaliente()
         });
 
-        // 3. Nombre Cliente (No recarga en cada clic; se aplica al dar 'Cargar')
+        // 3. Nombre Cliente (Barras)
         this.msNomCliente = new CustomMultiSelect({
             btnId: 'ms-nomcliente-btn',
             labelId: 'ms-nomcliente-label',
             dropdownId: 'ms-nomcliente-dropdown',
             searchId: 'ms-nomcliente-search',
             optionsContainerId: 'ms-nomcliente-options',
+            options: []
+        });
+
+        // 4. Vencimiento (Líneas por Zona)
+        this.msVencimiento = new CustomMultiSelect({
+            btnId: 'ms-vencimiento-btn',
+            labelId: 'ms-vencimiento-label',
+            dropdownId: 'ms-vencimiento-dropdown',
+            searchId: 'ms-vencimiento-search',
+            optionsContainerId: 'ms-vencimiento-options',
+            options: []
+        });
+
+        // 5. Decisión (Líneas por Zona)
+        this.msDecision = new CustomMultiSelect({
+            btnId: 'ms-decision-btn',
+            labelId: 'ms-decision-label',
+            dropdownId: 'ms-decision-dropdown',
+            searchId: 'ms-decision-search',
+            optionsContainerId: 'ms-decision-options',
+            options: []
+        });
+
+        // 6. Observación (Líneas por Zona)
+        this.msObservacion = new CustomMultiSelect({
+            btnId: 'ms-observacion-btn',
+            labelId: 'ms-observacion-label',
+            dropdownId: 'ms-observacion-dropdown',
+            searchId: 'ms-observacion-search',
+            optionsContainerId: 'ms-observacion-options',
             options: []
         });
     }
@@ -266,9 +302,10 @@ class SaldosController {
 
     async cargarFiltrosIniciales() {
         try {
-            const res = await this.service.obtenerFiltros();
-            if (res.success && res.data) {
-                const { cuentas, clientes } = res.data;
+            // 1. Cargar filtros de Barras (Cuentas y Clientes)
+            const resBarra = await this.service.obtenerFiltros();
+            if (resBarra.success && resBarra.data) {
+                const { cuentas, clientes } = resBarra.data;
 
                 const cuentasOpciones = cuentas.map((c, idx) => ({
                     id: c.id,
@@ -285,6 +322,37 @@ class SaldosController {
                 this.msCuentaVenta.setOptions(cuentasOpciones);
                 this.msNomCliente.setOptions(clientesOpciones);
             }
+
+            // 2. Cargar filtros de Líneas (Vencimiento, Decisión, Observación)
+            const resLinea = await this.service.obtenerFiltrosLinea();
+            if (resLinea.success && resLinea.data) {
+                const { vencimientos, decisiones, observaciones } = resLinea.data;
+
+                // Vencimiento: por defecto solo 'VENCIDO' marcado (como en Tableau)
+                this.msVencimiento.setOptions(vencimientos.map(v => ({
+                    id: v.id,
+                    label: v.label,
+                    selected: v.id.toUpperCase() === 'VENCIDO'
+                })));
+
+                // Decisión: todos seleccionados
+                this.msDecision.setOptions(decisiones.map(d => ({
+                    id: d.id,
+                    label: d.label,
+                    selected: true
+                })));
+
+                // Observación: todos seleccionados
+                this.msObservacion.setOptions(observaciones.map(o => ({
+                    id: o.id,
+                    label: o.label,
+                    selected: true
+                })));
+            }
+
+            // Aplicar visibilidad inicial de los filtros según lo que esté marcado
+            this.alternarVisibilidadFiltrosSegunTipo();
+
         } catch (error) {
             console.error('Error al cargar filtros iniciales:', error);
         }
@@ -315,7 +383,13 @@ class SaldosController {
     }
 
     limpiarGraficos() {
-        this.chartsMap.forEach(chart => chart.destroy());
+        this.chartsMap.forEach(chart => {
+            if (Array.isArray(chart)) {
+                chart.forEach(c => c && typeof c.destroy === 'function' && c.destroy());
+            } else if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
         this.chartsMap.clear();
         this.cacheData = {};
         const contenedor = document.getElementById('contenedor-graficos-lista');
@@ -370,15 +444,37 @@ class SaldosController {
     }
 
     /**
+     * Muestra u oculta los filtros correspondientes según el tipo de gráfico seleccionado
+     */
+    alternarVisibilidadFiltrosSegunTipo() {
+        const seleccionados = this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues() : [];
+        const tieneBarras = seleccionados.includes('saltosXcobrarXbarra');
+        const tieneLineas = seleccionados.includes('02SalxCobrarxZona');
+
+        const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
+        const wrapperVenc = document.getElementById('wrapper-filtro-vencimiento');
+        const wrapperDec = document.getElementById('wrapper-filtro-decision');
+        const wrapperObs = document.getElementById('wrapper-filtro-observacion');
+
+        // NOMCLIENTE solo visible si está seleccionado 'saltosXcobrarXbarra'
+        if (wrapperCliente) {
+            wrapperCliente.classList.toggle('hidden', !tieneBarras);
+        }
+
+        // Vencimiento, Decisión y Observación solo visibles si está seleccionado '02SalxCobrarxZona'
+        [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
+            if (el) el.classList.toggle('hidden', !tieneLineas);
+        });
+    }
+
+    /**
      * Consulta al servidor todas las cuentas seleccionadas (al presionar 'Cargar' o al inicio)
      */
     async cargarDatosDesdeServidor() {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
-        // 1. Destruir instancias previas y limpiar memoria antes de inyectar HTML
         this.limpiarGraficos();
-
         this.aplicarLayoutGrid();
         const { fechaInicio: fInicio, fechaFin: fFin } = PeriodoHelper.calcularRangoFechas();
         this.currentPeriodo = { inicio: fInicio, fin: fFin };
@@ -388,6 +484,9 @@ class SaldosController {
             this.sincronizarVisibilidadEnCaliente();
             return;
         }
+
+        const tipoGraficoSeleccionado = this.msTipoGrafico.getSelectedValues();
+        const esVistaZona = tipoGraficoSeleccionado.includes('02SalxCobrarxZona');
 
         contenedor.innerHTML = `
             <div id="loader-graficos" class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-blue-600 font-medium flex items-center justify-center gap-2">
@@ -400,35 +499,66 @@ class SaldosController {
         `;
 
         try {
-            const totalClientesOpciones = this.msNomCliente.options.length;
-            const selectedClientes = this.msNomCliente.getSelectedValues();
-            const clientesPayload = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+            if (esVistaZona) {
+                // PAYLOAD PARA GRÁFICO DE LÍNEAS POR ZONA
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    cuentas: selectedCuentas,
+                    vencimientos: this.msVencimiento.getSelectedValues(),
+                    decisiones: this.msDecision.getSelectedValues(),
+                    observaciones: this.msObservacion.getSelectedValues()
+                };
 
-            const payload = {
-                fecha_inicio: fInicio,
-                fecha_fin: fFin,
-                cuentas: selectedCuentas,
-                clientes: clientesPayload
-            };
+                const res = await this.service.obtenerGraficoLineaData(payload);
+                document.getElementById('loader-graficos')?.remove();
 
-            const res = await this.service.obtenerGraficoData(payload);
-            document.getElementById('loader-graficos')?.remove();
+                if (!res.success || !res.payload || !res.payload.data || Object.keys(res.payload.data).length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
+                            No se encontraron registros de zonas para los filtros seleccionados.
+                        </div>
+                    `;
+                    return;
+                }
 
-            if (!res.success || !res.payload || !res.payload.data) {
-                contenedor.innerHTML = `
-                    <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                        No se encontraron registros para los filtros seleccionados.
-                    </div>
-                `;
-                return;
+                this.cacheData = res.payload.data;
+                selectedCuentas.forEach(cuenta => {
+                    if (this.cacheData[cuenta]) {
+                        this.crearTarjetaYChartLineasZona(cuenta, this.cacheData[cuenta]);
+                    }
+                });
+
+            } else {
+                // PAYLOAD PARA GRÁFICO DE BARRAS POR CLIENTE
+                const totalClientesOpciones = this.msNomCliente.options.length;
+                const selectedClientes = this.msNomCliente.getSelectedValues();
+                const clientesPayload = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    cuentas: selectedCuentas,
+                    clientes: clientesPayload
+                };
+
+                const res = await this.service.obtenerGraficoData(payload);
+                document.getElementById('loader-graficos')?.remove();
+
+                if (!res.success || !res.payload || !res.payload.data) {
+                    contenedor.innerHTML = `
+                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
+                            No se encontraron registros para los filtros seleccionados.
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.cacheData = res.payload.data;
+                selectedCuentas.forEach(cuenta => {
+                    this.crearTarjetaYChart(cuenta, this.cacheData[cuenta] || []);
+                });
             }
-
-            this.cacheData = res.payload.data;
-
-            // Renderizar cada tarjeta
-            selectedCuentas.forEach(cuenta => {
-                this.crearTarjetaYChart(cuenta, this.cacheData[cuenta] || []);
-            });
 
         } catch (error) {
             console.error('Error al cargar datos:', error);
@@ -570,8 +700,8 @@ class SaldosController {
                 datasets: [{
                     label: 'saldofinal',
                     data: datosCuenta.map(d => d.saldofinal),
-                    backgroundColor: tema.bar,       
-                    hoverBackgroundColor: tema.hover, 
+                    backgroundColor: tema.bar,
+                    hoverBackgroundColor: tema.hover,
                     borderWidth: 0,
                     borderRadius: 1,
                     maxBarThickness: 32,
@@ -672,6 +802,298 @@ class SaldosController {
 
         this.chartsMap.set(cuenta, nuevoChart);
     }
+
+    /**
+     * Renderiza una tarjeta por cuenta con mini-gráficos de líneas apilados por cada Zona Fiscal (Small Multiples)
+     */
+    crearTarjetaYChartLineasZona(cuenta, dataCuenta) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
+        const tema = this.obtenerTemaCuenta(cuenta);
+
+        // 1. Destruir instancias previas de esta cuenta
+        if (this.chartsMap.has(cuenta)) {
+            const chartPrevio = this.chartsMap.get(cuenta);
+            if (Array.isArray(chartPrevio)) {
+                chartPrevio.forEach(c => c.destroy());
+            } else if (chartPrevio && typeof chartPrevio.destroy === 'function') {
+                chartPrevio.destroy();
+            }
+            this.chartsMap.delete(cuenta);
+        }
+
+        const tarjetaExistente = contenedor.querySelector(`[data-cuenta-id="${cuenta}"]`);
+        if (tarjetaExistente) {
+            tarjetaExistente.remove();
+        }
+
+        // 2. Obtener eje temporal unificado
+        const fechasSet = new Set();
+        const zonas = Object.keys(dataCuenta.zonas || {});
+        zonas.forEach(zona => {
+            dataCuenta.zonas[zona].forEach(p => fechasSet.add(p.fecha));
+        });
+        const todasFechas = Array.from(fechasSet).sort();
+        const labelsFormateados = todasFechas.map(f => this.formatearFechaTableau(f));
+
+        const totalPuntos = todasFechas.length;
+        const pxMinimoPorPunto = (modoDisposicion === 'horizontal') ? 34 : 38;
+        const anchoMinimoRequerido = totalPuntos * pxMinimoPorPunto;
+        const nomCuenta = dataCuenta.nomcuentaventa || '';
+
+        // 3. Construir la estructura DOM
+        const tarjeta = document.createElement('div');
+        tarjeta.setAttribute('data-cuenta-id', cuenta);
+        tarjeta.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col justify-between transition-all';
+
+        // Pistas compactas por cada zona (110px de alto)
+        let pistasZonasHTML = '';
+        zonas.forEach((zona, idx) => {
+            const canvasId = `chart-linea-${cuenta}-${idx}`;
+            const colorTema = this.paletaColores[idx % this.paletaColores.length];
+
+            pistasZonasHTML += `
+                <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1">
+                    <!-- ETIQUETA LATERAL DE LA ZONA -->
+                    <div class="w-32 sm:w-36 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10">
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold ${colorTema.bgBadge} ${colorTema.textBadge} border ${colorTema.borderBadge} w-fit">
+                            <span class="w-2 h-2 rounded-full" style="background-color: ${colorTema.bar};"></span>
+                            ${zona}
+                        </span>
+                        <span class="text-[10px] text-slate-400 mt-0.5 font-medium">saldofinal</span>
+                    </div>
+
+                    <!-- LIENZO DEL MINI-GRÁFICO COMPACTO (110px) -->
+                    <div class="flex-1 relative" style="height: 110px;">
+                        <canvas id="${canvasId}"></canvas>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Eje X inferior idéntico a Tableau
+        const canvasEjeXId = `chart-ejex-${cuenta}`;
+
+        tarjeta.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 ${tema.bgBadge} ${tema.textBadge} font-bold text-xs rounded-lg border ${tema.borderBadge}">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                        </svg>
+                        Cuenta ${cuenta}
+                    </span>
+                    <span class="text-xs font-semibold text-slate-700">${nomCuenta}</span>
+                    <span class="text-xs text-slate-400 font-medium">(${zonas.length} zonas registradas)</span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px]">
+                    <span class="text-slate-400 font-medium">Período: <strong class="text-slate-700 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong></span>
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-semibold rounded border border-slate-200">Soles</span>
+                </div>
+            </div>
+
+            <!-- CONTENEDOR PRINCIPAL: UN SOLO SCROLL HORIZONTAL -->
+            <div class="relative w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+                <div style="width: max(100%, ${anchoMinimoRequerido + 144}px);" class="flex flex-col">
+                    
+                    <!-- PISTAS DE ZONAS: UN SOLO SCROLL VERTICAL ESTILIZADO -->
+                    <div class="max-h-[440px] overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col pr-1">
+                        ${pistasZonasHTML}
+                    </div>
+
+                    <!-- EJE X FIJO EN LA BASE -->
+                    <div class="sticky bottom-0 z-20 bg-white border-t border-slate-200 flex items-stretch shadow-xs">
+                        <div class="w-32 sm:w-36 shrink-0 flex items-start justify-end pt-2 pr-3 border-r border-slate-100 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Día de fechacarga
+                        </div>
+                        <div class="flex-1 relative" style="height: 135px;">
+                            <canvas id="${canvasEjeXId}"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        contenedor.appendChild(tarjeta);
+
+        // 4. Instanciar los mini-gráficos de cada zona
+        const chartsArray = [];
+        const self = this;
+
+        zonas.forEach((zona, idx) => {
+            const canvasId = `chart-linea-${cuenta}-${idx}`;
+            const canvasEl = document.getElementById(canvasId);
+            if (!canvasEl) return;
+
+            const colorTema = this.paletaColores[idx % this.paletaColores.length];
+            const mapaFechaValor = new Map(dataCuenta.zonas[zona].map(p => [p.fecha, p.saldofinal]));
+            const serieValores = todasFechas.map(f => mapaFechaValor.get(f) ?? 0);
+
+            const ctx = canvasEl.getContext('2d');
+            const miniChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labelsFormateados,
+                    datasets: [{
+                        label: zona,
+                        data: serieValores,
+                        borderColor: colorTema.bar,
+                        backgroundColor: colorTema.bar,
+                        borderWidth: 1.8,
+                        pointRadius: 2.5,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: colorTema.bar,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 1.2,
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 18, bottom: 4, left: 10, right: 10 }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements && elements.length > 0) {
+                            const pointIndex = elements[0].index;
+                            const fechaOriginal = todasFechas[pointIndex];
+                            const fechaTexto = labelsFormateados[pointIndex];
+                            const monto = serieValores[pointIndex];
+
+                            self.puntoSeleccionado = {
+                                cuenta: cuenta,
+                                zona: zona,
+                                fecha: fechaOriginal,
+                                fechaFormateada: fechaTexto,
+                                saldofinal: monto
+                            };
+
+                            const popup = document.getElementById('popup-menu-barra');
+                            if (popup) {
+                                popup.style.left = `${event.native.clientX + 10}px`;
+                                popup.style.top = `${event.native.clientY + 10}px`;
+                                popup.classList.remove('hidden');
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            offset: 2,
+                            color: '#334155',
+                            font: { size: 11, weight: '600' },
+                            formatter: (val) => (val > 0 ? self.formatearNumeroTableau(val, false) : ''),
+                            display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: '#ffffff',
+                            titleColor: '#0f172a',
+                            bodyColor: '#334155',
+                            borderColor: '#cbd5e1',
+                            borderWidth: 1,
+                            padding: 8,
+                            callbacks: {
+                                title: (ctx) => ctx[0].label,
+                                label: (context) => `Zona ${zona}: S/. ${self.formatearNumeroTableau(context.raw, true)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (v) => v === 0 ? '0K' : `${(v / 1000).toFixed(0)}K`,
+                                font: { size: 10.5 },
+                                color: '#94a3b8',
+                                maxTicksLimit: 3
+                            },
+                            grid: { color: '#f8fafc' }
+                        },
+                        x: {
+                            ticks: { display: false },
+                            grid: { color: '#f8fafc' }
+                        }
+                    }
+                }
+            });
+
+            chartsArray.push(miniChart);
+        });
+
+        // 5. Renderizado directo y exacto del Eje X estático inferior (sin cortes ni espacios vacíos)
+        const canvasEjeXEl = document.getElementById(canvasEjeXId);
+        if (canvasEjeXEl) {
+            const renderEjeX = () => {
+                const primerChart = chartsArray[0];
+                if (!primerChart || !primerChart.scales || !primerChart.scales.x) return;
+
+                const parent = canvasEjeXEl.parentElement;
+                const width = parent.clientWidth || canvasEjeXEl.clientWidth;
+                const height = parent.clientHeight || 135;
+                if (!width || !height) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                canvasEjeXEl.width = width * dpr;
+                canvasEjeXEl.height = height * dpr;
+                canvasEjeXEl.style.width = width + 'px';
+                canvasEjeXEl.style.height = height + 'px';
+
+                const ctx = canvasEjeXEl.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, width, height);
+
+                const chartArea = primerChart.chartArea;
+                if (!chartArea) return;
+
+                // Línea divisoria superior del eje
+                ctx.beginPath();
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1;
+                ctx.moveTo(chartArea.left, 0.5);
+                ctx.lineTo(chartArea.right, 0.5);
+                ctx.stroke();
+
+                // Configuración de texto para las fechas (-90° estándar Tableau / Chart.js)
+                ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillStyle = '#475569';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+
+                labelsFormateados.forEach((label, i) => {
+                    const x = primerChart.scales.x.getPixelForValue(i);
+                    if (x === undefined || isNaN(x)) return;
+
+                    // Tick mark vertical de 4px
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, 4);
+                    ctx.stroke();
+
+                    // Fecha completa rotada -90°: orientada de abajo hacia arriba terminando junto al tick
+                    ctx.save();
+                    ctx.translate(x, 8);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                });
+            };
+
+            // Dibujar tras render inicial y en resize
+            setTimeout(renderEjeX, 50);
+            window.addEventListener('resize', renderEjeX);
+        }
+
+        this.chartsMap.set(cuenta, chartsArray);
+    }
+
 }
 
 document.addEventListener('DOMContentLoaded', () => {
