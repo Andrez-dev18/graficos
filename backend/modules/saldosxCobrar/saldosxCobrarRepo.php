@@ -104,9 +104,11 @@ class saldosxCobrarRepo
 
         $where = [
             "cuentaventa = :cuentaventa",
-            "fechacarga = :fechacarga"
+            "fechacarga = :fechacarga",
+            "COALESCE(saldofinal, 0) > 0" // Excluye registros en cero o negativos
         ];
 
+        // Filtro opcional si el usuario restringió clientes
         if (!empty($clientes)) {
             $clientesPlaceholders = [];
             foreach ($clientes as $i => $cli) {
@@ -117,7 +119,6 @@ class saldosxCobrarRepo
             $where[] = "nomcliente IN (" . implode(', ', $clientesPlaceholders) . ")";
         }
 
-        // Sin ORDER BY para mantener el orden natural de extracción de MyISAM tal cual Tableau
         $sql = "SELECT 
                     cuentaventa,
                     fechacarga,

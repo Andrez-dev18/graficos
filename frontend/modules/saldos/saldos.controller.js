@@ -9,6 +9,20 @@ class SaldosController {
         this.msTipoGrafico = null;
         this.msCuentaVenta = null;
         this.msNomCliente = null;
+
+        this.paletaColores = [
+            { bar: '#4e79a7', hover: '#3b5f88', bgBadge: 'bg-blue-50', textBadge: 'text-blue-600', borderBadge: 'border-blue-100' },
+            { bar: '#f28e2b', hover: '#c96f1b', bgBadge: 'bg-amber-50', textBadge: 'text-amber-600', borderBadge: 'border-amber-100' },
+            { bar: '#e15759', hover: '#b83b3d', bgBadge: 'bg-rose-50', textBadge: 'text-rose-600', borderBadge: 'border-rose-100' },
+            { bar: '#76b7b2', hover: '#55928d', bgBadge: 'bg-teal-50', textBadge: 'text-teal-600', borderBadge: 'border-teal-100' },
+            { bar: '#59a14f', hover: '#407a38', bgBadge: 'bg-emerald-50', textBadge: 'text-emerald-600', borderBadge: 'border-emerald-100' },
+            { bar: '#edc948', hover: '#c29f27', bgBadge: 'bg-yellow-50', textBadge: 'text-yellow-700', borderBadge: 'border-yellow-100' },
+            { bar: '#b07aa1', hover: '#8c597e', bgBadge: 'bg-purple-50', textBadge: 'text-purple-600', borderBadge: 'border-purple-100' },
+            { bar: '#ff9da7', hover: '#d4727d', bgBadge: 'bg-pink-50', textBadge: 'text-pink-600', borderBadge: 'border-pink-100' },
+            { bar: '#9c755f', hover: '#75523f', bgBadge: 'bg-stone-100', textBadge: 'text-stone-700', borderBadge: 'border-stone-200' },
+            { bar: '#6366f1', hover: '#4f46e5', bgBadge: 'bg-indigo-50', textBadge: 'text-indigo-600', borderBadge: 'border-indigo-100' },
+            { bar: '#06b6d4', hover: '#0891b2', bgBadge: 'bg-cyan-50', textBadge: 'text-cyan-600', borderBadge: 'border-cyan-100' }
+        ];
     }
 
     async init() {
@@ -133,6 +147,13 @@ class SaldosController {
         tabCompletos?.addEventListener('click', () => this.cambiarTabModal('completos'));
     }
 
+    obtenerTemaCuenta(cuenta) {
+        // Asigna un color fijo según el índice de la opción en el multiselect
+        const index = this.msCuentaVenta?.options.findIndex(o => o.id === cuenta) ?? -1;
+        const colorIndex = (index >= 0 ? index : Math.abs(parseInt(cuenta, 10) || 0)) % this.paletaColores.length;
+        return this.paletaColores[colorIndex];
+    }
+
     async abrirModalVerDatos() {
         const modal = document.getElementById('modal-ver-datos');
         if (!modal || !this.puntoSeleccionado) return;
@@ -184,6 +205,7 @@ class SaldosController {
         const loader = document.getElementById('loader-modal-detalle');
         const tabla = document.getElementById('tabla-modal-completos');
         const tbody = document.getElementById('tbody-modal-completos');
+        const totalSpan = document.getElementById('total-modal-saldofinal');
 
         loader?.classList.remove('hidden');
         tabla?.classList.add('hidden');
@@ -206,6 +228,9 @@ class SaldosController {
                 const filas = res.payload.datos_completos;
                 document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada})`;
 
+                // Calcular suma total de los saldos finales listados
+                const totalGeneral = filas.reduce((acc, curr) => acc + Number(curr.saldofinal || 0), 0);
+
                 tbody.innerHTML = filas.map(item => `
                     <tr class="hover:bg-slate-50 transition-colors">
                         <td class="px-4 py-2.5 border-r border-slate-200 font-medium">${item.cuentaventa}</td>
@@ -216,15 +241,22 @@ class SaldosController {
                     </tr>
                 `).join('');
 
+                // Asignar el total formateado en el footer
+                if (totalSpan) {
+                    totalSpan.textContent = this.formatearNumeroTableau(totalGeneral, true);
+                }
+
                 tabla?.classList.remove('hidden');
             } else {
                 tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
+                if (totalSpan) totalSpan.textContent = '0,00';
                 tabla?.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Error al cargar datos completos en el modal:', error);
             loader?.classList.add('hidden');
             tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
+            if (totalSpan) totalSpan.textContent = '0,00';
             tabla?.classList.remove('hidden');
         }
     }
@@ -471,6 +503,7 @@ class SaldosController {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
         const canvasId = `chart-cuenta-${cuenta}`;
+        const tema = this.obtenerTemaCuenta(cuenta);
 
         if (this.chartsMap.has(cuenta)) {
             this.chartsMap.get(cuenta).destroy();
@@ -495,7 +528,8 @@ class SaldosController {
         tarjeta.innerHTML = `
             <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
                 <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 font-bold text-xs rounded-lg border border-blue-100">
+                    <!-- BADGE CON COLORES DINÁMICOS -->
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 ${tema.bgBadge} ${tema.textBadge} font-bold text-xs rounded-lg border ${tema.borderBadge}">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
@@ -509,7 +543,6 @@ class SaldosController {
                 </div>
             </div>
 
-            <!-- CONTENEDOR DEL CANVAS CON LA ALTURA DESEADA (520px) -->
             <div class="relative w-full overflow-x-auto pb-3 custom-scrollbar">
                 <div style="width: max(100%, ${anchoMinimoRequerido}px); height: 550px;" class="relative">
                     <canvas id="${canvasId}"></canvas>
@@ -534,8 +567,8 @@ class SaldosController {
                 datasets: [{
                     label: 'saldofinal',
                     data: datosCuenta.map(d => d.saldofinal),
-                    backgroundColor: '#4e79a7',
-                    hoverBackgroundColor: '#3b5f88',
+                    backgroundColor: tema.bar,       
+                    hoverBackgroundColor: tema.hover, 
                     borderWidth: 0,
                     borderRadius: 1,
                     maxBarThickness: 32,
