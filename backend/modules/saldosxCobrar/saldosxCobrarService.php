@@ -115,11 +115,16 @@ class saldosxCobrarService
             $totalSaldofinal += $monto;
             return [
                 'cuentaventa'    => $row['cuentaventa'],
+                'nomcuentaventa' => $row['nomcuentaventa'],
+                'zonafiscal'     => $row['zonafiscal'],
                 'fechacarga'     => $row['fechacarga'],
                 'codcliente'     => $row['codcliente'],
                 'nomcliente'     => $row['nomcliente'],
                 'condicionpago'  => $row['condicionpago'],
                 'numerodoc'      => $row['numerodoc'],
+                'decision'       => $row['decision'],
+                'observacion'    => $row['observacion'],
+                'vencimiento'    => $row['vencimiento'],
                 'saldofinal'     => $monto
             ];
         }, $detalleRaw);
@@ -127,9 +132,11 @@ class saldosxCobrarService
         return [
             'status' => 'success',
             'resumen' => [
-                'cuentaventa' => $cuentaventa,
-                'fechacarga'  => $fechacarga,
-                'saldofinal'  => round($totalSaldofinal, 2)
+                'cuentaventa'    => $cuentaventa,
+                'nomcuentaventa' => $detalleRaw[0]['nomcuentaventa'] ?? '',
+                'zonafiscal'     => $params['zonafiscal'] ?? ($detalleRaw[0]['zonafiscal'] ?? ''),
+                'fechacarga'     => $fechacarga,
+                'saldofinal'     => round($totalSaldofinal, 2)
             ],
             'total_filas' => count($datosCompletos),
             'datos_completos' => $datosCompletos

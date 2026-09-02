@@ -167,11 +167,16 @@ class saldosxCobrarRepo
 
         $sql = "SELECT 
                     cuentaventa,
+                    COALESCE(nomcuentaventa, '') AS nomcuentaventa,
+                    COALESCE(zonafiscal, 'SIN ZONA') AS zonafiscal,
                     fechacarga,
                     codcliente,
                     COALESCE(nomcliente, 'SIN NOMBRE') AS nomcliente,
                     COALESCE(condicionpago, '-') AS condicionpago,
                     COALESCE(numerodoc, '-') AS numerodoc,
+                    COALESCE(decision, 'NINGUNA') AS decision,
+                    COALESCE(observacion, 'NINGUNA') AS observacion,
+                    COALESCE(vencimiento, '-') AS vencimiento,
                     ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
                 FROM dmdocventas2
                 WHERE " . implode(' AND ', $where);

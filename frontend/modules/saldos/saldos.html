@@ -396,13 +396,9 @@
                     <!-- 1. VISTA RESUMEN -->
                     <div id="vista-tab-resumen" class="overflow-x-auto">
                         <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
-                            <thead
+                            <thead id="thead-modal-resumen"
                                 class="bg-blue-600 border-b border-slate-200 text-white font-bold uppercase tracking-wider text-[10px]">
-                                <tr>
-                                    <th class="px-4 py-3 border-r border-slate-200">cuentaventa</th>
-                                    <th class="px-4 py-3 border-r border-slate-200">Día de fechacarga</th>
-                                    <th class="px-4 py-3 text-right">saldofinal</th>
-                                </tr>
+                                <!-- Llenado dinámicamente por ModalSchemas -->
                             </thead>
                             <tbody id="tbody-modal-resumen" class="divide-y divide-slate-100 text-slate-700">
                                 <!-- Llenado por JS -->
@@ -424,41 +420,15 @@
                         </div>
                         <table id="tabla-modal-completos"
                             class="hidden w-full text-left text-xs border border-slate-200 rounded-lg">
-                            <thead
+                            <thead id="thead-modal-completos"
                                 class="sticky top-0 z-10 bg-blue-600 border-b border-blue-700 text-white font-bold uppercase tracking-wider text-[10px] shadow-sm">
-                                <tr>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">cuentaventa
-                                    </th>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">Día de
-                                        fechacarga</th>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">fechacarga
-                                    </th>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">codcliente
-                                    </th>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">nomcliente
-                                    </th>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">
-                                        condicionpago</th>
-                                    <th class="sticky top-0 px-4 py-3 border-r border-blue-500 bg-blue-600">numerodoc
-                                    </th>
-                                    <th class="sticky top-0 px-4 py-3 text-right bg-blue-600">saldofinal</th>
-                                </tr>
+                                <!-- Llenado dinámicamente por ModalSchemas -->
                             </thead>
                             <tbody id="tbody-modal-completos" class="divide-y divide-slate-100 text-slate-700">
                                 <!-- Llenado por JS -->
                             </tbody>
-                            <tfoot id="tfoot-modal-completos"
-                                class="sticky bottom-0 z-10 bg-slate-100 border-t-2 border-slate-300 shadow-md font-bold text-slate-800">
-                                <tr>
-                                    <td colspan="7"
-                                        class="px-4 py-3 text-right uppercase tracking-wider text-[11px] text-slate-600 border-r border-slate-200">
-                                        Total Saldo Final:
-                                    </td>
-                                    <td id="total-modal-saldofinal"
-                                        class="px-4 py-3 text-right text-xs font-bold text-blue-700">
-                                        0,00
-                                    </td>
-                                </tr>
+                            <tfoot id="tfoot-modal-completos">
+                                <!-- Llenado dinámicamente por ModalSchemas -->
                             </tfoot>
                         </table>
                     </div>
@@ -475,6 +445,7 @@
 
     <script src="../../assets/utils-graficos/custom-multiselect.js"></script>
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
+    <script src="../../assets/utils-graficos/modal-schemas.js"></script>
 
     <script src="saldos.service.js"></script>
     <script src="saldos.controller.js"></script>

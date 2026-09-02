@@ -219,27 +219,40 @@ class SaldosController {
         const modal = document.getElementById('modal-ver-datos');
         if (!modal || !this.puntoSeleccionado) return;
 
-        const { cuenta, fechaFormateada, saldofinal } = this.puntoSeleccionado;
+        const { tipoGrafico, cuenta, nomcuentaventa, zona, fechaFormateada, saldofinal } = this.puntoSeleccionado;
+        const tipoActivo = tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
+        const schema = ModalSchemas.getSchema(tipoActivo);
 
-        document.getElementById('modal-titulo-vista').textContent = `Ver datos: Cuenta ${cuenta}`;
-        document.getElementById('modal-subtitulo-filas').textContent = `Día de fechacarga: ${fechaFormateada}`;
+        const helpers = {
+            formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
+            formatearFechaCorta: (f) => this.formatearFechaCortaTableau(f),
+            formatearFecha: (f) => this.formatearFechaTableau(f)
+        };
 
-        // Llenar pestaña Resumen
+        const subTitulo = nomcuentaventa ? ` - ${nomcuentaventa}` : '';
+        document.getElementById('modal-titulo-vista').textContent = `Ver datos: Cuenta ${cuenta}${subTitulo}`;
+        document.getElementById('modal-subtitulo-filas').textContent = `Día de fechacarga: ${fechaFormateada}${zona ? ` - Zona: ${zona}` : ''}`;
+
+        // 1. Renderizar pestaña Resumen dinámicamente
+        const theadResumen = document.getElementById('thead-modal-resumen');
         const tbodyResumen = document.getElementById('tbody-modal-resumen');
-        if (tbodyResumen) {
-            tbodyResumen.innerHTML = `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-4 py-3 border-r border-slate-200 font-semibold">${cuenta}</td>
-                    <td class="px-4 py-3 border-r border-slate-200">${fechaFormateada}</td>
-                    <td class="px-4 py-3 text-right font-bold text-slate-900">${this.formatearNumeroTableau(saldofinal, true)}</td>
-                </tr>
-            `;
-        }
+
+        ModalSchemas.renderThead(theadResumen, schema.resumen, false);
+
+        const dataResumen = {
+            cuentaventa: cuenta,
+            nomcuentaventa: nomcuentaventa || '',
+            zonafiscal: zona || '',
+            dia_fechacarga: fechaFormateada,
+            saldofinal: saldofinal
+        };
+
+        ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumen, helpers);
 
         this.cambiarTabModal('resumen');
         modal.classList.remove('hidden');
 
-        // Cargar datos completos en background
+        // 2. Cargar datos completos en background
         await this.cargarDatosCompletosModal();
     }
 
@@ -265,15 +278,27 @@ class SaldosController {
     async cargarDatosCompletosModal() {
         const loader = document.getElementById('loader-modal-detalle');
         const tabla = document.getElementById('tabla-modal-completos');
+        const thead = document.getElementById('thead-modal-completos');
         const tbody = document.getElementById('tbody-modal-completos');
-        const totalSpan = document.getElementById('total-modal-saldofinal');
+        const tfoot = document.getElementById('tfoot-modal-completos');
 
         loader?.classList.remove('hidden');
         tabla?.classList.add('hidden');
         if (tbody) tbody.innerHTML = '';
 
+        const tipoGrafico = this.puntoSeleccionado.tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
+        const schema = ModalSchemas.getSchema(tipoGrafico);
+
+        const helpers = {
+            formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
+            formatearFechaCorta: (f) => this.formatearFechaCortaTableau(f),
+            formatearFecha: (f) => this.formatearFechaTableau(f)
+        };
+
+        // Renderizar cabecera de datos completos dinámicamente con ModalSchemas
+        ModalSchemas.renderThead(thead, schema.detalle, true);
+
         try {
-            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
             let payloadDetalle = {
                 cuentaventa: this.puntoSeleccionado.cuenta,
                 fechacarga: this.puntoSeleccionado.fecha
@@ -287,8 +312,8 @@ class SaldosController {
                 payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
             } else {
                 // FILTROS ESPECÍFICOS DE BARRAS
-                const totalClientesOpciones = this.msNomCliente.options.length;
-                const selectedClientes = this.msNomCliente.getSelectedValues();
+                const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
+                const selectedClientes = this.msNomCliente ? this.msNomCliente.getSelectedValues() : [];
                 payloadDetalle.clientes = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
             }
 
@@ -301,36 +326,28 @@ class SaldosController {
                 const subtituloZona = this.puntoSeleccionado.zona ? ` - Zona: ${this.puntoSeleccionado.zona}` : '';
                 document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada}${subtituloZona})`;
 
+                // Asignar día formateado a cada fila para la columna 'Día de fechacarga'
+                filas.forEach(f => {
+                    f.dia_fechacarga = this.puntoSeleccionado.fechaFormateada;
+                });
+
                 const totalGeneral = filas.reduce((acc, curr) => acc + Number(curr.saldofinal || 0), 0);
 
-                tbody.innerHTML = filas.map(item => `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-4 py-2.5 border-r border-slate-200 font-medium">${item.cuentaventa}</td>
-                        <td class="px-4 py-2.5 border-r border-slate-200 whitespace-nowrap">${this.puntoSeleccionado.fechaFormateada}</td>
-                        <td class="px-4 py-2.5 border-r border-slate-200 text-slate-500 whitespace-nowrap">${this.formatearFechaCortaTableau(item.fechacarga)}</td>
-                        <td class="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600">${item.codcliente}</td>
-                        <td class="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">${item.nomcliente}</td>
-                        <td class="px-4 py-2.5 border-r border-slate-200 text-slate-600 whitespace-nowrap">${item.condicionpago}</td>
-                        <td class="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600 whitespace-nowrap">${item.numerodoc}</td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-900">${this.formatearNumeroTableau(item.saldofinal, true)}</td>
-                    </tr>
-                `).join('');
-
-                if (totalSpan) {
-                    totalSpan.textContent = this.formatearNumeroTableau(totalGeneral, true);
-                }
+                // Renderizar tbody y tfoot dinámicamente con ModalSchemas
+                ModalSchemas.renderDetalleTbody(tbody, schema.detalle, filas, helpers);
+                ModalSchemas.renderTfoot(tfoot, schema.detalle, totalGeneral, helpers);
 
                 tabla?.classList.remove('hidden');
             } else {
-                tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
-                if (totalSpan) totalSpan.textContent = '0,00';
+                tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
+                ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
                 tabla?.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Error al cargar datos completos en el modal:', error);
             loader?.classList.add('hidden');
-            tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
-            if (totalSpan) totalSpan.textContent = '0,00';
+            tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
+            ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
             tabla?.classList.remove('hidden');
         }
     }
@@ -706,9 +723,12 @@ class SaldosController {
                         const fechaOriginal = datosCuenta[index].fecha;
                         const fechaTexto = labelsFormateados[index];
                         const monto = datosCuenta[index].saldofinal;
+                        const nomCuenta = (datosCuenta[index] && datosCuenta[index].nomcuentaventa) ? datosCuenta[index].nomcuentaventa : '';
 
                         self.puntoSeleccionado = {
+                            tipoGrafico: 'saltosXcobrarXbarra',
                             cuenta: cuenta,
+                            nomcuentaventa: nomCuenta,
                             fecha: fechaOriginal,
                             fechaFormateada: fechaTexto,
                             saldofinal: monto
@@ -828,8 +848,9 @@ class SaldosController {
                 `;
             }
 
-            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
+            const tipoGrafico = this.puntoSeleccionado.tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
             let payloadDetalle = {
+                tipo_grafico: tipoGrafico,
                 cuentaventa: this.puntoSeleccionado.cuenta,
                 fechacarga: this.puntoSeleccionado.fecha
             };
@@ -842,8 +863,8 @@ class SaldosController {
                 payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
             } else {
                 // Filtros de barras por cliente
-                const totalClientesOpciones = this.msNomCliente.options.length;
-                const selectedClientes = this.msNomCliente.getSelectedValues();
+                const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
+                const selectedClientes = this.msNomCliente ? this.msNomCliente.getSelectedValues() : [];
                 payloadDetalle.clientes = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
             }
 
@@ -1026,7 +1047,9 @@ class SaldosController {
                             const monto = serieValores[pointIndex];
 
                             self.puntoSeleccionado = {
+                                tipoGrafico: '02SalxCobrarxZona',
                                 cuenta: cuenta,
+                                nomcuentaventa: nomCuenta,
                                 zona: zona,
                                 fecha: fechaOriginal,
                                 fechaFormateada: fechaTexto,

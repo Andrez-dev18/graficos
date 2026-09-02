@@ -3,10 +3,37 @@
 class SaldosExportExcel
 {
     /**
-     * Construye y emite el archivo .xlsx en el flujo de salida
+     * Definición de esquemas de columnas por tipo de gráfico
+     */
+    private $esquemas = [
+        'saltosXcobrarXbarra' => [
+            ['key' => 'cuentaventa',   'label' => 'CUENTAVENTA',    'type' => 'string'],
+            ['key' => 'dia_fechacarga','label' => 'DÍA FECHACARGA', 'type' => 'dia_fechacarga'],
+            ['key' => 'fechacarga',    'label' => 'FECHACARGA',     'type' => 'short_date'],
+            ['key' => 'codcliente',    'label' => 'CODCLIENTE',     'type' => 'string'],
+            ['key' => 'nomcliente',    'label' => 'NOMCLIENTE',     'type' => 'string'],
+            ['key' => 'condicionpago', 'label' => 'CONDICION PAGO', 'type' => 'string'],
+            ['key' => 'numerodoc',     'label' => 'NUMERODOC',      'type' => 'string'],
+            ['key' => 'saldofinal',    'label' => 'SALDOFINAL',     'type' => 'currency']
+        ],
+        '02SalxCobrarxZona' => [
+            ['key' => 'cuentaventa',   'label' => 'CUENTAVENTA',    'type' => 'string'],
+            ['key' => 'nomcuentaventa','label' => 'NOMCUENTAVENTA', 'type' => 'string'],
+            ['key' => 'zonafiscal',    'label' => 'ZONAFISCAL',     'type' => 'string'],
+            ['key' => 'dia_fechacarga','label' => 'DÍA FECHACARGA', 'type' => 'dia_fechacarga'],
+            ['key' => 'decision',      'label' => 'DECISION',       'type' => 'string'],
+            ['key' => 'fechacarga',    'label' => 'FECHACARGA',     'type' => 'short_date'],
+            ['key' => 'observacion',   'label' => 'OBSERVACION',    'type' => 'string'],
+            ['key' => 'vencimiento',   'label' => 'VENCIMIENTO',    'type' => 'string'],
+            ['key' => 'saldofinal',    'label' => 'SALDOFINAL',     'type' => 'currency']
+        ]
+    ];
+
+    /**
+     * Construye y emite el archivo .xlsx en el flujo de salida de forma dinámica
      *
      * @param array $datos  Filas transaccionales devueltas por el repositorio
-     * @param array $params Parámetros del modal (cuentaventa, fechacarga, etc.)
+     * @param array $params Parámetros del modal (tipo_grafico, cuentaventa, fechacarga, etc.)
      */
     public function generarExcelDetalle(array $datos, array $params = [])
     {
@@ -17,6 +44,10 @@ class SaldosExportExcel
         }
         require_once $phpExcelPath;
 
+        // Detectar tipo de gráfico
+        $tipoGrafico = $params['tipo_grafico'] ?? (!empty($params['zonafiscal']) ? '02SalxCobrarxZona' : 'saltosXcobrarXbarra');
+        $columnas = $this->esquemas[$tipoGrafico] ?? $this->esquemas['saltosXcobrarXbarra'];
+
         $objPHPExcel = new PHPExcel();
         $objPHPExcel->getProperties()
             ->setCreator("Sistema de Visualización")
@@ -25,20 +56,14 @@ class SaldosExportExcel
         $sheet = $objPHPExcel->getActiveSheet();
         $sheet->setTitle('Detalle Saldos');
 
-        // 1. Encabezados
-        $headers = [
-            'A1' => 'CUENTAVENTA',
-            'B1' => 'DÍA FECHACARGA',
-            'C1' => 'FECHACARGA',
-            'D1' => 'CODCLIENTE',
-            'E1' => 'NOMCLIENTE',
-            'F1' => 'CONDICION PAGO',
-            'G1' => 'NUMERODOC',
-            'H1' => 'SALDOFINAL'
-        ];
+        $totalCols = count($columnas);
+        $colInicial = 'A';
+        $colFinal = PHPExcel_Cell::stringFromColumnIndex($totalCols - 1);
 
-        foreach ($headers as $col => $texto) {
-            $sheet->setCellValue($col, $texto);
+        // 1. Encabezados dinámicos
+        foreach ($columnas as $i => $colDef) {
+            $colLetter = PHPExcel_Cell::stringFromColumnIndex($i);
+            $sheet->setCellValue($colLetter . '1', $colDef['label']);
         }
 
         // Estilo del encabezado
@@ -57,7 +82,7 @@ class SaldosExportExcel
                 'vertical'   => PHPExcel_Style_Alignment::VERTICAL_CENTER
             ]
         ];
-        $sheet->getStyle('A1:H1')->applyFromArray($styleHeader);
+        $sheet->getStyle("{$colInicial}1:{$colFinal}1")->applyFromArray($styleHeader);
         $sheet->getRowDimension(1)->setRowHeight(26);
 
         // 2. Filas de datos
@@ -65,31 +90,55 @@ class SaldosExportExcel
         $totalSaldofinal = 0.0;
 
         foreach ($datos as $row) {
-            $monto = (float) $row['saldofinal'];
+            $monto = (float)($row['saldofinal'] ?? 0);
             $totalSaldofinal += $monto;
 
-            $sheet->setCellValueExplicit('A' . $fila, $row['cuentaventa'], PHPExcel_Cell_DataType::TYPE_STRING);
-            $sheet->setCellValue('B' . $fila, $row['fechacarga']);
-            $sheet->setCellValue('C' . $fila, $row['fechacarga']);
-            $sheet->setCellValueExplicit('D' . $fila, $row['codcliente'], PHPExcel_Cell_DataType::TYPE_STRING);
-            $sheet->setCellValue('E' . $fila, $row['nomcliente']);
-            $sheet->setCellValue('F' . $fila, $row['condicionpago']);
-            $sheet->setCellValueExplicit('G' . $fila, $row['numerodoc'], PHPExcel_Cell_DataType::TYPE_STRING);
-            $sheet->setCellValue('H' . $fila, $monto);
+            foreach ($columnas as $i => $colDef) {
+                $colLetter = PHPExcel_Cell::stringFromColumnIndex($i);
+                $key = $colDef['key'];
+                $type = $colDef['type'];
 
-            $sheet->getStyle('H' . $fila)->getNumberFormat()->setFormatCode('#,##0.00');
+                switch ($type) {
+                    case 'currency':
+                        $sheet->setCellValue($colLetter . $fila, $monto);
+                        $sheet->getStyle($colLetter . $fila)->getNumberFormat()->setFormatCode('#,##0.00');
+                        break;
+
+                    case 'dia_fechacarga':
+                        $fechaBase = $row['fechacarga'] ?? ($params['fechacarga'] ?? '');
+                        $sheet->setCellValue($colLetter . $fila, $this->formatearFechaLarga($fechaBase));
+                        break;
+
+                    case 'short_date':
+                        $fechaBase = $row[$key] ?? ($row['fechacarga'] ?? '');
+                        $sheet->setCellValue($colLetter . $fila, $this->formatearFechaCorta($fechaBase));
+                        break;
+
+                    case 'string':
+                        $val = $row[$key] ?? '';
+                        $sheet->setCellValueExplicit($colLetter . $fila, (string)$val, PHPExcel_Cell_DataType::TYPE_STRING);
+                        break;
+
+                    default:
+                        $sheet->setCellValue($colLetter . $fila, $row[$key] ?? '-');
+                        break;
+                }
+            }
 
             $fila++;
         }
 
-        // 3. Fila de Totalización
-        $sheet->setCellValue('G' . $fila, 'TOTAL SALDO FINAL:');
-        $sheet->setCellValue('H' . $fila, $totalSaldofinal);
+        // 3. Fila de Totalización dinámica
+        $colLabelTotal = PHPExcel_Cell::stringFromColumnIndex(max(0, $totalCols - 2));
+        $colMontoTotal = $colFinal;
 
-        $sheet->getStyle('G' . $fila . ':H' . $fila)->getFont()->setBold(true);
-        $sheet->getStyle('H' . $fila)->getNumberFormat()->setFormatCode('#,##0.00');
-        $sheet->getStyle('G' . $fila)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-        $sheet->getStyle('A' . $fila . ':H' . $fila)->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('F1F5F9');
+        $sheet->setCellValue($colLabelTotal . $fila, 'TOTAL SALDO FINAL:');
+        $sheet->setCellValue($colMontoTotal . $fila, $totalSaldofinal);
+
+        $sheet->getStyle("{$colLabelTotal}{$fila}:{$colMontoTotal}{$fila}")->getFont()->setBold(true);
+        $sheet->getStyle("{$colMontoTotal}{$fila}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet->getStyle("{$colLabelTotal}{$fila}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("{$colInicial}{$fila}:{$colFinal}{$fila}")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('F1F5F9');
 
         // Bordes
         $styleBorders = [
@@ -100,17 +149,20 @@ class SaldosExportExcel
                 ]
             ]
         ];
-        $sheet->getStyle('A1:H' . $fila)->applyFromArray($styleBorders);
+        $sheet->getStyle("{$colInicial}1:{$colFinal}{$fila}")->applyFromArray($styleBorders);
 
-        // Autoajuste de columnas
-        foreach (range('A', 'H') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+        // Autoajuste dinámico de todas las columnas
+        for ($c = 0; $c < $totalCols; $c++) {
+            $colLetter = PHPExcel_Cell::stringFromColumnIndex($c);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
 
         // 4. Salida en streaming
+        $tipoEtiqueta = ($tipoGrafico === '02SalxCobrarxZona') ? 'Zona' : 'Cliente';
         $cuentaNombre = isset($params['cuentaventa']) ? $params['cuentaventa'] : 'cuenta';
+        $zonaNombre   = !empty($params['zonafiscal']) ? '_' . preg_replace('/[^A-Za-z0-9]/', '', $params['zonafiscal']) : '';
         $fechaNombre  = isset($params['fechacarga']) ? $params['fechacarga'] : date('Ymd');
-        $filename = "Detalle_Saldos_{$cuentaNombre}_{$fechaNombre}.xlsx";
+        $filename = "Detalle_Saldos_{$tipoEtiqueta}_{$cuentaNombre}{$zonaNombre}_{$fechaNombre}.xlsx";
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header("Content-Disposition: attachment; filename=\"{$filename}\"");
@@ -119,5 +171,37 @@ class SaldosExportExcel
         $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
         $objWriter->save('php://output');
         exit;
+    }
+
+    /**
+     * Convierte fecha YYYY-MM-DD al formato largo de Tableau (ej. '31 de marzo de 2026')
+     */
+    private function formatearFechaLarga($fechaStr)
+    {
+        if (empty($fechaStr)) return '';
+        $meses = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+            5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+            9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre'
+        ];
+        $partes = explode('-', $fechaStr);
+        if (count($partes) === 3) {
+            $mes = (int)$partes[1];
+            return (int)$partes[2] . ' de ' . ($meses[$mes] ?? '') . ' de ' . $partes[0];
+        }
+        return $fechaStr;
+    }
+
+    /**
+     * Convierte fecha YYYY-MM-DD a formato corto de Tableau (ej. '31/3/2026')
+     */
+    private function formatearFechaCorta($fechaStr)
+    {
+        if (empty($fechaStr)) return '';
+        $partes = explode('-', $fechaStr);
+        if (count($partes) === 3) {
+            return (int)$partes[2] . '/' . (int)$partes[1] . '/' . $partes[0];
+        }
+        return $fechaStr;
     }
 }
