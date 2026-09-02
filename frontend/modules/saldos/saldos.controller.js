@@ -241,23 +241,34 @@ class SaldosController {
         if (tbody) tbody.innerHTML = '';
 
         try {
-            const totalClientesOpciones = this.msNomCliente.options.length;
-            const selectedClientes = this.msNomCliente.getSelectedValues();
-            const clientesPayload = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
-
-            const res = await this.service.obtenerDetalle({
+            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
+            let payloadDetalle = {
                 cuentaventa: this.puntoSeleccionado.cuenta,
-                fechacarga: this.puntoSeleccionado.fecha,
-                clientes: clientesPayload
-            });
+                fechacarga: this.puntoSeleccionado.fecha
+            };
+
+            if (tipoGrafico === '02SalxCobrarxZona') {
+                // FILTROS ESPECÍFICOS DE LÍNEAS POR ZONA
+                payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
+                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else {
+                // FILTROS ESPECÍFICOS DE BARRAS
+                const totalClientesOpciones = this.msNomCliente.options.length;
+                const selectedClientes = this.msNomCliente.getSelectedValues();
+                payloadDetalle.clientes = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+            }
+
+            const res = await this.service.obtenerDetalle(payloadDetalle);
 
             loader?.classList.add('hidden');
 
             if (res.success && res.payload && res.payload.datos_completos) {
                 const filas = res.payload.datos_completos;
-                document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada})`;
+                const subtituloZona = this.puntoSeleccionado.zona ? ` - Zona: ${this.puntoSeleccionado.zona}` : '';
+                document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada}${subtituloZona})`;
 
-                // Calcular suma total de los saldos finales listados
                 const totalGeneral = filas.reduce((acc, curr) => acc + Number(curr.saldofinal || 0), 0);
 
                 tbody.innerHTML = filas.map(item => `
@@ -273,21 +284,20 @@ class SaldosController {
                     </tr>
                 `).join('');
 
-                // Asignar el total formateado en el footer
                 if (totalSpan) {
                     totalSpan.textContent = this.formatearNumeroTableau(totalGeneral, true);
                 }
 
                 tabla?.classList.remove('hidden');
             } else {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
                 if (totalSpan) totalSpan.textContent = '0,00';
                 tabla?.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Error al cargar datos completos en el modal:', error);
             loader?.classList.add('hidden');
-            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
             if (totalSpan) totalSpan.textContent = '0,00';
             tabla?.classList.remove('hidden');
         }

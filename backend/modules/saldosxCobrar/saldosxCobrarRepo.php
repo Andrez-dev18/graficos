@@ -95,30 +95,74 @@ class saldosxCobrarRepo
     }
 
     /**
-     * Obtiene el desglose completo de registros para una cuenta y fecha específica
+     * Obtiene el DETALLE completo de registros para una cuenta y fecha específica
      */
-    public function getDetallePorCuentaYFecha($cuentaventa, $fechacarga, array $clientes = [])
+    public function getDetallePorCuentaYFecha(array $filtros)
     {
         $params = [
-            ':cuentaventa' => $cuentaventa,
-            ':fechacarga'  => $fechacarga
+            ':cuentaventa' => $filtros['cuentaventa'],
+            ':fechacarga'  => $filtros['fechacarga']
         ];
 
         $where = [
             "cuentaventa = :cuentaventa",
             "fechacarga = :fechacarga",
-            "COALESCE(saldofinal, 0) > 0" // Excluye registros en cero o negativos
+            "COALESCE(saldofinal, 0) > 0"
         ];
 
-        // Filtro opcional si el usuario restringió clientes
-        if (!empty($clientes)) {
+        // Filtro opcional por Zona Fiscal (cuando el clic viene de líneas)
+        if (!empty($filtros['zonafiscal'])) {
+            $where[] = "zonafiscal = :zonafiscal";
+            $params[':zonafiscal'] = $filtros['zonafiscal'];
+        }
+
+        // Filtro Clientes (cuando viene de barras)
+        if (!empty($filtros['clientes'])) {
             $clientesPlaceholders = [];
-            foreach ($clientes as $i => $cli) {
+            foreach ($filtros['clientes'] as $i => $cli) {
                 $ph = ":cli_" . $i;
                 $clientesPlaceholders[] = $ph;
                 $params[$ph] = $cli;
             }
             $where[] = "nomcliente IN (" . implode(', ', $clientesPlaceholders) . ")";
+        }
+
+        // Helper para procesar filtros nullable (vencimiento, decision, observacion)
+        $procesarNullable = function ($campo, $valores, $prefijo) use (&$where, &$params) {
+            if (empty($valores)) return;
+            $tieneNull = in_array('NULL', $valores, true);
+            $valoresLimpios = array_filter($valores, function ($v) {
+                return $v !== 'NULL';
+            });
+
+            $condiciones = [];
+            if (!empty($valoresLimpios)) {
+                $inPh = [];
+                foreach (array_values($valoresLimpios) as $i => $val) {
+                    $ph = ":det_{$prefijo}_" . $i;
+                    $inPh[] = $ph;
+                    $params[$ph] = $val;
+                }
+                $condiciones[] = "{$campo} IN (" . implode(', ', $inPh) . ")";
+            }
+
+            if ($tieneNull) {
+                $condiciones[] = "({$campo} IS NULL OR {$campo} = '')";
+            }
+
+            if (!empty($condiciones)) {
+                $where[] = '(' . implode(' OR ', $condiciones) . ')';
+            }
+        };
+
+        if (!empty($filtros['vencimientos'])) {
+            $procesarNullable('vencimiento', $filtros['vencimientos'], 'venc');
+        }
+        if (!empty($filtros['decisiones'])) {
+            $procesarNullable('decision', $filtros['decisiones'], 'dec');
+        }
+        if (!empty($filtros['observaciones'])) {
+            $procesarNullable('observacion', $filtros['observaciones'], 'obs');
         }
 
         $sql = "SELECT 

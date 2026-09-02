@@ -96,7 +96,6 @@ class saldosxCobrarService
     {
         $cuentaventa = $params['cuentaventa'] ?? '';
         $fechacarga  = $params['fechacarga'] ?? '';
-        $clientes    = is_array($params['clientes'] ?? null) ? $params['clientes'] : [];
 
         if (empty($cuentaventa) || empty($fechacarga)) {
             return [
@@ -107,10 +106,9 @@ class saldosxCobrarService
             ];
         }
 
-        // Obtener el desglose transaccional
-        $detalleRaw = $this->repo->getDetallePorCuentaYFecha($cuentaventa, $fechacarga, $clientes);
+        // Pasar los filtros dinámicos al repo
+        $detalleRaw = $this->repo->getDetallePorCuentaYFecha($params);
 
-        // Calcular la suma consolidada para la pestaña de Resumen
         $totalSaldofinal = 0.0;
         $datosCompletos = array_map(function ($row) use (&$totalSaldofinal) {
             $monto = (float) $row['saldofinal'];
