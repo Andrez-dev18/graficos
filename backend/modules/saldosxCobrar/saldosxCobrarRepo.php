@@ -187,7 +187,7 @@ class saldosxCobrarRepo
 
 
     /**
-     * FUNCIONES PARA GRAFICO DE LINEAS SALDOS POR COBRAR
+     * FUNCIONES PARA GRAFICO DE LINEAS ZONA
      */
     /**
      * Obtiene las opciones únicas para los filtros de la vista Zona
@@ -296,4 +296,62 @@ class saldosxCobrarRepo
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    /**
+     * FIN FUNCIONES GRAFICO LINEAS ZONA
+     */
+
+
+    /**
+     * FUNCIONES PARA GRAFICO DE ANTICIPOS
+     */
+
+    public function getDatosIndicadorAnticipos(array $filtros)
+    {
+        $params = [
+            ':fecha_inicio' => $filtros['fecha_inicio'],
+            ':fecha_fin'    => $filtros['fecha_fin']
+        ];
+
+        $where = [
+            "fechacarga BETWEEN :fecha_inicio AND :fecha_fin"
+        ];
+
+        if (!empty($filtros['cuentas'])) {
+            $cuentasPlaceholders = [];
+            foreach ($filtros['cuentas'] as $i => $cta) {
+                $ph = ":cta_" . $i;
+                $cuentasPlaceholders[] = $ph;
+                $params[$ph] = $cta;
+            }
+            $where[] = "cuentaventa IN (" . implode(', ', $cuentasPlaceholders) . ")";
+        }
+
+        $sql = "SELECT 
+                    fechacarga,
+                    cuentaventa,
+                    MAX(COALESCE(nomcuentaventa, 'SIN NOMBRE')) AS nomcuentaventa,
+                    ROUND(SUM(COALESCE(saldoinicial, 0)), 2) AS saldoinicial,
+                    ROUND(SUM(COALESCE(saldofinal, 0)), 2) AS saldofinal,
+                    ROUND(SUM(COALESCE(saldoinicial, 0)) - SUM(COALESCE(saldofinal, 0)), 2) AS resta_saldo,
+                    CASE 
+                        WHEN SUM(COALESCE(saldoinicial, 0)) != 0 
+                        THEN ROUND((1 - (SUM(COALESCE(saldofinal, 0)) / SUM(COALESCE(saldoinicial, 0)))) * 100, 2)
+                        ELSE 0 
+                    END AS porcentaje_cobranza
+                FROM dmdocventas2
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY fechacarga, cuentaventa
+                ORDER BY fechacarga ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    /**
+     * FIN FUNCIONES PARA GRAFICO DE ANTICIPOS
+     */
 }

@@ -34,6 +34,10 @@ class SaldosController {
             Chart.register(ChartDataLabels);
         }
 
+        // FUERZA ALTA RESOLUCIÓN (SUPER-SAMPLING) EN TODOS LOS CANVAS
+        Chart.defaults.devicePixelRatio = Math.max(window.devicePixelRatio || 1, 2);
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
         this.inicializarComponentesFiltros();
         this.setupEventListeners();
         this.setupModalEventListeners();
@@ -440,12 +444,10 @@ class SaldosController {
         const wrapperDec = document.getElementById('wrapper-filtro-decision');
         const wrapperObs = document.getElementById('wrapper-filtro-observacion');
 
-        // NOMCLIENTE solo visible en Barras
         if (wrapperCliente) {
             wrapperCliente.classList.toggle('hidden', !esBarras);
         }
 
-        // Vencimiento, Decisión y Observación solo visibles en Líneas por Zona
         [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
             if (el) el.classList.toggle('hidden', !esLineas);
         });
@@ -475,6 +477,7 @@ class SaldosController {
 
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
         const esVistaZona = tipoGrafico === '02SalxCobrarxZona';
+        const esVistaAnticipos = tipoGrafico === '08IndAnticipos';
 
         contenedor.innerHTML = `
             <div id="loader-graficos" class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-blue-600 font-medium flex items-center justify-center gap-2">
@@ -487,7 +490,34 @@ class SaldosController {
         `;
 
         try {
-            if (esVistaZona) {
+            if (esVistaAnticipos) {
+                // CONSULTA PARA 08IndAnticipos
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    cuentas: selectedCuentas
+                };
+
+                const res = await this.service.obtenerGraficoAnticiposData(payload);
+                document.getElementById('loader-graficos')?.remove();
+
+                if (!res.success || !res.payload || !res.payload.data || Object.keys(res.payload.data).length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
+                            No se encontraron datos de anticipos para las cuentas y fechas seleccionadas.
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.cacheData = res.payload.data;
+                selectedCuentas.forEach(cuenta => {
+                    if (this.cacheData[cuenta]) {
+                        this.crearTarjetaYChartAnticipos(cuenta, this.cacheData[cuenta]);
+                    }
+                });
+
+            } else if (esVistaZona) {
                 // PAYLOAD PARA GRÁFICO DE LÍNEAS POR ZONA
                 const payload = {
                     fecha_inicio: fInicio,
@@ -895,7 +925,7 @@ class SaldosController {
                         <span class="text-[10px] text-slate-400 mt-0.5 font-medium">saldofinal</span>
                     </div>
 
-                    <!-- LIENZO DEL MINI-GRÁFICO COMPACTO (110px) -->
+                    <!-- LIENZO DEL MINI-GRÁFICO COMPACTO -->
                     <div class="flex-1 relative min-w-0" style="height: 110px;">
                         <canvas id="${canvasId}"></canvas>
                     </div>
@@ -1152,6 +1182,383 @@ class SaldosController {
 
             resizeObserver.observe(tarjeta);
             chartsArray._resizeObserver = resizeObserver; // Guardamos la referencia para destruirlo a tiempo
+
+            setTimeout(() => {
+                if (document.body.contains(tarjeta)) {
+                    renderEjeX();
+                }
+            }, 60);
+        }
+
+        this.chartsMap.set(cuenta, chartsArray);
+    }
+
+    /**
+     * Devuelve un color interpolado entre rojo y verde según el porcentaje (60% a 100%)
+     */
+    obtenerColorPorcentaje(pct) {
+        if (pct === null || pct === undefined || isNaN(pct)) return '#94a3b8';
+        // Normalizar entre 60% y 100%
+        const min = 60;
+        const max = 100;
+        const clamped = Math.max(min, Math.min(max, pct));
+        const factor = (clamped - min) / (max - min); // 0.0 (rojo) a 1.0 (verde)
+
+        // Rojo: rgb(239, 68, 68) | Verde: rgb(22, 163, 74)
+        const r = Math.round(239 + factor * (22 - 239));
+        const g = Math.round(68 + factor * (163 - 68));
+        const b = Math.round(68 + factor * (74 - 68));
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    /**
+     * Renderiza una tarjeta por cuenta con 4 pistas de métricas apiladas (08IndAnticipos)
+     */
+    crearTarjetaYChartAnticipos(cuenta, dataCuenta) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
+        const tema = this.obtenerTemaCuenta(cuenta);
+
+        // 1. Destruir instancias previas
+        if (this.chartsMap.has(cuenta)) {
+            const chartPrevio = this.chartsMap.get(cuenta);
+            if (chartPrevio && chartPrevio._resizeObserver) {
+                chartPrevio._resizeObserver.disconnect();
+            }
+            if (Array.isArray(chartPrevio)) {
+                chartPrevio.forEach(c => c && typeof c.destroy === 'function' && c.destroy());
+            } else if (chartPrevio && typeof chartPrevio.destroy === 'function') {
+                chartPrevio.destroy();
+            }
+            this.chartsMap.delete(cuenta);
+        }
+
+        const tarjetaExistente = contenedor.querySelector(`[data-cuenta-id="${cuenta}"]`);
+        if (tarjetaExistente) {
+            tarjetaExistente.remove();
+        }
+
+        const puntos = dataCuenta.fechas || [];
+        const labelsFormateados = puntos.map(p => this.formatearFechaTableau(p.fecha));
+        const totalPuntos = puntos.length;
+        const pxMinimoPorPunto = (modoDisposicion === 'horizontal') ? 38 : 46; 
+        const anchoMinimoRequerido = totalPuntos * pxMinimoPorPunto;
+        const nomCuenta = dataCuenta.nomcuentaventa || '';
+
+        // Definición de las 4 pistas
+        const configuracionPistas = [
+            {
+                id: `pista-pct-${cuenta}`,
+                titulo: 'Indicador Porcentaje',
+                clave: 'porcentaje_cobranza',
+                color: '#e15759',
+                esPorcentaje: true
+            },
+            {
+                id: `pista-inicial-${cuenta}`,
+                titulo: 'saldoinicial',
+                clave: 'saldoinicial',
+                color: '#4e79a7',
+                esPorcentaje: false
+            },
+            {
+                id: `pista-resta-${cuenta}`,
+                titulo: 'Resta saldoinicial men...',
+                clave: 'resta_saldo',
+                color: '#4e79a7',
+                esPorcentaje: false
+            },
+            {
+                id: `pista-final-${cuenta}`,
+                titulo: 'saldofinal',
+                clave: 'saldofinal',
+                color: '#4e79a7',
+                esPorcentaje: false
+            }
+        ];
+
+        // 2. Construir HTML de las pistas
+        let pistasHTML = '';
+        configuracionPistas.forEach(p => {
+            pistasHTML += `
+                <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1 min-w-0">
+                    <div class="w-36 sm:w-44 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10 sticky left-0">
+                        <span class="text-[11px] font-bold text-slate-700 truncate">${p.titulo}</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5 font-medium">${p.esPorcentaje ? 'Ratio cobranza' : 'Monto'}</span>
+                    </div>
+                    <div class="flex-1 relative min-w-0" style="height: 115px;">
+                        <canvas id="${p.id}"></canvas>
+                    </div>
+                </div>
+            `;
+        });
+
+        const canvasEjeXId = `chart-ejex-anticipos-${cuenta}`;
+        const tarjeta = document.createElement('div');
+        tarjeta.setAttribute('data-cuenta-id', cuenta);
+        tarjeta.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col justify-between transition-all';
+
+        tarjeta.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 ${tema.bgBadge} ${tema.textBadge} font-bold text-xs rounded-lg border ${tema.borderBadge}">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                        Cuenta ${cuenta}
+                    </span>
+                    <span class="text-xs font-semibold text-slate-700">${nomCuenta}</span>
+                    <span class="text-xs text-slate-400 font-medium">(Indicadores de Anticipos - Acumulable)</span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px]">
+                    <span class="text-slate-400 font-medium">Período: <strong class="text-slate-700 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong></span>
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-semibold rounded border border-slate-200">Soles / %</span>
+                </div>
+            </div>
+
+            <div class="relative w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+                <div style="min-width: max(100%, ${anchoMinimoRequerido + 176}px);" class="w-full flex flex-col">
+                    
+                    <div class="flex flex-col pr-1">
+                        ${pistasHTML}
+                    </div>
+
+                    <!-- EJE X FIJO -->
+                    <div class="sticky bottom-0 z-20 bg-white border-t border-slate-200 flex items-stretch shadow-xs min-w-0">
+                        <div class="w-36 sm:w-44 shrink-0 flex items-start justify-end pt-2 pr-3 border-r border-slate-100 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-30">
+                            Día de fechacarga
+                        </div>
+                        <div class="flex-1 relative min-w-0" style="height: 135px;">
+                            <canvas id="${canvasEjeXId}"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        contenedor.appendChild(tarjeta);
+
+        // 3. Renderizado de mini-gráficos
+        const chartsArray = [];
+        const self = this;
+
+        configuracionPistas.forEach((pistaConfig) => {
+            const canvasEl = document.getElementById(pistaConfig.id);
+            if (!canvasEl) return;
+
+            const serieValores = puntos.map(pt => pt[pistaConfig.clave] ?? 0);
+            const ctx = canvasEl.getContext('2d');
+
+            // Configuración del dataset
+            let datasetConfig = {
+                data: serieValores,
+                borderWidth: 2,
+                borderCapStyle: 'round',
+                borderJoinStyle: 'round',
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBorderWidth: 1.5,
+                pointBorderColor: '#ffffff',
+                tension: 0.05, 
+                fill: false
+            };
+
+            if (pistaConfig.esPorcentaje) {
+                // DINAMISMO ROJO-VERDE: Segmentación y color dinámico por punto
+                datasetConfig.borderColor = (ctx) => self.obtenerColorPorcentaje(ctx.dataset.data[0]);
+                datasetConfig.segment = {
+                    borderColor: (ctx) => {
+                        const val = ctx.p1.parsed.y;
+                        return self.obtenerColorPorcentaje(val);
+                    }
+                };
+                datasetConfig.pointBackgroundColor = (ctx) => self.obtenerColorPorcentaje(ctx.raw);
+                datasetConfig.pointBorderColor = '#ffffff';
+                datasetConfig.pointBorderWidth = 1;
+            } else {
+                datasetConfig.borderColor = pistaConfig.color;
+                datasetConfig.backgroundColor = pistaConfig.color;
+                datasetConfig.pointBackgroundColor = pistaConfig.color;
+                datasetConfig.pointBorderColor = '#ffffff';
+                datasetConfig.pointBorderWidth = 1;
+            }
+
+            const miniChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labelsFormateados,
+                    datasets: [datasetConfig]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 18, bottom: 4, left: 10, right: 10 }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            display: true,
+                            anchor: (ctx) => (ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end'),
+                            align: (ctx) => (ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top'),
+                            offset: 2,
+                            color: '#334155',
+                            // Fuente más compacta para evitar que los números colisionen
+                            font: { size: 10, weight: '600' },
+                            formatter: (val) => {
+                                if (val === null || val === undefined) return '';
+                                if (pistaConfig.esPorcentaje) {
+                                    return (val / 100).toFixed(2).replace('.', ',');
+                                }
+                                return self.formatearNumeroTableau(val, false);
+                            }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: '#ffffff',
+                            titleColor: '#0f172a',
+                            bodyColor: '#334155',
+                            borderColor: '#cbd5e1',
+                            borderWidth: 1,
+                            padding: 12,
+                            boxPadding: 4,
+                            usePointStyle: false,
+                            displayColors: false, // Sin recuadros de color
+                            titleFont: { size: 11, weight: 'normal' },
+                            bodyFont: { size: 11, family: 'sans-serif' },
+                            callbacks: {
+                                title: () => '', // Sin título por defecto
+                                label: (context) => {
+                                    const index = context.dataIndex;
+                                    const puntoActual = puntos[index] || {};
+                                    const fechaLarga = self.formatearFechaConDiaSemana(puntoActual.fecha);
+
+                                    // 1. TOOLTIP PARA EL INDICADOR PORCENTAJE
+                                    if (pistaConfig.esPorcentaje) {
+                                        const valorPct = Number(puntoActual.porcentaje_cobranza || 0).toFixed(2).replace('.', ',');
+                                        return [
+                                            `nomcuentaventa:  ${nomCuenta}`,
+                                            `Día de fechacarga: ${fechaLarga}`,
+                                            `Indicador:                ${valorPct}%`
+                                        ];
+                                    }
+
+                                    // 2. TOOLTIP COMPLETO PARA LAS PISTAS DE MONTOS
+                                    const sFinal = self.formatearNumeroTableau(puntoActual.saldofinal, false);
+                                    const sInicial = self.formatearNumeroTableau(puntoActual.saldoinicial, false);
+                                    const sCobrado = self.formatearNumeroTableau(puntoActual.resta_saldo, true);
+
+                                    return [
+                                        `nomcuentaventa:  ${nomCuenta}`,
+                                        `Día de fechacarga: ${fechaLarga}`,
+                                        `cuentaventa:          ${cuenta}`,
+                                        `saldofinal:                ${sFinal}`,
+                                        `saldoinicial:             ${sInicial}`,
+                                        `Cobrado:                 ${sCobrado}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            // Si es la pista de porcentaje, fijar el rango estricto de 0 a 100 como en Tableau
+                            min: pistaConfig.esPorcentaje ? 0 : undefined,
+                            max: pistaConfig.esPorcentaje ? 100 : undefined,
+                            ticks: {
+                                callback: (v) => pistaConfig.esPorcentaje ? `${v}%` : (v === 0 ? '0' : `${(v / 1000).toFixed(0)}K`),
+                                font: { size: 9.5 },
+                                color: '#94a3b8',
+                                maxTicksLimit: pistaConfig.esPorcentaje ? 5 : 3
+                            },
+                            grid: { color: '#f8fafc' }
+                        },
+                        x: {
+                            ticks: { display: false },
+                            grid: { color: '#f8fafc' }
+                        }
+                    }
+                }
+            });
+
+            chartsArray.push(miniChart);
+        });
+
+        // 4. Renderizado directo del Eje X estático
+        const canvasEjeXEl = document.getElementById(canvasEjeXId);
+        if (canvasEjeXEl) {
+            const renderEjeX = () => {
+                const primerChart = chartsArray[0];
+                if (!primerChart || !primerChart.scales || !primerChart.scales.x) return;
+
+                const parent = canvasEjeXEl.parentElement;
+                const width = parent.clientWidth || canvasEjeXEl.clientWidth;
+                const height = parent.clientHeight || 135;
+                if (!width || !height) return;
+
+                const dpr = Math.max(window.devicePixelRatio || 1, 2);
+                canvasEjeXEl.width = width * dpr;
+                canvasEjeXEl.height = height * dpr;
+                canvasEjeXEl.style.width = width + 'px';
+                canvasEjeXEl.style.height = height + 'px';
+
+                const ctx = canvasEjeXEl.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.clearRect(0, 0, width, height);
+
+                const chartArea = primerChart.chartArea;
+                if (!chartArea) return;
+
+                ctx.beginPath();
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1;
+                ctx.moveTo(chartArea.left, 0.5);
+                ctx.lineTo(chartArea.right, 0.5);
+                ctx.stroke();
+
+                ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillStyle = '#475569';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+
+                labelsFormateados.forEach((label, i) => {
+                    const x = primerChart.scales.x.getPixelForValue(i);
+                    if (x === undefined || isNaN(x)) return;
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, 4);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(x, 8);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                });
+            };
+
+            const resizeObserver = new ResizeObserver(() => {
+                if (!document.body.contains(tarjeta)) {
+                    resizeObserver.disconnect();
+                    return;
+                }
+                chartsArray.forEach(chart => {
+                    if (chart && typeof chart.resize === 'function' && chart.canvas && chart.canvas.isConnected) {
+                        chart.resize();
+                    }
+                });
+                renderEjeX();
+            });
+
+            resizeObserver.observe(tarjeta);
+            chartsArray._resizeObserver = resizeObserver;
 
             setTimeout(() => {
                 if (document.body.contains(tarjeta)) {

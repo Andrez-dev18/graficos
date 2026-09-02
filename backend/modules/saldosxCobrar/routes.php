@@ -10,4 +10,6 @@ $this->post('/saldosxCobrar/grafico-linea', 'saldosxCobrarController@getGraficoZ
 
 $this->post('/saldosxCobrar/exportar-detalle-excel', 'saldosxCobrarController@exportarExcelDetalle');
 
+$this->post('/saldosxCobrar/grafico-anticipos', 'saldosxCobrarController@getGraficoAnticipos');
+
 ?>

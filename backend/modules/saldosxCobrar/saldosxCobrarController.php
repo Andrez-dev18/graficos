@@ -167,4 +167,36 @@ class saldosxCobrarController
         }
     }
 
+    /**
+     * FUNCIONES PARA GRAFICO DE ANTICIPOS
+     */
+    public function getGraficoAnticipos()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+            if (!$data) {
+                $data = $_POST;
+            }
+
+            $resultado = $this->service->obtenerGraficoAnticiposData($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener datos de anticipos: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+    /**
+     * FIN FUNCIONES PARA GRAFICO DE ANTICIPOS
+     */
+
 }

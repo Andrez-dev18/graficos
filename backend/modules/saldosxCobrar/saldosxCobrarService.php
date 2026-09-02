@@ -194,4 +194,59 @@ class saldosxCobrarService
         $exportador = new SaldosExportExcel();
         $exportador->generarExcelDetalle($datos, $params);
     }
+    /**
+     * FIN FUNCIONES PARA GRAFICO DE LINEAS SALDOS POR COBRAR
+     */
+
+    /**
+     * FUNCIONES PARA GRAFICO DE ANTICIPOS
+     */
+    public function obtenerGraficoAnticiposData(array $params)
+    {
+        $fechaInicio = $params['fecha_inicio'] ?? '';
+        $fechaFin    = $params['fecha_fin'] ?? '';
+        $cuentas     = is_array($params['cuentas'] ?? null) ? $params['cuentas'] : [];
+
+        if (empty($fechaInicio) || empty($fechaFin) || empty($cuentas)) {
+            return [
+                'status'  => 'error',
+                'message' => 'Parámetros incompletos (fechas o cuentas faltantes)',
+                'data'    => []
+            ];
+        }
+
+        $filas = $this->repo->getDatosIndicadorAnticipos([
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin'    => $fechaFin,
+            'cuentas'      => $cuentas
+        ]);
+
+        $resultado = [];
+        foreach ($filas as $row) {
+            $cta = $row['cuentaventa'];
+            if (!isset($resultado[$cta])) {
+                $resultado[$cta] = [
+                    'cuentaventa'    => $cta,
+                    'nomcuentaventa' => $row['nomcuentaventa'],
+                    'fechas'         => []
+                ];
+            }
+
+            $resultado[$cta]['fechas'][] = [
+                'fecha'               => $row['fechacarga'],
+                'saldoinicial'        => (float) $row['saldoinicial'],
+                'saldofinal'          => (float) $row['saldofinal'],
+                'resta_saldo'         => (float) $row['resta_saldo'],
+                'porcentaje_cobranza' => (float) $row['porcentaje_cobranza']
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'data'   => $resultado
+        ];
+    }
+    /**
+     * FIN FUNCIONES PARA GRAFICO DE ANTICIPOS
+     */
 }

@@ -14,6 +14,9 @@ class saldosService {
         FILTROS_LINEA: '/saldosxCobrar/filtros-linea',
         GRAFICO_LINEA: '/saldosxCobrar/grafico-linea',
 
+        // Gráfico de Anticipos
+        GRAFICO_ANTICIPOS: '/saldosxCobrar/grafico-anticipos',
+
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
 
@@ -160,7 +163,7 @@ class saldosService {
 
             // Procesar la respuesta binaria
             const blob = await response.blob();
-            
+
             // Obtener el nombre del archivo del header o generar uno por defecto
             let filename = `Detalle_Saldos_${filtros.cuentaventa || 'cuenta'}_${filtros.fechacarga || 'fecha'}.xlsx`;
             const disposition = response.headers.get('Content-Disposition');
@@ -187,6 +190,32 @@ class saldosService {
             return { success: true };
         } catch (error) {
             console.error('Error al exportar Excel en saldosService:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Consulta las métricas agregadas para el gráfico 08IndAnticipos
+     * @param {Object} payload { fecha_inicio, fecha_fin, cuentas: [] }
+     */
+    async obtenerGraficoAnticiposData(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.GRAFICO_ANTICIPOS}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar anticipos: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerGraficoAnticiposData:', error);
             throw error;
         }
     }
