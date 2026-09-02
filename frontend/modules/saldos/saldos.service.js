@@ -13,6 +13,8 @@ class saldosService {
         // Gráfico de Líneas por Zona
         FILTROS_LINEA: '/saldosxCobrar/filtros-linea',
         GRAFICO_LINEA: '/saldosxCobrar/grafico-linea',
+
+        EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
 
     /**
@@ -133,6 +135,58 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error al obtener datos línea en saldosService:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envía los filtros aplicados y descarga directamente el archivo Excel generado
+     * @param {Object} filtros Parámetros del modal (cuentaventa, fechacarga, zona, etc.)
+     */
+    async exportarDetalleExcel(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.EXPORTAR_EXCEL}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                },
+                body: JSON.stringify(filtros)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al exportar: ${response.status} - ${response.statusText}`);
+            }
+
+            // Procesar la respuesta binaria
+            const blob = await response.blob();
+            
+            // Obtener el nombre del archivo del header o generar uno por defecto
+            let filename = `Detalle_Saldos_${filtros.cuentaventa || 'cuenta'}_${filtros.fechacarga || 'fecha'}.xlsx`;
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition && disposition.includes('filename=')) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            // Crear el enlace virtual y detonar la descarga
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+
+            // Limpieza en memoria
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error al exportar Excel en saldosService:', error);
             throw error;
         }
     }

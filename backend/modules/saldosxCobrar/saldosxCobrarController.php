@@ -142,4 +142,29 @@ class saldosxCobrarController
         }
         exit;
     }
+
+    /**
+     * Endpoint POST: Exporta el detalle filtrado a Excel
+     */
+    public function exportarExcelDetalle()
+    {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true);
+            if (!$filtros) {
+                $filtros = $_POST;
+            }
+
+            $this->service->exportarExcelDetalle($filtros);
+        } catch (Exception $e) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al exportar Excel: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    }
+
 }

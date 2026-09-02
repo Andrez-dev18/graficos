@@ -105,6 +105,7 @@ class SaldosController {
         const panelFiltros = document.getElementById('contenedor-filtros-contenido');
         const iconToggle = document.getElementById('icon-toggle-filtros');
         const labelToggle = document.getElementById('label-toggle-filtros');
+        const btnExportarExcel = document.getElementById('btn-exportar-excel-modal');
 
         if (btnToggle && panelFiltros) {
             btnToggle.addEventListener('click', () => {
@@ -151,6 +152,11 @@ class SaldosController {
         // Selector de Tipo de Gráfico (Cambio único)
         document.getElementById('select-tipo-grafico')?.addEventListener('change', () => {
             this.alternarVisibilidadFiltrosSegunTipo();
+        });
+
+
+        btnExportarExcel?.addEventListener('click', () => {
+            this.exportarExcelDesdeModal();
         });
 
     }
@@ -769,6 +775,62 @@ class SaldosController {
         return `${diasSemana[fecha.getDay()]}, ${day} de ${meses[month - 1]} de ${year}`;
     }
 
+    /**
+     * Construye los filtros actuales del modal y detona la descarga del Excel
+     */
+    async exportarExcelDesdeModal() {
+        if (!this.puntoSeleccionado) return;
+
+        const btnExportar = document.getElementById('btn-exportar-excel-modal');
+        const contenidoOriginal = btnExportar ? btnExportar.innerHTML : '';
+
+        try {
+            // Feedback visual de carga en el botón
+            if (btnExportar) {
+                btnExportar.disabled = true;
+                btnExportar.classList.add('opacity-70', 'cursor-not-allowed');
+                btnExportar.innerHTML = `
+                    <svg class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Generando...</span>
+                `;
+            }
+
+            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
+            let payloadDetalle = {
+                cuentaventa: this.puntoSeleccionado.cuenta,
+                fechacarga: this.puntoSeleccionado.fecha
+            };
+
+            if (tipoGrafico === '02SalxCobrarxZona') {
+                // Filtros de líneas por zona
+                payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
+                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else {
+                // Filtros de barras por cliente
+                const totalClientesOpciones = this.msNomCliente.options.length;
+                const selectedClientes = this.msNomCliente.getSelectedValues();
+                payloadDetalle.clientes = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+            }
+
+            await this.service.exportarDetalleExcel(payloadDetalle);
+
+        } catch (error) {
+            console.error('Error al exportar archivo Excel:', error);
+            alert('Ocurrió un inconveniente al generar el archivo Excel.');
+        } finally {
+            // Restaurar estado del botón
+            if (btnExportar) {
+                btnExportar.disabled = false;
+                btnExportar.classList.remove('opacity-70', 'cursor-not-allowed');
+                btnExportar.innerHTML = contenidoOriginal;
+            }
+        }
+    }
 
     /**
      * Renderiza una tarjeta por cuenta con mini-gráficos de líneas apilados por cada Zona Fiscal (Small Multiples)

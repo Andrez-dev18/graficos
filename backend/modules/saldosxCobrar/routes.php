@@ -8,4 +8,6 @@ $this->post('/saldosxCobrar/detalle', 'saldosxCobrarController@getDetalleSaldos'
 $this->post('/saldosxCobrar/filtros-linea', 'saldosxCobrarController@getFiltrosZona');
 $this->post('/saldosxCobrar/grafico-linea', 'saldosxCobrarController@getGraficoZona');
 
+$this->post('/saldosxCobrar/exportar-detalle-excel', 'saldosxCobrarController@exportarExcelDetalle');
+
 ?>

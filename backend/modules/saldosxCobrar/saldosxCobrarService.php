@@ -182,4 +182,16 @@ class saldosxCobrarService
 
         return $resultado;
     }
+
+    //exportar detalle a excel
+    public function exportarExcelDetalle(array $params)
+    {
+        require_once __DIR__ . '/saldosExportExcel.php';
+
+        // Reutiliza la misma consulta con filtros del modal
+        $datos = $this->repo->getDetallePorCuentaYFecha($params);
+
+        $exportador = new SaldosExportExcel();
+        $exportador->generarExcelDetalle($datos, $params);
+    }
 }
