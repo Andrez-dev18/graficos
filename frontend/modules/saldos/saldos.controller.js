@@ -757,6 +757,19 @@ class SaldosController {
         this.chartsMap.set(cuenta, nuevoChart);
     }
 
+    formatearFechaConDiaSemana(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = fechaStr.split('-').map(Number);
+        const fecha = new Date(year, month - 1, day);
+        const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const meses = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        ];
+        return `${diasSemana[fecha.getDay()]}, ${day} de ${meses[month - 1]} de ${year}`;
+    }
+
+
     /**
      * Renderiza una tarjeta por cuenta con mini-gráficos de líneas apilados por cada Zona Fiscal (Small Multiples)
      */
@@ -954,12 +967,30 @@ class SaldosController {
                             bodyColor: '#334155',
                             borderColor: '#cbd5e1',
                             borderWidth: 1,
-                            padding: 8,
+                            padding: 12,
+                            boxPadding: 4,
+                            usePointStyle: false,
+                            displayColors: false, // Oculta el recuadro de color para emular Tableau
+                            titleFont: { size: 11, weight: 'normal' },
+                            bodyFont: { size: 11, family: 'sans-serif' },
                             callbacks: {
-                                title: (ctx) => ctx[0].label,
-                                label: (context) => `Zona ${zona}: S/. ${self.formatearNumeroTableau(context.raw, true)}`
+                                title: () => '', // Oculta el título predeterminado de Chart.js
+                                label: (context) => {
+                                    const index = context.dataIndex;
+                                    const fechaOriginal = todasFechas[index];
+                                    const fechaLarga = self.formatearFechaConDiaSemana(fechaOriginal);
+                                    const valorFormateado = self.formatearNumeroTableau(context.raw, false);
+
+                                    return [
+                                        `cuentaventa:          ${cuenta}`,
+                                        `nomcuentaventa:  ${nomCuenta}`,
+                                        `zonafiscal:             ${zona}`,
+                                        `Día de fechacarga: ${fechaLarga}`,
+                                        `saldofinal:             ${valorFormateado}`
+                                    ];
+                                }
                             }
-                        }
+                        },
                     },
                     scales: {
                         y: {
