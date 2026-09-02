@@ -145,6 +145,12 @@ class SaldosController {
                 document.getElementById('popup-menu-barra')?.classList.add('hidden');
             }
         });
+
+        // Selector de Tipo de Gráfico (Cambio único)
+        document.getElementById('select-tipo-grafico')?.addEventListener('change', () => {
+            this.alternarVisibilidadFiltrosSegunTipo();
+        });
+
     }
 
     setupModalEventListeners() {
@@ -351,26 +357,25 @@ class SaldosController {
         const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
 
         if (modoDisposicion === 'horizontal') {
-            // Contamos cuántas cuentas están seleccionadas/visibles actualmente
             const totalVisibles = this.msCuentaVenta ? this.msCuentaVenta.getSelectedValues().length : 0;
 
             if (totalVisibles === 1) {
-                // 1 gráfico: ocupa todo el ancho disponible
-                contenedor.className = 'grid grid-cols-1 gap-6 mt-6 pb-10 items-start';
+                contenedor.className = 'grid grid-cols-1 gap-6 mt-6 pb-10 items-start min-w-0';
             } else if (totalVisibles === 2) {
-                // 2 gráficos: mitad y mitad (2 columnas exactas)
-                contenedor.className = 'grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pb-10 items-start';
+                contenedor.className = 'grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pb-10 items-start min-w-0';
             } else {
-                // 3 o más gráficos: hasta 3 columnas
-                contenedor.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 pb-10 items-start';
+                contenedor.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 pb-10 items-start min-w-0';
             }
         } else {
-            contenedor.className = 'flex flex-col gap-6 mt-6 pb-10';
+            contenedor.className = 'flex flex-col gap-6 mt-6 pb-10 min-w-0';
         }
     }
 
     limpiarGraficos() {
         this.chartsMap.forEach(chart => {
+            if (chart && chart._resizeObserver) {
+                chart._resizeObserver.disconnect();
+            }
             if (Array.isArray(chart)) {
                 chart.forEach(c => c && typeof c.destroy === 'function' && c.destroy());
             } else if (chart && typeof chart.destroy === 'function') {
@@ -801,8 +806,11 @@ class SaldosController {
         // 1. Destruir instancias previas de esta cuenta
         if (this.chartsMap.has(cuenta)) {
             const chartPrevio = this.chartsMap.get(cuenta);
+            if (chartPrevio && chartPrevio._resizeObserver) {
+                chartPrevio._resizeObserver.disconnect();
+            }
             if (Array.isArray(chartPrevio)) {
-                chartPrevio.forEach(c => c.destroy());
+                chartPrevio.forEach(c => c && typeof c.destroy === 'function' && c.destroy());
             } else if (chartPrevio && typeof chartPrevio.destroy === 'function') {
                 chartPrevio.destroy();
             }
@@ -840,9 +848,9 @@ class SaldosController {
             const colorTema = this.paletaColores[idx % this.paletaColores.length];
 
             pistasZonasHTML += `
-                <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1">
+                <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1 min-w-0">
                     <!-- ETIQUETA LATERAL DE LA ZONA -->
-                    <div class="w-32 sm:w-36 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10">
+                    <div class="w-32 sm:w-36 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10 sticky left-0">
                         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold ${colorTema.bgBadge} ${colorTema.textBadge} border ${colorTema.borderBadge} w-fit">
                             <span class="w-2 h-2 rounded-full" style="background-color: ${colorTema.bar};"></span>
                             ${zona}
@@ -851,7 +859,7 @@ class SaldosController {
                     </div>
 
                     <!-- LIENZO DEL MINI-GRÁFICO COMPACTO (110px) -->
-                    <div class="flex-1 relative" style="height: 110px;">
+                    <div class="flex-1 relative min-w-0" style="height: 110px;">
                         <canvas id="${canvasId}"></canvas>
                     </div>
                 </div>
@@ -879,21 +887,21 @@ class SaldosController {
                 </div>
             </div>
 
-            <!-- CONTENEDOR PRINCIPAL: UN SOLO SCROLL HORIZONTAL -->
+            <!-- CONTENEDOR PRINCIPAL: SCROLL HORIZONTAL RESPONSIVE -->
             <div class="relative w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
-                <div style="width: max(100%, ${anchoMinimoRequerido + 144}px);" class="flex flex-col">
+                <div style="min-width: max(100%, ${anchoMinimoRequerido + 144}px);" class="w-full flex flex-col">
                     
-                    <!-- PISTAS DE ZONAS: UN SOLO SCROLL VERTICAL ESTILIZADO -->
+                    <!-- PISTAS DE ZONAS: SCROLL VERTICAL -->
                     <div class="max-h-[440px] overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col pr-1">
                         ${pistasZonasHTML}
                     </div>
 
                     <!-- EJE X FIJO EN LA BASE -->
-                    <div class="sticky bottom-0 z-20 bg-white border-t border-slate-200 flex items-stretch shadow-xs">
-                        <div class="w-32 sm:w-36 shrink-0 flex items-start justify-end pt-2 pr-3 border-r border-slate-100 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <div class="sticky bottom-0 z-20 bg-white border-t border-slate-200 flex items-stretch shadow-xs min-w-0">
+                        <div class="w-32 sm:w-36 shrink-0 flex items-start justify-end pt-2 pr-3 border-r border-slate-100 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-30">
                             Día de fechacarga
                         </div>
-                        <div class="flex-1 relative" style="height: 135px;">
+                        <div class="flex-1 relative min-w-0" style="height: 135px;">
                             <canvas id="${canvasEjeXId}"></canvas>
                         </div>
                     </div>
@@ -1073,9 +1081,28 @@ class SaldosController {
                 });
             };
 
-            // Dibujar tras render inicial y en resize
-            setTimeout(renderEjeX, 50);
-            window.addEventListener('resize', renderEjeX);
+            const resizeObserver = new ResizeObserver(() => {
+                // Si la tarjeta ya no está en el DOM, desconectamos y salimos
+                if (!document.body.contains(tarjeta)) {
+                    resizeObserver.disconnect();
+                    return;
+                }
+                chartsArray.forEach(chart => {
+                    if (chart && typeof chart.resize === 'function' && chart.canvas && chart.canvas.isConnected) {
+                        chart.resize();
+                    }
+                });
+                renderEjeX();
+            });
+
+            resizeObserver.observe(tarjeta);
+            chartsArray._resizeObserver = resizeObserver; // Guardamos la referencia para destruirlo a tiempo
+
+            setTimeout(() => {
+                if (document.body.contains(tarjeta)) {
+                    renderEjeX();
+                }
+            }, 60);
         }
 
         this.chartsMap.set(cuenta, chartsArray);
