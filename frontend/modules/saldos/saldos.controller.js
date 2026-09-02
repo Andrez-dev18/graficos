@@ -46,19 +46,6 @@ class SaldosController {
     }
 
     inicializarComponentesFiltros() {
-        // 1. Tipo de Gráfico (Con onChange para alternar visibilidad de filtros)
-        this.msTipoGrafico = new CustomMultiSelect({
-            btnId: 'ms-tipografico-btn',
-            labelId: 'ms-tipografico-label',
-            dropdownId: 'ms-tipografico-dropdown',
-            searchId: 'ms-tipografico-search',
-            optionsContainerId: 'ms-tipografico-options',
-            options: [
-                { id: 'saltosXcobrarXbarra', label: 'saltosXcobrarXbarra', selected: true },
-                { id: '02SalxCobrarxZona', label: '02SalxCobrarxZona', selected: false }
-            ],
-            onChange: () => this.alternarVisibilidadFiltrosSegunTipo()
-        });
 
         // 2. Cuenta Venta (Se mantiene igual)
         this.msCuentaVenta = new CustomMultiSelect({
@@ -447,23 +434,23 @@ class SaldosController {
      * Muestra u oculta los filtros correspondientes según el tipo de gráfico seleccionado
      */
     alternarVisibilidadFiltrosSegunTipo() {
-        const seleccionados = this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues() : [];
-        const tieneBarras = seleccionados.includes('saltosXcobrarXbarra');
-        const tieneLineas = seleccionados.includes('02SalxCobrarxZona');
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
+        const esBarras = tipoGrafico === 'saltosXcobrarXbarra';
+        const esLineas = tipoGrafico === '02SalxCobrarxZona';
 
         const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
         const wrapperVenc = document.getElementById('wrapper-filtro-vencimiento');
         const wrapperDec = document.getElementById('wrapper-filtro-decision');
         const wrapperObs = document.getElementById('wrapper-filtro-observacion');
 
-        // NOMCLIENTE solo visible si está seleccionado 'saltosXcobrarXbarra'
+        // NOMCLIENTE solo visible en Barras
         if (wrapperCliente) {
-            wrapperCliente.classList.toggle('hidden', !tieneBarras);
+            wrapperCliente.classList.toggle('hidden', !esBarras);
         }
 
-        // Vencimiento, Decisión y Observación solo visibles si está seleccionado '02SalxCobrarxZona'
+        // Vencimiento, Decisión y Observación solo visibles en Líneas por Zona
         [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
-            if (el) el.classList.toggle('hidden', !tieneLineas);
+            if (el) el.classList.toggle('hidden', !esLineas);
         });
     }
 
@@ -485,8 +472,8 @@ class SaldosController {
             return;
         }
 
-        const tipoGraficoSeleccionado = this.msTipoGrafico.getSelectedValues();
-        const esVistaZona = tipoGraficoSeleccionado.includes('02SalxCobrarxZona');
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
+        const esVistaZona = tipoGrafico === '02SalxCobrarxZona';
 
         contenedor.innerHTML = `
             <div id="loader-graficos" class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-blue-600 font-medium flex items-center justify-center gap-2">
