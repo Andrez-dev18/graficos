@@ -352,24 +352,41 @@
             <!-- CUERPO CON PESTAÑAS (SIDEBAR IZQUIERDO Y TABLA DERECHA) -->
             <div class="flex flex-1 overflow-hidden">
                 <!-- SIDEBAR DE TABS -->
-                <div class="w-48 bg-slate-50 border-r border-slate-100 p-3 space-y-1">
-                    <button id="tab-btn-resumen" type="button"
-                        class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 transition-all text-left cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                            </path>
-                        </svg>
-                        <span>Resumen</span>
-                    </button>
-                    <button id="tab-btn-completos" type="button"
-                        class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all text-left cursor-pointer">
-                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-                        </svg>
-                        <span>Datos completos</span>
-                    </button>
+                <div class="w-48 bg-slate-50 border-r border-slate-100 p-3 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <button id="tab-btn-resumen" type="button"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 transition-all text-left cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                                </path>
+                            </svg>
+                            <span>Resumen</span>
+                        </button>
+                        <button id="tab-btn-completos" type="button"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all text-left cursor-pointer">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                            </svg>
+                            <span>Datos completos</span>
+                        </button>
+
+                        <!-- SEPARADOR Y BOTÓN EXPORTAR EXCEL -->
+                        <div class="pt-2">
+                            <div class="border-t border-slate-200/80 mb-2"></div>
+                            <button id="btn-exportar-excel-modal" type="button"
+                                class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-emerald-700 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200/70 transition-all text-left cursor-pointer group shadow-2xs">
+                                <svg class="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                                <span>Exportar Excel</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- CONTENIDO DE LAS TABLAS -->
