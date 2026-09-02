@@ -47,7 +47,7 @@ class SaldosController {
 
     inicializarComponentesFiltros() {
 
-        // 2. Cuenta Venta (Se mantiene igual)
+        // 2. Cuenta Venta
         this.msCuentaVenta = new CustomMultiSelect({
             btnId: 'ms-cuentaventa-btn',
             labelId: 'ms-cuentaventa-label',
@@ -137,7 +137,9 @@ class SaldosController {
         document.getElementById('btn-limpiar')?.addEventListener('click', () => {
             this.msCuentaVenta?.clearSelection();
             this.msNomCliente?.selectAll();
-            this.sincronizarVisibilidadEnCaliente();
+            this.msDecision?.selectAll();
+            this.msObservacion?.selectAll();
+            this.limpiarGraficos();
         });
 
         document.addEventListener('click', (e) => {
@@ -151,6 +153,26 @@ class SaldosController {
             this.alternarVisibilidadFiltrosSegunTipo();
         });
 
+    }
+
+    sincronizarVisibilidadEnCaliente() {
+        const selectedCuentas = this.msCuentaVenta ? this.msCuentaVenta.getSelectedValues() : [];
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+
+        // Recalcular columnas del Grid si está en modo horizontal
+        this.aplicarLayoutGrid();
+
+        // Ocultar o mostrar tarjetas existentes
+        const tarjetas = contenedor.querySelectorAll('[data-cuenta-id]');
+        tarjetas.forEach(card => {
+            const cuentaId = card.getAttribute('data-cuenta-id');
+            if (selectedCuentas.includes(cuentaId)) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
     }
 
     setupModalEventListeners() {
@@ -398,52 +420,6 @@ class SaldosController {
         if (contenedor) contenedor.innerHTML = '';
     }
 
-    /**
-     * Sincroniza la visibilidad en caliente sin recargar la página ni pedir datos existentes
-     */
-    async sincronizarVisibilidadEnCaliente() {
-        const selectedCuentas = this.msCuentaVenta.getSelectedValues();
-        const contenedor = document.getElementById('contenedor-graficos-lista');
-        if (!contenedor) return;
-
-        // Recalcula el ancho de las columnas en caliente según la cantidad activa
-        this.aplicarLayoutGrid();
-
-        // 1. Ocultar o mostrar tarjetas ya renderizadas en el DOM
-        const tarjetas = contenedor.querySelectorAll('[data-cuenta-id]');
-        tarjetas.forEach(card => {
-            const cuentaId = card.getAttribute('data-cuenta-id');
-            if (selectedCuentas.includes(cuentaId)) {
-                card.classList.remove('hidden');
-            } else {
-                card.classList.add('hidden');
-            }
-        });
-
-        // 2. Identificar si hay cuentas seleccionadas que aún no existen en caché
-        const cuentasFaltantes = selectedCuentas.filter(c => !this.cacheData[c]);
-
-        if (cuentasFaltantes.length > 0) {
-            await this.cargarCuentasFaltantes(cuentasFaltantes);
-        }
-
-        // Mensaje de estado vacío si no hay ninguna visible
-        const hayVisibles = Array.from(tarjetas).some(c => !c.classList.contains('hidden')) || cuentasFaltantes.length > 0;
-        let emptyMsg = document.getElementById('mensaje-sin-cuentas');
-
-        if (!hayVisibles && selectedCuentas.length === 0) {
-            if (!emptyMsg) {
-                emptyMsg = document.createElement('div');
-                emptyMsg.id = 'mensaje-sin-cuentas';
-                emptyMsg.className = 'col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 font-medium';
-                emptyMsg.textContent = 'No hay cuentas seleccionadas para mostrar.';
-                contenedor.appendChild(emptyMsg);
-            }
-            emptyMsg.classList.remove('hidden');
-        } else if (emptyMsg) {
-            emptyMsg.classList.add('hidden');
-        }
-    }
 
     /**
      * Muestra u oculta los filtros correspondientes según el tipo de gráfico seleccionado
@@ -483,7 +459,11 @@ class SaldosController {
 
         const selectedCuentas = this.msCuentaVenta.getSelectedValues();
         if (selectedCuentas.length === 0) {
-            this.sincronizarVisibilidadEnCaliente();
+            contenedor.innerHTML = `
+                <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 font-medium">
+                    No hay cuentas seleccionadas para consultar.
+                </div>
+            `;
             return;
         }
 
@@ -572,34 +552,6 @@ class SaldosController {
         }
     }
 
-    /**
-     * Trae de la API únicamente las cuentas que faltan por renderizar
-     */
-    async cargarCuentasFaltantes(cuentasFaltantes) {
-        try {
-            const totalClientesOpciones = this.msNomCliente.options.length;
-            const selectedClientes = this.msNomCliente.getSelectedValues();
-            const clientesPayload = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
-
-            const payload = {
-                fecha_inicio: this.currentPeriodo.inicio,
-                fecha_fin: this.currentPeriodo.fin,
-                cuentas: cuentasFaltantes,
-                clientes: clientesPayload
-            };
-
-            const res = await this.service.obtenerGraficoData(payload);
-            if (res.success && res.payload && res.payload.data) {
-                cuentasFaltantes.forEach(cta => {
-                    const datosCta = res.payload.data[cta] || [];
-                    this.cacheData[cta] = datosCta;
-                    this.crearTarjetaYChart(cta, datosCta);
-                });
-            }
-        } catch (error) {
-            console.error('Error cargando cuentas faltantes:', error);
-        }
-    }
 
     formatearFechaTableau(fechaStr) {
         if (!fechaStr) return '';
