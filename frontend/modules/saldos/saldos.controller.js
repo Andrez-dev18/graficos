@@ -616,7 +616,8 @@ class SaldosController {
 
             const sIniFmt = this.formatearNumeroTableau(d.saldoinicial, true);
             const sFinFmt = this.formatearNumeroTableau(d.saldofinal, true);
-            const fCorta = this.formatearFechaCortaTableau(d.fechacontable || d.fechacarga);
+            // En Tableau la primera columna es "fechac.." (Día de fechacarga), ej: 1/8/2026
+            const fCorta = this.formatearFechaCortaTableau(d.fechacarga);
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors text-[11px]">

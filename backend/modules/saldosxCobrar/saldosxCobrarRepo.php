@@ -515,7 +515,7 @@ class saldosxCobrarRepo
                     ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
                 FROM dmdocventas2
                 WHERE " . implode(' AND ', $where) . "
-                ORDER BY fechacontable ASC, numerodoc ASC";
+                ORDER BY numerodoc ASC";
 
         $stmt = $this->conn->prepare($sql);
         foreach ($params as $key => $val) {
