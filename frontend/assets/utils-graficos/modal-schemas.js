@@ -47,6 +47,25 @@ const ModalSchemas = {
                 { key: 'vencimiento', label: 'vencimiento', align: 'left', nowrap: true, fontClass: 'font-semibold text-slate-700' },
                 { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
             ]
+        },
+
+        // 3. Gráfico 08IndAnticipos (Indicador Porcentaje)
+        '08IndAnticipos': {
+            resumen: [
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left' },
+                { key: 'ratio_cobranza', label: 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', align: 'right', format: 'ratio6', fontClass: 'font-semibold text-slate-900' }
+            ],
+            detalle: [
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', nowrap: true },
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'fechacarga', label: 'fechacarga', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
+                { key: 'resta_saldo', label: 'ROUND((sum([saldoinicial])-sum([saldofinal])),2)', align: 'right', format: 'currency', fontClass: 'font-mono' },
+                { key: 'ratio_cobranza', label: 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', align: 'right', format: 'ratio5', fontClass: 'font-mono' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' },
+                { key: 'saldoinicial', label: 'saldoinicial', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ]
         }
     },
 
@@ -90,6 +109,16 @@ const ModalSchemas = {
         }
         if (col.format === 'fullDate') {
             return helpers && helpers.formatearFecha ? helpers.formatearFecha(val) : val;
+        }
+        if (col.format === 'ratio6') {
+            const num = Number(val);
+            if (isNaN(num)) return '0,000000';
+            return num.toFixed(6).replace('.', ',');
+        }
+        if (col.format === 'ratio5') {
+            const num = Number(val);
+            if (isNaN(num)) return '0,00000';
+            return num.toFixed(5).replace('.', ',');
         }
         return (val !== null && val !== undefined && val !== '') ? val : '-';
     },

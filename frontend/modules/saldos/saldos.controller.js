@@ -219,7 +219,7 @@ class SaldosController {
         const modal = document.getElementById('modal-ver-datos');
         if (!modal || !this.puntoSeleccionado) return;
 
-        const { tipoGrafico, cuenta, nomcuentaventa, zona, fechaFormateada, saldofinal } = this.puntoSeleccionado;
+        const { tipoGrafico, cuenta, nomcuentaventa, zona, fechaFormateada, saldofinal, saldoinicial, ratioCobranza } = this.puntoSeleccionado;
         const tipoActivo = tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
         const schema = ModalSchemas.getSchema(tipoActivo);
 
@@ -244,7 +244,9 @@ class SaldosController {
             nomcuentaventa: nomcuentaventa || '',
             zonafiscal: zona || '',
             dia_fechacarga: fechaFormateada,
-            saldofinal: saldofinal
+            saldofinal: saldofinal,
+            saldoinicial: saldoinicial || 0,
+            ratio_cobranza: ratioCobranza || 0
         };
 
         ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumen, helpers);
@@ -300,6 +302,7 @@ class SaldosController {
 
         try {
             let payloadDetalle = {
+                tipo_grafico: tipoGrafico,
                 cuentaventa: this.puntoSeleccionado.cuenta,
                 fechacarga: this.puntoSeleccionado.fecha
             };
@@ -307,6 +310,12 @@ class SaldosController {
             if (tipoGrafico === '02SalxCobrarxZona') {
                 // FILTROS ESPECÍFICOS DE LÍNEAS POR ZONA
                 payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
+                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '08IndAnticipos') {
+                // Anticipos no requiere filtros por clientes ni por zona
+            } else if (tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs') {
                 payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
                 payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
                 payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
@@ -330,6 +339,18 @@ class SaldosController {
                 filas.forEach(f => {
                     f.dia_fechacarga = this.puntoSeleccionado.fechaFormateada;
                 });
+
+                // Si es Anticipos y viene el resumen con ratio exacto, actualizar la pestaña Resumen
+                if (tipoGrafico === '08IndAnticipos' && res.payload.resumen) {
+                    const r = res.payload.resumen;
+                    const dataResumenActualizado = {
+                        nomcuentaventa: r.nomcuentaventa || this.puntoSeleccionado.nomcuentaventa,
+                        dia_fechacarga: this.puntoSeleccionado.fechaFormateada,
+                        ratio_cobranza: r.ratio_cobranza
+                    };
+                    const tbodyResumen = document.getElementById('tbody-modal-resumen');
+                    ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumenActualizado, helpers);
+                }
 
                 const totalGeneral = filas.reduce((acc, curr) => acc + Number(curr.saldofinal || 0), 0);
 
@@ -901,6 +922,12 @@ class SaldosController {
                 payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
                 payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
                 payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '08IndAnticipos') {
+                // Anticipos no filtra por cliente ni zona
+            } else if (tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs') {
+                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
             } else {
                 // Filtros de barras por cliente
                 const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
@@ -1459,6 +1486,37 @@ class SaldosController {
                     maintainAspectRatio: false,
                     layout: {
                         padding: { top: 18, bottom: 4, left: 10, right: 10 }
+                    },
+                    onClick: (event, elements) => {
+                        // Solo abrir el detalle cuando se clickea en la pista de Indicador Porcentaje
+                        if (pistaConfig.esPorcentaje && elements && elements.length > 0) {
+                            const pointIndex = elements[0].index;
+                            const puntoActual = puntos[pointIndex] || {};
+                            const fechaOriginal = puntoActual.fecha;
+                            const fechaTexto = labelsFormateados[pointIndex];
+                            const pct = Number(puntoActual.porcentaje_cobranza || 0);
+                            const ratio = pct / 100;
+
+                            self.puntoSeleccionado = {
+                                tipoGrafico: '08IndAnticipos',
+                                metrica: 'porcentaje_cobranza',
+                                cuenta: cuenta,
+                                nomcuentaventa: nomCuenta,
+                                fecha: fechaOriginal,
+                                fechaFormateada: fechaTexto,
+                                porcentaje: pct,
+                                ratioCobranza: ratio,
+                                saldofinal: puntoActual.saldofinal,
+                                saldoinicial: puntoActual.saldoinicial
+                            };
+
+                            const popup = document.getElementById('popup-menu-barra');
+                            if (popup) {
+                                popup.style.left = `${event.native.clientX + 10}px`;
+                                popup.style.top = `${event.native.clientY + 10}px`;
+                                popup.classList.remove('hidden');
+                            }
+                        }
                     },
                     plugins: {
                         legend: { display: false },

@@ -106,9 +106,15 @@ class saldosxCobrarRepo
 
         $where = [
             "cuentaventa = :cuentaventa",
-            "fechacarga = :fechacarga",
-            "COALESCE(saldofinal, 0) > 0"
+            "fechacarga = :fechacarga"
         ];
+
+        // Para gráficos de saldos tradicionales se filtraba saldofinal > 0
+        // En Anticipos o Análisis por Cuentas se incluyen todas las transacciones (positivas, negativas y cero)
+        $tipoGrafico = $filtros['tipo_grafico'] ?? '';
+        if ($tipoGrafico === 'saltosXcobrarXbarra' || $tipoGrafico === '02SalxCobrarxZona') {
+            $where[] = "COALESCE(saldofinal, 0) > 0";
+        }
 
         // Filtro opcional por Zona Fiscal (cuando el clic viene de líneas)
         if (!empty($filtros['zonafiscal'])) {
@@ -177,6 +183,7 @@ class saldosxCobrarRepo
                     COALESCE(decision, 'NINGUNA') AS decision,
                     COALESCE(observacion, 'NINGUNA') AS observacion,
                     COALESCE(vencimiento, '-') AS vencimiento,
+                    ROUND(COALESCE(saldoinicial, 0), 2) AS saldoinicial,
                     ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
                 FROM dmdocventas2
                 WHERE " . implode(' AND ', $where);

@@ -26,6 +26,16 @@ class SaldosExportExcel
             ['key' => 'observacion',   'label' => 'OBSERVACION',    'type' => 'string'],
             ['key' => 'vencimiento',   'label' => 'VENCIMIENTO',    'type' => 'string'],
             ['key' => 'saldofinal',    'label' => 'SALDOFINAL',     'type' => 'currency']
+        ],
+        '08IndAnticipos' => [
+            ['key' => 'nomcuentaventa', 'label' => 'nomcuentaventa', 'type' => 'string'],
+            ['key' => 'dia_fechacarga', 'label' => 'Día de fechacarga', 'type' => 'dia_fechacarga'],
+            ['key' => 'cuentaventa',    'label' => 'cuentaventa',    'type' => 'string'],
+            ['key' => 'fechacarga',     'label' => 'fechacarga',     'type' => 'short_date'],
+            ['key' => 'resta_saldo',    'label' => 'ROUND((sum([saldoinicial])-sum([saldofinal])),2)', 'type' => 'currency'],
+            ['key' => 'ratio_cobranza', 'label' => 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', 'type' => 'ratio5'],
+            ['key' => 'saldofinal',     'label' => 'saldofinal',     'type' => 'currency'],
+            ['key' => 'saldoinicial',   'label' => 'saldoinicial',   'type' => 'currency']
         ]
     ];
 
@@ -100,8 +110,23 @@ class SaldosExportExcel
 
                 switch ($type) {
                     case 'currency':
-                        $sheet->setCellValue($colLetter . $fila, $monto);
+                        $valMonto = (float)($row[$key] ?? 0);
+                        if ($key === 'resta_saldo' && !isset($row['resta_saldo'])) {
+                            $valMonto = ((float)($row['saldoinicial'] ?? 0)) - ((float)($row['saldofinal'] ?? 0));
+                        }
+                        $sheet->setCellValue($colLetter . $fila, $valMonto);
                         $sheet->getStyle($colLetter . $fila)->getNumberFormat()->setFormatCode('#,##0.00');
+                        break;
+
+                    case 'ratio5':
+                        $valRatio = (float)($row[$key] ?? 0);
+                        if (!isset($row[$key])) {
+                            $sIni = (float)($row['saldoinicial'] ?? 0);
+                            $sFin = (float)($row['saldofinal'] ?? 0);
+                            $valRatio = ($sIni != 0.0) ? round(($sIni - $sFin) / $sIni, 5) : 0.0;
+                        }
+                        $sheet->setCellValue($colLetter . $fila, $valRatio);
+                        $sheet->getStyle($colLetter . $fila)->getNumberFormat()->setFormatCode('0.00000');
                         break;
 
                     case 'dia_fechacarga':

@@ -110,9 +110,17 @@ class saldosxCobrarService
         $detalleRaw = $this->repo->getDetallePorCuentaYFecha($params);
 
         $totalSaldofinal = 0.0;
-        $datosCompletos = array_map(function ($row) use (&$totalSaldofinal) {
+        $totalSaldoinicial = 0.0;
+        $datosCompletos = array_map(function ($row) use (&$totalSaldofinal, &$totalSaldoinicial) {
             $monto = (float) $row['saldofinal'];
+            $saldoIni = (float) ($row['saldoinicial'] ?? 0);
             $totalSaldofinal += $monto;
+            $totalSaldoinicial += $saldoIni;
+
+            $restaSaldo = round($saldoIni - $monto, 2);
+            // En Tableau: ROUND(..., 2) y formateado a 5 decimales (ej. 0,54000, 0,99000)
+            $ratio = ($saldoIni != 0.0) ? round(round($restaSaldo / $saldoIni, 2), 5) : 0.0;
+
             return [
                 'cuentaventa'    => $row['cuentaventa'],
                 'nomcuentaventa' => $row['nomcuentaventa'],
@@ -125,9 +133,16 @@ class saldosxCobrarService
                 'decision'       => $row['decision'],
                 'observacion'    => $row['observacion'],
                 'vencimiento'    => $row['vencimiento'],
-                'saldofinal'     => $monto
+                'saldofinal'     => $monto,
+                'saldoinicial'   => $saldoIni,
+                'resta_saldo'    => $restaSaldo,
+                'ratio_cobranza' => $ratio
             ];
         }, $detalleRaw);
+
+        $sumResta = round($totalSaldoinicial - $totalSaldofinal, 2);
+        // En Tableau: ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinicial]), 2) y formateado a 6 decimales (ej. 0,430000)
+        $ratioCobranza = ($totalSaldoinicial != 0.0) ? round(round($sumResta / $totalSaldoinicial, 2), 6) : 0.0;
 
         return [
             'status' => 'success',
@@ -136,7 +151,10 @@ class saldosxCobrarService
                 'nomcuentaventa' => $detalleRaw[0]['nomcuentaventa'] ?? '',
                 'zonafiscal'     => $params['zonafiscal'] ?? ($detalleRaw[0]['zonafiscal'] ?? ''),
                 'fechacarga'     => $fechacarga,
-                'saldofinal'     => round($totalSaldofinal, 2)
+                'saldofinal'     => round($totalSaldofinal, 2),
+                'saldoinicial'   => round($totalSaldoinicial, 2),
+                'resta_saldo'    => $sumResta,
+                'ratio_cobranza' => $ratioCobranza
             ],
             'total_filas' => count($datosCompletos),
             'datos_completos' => $datosCompletos
