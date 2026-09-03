@@ -256,4 +256,46 @@ class saldosxCobrarService
     /**
      * FIN FUNCIONES PARA GRAFICO DE ANTICIPOS
      */
+
+    /**
+     * FUNCIONES PARA 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cuenta de Venta)
+     */
+    public function obtenerGraficoAnalisisCuentas(array $params)
+    {
+        $fechaInicio = $params['fecha_inicio'] ?? '';
+        $fechaFin    = $params['fecha_fin'] ?? '';
+        $cuentas     = is_array($params['cuentas'] ?? null) ? $params['cuentas'] : [];
+
+        if (empty($fechaInicio) || empty($fechaFin) || empty($cuentas)) {
+            return [
+                'status'  => 'error',
+                'message' => 'Parámetros incompletos (fechas o cuentas faltantes)',
+                'data'    => []
+            ];
+        }
+
+        $filas = $this->repo->getSaldosPorCuentaAnalisis($params);
+
+        $resultado = [];
+        foreach ($filas as $row) {
+            $cta = $row['cuentaventa'];
+            if (!isset($resultado[$cta])) {
+                $resultado[$cta] = [
+                    'cuentaventa'    => $cta,
+                    'nomcuentaventa' => $row['nomcuentaventa'],
+                    'fechas'         => []
+                ];
+            }
+
+            $resultado[$cta]['fechas'][] = [
+                'fecha'      => $row['fechacarga'],
+                'saldofinal' => (float) $row['saldofinal']
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'data'   => $resultado
+        ];
+    }
 }

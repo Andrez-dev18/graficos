@@ -12,4 +12,7 @@ $this->post('/saldosxCobrar/exportar-detalle-excel', 'saldosxCobrarController@ex
 
 $this->post('/saldosxCobrar/grafico-anticipos', 'saldosxCobrarController@getGraficoAnticipos');
 
+// Rutas para 20DashAnalisisCtasMaxDeudoresDocs (Saldos por cuenta de venta)
+$this->post('/saldosxCobrar/grafico-analisis-cuentas', 'saldosxCobrarController@getGraficoAnalisisCuentas');
+
 ?>

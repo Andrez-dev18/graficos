@@ -454,7 +454,7 @@ class SaldosController {
     alternarVisibilidadFiltrosSegunTipo() {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
         const esBarras = tipoGrafico === 'saltosXcobrarXbarra';
-        const esLineas = tipoGrafico === '02SalxCobrarxZona';
+        const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
 
         const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
         const wrapperVenc = document.getElementById('wrapper-filtro-vencimiento');
@@ -466,7 +466,7 @@ class SaldosController {
         }
 
         [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
-            if (el) el.classList.toggle('hidden', !esLineas);
+            if (el) el.classList.toggle('hidden', !usaFiltrosDoc);
         });
     }
 
@@ -495,6 +495,7 @@ class SaldosController {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
         const esVistaZona = tipoGrafico === '02SalxCobrarxZona';
         const esVistaAnticipos = tipoGrafico === '08IndAnticipos';
+        const esVistaAnalisisCuentas = tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
 
         contenedor.innerHTML = `
             <div id="loader-graficos" class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-blue-600 font-medium flex items-center justify-center gap-2">
@@ -507,7 +508,33 @@ class SaldosController {
         `;
 
         try {
-            if (esVistaAnticipos) {
+            if (esVistaAnalisisCuentas) {
+                // CONSULTA PARA 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cuenta de Venta)
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    cuentas: selectedCuentas,
+                    vencimientos: this.msVencimiento ? this.msVencimiento.getSelectedValues() : [],
+                    decisiones: this.msDecision ? this.msDecision.getSelectedValues() : [],
+                    observaciones: this.msObservacion ? this.msObservacion.getSelectedValues() : []
+                };
+
+                const res = await this.service.obtenerGraficoAnalisisCuentas(payload);
+                document.getElementById('loader-graficos')?.remove();
+
+                if (!res.success || !res.payload || !res.payload.data || Object.keys(res.payload.data).length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
+                            No se encontraron registros de saldos por cuenta para los filtros seleccionados.
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.cacheData = res.payload.data;
+                this.crearDashboardAnalisisCuentas(this.cacheData, selectedCuentas);
+
+            } else if (esVistaAnticipos) {
                 // CONSULTA PARA 08IndAnticipos
                 const payload = {
                     fecha_inicio: fInicio,
@@ -634,6 +661,19 @@ class SaldosController {
         if (!fechaStr) return '';
         const [year, month, day] = fechaStr.split('-').map(Number);
         return `${day}/${month}/${year}`;
+    }
+
+    formatearFechaConDiaSemana(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = fechaStr.split('-').map(Number);
+        const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const meses = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        ];
+        const d = new Date(year, month - 1, day);
+        const nombreDia = diasSemana[d.getDay()];
+        return `${nombreDia}, ${day} de ${meses[month - 1]} de ${year}`;
     }
 
     /**
@@ -1593,6 +1633,361 @@ class SaldosController {
         this.chartsMap.set(cuenta, chartsArray);
     }
 
+    /**
+     * Construye la vista de pistas para 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cuenta de Venta)
+     */
+    crearDashboardAnalisisCuentas(dataCuentas, selectedCuentas) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+
+        const cuentasValidas = selectedCuentas.filter(cta => dataCuentas[cta]);
+        if (cuentasValidas.length === 0) {
+            contenedor.innerHTML = `
+                <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 font-medium">
+                    No se encontraron registros de saldos por cuenta para los filtros seleccionados.
+                </div>
+            `;
+            return;
+        }
+
+        // 1. Unificar y ordenar todas las fechas presentes en la consulta
+        const conjuntoFechas = new Set();
+        cuentasValidas.forEach(cta => {
+            if (dataCuentas[cta] && Array.isArray(dataCuentas[cta].fechas)) {
+                dataCuentas[cta].fechas.forEach(pt => conjuntoFechas.add(pt.fecha));
+            }
+        });
+        const todasFechas = Array.from(conjuntoFechas).sort();
+
+        if (todasFechas.length === 0) {
+            contenedor.innerHTML = `
+                <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 font-medium">
+                    No hay fechas registradas para los filtros aplicados.
+                </div>
+            `;
+            return;
+        }
+
+        const labelsFormateados = todasFechas.map(f => this.formatearFechaConDiaSemana(f));
+        const totalPuntos = todasFechas.length;
+        const pxMinimoPorPunto = 38;
+        const anchoMinimoRequerido = totalPuntos * pxMinimoPorPunto;
+
+        // Paleta Tableau idéntica a la vista original
+        const coloresTableau = {
+            '121201': '#2563EB', // Azul
+            '121202': '#D97706', // Ámbar / Naranja
+            '121204': '#DC2626', // Rojo
+            '121205': '#0D9488', // Verde Azulado / Teal
+            '121207': '#16A34A', // Verde
+            '121210': '#78716C'  // Gris cálido / Café
+        };
+
+        // 2. Construir la estructura DOM
+        const tarjeta = document.createElement('div');
+        tarjeta.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col justify-between transition-all min-w-0';
+
+        let pistasHTML = '';
+        cuentasValidas.forEach((cuenta, idx) => {
+            const infoCuenta = dataCuentas[cuenta];
+            const nomCuenta = infoCuenta.nomcuentaventa || `Cuenta ${cuenta}`;
+            const canvasId = `chart-analisis-cuenta-${cuenta}`;
+            const color = coloresTableau[cuenta] || (this.paletaColores[idx % this.paletaColores.length]?.bar || '#2563EB');
+
+            pistasHTML += `
+                <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1 min-w-0">
+                    <!-- ETIQUETA LATERAL: CUENTA, NOMBRE Y SALDOFINAL -->
+                    <div class="w-48 sm:w-56 shrink-0 flex items-center justify-between pr-3 border-r border-slate-200 bg-white z-10 sticky left-0 shadow-xs">
+                        <div class="flex flex-col min-w-0 pr-2">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-xs shrink-0" style="background-color: ${color};"></span>
+                                <span class="text-xs font-bold text-slate-800 font-mono">${cuenta}</span>
+                            </div>
+                            <span class="text-[11px] text-slate-500 font-medium truncate mt-0.5" title="${nomCuenta}">${nomCuenta}</span>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <span class="text-[10px] text-slate-400 font-semibold tracking-wider block">saldofinal</span>
+                        </div>
+                    </div>
+
+                    <!-- LIENZO DEL MINI-GRÁFICO -->
+                    <div class="flex-1 relative min-w-0" style="height: 85px;">
+                        <canvas id="${canvasId}"></canvas>
+                    </div>
+                </div>
+            `;
+        });
+
+        const canvasEjeXId = 'chart-ejex-analisis-cuentas';
+
+        tarjeta.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 font-bold text-xs rounded-lg border border-blue-200/60">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Saldos por Cobrar por Cuenta de Venta
+                    </span>
+                    <span class="text-xs text-slate-400 font-medium">(${cuentasValidas.length} cuentas registradas)</span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px]">
+                    <span class="text-slate-400 font-medium">Período: <strong class="text-slate-700 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong></span>
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-semibold rounded border border-slate-200">Soles</span>
+                </div>
+            </div>
+
+            <!-- CONTENEDOR PRINCIPAL: SCROLL HORIZONTAL RESPONSIVE -->
+            <div class="relative w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+                <div style="min-width: max(100%, ${anchoMinimoRequerido + 230}px);" class="w-full flex flex-col">
+                    
+                    <!-- PISTAS DE CUENTAS: SCROLL VERTICAL -->
+                    <div class="max-h-[520px] overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col pr-1">
+                        ${pistasHTML}
+                    </div>
+
+                    <!-- EJE X FIJO EN LA BASE -->
+                    <div class="sticky bottom-0 z-20 bg-white border-t border-slate-200 flex items-stretch shadow-xs min-w-0">
+                        <div class="w-48 sm:w-56 shrink-0 flex items-start justify-end pt-2 pr-3 border-r border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-30">
+                            Día de fechacarga
+                        </div>
+                        <div class="flex-1 relative min-w-0" style="height: 155px;">
+                            <canvas id="${canvasEjeXId}"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        contenedor.appendChild(tarjeta);
+
+        // 3. Instanciar los mini-gráficos por cuenta
+        const chartsArray = [];
+        const self = this;
+
+        cuentasValidas.forEach((cuenta, idx) => {
+            const canvasId = `chart-analisis-cuenta-${cuenta}`;
+            const canvasEl = document.getElementById(canvasId);
+            if (!canvasEl) return;
+
+            const infoCuenta = dataCuentas[cuenta];
+            const nomCuenta = infoCuenta.nomcuentaventa || `Cuenta ${cuenta}`;
+            const color = coloresTableau[cuenta] || (this.paletaColores[idx % this.paletaColores.length]?.bar || '#2563EB');
+
+            const mapaFechaValor = new Map(infoCuenta.fechas.map(p => [p.fecha, p.saldofinal]));
+            const serieValores = todasFechas.map(f => mapaFechaValor.get(f) ?? null);
+
+            const valoresNumericos = serieValores.filter(v => v !== null && v !== undefined);
+            const maxVal = valoresNumericos.length > 0 ? Math.max(...valoresNumericos) : 0;
+            const usaMillones = maxVal >= 1000000;
+
+            const ctx = canvasEl.getContext('2d');
+            const miniChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labelsFormateados,
+                    datasets: [{
+                        data: serieValores,
+                        borderColor: color,
+                        backgroundColor: color,
+                        borderWidth: 2,
+                        borderCapStyle: 'round',
+                        borderJoinStyle: 'round',
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: color,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 1.5,
+                        tension: 0.1,
+                        fill: false,
+                        spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    layout: {
+                        padding: { top: 22, bottom: 4, left: 10, right: 10 }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements && elements.length > 0) {
+                            const pointIndex = elements[0].index;
+                            const fechaOriginal = todasFechas[pointIndex];
+                            const fechaTexto = labelsFormateados[pointIndex];
+                            const monto = serieValores[pointIndex];
+
+                            self.puntoSeleccionado = {
+                                tipoGrafico: '20DashAnalisisCtasMaxDeudoresDocs',
+                                cuenta: cuenta,
+                                nomcuentaventa: nomCuenta,
+                                fecha: fechaOriginal,
+                                fechaFormateada: fechaTexto,
+                                saldofinal: monto
+                            };
+
+                            const popup = document.getElementById('popup-menu-barra');
+                            if (popup) {
+                                popup.style.left = `${event.native.clientX + 10}px`;
+                                popup.style.top = `${event.native.clientY + 10}px`;
+                                popup.classList.remove('hidden');
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            display: true,
+                            anchor: 'end',
+                            align: 'top',
+                            offset: 2,
+                            color: '#334155',
+                            font: { size: 9, weight: '500' },
+                            formatter: (val) => {
+                                if (val === null || val === undefined) return '';
+                                return self.formatearNumeroTableau(val, false);
+                            }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: '#ffffff',
+                            titleColor: '#0f172a',
+                            bodyColor: '#334155',
+                            borderColor: '#cbd5e1',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                title: () => '',
+                                label: (context) => {
+                                    const index = context.dataIndex;
+                                    const fOriginal = todasFechas[index];
+                                    const fLarga = self.formatearFechaConDiaSemana(fOriginal);
+                                    const sFinal = self.formatearNumeroTableau(context.raw, true);
+                                    return [
+                                        `cuentaventa:       ${cuenta}`,
+                                        `nomcuentaventa:    ${nomCuenta}`,
+                                        `Día de fechacarga: ${fLarga}`,
+                                        `saldofinal:        ${sFinal}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (v) => {
+                                    if (v === 0) return '0M';
+                                    if (usaMillones) return `${(v / 1000000).toFixed(0)}M`;
+                                    return `${(v / 1000).toFixed(0)}K`;
+                                },
+                                font: { size: 9.5 },
+                                color: '#94a3b8',
+                                maxTicksLimit: 3
+                            },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            ticks: { display: false },
+                            grid: { color: '#f8fafc' }
+                        }
+                    }
+                }
+            });
+
+            chartsArray.push(miniChart);
+        });
+
+        // 4. Renderizar Eje X inferior idéntico a Tableau
+        const canvasEjeXEl = document.getElementById(canvasEjeXId);
+        if (canvasEjeXEl && chartsArray.length > 0) {
+            const renderEjeX = () => {
+                const primerChart = chartsArray[0];
+                if (!primerChart || !primerChart.scales || !primerChart.scales.x) return;
+
+                const parent = canvasEjeXEl.parentElement;
+                const width = parent.clientWidth || canvasEjeXEl.clientWidth;
+                const height = parent.clientHeight || 155;
+                if (!width || !height) return;
+
+                const dpr = Math.max(window.devicePixelRatio || 1, 2);
+                canvasEjeXEl.width = width * dpr;
+                canvasEjeXEl.height = height * dpr;
+                canvasEjeXEl.style.width = width + 'px';
+                canvasEjeXEl.style.height = height + 'px';
+
+                const ctx = canvasEjeXEl.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.clearRect(0, 0, width, height);
+
+                const chartArea = primerChart.chartArea;
+                if (!chartArea) return;
+
+                // Línea divisoria superior del eje
+                ctx.beginPath();
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1;
+                ctx.moveTo(chartArea.left, 0.5);
+                ctx.lineTo(chartArea.right, 0.5);
+                ctx.stroke();
+
+                // Formato de texto para las fechas (-90° estilo Tableau)
+                ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillStyle = '#475569';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+
+                labelsFormateados.forEach((label, i) => {
+                    const x = primerChart.scales.x.getPixelForValue(i);
+                    if (x === undefined || isNaN(x)) return;
+
+                    // Tick mark vertical de 4px
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, 4);
+                    ctx.stroke();
+
+                    // Fecha completa rotada -90°
+                    ctx.save();
+                    ctx.translate(x, 8);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                });
+            };
+
+            const resizeObserver = new ResizeObserver(() => {
+                if (!document.body.contains(tarjeta)) {
+                    resizeObserver.disconnect();
+                    return;
+                }
+                chartsArray.forEach(chart => {
+                    if (chart && typeof chart.resize === 'function' && chart.canvas && chart.canvas.isConnected) {
+                        chart.resize();
+                    }
+                });
+                renderEjeX();
+            });
+
+            resizeObserver.observe(tarjeta);
+            chartsArray._resizeObserver = resizeObserver;
+
+            setTimeout(() => {
+                if (document.body.contains(tarjeta)) {
+                    renderEjeX();
+                }
+            }, 60);
+        }
+
+        this.chartsMap.set('analisis_cuentas', chartsArray);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

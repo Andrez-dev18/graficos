@@ -17,6 +17,9 @@ class saldosService {
         // Gráfico de Anticipos
         GRAFICO_ANTICIPOS: '/saldosxCobrar/grafico-anticipos',
 
+        // Gráfico 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cuenta de Venta)
+        GRAFICO_ANALISIS_CUENTAS: '/saldosxCobrar/grafico-analisis-cuentas',
+
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
 
@@ -138,6 +141,29 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error al obtener datos línea en saldosService:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Obtiene la data agrupada por cuenta de venta para 20DashAnalisisCtasMaxDeudoresDocs
+     * @param {Object} filtros { fecha_inicio, fecha_fin, cuentas, vencimientos, decisiones, observaciones }
+     */
+    async obtenerGraficoAnalisisCuentas(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.GRAFICO_ANALISIS_CUENTAS}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(filtros)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al obtener datos análisis cuentas en saldosService:', error);
             throw error;
         }
     }
