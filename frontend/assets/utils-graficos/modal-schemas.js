@@ -66,14 +66,42 @@ const ModalSchemas = {
                 { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' },
                 { key: 'saldoinicial', label: 'saldoinicial', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
             ]
+        },
+
+        // 3.1 Gráfico 08IndAnticipos para pistas de montos (saldoinicial, resta, saldofinal)
+        '08IndAnticipos_montos': {
+            resumen: [
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left' },
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono font-semibold' },
+                { key: 'resta_saldo', label: 'ROUND((sum([saldoinicial])-sum([saldofinal])),2)', align: 'right', format: 'currency', fontClass: 'font-mono font-semibold text-slate-900' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' },
+                { key: 'saldoinicial', label: 'saldoinicial', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ],
+            detalle: [
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', nowrap: true },
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'fechacarga', label: 'fechacarga', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
+                { key: 'resta_saldo', label: 'ROUND((sum([saldoinicial])-sum([saldofinal])),2)', align: 'right', format: 'currency', fontClass: 'font-mono' },
+                { key: 'ratio_cobranza', label: 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', align: 'right', format: 'ratio5', fontClass: 'font-mono' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' },
+                { key: 'saldoinicial', label: 'saldoinicial', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ]
         }
     },
 
     /**
-     * Obtiene el esquema correspondiente al tipo de gráfico.
+     * Obtiene el esquema correspondiente al tipo de gráfico y métrica.
      * Si no existe, retorna el de barras por defecto.
      */
-    getSchema(tipoGrafico) {
+    getSchema(tipoGrafico, metrica = '') {
+        if (tipoGrafico === '08IndAnticipos') {
+            if (metrica && metrica !== 'porcentaje_cobranza') {
+                return this.schemas['08IndAnticipos_montos'];
+            }
+            return this.schemas['08IndAnticipos'];
+        }
         return this.schemas[tipoGrafico] || this.schemas['saltosXcobrarXbarra'];
     },
 

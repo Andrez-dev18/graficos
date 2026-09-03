@@ -219,9 +219,9 @@ class SaldosController {
         const modal = document.getElementById('modal-ver-datos');
         if (!modal || !this.puntoSeleccionado) return;
 
-        const { tipoGrafico, cuenta, nomcuentaventa, zona, fechaFormateada, saldofinal, saldoinicial, ratioCobranza } = this.puntoSeleccionado;
+        const { tipoGrafico, metrica, cuenta, nomcuentaventa, zona, fechaFormateada, saldofinal, saldoinicial, resta_saldo, ratioCobranza } = this.puntoSeleccionado;
         const tipoActivo = tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
-        const schema = ModalSchemas.getSchema(tipoActivo);
+        const schema = ModalSchemas.getSchema(tipoActivo, metrica);
 
         const helpers = {
             formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
@@ -246,6 +246,7 @@ class SaldosController {
             dia_fechacarga: fechaFormateada,
             saldofinal: saldofinal,
             saldoinicial: saldoinicial || 0,
+            resta_saldo: resta_saldo || 0,
             ratio_cobranza: ratioCobranza || 0
         };
 
@@ -289,7 +290,8 @@ class SaldosController {
         if (tbody) tbody.innerHTML = '';
 
         const tipoGrafico = this.puntoSeleccionado.tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
-        const schema = ModalSchemas.getSchema(tipoGrafico);
+        const metrica = this.puntoSeleccionado.metrica || '';
+        const schema = ModalSchemas.getSchema(tipoGrafico, metrica);
 
         const helpers = {
             formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
@@ -340,13 +342,17 @@ class SaldosController {
                     f.dia_fechacarga = this.puntoSeleccionado.fechaFormateada;
                 });
 
-                // Si es Anticipos y viene el resumen con ratio exacto, actualizar la pestaña Resumen
+                // Si es Anticipos y viene el resumen con valores exactos, actualizar la pestaña Resumen
                 if (tipoGrafico === '08IndAnticipos' && res.payload.resumen) {
                     const r = res.payload.resumen;
                     const dataResumenActualizado = {
+                        cuentaventa: r.cuentaventa || this.puntoSeleccionado.cuenta,
                         nomcuentaventa: r.nomcuentaventa || this.puntoSeleccionado.nomcuentaventa,
                         dia_fechacarga: this.puntoSeleccionado.fechaFormateada,
-                        ratio_cobranza: r.ratio_cobranza
+                        ratio_cobranza: r.ratio_cobranza,
+                        resta_saldo: r.resta_saldo,
+                        saldofinal: r.saldofinal,
+                        saldoinicial: r.saldoinicial
                     };
                     const tbodyResumen = document.getElementById('tbody-modal-resumen');
                     ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumenActualizado, helpers);
@@ -1488,18 +1494,21 @@ class SaldosController {
                         padding: { top: 18, bottom: 4, left: 10, right: 10 }
                     },
                     onClick: (event, elements) => {
-                        // Solo abrir el detalle cuando se clickea en la pista de Indicador Porcentaje
-                        if (pistaConfig.esPorcentaje && elements && elements.length > 0) {
+                        // Abrir el detalle al clickear en cualquier pista de Anticipos
+                        if (elements && elements.length > 0) {
                             const pointIndex = elements[0].index;
                             const puntoActual = puntos[pointIndex] || {};
                             const fechaOriginal = puntoActual.fecha;
                             const fechaTexto = labelsFormateados[pointIndex];
                             const pct = Number(puntoActual.porcentaje_cobranza || 0);
                             const ratio = pct / 100;
+                            const restaVal = (puntoActual.saldoinicial !== undefined && puntoActual.saldofinal !== undefined)
+                                ? (Number(puntoActual.saldoinicial) - Number(puntoActual.saldofinal))
+                                : puntoActual.resta_saldo;
 
                             self.puntoSeleccionado = {
                                 tipoGrafico: '08IndAnticipos',
-                                metrica: 'porcentaje_cobranza',
+                                metrica: pistaConfig.clave,
                                 cuenta: cuenta,
                                 nomcuentaventa: nomCuenta,
                                 fecha: fechaOriginal,
@@ -1507,7 +1516,8 @@ class SaldosController {
                                 porcentaje: pct,
                                 ratioCobranza: ratio,
                                 saldofinal: puntoActual.saldofinal,
-                                saldoinicial: puntoActual.saldoinicial
+                                saldoinicial: puntoActual.saldoinicial,
+                                resta_saldo: restaVal
                             };
 
                             const popup = document.getElementById('popup-menu-barra');
