@@ -445,4 +445,85 @@ class saldosxCobrarRepo
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene el listado de documentos y el análisis por corporativo para 20DashAnalisisCtasMaxDeudoresDocs
+     *
+     * @param array $filtros ['cuentaventa', 'fechacarga', 'vencimientos', 'decisiones', 'observaciones']
+     * @return array Filas de documentos encontrados
+     */
+    public function getAnalisisCorporativosYDocs(array $filtros)
+    {
+        $params = [
+            ':cuentaventa' => $filtros['cuentaventa'],
+            ':fechacarga'  => $filtros['fechacarga']
+        ];
+
+        $where = [
+            "cuentaventa = :cuentaventa",
+            "fechacarga = :fechacarga"
+        ];
+
+        // Helper para procesar filtros con soporte a 'NULL'
+        $procesarNullable = function ($campo, $valores, $prefijo) use (&$where, &$params) {
+            if (empty($valores)) return;
+            $tieneNull = in_array('NULL', $valores, true);
+            $valoresLimpios = array_filter($valores, function ($v) {
+                return $v !== 'NULL';
+            });
+
+            $condiciones = [];
+            if (!empty($valoresLimpios)) {
+                $inPh = [];
+                foreach (array_values($valoresLimpios) as $i => $val) {
+                    $ph = ":corp_{$prefijo}_" . $i;
+                    $inPh[] = $ph;
+                    $params[$ph] = $val;
+                }
+                $condiciones[] = "{$campo} IN (" . implode(', ', $inPh) . ")";
+            }
+
+            if ($tieneNull) {
+                $condiciones[] = "({$campo} IS NULL OR {$campo} = '')";
+            }
+
+            if (!empty($condiciones)) {
+                $where[] = '(' . implode(' OR ', $condiciones) . ')';
+            }
+        };
+
+        if (!empty($filtros['vencimientos'])) {
+            $procesarNullable('vencimiento', $filtros['vencimientos'], 'venc');
+        }
+        if (!empty($filtros['decisiones'])) {
+            $procesarNullable('decision', $filtros['decisiones'], 'dec');
+        }
+        if (!empty($filtros['observaciones'])) {
+            $procesarNullable('observacion', $filtros['observaciones'], 'obs');
+        }
+
+        $sql = "SELECT 
+                    fechacarga,
+                    fechacontable,
+                    cuentaventa,
+                    COALESCE(nomcuentaventa, '') AS nomcuentaventa,
+                    COALESCE(nomcorporativo, 'SIN CORPORATIVO') AS nomcorporativo,
+                    numerodoc,
+                    COALESCE(horacreacion, '') AS horacreacion,
+                    COALESCE(condicionpago, '-') AS condicionpago,
+                    ROUND(COALESCE(saldoinicial, 0), 2) AS saldoinicial,
+                    ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
+                FROM dmdocventas2
+                WHERE " . implode(' AND ', $where) . "
+                ORDER BY fechacontable ASC, numerodoc ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
+

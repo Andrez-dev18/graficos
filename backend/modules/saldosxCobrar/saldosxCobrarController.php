@@ -225,4 +225,31 @@ class saldosxCobrarController
         exit;
     }
 
+    /**
+     * Endpoint para obtener análisis de corporativos y listado de documentos (20Dash)
+     */
+    public function getAnalisisCorporativosYDocs()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerAnalisisCorporativosYDocs($filtros);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener análisis corporativo: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
 }
+

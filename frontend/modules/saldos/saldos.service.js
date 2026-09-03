@@ -19,6 +19,7 @@ class saldosService {
 
         // Gráfico 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cuenta de Venta)
         GRAFICO_ANALISIS_CUENTAS: '/saldosxCobrar/grafico-analisis-cuentas',
+        ANALISIS_CORPORATIVOS: '/saldosxCobrar/analisis-corporativos',
 
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
@@ -242,6 +243,32 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error en saldosService.obtenerGraficoAnticiposData:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Consulta corporativos deudores y listado de documentos para 20Dash
+     * @param {Object} payload { cuentaventa, fechacarga, vencimientos: [], decisiones: [], observaciones: [] }
+     */
+    async obtenerAnalisisCorporativos(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.ANALISIS_CORPORATIVOS}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar análisis corporativos: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerAnalisisCorporativos:', error);
             throw error;
         }
     }

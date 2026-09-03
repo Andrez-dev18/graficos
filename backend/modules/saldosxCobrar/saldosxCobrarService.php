@@ -319,4 +319,122 @@ class saldosxCobrarService
             'data'   => $resultado
         ];
     }
+
+    /**
+     * Procesa y agrupa los documentos y corporativos para el modal de análisis de 20DashAnalisisCtasMaxDeudoresDocs
+     *
+     * @param array $params
+     * @return array
+     */
+    public function obtenerAnalisisCorporativosYDocs(array $params)
+    {
+        $cuentaventa = $params['cuentaventa'] ?? '';
+        $fechacarga  = $params['fechacarga'] ?? '';
+
+        if (empty($cuentaventa) || empty($fechacarga)) {
+            return [
+                'status'  => 'error',
+                'message' => 'Parámetros incompletos (cuentaventa y fechacarga son requeridos)'
+            ];
+        }
+
+        $docsRaw = $this->repo->getAnalisisCorporativosYDocs($params);
+
+        // Agrupación de corporativos
+        $corporativosMap = [];
+        $listadoDocs = [];
+
+        foreach ($docsRaw as $doc) {
+            $corp = $doc['nomcorporativo'];
+            $sIni = (float) $doc['saldoinicial'];
+            $sFin = (float) $doc['saldofinal'];
+
+            // % Cobrado por documento = (saldoinicial - saldofinal) / saldoinicial
+            // En Tableau este cálculo está redondeado a 2 decimales (0,05) y se formatea con 5 decimales (0,05000)
+            $pctCobrado = 0.0;
+            if ($sFin == 0.0) {
+                $pctCobrado = 1.0;
+            } elseif ($sIni > 0.0) {
+                $pctCobrado = round(($sIni - $sFin) / $sIni, 2);
+                if ($pctCobrado < 0) $pctCobrado = 0.0;
+            }
+
+            // Formateo horario amigable idéntico a Tableau (ej: "9:23:23 p. m.")
+            $horaFormateada = $doc['horacreacion'];
+            if (!empty($doc['horacreacion'])) {
+                $ts = strtotime($doc['horacreacion']);
+                if ($ts !== false) {
+                    $hora12 = date('g:i:s', $ts);
+                    $ampm = (date('a', $ts) === 'pm') ? 'p. m.' : 'a. m.';
+                    $horaFormateada = "{$hora12} {$ampm}";
+                }
+            }
+
+            $listadoDocs[] = [
+                'fechacarga'     => $doc['fechacarga'],
+                'fechacontable'  => $doc['fechacontable'] ?? $doc['fechacarga'],
+                'numerodoc'      => $doc['numerodoc'],
+                'horacreacion'   => $horaFormateada,
+                'condicionpago'  => $doc['condicionpago'],
+                'saldoinicial'   => $sIni,
+                'saldofinal'     => $sFin,
+                'pct_cobrado'    => $pctCobrado,
+                'nomcorporativo' => $corp
+            ];
+
+            if (!isset($corporativosMap[$corp])) {
+                $corporativosMap[$corp] = [
+                    'nomcorporativo' => $corp,
+                    'total_saldofinal' => 0.0,
+                    'total_saldoinicial' => 0.0,
+                    'cant_docs' => 0,
+                    'montos_docs' => []
+                ];
+            }
+
+            $corporativosMap[$corp]['total_saldofinal'] += $sFin;
+            $corporativosMap[$corp]['total_saldoinicial'] += $sIni;
+            $corporativosMap[$corp]['cant_docs']++;
+            if ($sFin > 0) {
+                $corporativosMap[$corp]['montos_docs'][] = [
+                    'monto'        => $sFin,
+                    'horacreacion' => $doc['horacreacion'] ?? '',
+                    'numerodoc'    => $doc['numerodoc']
+                ];
+            }
+        }
+
+        // Ordenar corporativos por total_saldofinal DESC
+        $corporativosList = array_values($corporativosMap);
+        usort($corporativosList, function ($a, $b) {
+            if ($b['total_saldofinal'] == $a['total_saldofinal']) {
+                return strcmp($a['nomcorporativo'], $b['nomcorporativo']);
+            }
+            return ($b['total_saldofinal'] > $a['total_saldofinal']) ? 1 : -1;
+        });
+
+        // Redondear montos de corporativos y ordenar sus documentos por horacreacion DESC (orden exacto Tableau)
+        foreach ($corporativosList as &$c) {
+            $c['total_saldofinal'] = round($c['total_saldofinal'], 2);
+            $c['total_saldoinicial'] = round($c['total_saldoinicial'], 2);
+            usort($c['montos_docs'], function ($x, $y) {
+                if ($x['horacreacion'] == $y['horacreacion']) {
+                    return strcmp($y['numerodoc'], $x['numerodoc']);
+                }
+                return strcmp($y['horacreacion'], $x['horacreacion']);
+            });
+        }
+        unset($c);
+
+        return [
+            'status'        => 'success',
+            'cuentaventa'   => $cuentaventa,
+            'nomcuentaventa'=> $docsRaw[0]['nomcuentaventa'] ?? '',
+            'fechacarga'    => $fechacarga,
+            'total_docs'    => count($listadoDocs),
+            'corporativos'  => $corporativosList,
+            'docs'          => $listadoDocs
+        ];
+    }
 }
+

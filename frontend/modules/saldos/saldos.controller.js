@@ -27,6 +27,13 @@ class SaldosController {
             { bar: '#6366f1', hover: '#4f46e5', bgBadge: 'bg-indigo-50', textBadge: 'text-indigo-600', borderBadge: 'border-indigo-100' },
             { bar: '#06b6d4', hover: '#0891b2', bgBadge: 'bg-cyan-50', textBadge: 'text-cyan-600', borderBadge: 'border-cyan-100' }
         ];
+
+        // Estado del Modal de Análisis de Deudores (20Dash)
+        this.deudoresModalState = {
+            corporativos: [],
+            docs: [],
+            corpSeleccionado: null
+        };
     }
 
     async init() {
@@ -58,6 +65,9 @@ class SaldosController {
             dropdownId: 'ms-cuentaventa-dropdown',
             searchId: 'ms-cuentaventa-search',
             optionsContainerId: 'ms-cuentaventa-options',
+            selectAllId: 'ms-cuentaventa-select-all',
+            clearId: 'ms-cuentaventa-clear',
+            placeholder: 'Todas las cuentas',
             options: [],
             onChange: () => this.sincronizarVisibilidadEnCaliente()
         });
@@ -69,6 +79,9 @@ class SaldosController {
             dropdownId: 'ms-nomcliente-dropdown',
             searchId: 'ms-nomcliente-search',
             optionsContainerId: 'ms-nomcliente-options',
+            selectAllId: 'ms-nomcliente-select-all',
+            clearId: 'ms-nomcliente-clear',
+            placeholder: 'Todos los clientes',
             options: []
         });
 
@@ -79,6 +92,9 @@ class SaldosController {
             dropdownId: 'ms-vencimiento-dropdown',
             searchId: 'ms-vencimiento-search',
             optionsContainerId: 'ms-vencimiento-options',
+            selectAllId: 'ms-vencimiento-select-all',
+            clearId: 'ms-vencimiento-clear',
+            placeholder: 'Todos los vencimientos',
             options: []
         });
 
@@ -89,6 +105,9 @@ class SaldosController {
             dropdownId: 'ms-decision-dropdown',
             searchId: 'ms-decision-search',
             optionsContainerId: 'ms-decision-options',
+            selectAllId: 'ms-decision-select-all',
+            clearId: 'ms-decision-clear',
+            placeholder: 'Todas las decisiones',
             options: []
         });
 
@@ -99,6 +118,9 @@ class SaldosController {
             dropdownId: 'ms-observacion-dropdown',
             searchId: 'ms-observacion-search',
             optionsContainerId: 'ms-observacion-options',
+            selectAllId: 'ms-observacion-select-all',
+            clearId: 'ms-observacion-clear',
+            placeholder: 'Todas las observaciones',
             options: []
         });
     }
@@ -206,6 +228,26 @@ class SaldosController {
         // Cambio de Tabs en el Modal
         tabResumen?.addEventListener('click', () => this.cambiarTabModal('resumen'));
         tabCompletos?.addEventListener('click', () => this.cambiarTabModal('completos'));
+
+        // Listeners para Modal Análisis de Deudores (20Dash)
+        const btnAbrirDeudores = document.getElementById('btn-abrir-analisis-corporativos');
+        const btnCerrarDeudores = document.getElementById('btn-cerrar-modal-deudores');
+        const btnDeseleccionarCorp = document.getElementById('btn-deseleccionar-corp');
+
+        btnAbrirDeudores?.addEventListener('click', () => {
+            document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            if (this.puntoSeleccionado) {
+                this.abrirModalAnalisisDeudores();
+            }
+        });
+
+        btnCerrarDeudores?.addEventListener('click', () => {
+            document.getElementById('modal-analisis-deudores')?.classList.add('hidden');
+        });
+
+        btnDeseleccionarCorp?.addEventListener('click', () => {
+            this.seleccionarCorporativoDeudor(null);
+        });
     }
 
     obtenerTemaCuenta(cuenta) {
@@ -377,6 +419,226 @@ class SaldosController {
             ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
             tabla?.classList.remove('hidden');
         }
+    }
+
+    /**
+     * Abre y consulta los datos para el modal de Análisis de Deudores (20Dash)
+     */
+    async abrirModalAnalisisDeudores() {
+        const modal = document.getElementById('modal-analisis-deudores');
+        if (!modal || !this.puntoSeleccionado) return;
+
+        const { cuenta, nomcuentaventa, fecha, fechaFormateada } = this.puntoSeleccionado;
+
+        document.getElementById('modal-deudores-titulo').textContent = `Análisis de Deudores: Cuenta ${cuenta}${nomcuentaventa ? ` - ${nomcuentaventa}` : ''}`;
+        document.getElementById('modal-deudores-subtitulo').textContent = `Día de fechacarga: ${fechaFormateada}`;
+
+        const loader = document.getElementById('loader-modal-deudores');
+        const contenido = document.getElementById('contenido-modal-deudores');
+
+        loader?.classList.remove('hidden');
+        contenido?.classList.add('hidden');
+        modal.classList.remove('hidden');
+
+        try {
+            const payload = {
+                cuentaventa: cuenta,
+                fechacarga: fecha,
+                vencimientos: this.msVencimiento ? this.msVencimiento.getSelectedValues() : [],
+                decisiones: this.msDecision ? this.msDecision.getSelectedValues() : [],
+                observaciones: this.msObservacion ? this.msObservacion.getSelectedValues() : []
+            };
+
+            const res = await this.service.obtenerAnalisisCorporativos(payload);
+
+            loader?.classList.add('hidden');
+
+            if (res.success && res.payload) {
+                this.deudoresModalState.corporativos = res.payload.corporativos || [];
+                this.deudoresModalState.docs = res.payload.docs || [];
+                this.deudoresModalState.corpSeleccionado = null;
+
+                this.renderizarListaCorporativos();
+                this.renderizarListadoDocs();
+
+                contenido?.classList.remove('hidden');
+            } else {
+                alert('No se pudieron obtener los datos de deudores.');
+                modal.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error al abrir modal análisis deudores:', error);
+            loader?.classList.add('hidden');
+            alert('Ocurrió un error al consultar los datos del servidor.');
+            modal.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Renderiza la columna izquierda: CORPORATIVOS MAS DEUDORES (Visión Corporativa)
+     */
+    renderizarListaCorporativos() {
+        const contenedor = document.getElementById('lista-corporativos-deudores');
+        if (!contenedor) return;
+
+        const { corporativos, corpSeleccionado } = this.deudoresModalState;
+
+        if (corporativos.length === 0) {
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No se encontraron corporativos deudores.</div>`;
+            return;
+        }
+
+        // Calcular el monto máximo para la escala de las barras
+        const maxSaldo = Math.max(...corporativos.map(c => c.total_saldofinal), 1);
+
+        contenedor.innerHTML = corporativos.map(c => {
+            const esActivo = (corpSeleccionado === c.nomcorporativo);
+            const tieneSeleccion = Boolean(corpSeleccionado);
+
+            // Tableau: Si está seleccionado, azul claro en el texto/celda. Si hay selección y no es este, atenúa las barras en gris claro (#cbd5e1)
+            const fondoNom = esActivo ? 'bg-sky-200 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50';
+            const colorBarraTotal = esActivo ? '#4e79a7' : (tieneSeleccion ? '#e2e8f0' : '#4e79a7');
+            const colorBarraSegmentada = esActivo ? '#4e79a7' : (tieneSeleccion ? '#cbd5e1' : '#4e79a7');
+
+            const pctAncho = Math.min(Math.max((c.total_saldofinal / maxSaldo) * 100, 1), 100);
+
+            // En Tableau los segmentos individuales respetan el orden exacto ordenado por horacreacion DESC
+            const montosDocs = (c.montos_docs && c.montos_docs.length > 0) ? c.montos_docs : [{ monto: c.total_saldofinal }];
+
+            const segmentosHtml = montosDocs.map(docItem => {
+                const m = (typeof docItem === 'object' && docItem !== null) ? Number(docItem.monto || 0) : Number(docItem || 0);
+                const subPct = (m / (c.total_saldofinal || 1)) * 100;
+                return `<div style="width: ${subPct}%;" class="h-full border-r border-white/60 flex items-center justify-center text-[9px] font-mono text-white px-0.5 overflow-hidden" title="Doc: S/ ${this.formatearNumeroTableau(m, false)}">
+                    ${subPct > 15 ? this.formatearNumeroTableau(m, false) : ''}
+                </div>`;
+            }).join('');
+
+            return `
+                <div class="corporativo-item grid grid-cols-12 items-center px-3 py-1 cursor-pointer transition-colors"
+                     data-corp="${encodeURIComponent(c.nomcorporativo)}">
+                    
+                    <!-- 1. Nombre del Corporativo (Estilo celda Tableau) -->
+                    <div class="col-span-5 pr-2">
+                        <div class="text-[11px] truncate px-1.5 py-0.5 rounded-xs ${fondoNom}" title="${c.nomcorporativo}">
+                            ${c.nomcorporativo}
+                        </div>
+                    </div>
+
+                    <!-- 2. Gráficos de barras (Docs vs Total) -->
+                    <div class="col-span-7 grid grid-cols-2 gap-2 h-4 items-center">
+                        <!-- Panel Izquierdo: Segmentos Docs (de menor a mayor) -->
+                        <div class="w-full h-full flex justify-end">
+                            <div class="h-full flex overflow-hidden rounded-none" style="background-color: ${colorBarraSegmentada}; width: ${pctAncho}%;">
+                                ${segmentosHtml}
+                            </div>
+                        </div>
+
+                        <!-- Panel Derecho: Total con etiqueta externa/interna -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            <div class="h-full rounded-none transition-all" style="background-color: ${colorBarraTotal}; width: ${pctAncho}%;"></div>
+                            <span class="ml-1 text-[10px] font-mono font-normal text-slate-700">
+                                ${this.formatearNumeroTableau(c.total_saldofinal, false)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Listeners en cada fila de corporativo
+        contenedor.querySelectorAll('.corporativo-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const corp = decodeURIComponent(el.getAttribute('data-corp'));
+                this.seleccionarCorporativoDeudor(corp);
+            });
+        });
+    }
+
+    /**
+     * Selecciona o deselecciona un corporativo para filtrar ListadoDoc
+     */
+    seleccionarCorporativoDeudor(corp) {
+        // Toggle: si ya estaba seleccionado, lo deselecciona
+        if (this.deudoresModalState.corpSeleccionado === corp) {
+            this.deudoresModalState.corpSeleccionado = null;
+        } else {
+            this.deudoresModalState.corpSeleccionado = corp;
+        }
+
+        const btnDeseleccionar = document.getElementById('btn-deseleccionar-corp');
+        const labelActivo = document.getElementById('label-filtro-corp-activo');
+
+        if (this.deudoresModalState.corpSeleccionado) {
+            btnDeseleccionar?.classList.remove('hidden');
+            if (labelActivo) labelActivo.textContent = `Filtrado por: ${this.deudoresModalState.corpSeleccionado}`;
+        } else {
+            btnDeseleccionar?.classList.add('hidden');
+            if (labelActivo) labelActivo.textContent = 'Todos los documentos';
+        }
+
+        this.renderizarListaCorporativos();
+        this.renderizarListadoDocs();
+    }
+
+    /**
+     * Renderiza la columna derecha: ListadoDoc
+     */
+    renderizarListadoDocs() {
+        const tbody = document.getElementById('tbody-listado-docs');
+        const badgeContador = document.getElementById('badge-contador-docs');
+        if (!tbody) return;
+
+        const { docs, corpSeleccionado } = this.deudoresModalState;
+
+        // Filtrar si hay un corporativo seleccionado
+        const docsFiltrados = corpSeleccionado
+            ? docs.filter(d => d.nomcorporativo === corpSeleccionado)
+            : docs;
+
+        if (badgeContador) {
+            badgeContador.textContent = `${docsFiltrados.length} docs`;
+        }
+
+        if (docsFiltrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-xs text-slate-400">No se encontraron documentos para este criterio.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = docsFiltrados.map(d => {
+            const pctVal = Number(d.pct_cobrado || 0);
+            const pctAncho = Math.min(Math.max(pctVal * 100, 0), 100);
+
+            // Regla de color Tableau: verde si cobró (porcentaje alto), rojo si cobró muy poco (< 0.50 y > 0)
+            const esVerde = pctVal >= 0.50;
+            const colorBarra = esVerde ? '#59a14f' : '#e15759';
+            // Formato de 5 decimales idéntico a Tableau (ej: 0,05000 o 0,00000)
+            const textoPct = pctVal.toFixed(5).replace('.', ',');
+
+            const sIniFmt = this.formatearNumeroTableau(d.saldoinicial, true);
+            const sFinFmt = this.formatearNumeroTableau(d.saldofinal, true);
+            const fCorta = this.formatearFechaCortaTableau(d.fechacontable || d.fechacarga);
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors text-[11px]">
+                    <td class="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">${fCorta}</td>
+                    <td class="px-2.5 py-1.5 font-mono text-slate-700 whitespace-nowrap">${d.numerodoc}</td>
+                    <td class="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">${d.horacreacion}</td>
+                    <td class="px-2.5 py-1.5 text-slate-600 whitespace-nowrap">${d.condicionpago}</td>
+                    <td class="px-2.5 py-1.5 text-right font-mono text-slate-700 whitespace-nowrap">${sIniFmt}</td>
+                    <td class="px-2.5 py-1.5 text-right font-mono text-slate-700 whitespace-nowrap">${sFinFmt}</td>
+                    <td class="px-2.5 py-1.5 whitespace-nowrap">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-28 h-3.5 flex items-center relative">
+                                ${pctAncho > 0 ? `<div class="h-full rounded-none" style="width: ${pctAncho}%; background-color: ${colorBarra};"></div>` : ''}
+                            </div>
+                            <span class="text-[10px] font-mono text-slate-700">
+                                ${textoPct}
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async cargarFiltrosIniciales() {
@@ -803,6 +1065,8 @@ class SaldosController {
 
                         // Posicionar y mostrar el menú flotante 'Ver datos'
                         const popup = document.getElementById('popup-menu-barra');
+                        const btnDeudores = document.getElementById('btn-abrir-analisis-corporativos');
+                        if (btnDeudores) btnDeudores.classList.add('hidden');
                         if (popup) {
                             popup.style.left = `${event.native.clientX + 10}px`;
                             popup.style.top = `${event.native.clientY + 10}px`;
@@ -1130,6 +1394,8 @@ class SaldosController {
                             };
 
                             const popup = document.getElementById('popup-menu-barra');
+                            const btnDeudores = document.getElementById('btn-abrir-analisis-corporativos');
+                            if (btnDeudores) btnDeudores.classList.add('hidden');
                             if (popup) {
                                 popup.style.left = `${event.native.clientX + 10}px`;
                                 popup.style.top = `${event.native.clientY + 10}px`;
@@ -1521,6 +1787,8 @@ class SaldosController {
                             };
 
                             const popup = document.getElementById('popup-menu-barra');
+                            const btnDeudores = document.getElementById('btn-abrir-analisis-corporativos');
+                            if (btnDeudores) btnDeudores.classList.add('hidden');
                             if (popup) {
                                 popup.style.left = `${event.native.clientX + 10}px`;
                                 popup.style.top = `${event.native.clientY + 10}px`;
@@ -1896,6 +2164,8 @@ class SaldosController {
                             };
 
                             const popup = document.getElementById('popup-menu-barra');
+                            const btnDeudores = document.getElementById('btn-abrir-analisis-corporativos');
+                            if (btnDeudores) btnDeudores.classList.remove('hidden');
                             if (popup) {
                                 popup.style.left = `${event.native.clientX + 10}px`;
                                 popup.style.top = `${event.native.clientY + 10}px`;
