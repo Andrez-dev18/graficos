@@ -88,6 +88,32 @@ const ModalSchemas = {
                 { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' },
                 { key: 'saldoinicial', label: 'saldoinicial', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
             ]
+        },
+
+        // 4. Gráfico 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cobrar por Cuenta de Venta)
+        '20DashAnalisisCtasMaxDeudoresDocs': {
+            resumen: [
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono font-semibold text-slate-800' },
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ],
+            detalle: [
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', nowrap: true },
+                { key: 'condicionpago', label: 'condicionpago', align: 'left', nowrap: true, fontClass: 'text-slate-700' },
+                { key: 'fechacontable', label: 'fechacontable', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-600' },
+                { key: 'horacreacion', label: 'horacreacion', align: 'left', nowrap: true, format: 'dateTime', fontClass: 'text-slate-600' },
+                { key: 'numerodoc', label: 'numerodoc', align: 'left', nowrap: true, fontClass: 'font-mono text-slate-700' },
+                { key: 'nomcliente', label: 'nomcliente', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'nomcorporativo', label: 'nomcorporativo', align: 'left', fontClass: 'text-slate-700' },
+                { key: 'decision', label: 'decision', align: 'left', nowrap: true, fontClass: 'text-slate-600' },
+                { key: 'fechacarga', label: 'fechacarga', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
+                { key: 'observacion', label: 'observacion', align: 'left', nowrap: true, fontClass: 'text-slate-600' },
+                { key: 'vencimiento', label: 'vencimiento', align: 'left', nowrap: true, fontClass: 'font-semibold text-slate-700' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ]
         }
     },
 
@@ -137,6 +163,16 @@ const ModalSchemas = {
         }
         if (col.format === 'fullDate') {
             return helpers && helpers.formatearFecha ? helpers.formatearFecha(val) : val;
+        }
+        if (col.format === 'dateTime') {
+            if (!val) return '-';
+            // Formato Tableau: D/M/YYYY H:mm:ss
+            const partes = String(val).trim().split(' ');
+            if (partes.length === 2 && partes[0].includes('-')) {
+                const [y, m, d] = partes[0].split('-').map(Number);
+                return `${d}/${m}/${y} ${partes[1]}`;
+            }
+            return val;
         }
         if (col.format === 'ratio6') {
             const num = Number(val);

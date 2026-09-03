@@ -36,6 +36,22 @@ class SaldosExportExcel
             ['key' => 'ratio_cobranza', 'label' => 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', 'type' => 'ratio5'],
             ['key' => 'saldofinal',     'label' => 'saldofinal',     'type' => 'currency'],
             ['key' => 'saldoinicial',   'label' => 'saldoinicial',   'type' => 'currency']
+        ],
+        '20DashAnalisisCtasMaxDeudoresDocs' => [
+            ['key' => 'cuentaventa',   'label' => 'cuentaventa',    'type' => 'string'],
+            ['key' => 'nomcuentaventa','label' => 'nomcuentaventa', 'type' => 'string'],
+            ['key' => 'dia_fechacarga','label' => 'Día de fechacarga', 'type' => 'dia_fechacarga'],
+            ['key' => 'condicionpago', 'label' => 'condicionpago',  'type' => 'string'],
+            ['key' => 'fechacontable', 'label' => 'fechacontable',  'type' => 'short_date'],
+            ['key' => 'horacreacion',  'label' => 'horacreacion',   'type' => 'date_time'],
+            ['key' => 'numerodoc',     'label' => 'numerodoc',      'type' => 'string'],
+            ['key' => 'nomcliente',    'label' => 'nomcliente',     'type' => 'string'],
+            ['key' => 'nomcorporativo','label' => 'nomcorporativo', 'type' => 'string'],
+            ['key' => 'decision',      'label' => 'decision',       'type' => 'string'],
+            ['key' => 'fechacarga',    'label' => 'fechacarga',     'type' => 'short_date'],
+            ['key' => 'observacion',   'label' => 'observacion',    'type' => 'string'],
+            ['key' => 'vencimiento',   'label' => 'vencimiento',    'type' => 'string'],
+            ['key' => 'saldofinal',    'label' => 'saldofinal',     'type' => 'currency']
         ]
     ];
 
@@ -137,6 +153,17 @@ class SaldosExportExcel
                     case 'short_date':
                         $fechaBase = $row[$key] ?? ($row['fechacarga'] ?? '');
                         $sheet->setCellValue($colLetter . $fila, $this->formatearFechaCorta($fechaBase));
+                        break;
+
+                    case 'date_time':
+                        $valDt = $row[$key] ?? '';
+                        if ($valDt && strpos($valDt, ' ') !== false) {
+                            $partes = explode(' ', trim($valDt));
+                            $fechaFormateada = $this->formatearFechaCorta($partes[0]);
+                            $sheet->setCellValueExplicit($colLetter . $fila, $fechaFormateada . ' ' . $partes[1], PHPExcel_Cell_DataType::TYPE_STRING);
+                        } else {
+                            $sheet->setCellValueExplicit($colLetter . $fila, (string)$valDt, PHPExcel_Cell_DataType::TYPE_STRING);
+                        }
                         break;
 
                     case 'string':

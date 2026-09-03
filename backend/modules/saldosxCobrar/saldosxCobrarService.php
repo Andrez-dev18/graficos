@@ -136,7 +136,10 @@ class saldosxCobrarService
                 'saldofinal'     => $monto,
                 'saldoinicial'   => $saldoIni,
                 'resta_saldo'    => $restaSaldo,
-                'ratio_cobranza' => $ratio
+                'ratio_cobranza' => $ratio,
+                'fechacontable'  => $row['fechacontable'] ?? '',
+                'horacreacion'   => $row['horacreacion'] ?? '',
+                'nomcorporativo' => $row['nomcorporativo'] ?? ''
             ];
         }, $detalleRaw);
 

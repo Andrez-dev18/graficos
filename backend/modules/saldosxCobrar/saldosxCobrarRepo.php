@@ -184,7 +184,10 @@ class saldosxCobrarRepo
                     COALESCE(observacion, 'NINGUNA') AS observacion,
                     COALESCE(vencimiento, '-') AS vencimiento,
                     ROUND(COALESCE(saldoinicial, 0), 2) AS saldoinicial,
-                    ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal
+                    ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal,
+                    COALESCE(fechacontable, '') AS fechacontable,
+                    COALESCE(horacreacion, '') AS horacreacion,
+                    COALESCE(nomcorporativo, '') AS nomcorporativo
                 FROM dmdocventas2
                 WHERE " . implode(' AND ', $where);
 
