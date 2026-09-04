@@ -90,4 +90,76 @@ class VentasResumenRepo
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene los datos consolidados y secuenciales de Ventas y Devoluciones (07VentasSacCoor)
+     */
+    public function getVentasSacCoor(array $filtros)
+    {
+        $fechaInicio  = $filtros['fecha_inicio'] ?? date('Y-01-01');
+        $fechaFin     = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $lineaProceso = $filtros['lineaproceso'] ?? 'TODO';
+        $zonaFiscal   = $filtros['zonafiscal'] ?? 'TODO';
+        $item         = $filtros['item'] ?? 'TODO';
+        $nomDevs      = is_array($filtros['nomdevoluciones'] ?? null) ? $filtros['nomdevoluciones'] : [];
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = ["fechaproceso BETWEEN :f_ini AND :f_fin"];
+
+        if (!empty($lineaProceso) && $lineaProceso !== 'TODO') {
+            $where[] = "lineaproceso = :lineaproceso";
+            $params[':lineaproceso'] = $lineaProceso;
+        }
+
+        if (!empty($zonaFiscal) && $zonaFiscal !== 'TODO') {
+            $where[] = "zonafiscal = :zonafiscal";
+            $params[':zonafiscal'] = $zonaFiscal;
+        }
+
+        if (!empty($item) && $item !== 'TODO') {
+            $where[] = "coditem = :item";
+            $params[':item'] = $item;
+        }
+
+        // Filtro por devoluciones: si se especificó una lista parcial de motivos de devolución
+        if (!empty($nomDevs)) {
+            $devPhs = [];
+            foreach (array_values($nomDevs) as $i => $dev) {
+                $ph = ":dev_" . $i;
+                $devPhs[] = $ph;
+                $params[$ph] = $dev;
+            }
+            // Los documentos de venta (01 y 03) siempre pasan, y para devoluciones deben estar en la lista seleccionada
+            $where[] = "(coddoc IN ('01', '03') OR nomdevolucion IN (" . implode(', ', $devPhs) . "))";
+        }
+
+        $sql = "SELECT 
+                    fechaproceso,
+                    -- Unidades
+                    SUM(CASE WHEN coddoc IN ('01', '03') THEN cantidad ELSE 0 END) AS cant_ventas,
+                    SUM(CASE WHEN coddoc NOT IN ('01', '03') THEN cantidad ELSE 0 END) AS cant_devs,
+                    SUM(cantidad) AS cant_total_gen,
+
+                    -- Pesos (Kg)
+                    SUM(CASE WHEN coddoc IN ('01', '03') THEN peso ELSE 0 END) AS peso_ventas,
+                    SUM(CASE WHEN coddoc NOT IN ('01', '03') THEN peso ELSE 0 END) AS peso_devs,
+                    SUM(peso) AS peso_total_gen,
+
+                    -- Montos Soles (Subtotal y Total)
+                    SUM(CASE WHEN coddoc IN ('01', '03') THEN subtotal ELSE 0 END) AS subtotal_ventas,
+                    SUM(CASE WHEN coddoc NOT IN ('01', '03') THEN subtotal ELSE 0 END) AS subtotal_devs,
+                    SUM(subtotal) AS subtotal_total_gen
+                FROM dmdocventasdet
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY fechaproceso
+                ORDER BY fechaproceso ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
