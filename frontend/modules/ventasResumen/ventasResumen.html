@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen de Ventas y Devoluciones</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* Scrollbars delgadas y estilizadas */
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            /* Ancho del scroll vertical */
+            height: 6px;
+            /* Altura del scroll horizontal */
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+
+</head>
+
+<body class="bg-gray-100 h-screen m-0 p-0">
+
+    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 relative">
+
+        <!-- BARRA SUPERIOR DE CABECERA Y TOGGLE -->
+        <div id="cabecera-filtros"
+            class="flex flex-wrap items-center justify-between bg-white border-b border-slate-200/80 rounded-t-2xl transition-all">
+            <div class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Ventas y Devoluciones: Análisis SACA Secuencial</h1>
+                    <p class="text-xs text-slate-500">Filtre por período, línea de proceso, zona fiscal, item, devolución y visualice métricas en Unidades o Pesos.</p>
+                </div>
+            </div>
+
+            <!-- BOTÓN TOGGLE PLEGAR / DESPLEGAR -->
+            <div class="px-3 py-2 sm:px-4">
+                <button id="btn-toggle-filtros" type="button"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
+                    <span id="label-toggle-filtros">Ocultar filtros</span>
+                    <svg id="icon-toggle-filtros" class="w-4 h-4 transition-transform duration-300" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DE FILTROS -->
+        <div id="contenedor-filtros-contenido" class="p-4 sm:p-5 transition-all duration-300">
+            <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+
+                <!-- 1. FILTRO PERÍODO Y CONTENEDOR DINÁMICO DE FECHAS -->
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="flex flex-col">
+                        <label for="select-tipo-periodo"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO</label>
+                        <select id="select-tipo-periodo"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="por_mes">Por mes</option>
+                            <option value="entre_meses">Entre meses</option>
+                            <option value="por_fecha">Por fecha</option>
+                            <option value="entre_fechas" selected>Entre fechas</option>
+                            <option value="ultima_semana">Última Semana</option>
+                            <option value="entre_semanas">Entre semanas</option>
+                        </select>
+                    </div>
+
+                    <!-- Contenedor generado por JS según el periodo -->
+                    <div id="contenedor-inputs-periodo" class="flex items-end gap-2">
+                        <!-- Generado dinámicamente por periodo-helper.js -->
+                    </div>
+                </div>
+
+                <!-- 2. SELECT TIPO DE GRÁFICO (SELECCIÓN ÚNICA) -->
+                <div class="flex flex-col">
+                    <label for="select-tipo-grafico"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICO</label>
+                    <select id="select-tipo-grafico"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <option value="07VentasSacCoor" selected>07VentasSacCoor</option>
+                        <!-- Próximos gráficos del módulo se añadirán aquí -->
+                    </select>
+                </div>
+
+                <!-- 3. SELECT MÉTRICA / VISTA (UNIDADES vs PESOS) -->
+                <div class="flex flex-col">
+                    <label for="select-metrica-vista"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">MÉTRICA</label>
+                    <select id="select-metrica-vista"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <option value="unidades" selected>Unidades</option>
+                        <option value="pesos">Pesos (Kg)</option>
+                    </select>
+                </div>
+
+                <!-- 4. SELECT LÍNEA DE PROCESO (SELECCIÓN ÚNICA) -->
+                <div class="flex flex-col">
+                    <label for="select-lineaproceso"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">LINEAPROCESO</label>
+                    <select id="select-lineaproceso"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[140px]">
+                        <!-- Llenado dinámicamente desde la BD -->
+                        <option value="">(Cargando...)</option>
+                    </select>
+                </div>
+
+                <!-- 5. SELECT ZONA FISCAL (SELECCIÓN ÚNICA) -->
+                <div class="flex flex-col">
+                    <label for="select-zonafiscal"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ZONAFISCAL</label>
+                    <select id="select-zonafiscal"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[130px]">
+                        <option value="TODO" selected>(Todo)</option>
+                        <!-- Llenado dinámicamente desde la BD -->
+                    </select>
+                </div>
+
+                <!-- 6. SELECT ITEM (SELECCIÓN ÚNICA) -->
+                <div class="flex flex-col">
+                    <label for="select-item"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ITEM</label>
+                    <select id="select-item"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[150px]">
+                        <option value="TODO" selected>(Todo)</option>
+                        <!-- Llenado dinámicamente desde la BD -->
+                    </select>
+                </div>
+
+                <!-- 7. MULTI-SELECT NOMDEVOLUCION (SELECCIÓN MÚLTIPLE PERSONALIZADA) -->
+                <div id="wrapper-filtro-nomdevolucion" class="flex flex-col relative">
+                    <label
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">NOMDEVOLUCION</label>
+                    <button id="ms-nomdevolucion-btn" type="button"
+                        class="w-full sm:w-auto min-w-[200px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                        <span id="ms-nomdevolucion-label" class="truncate font-semibold text-slate-800">Todos seleccionados</span>
+                        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div id="ms-nomdevolucion-dropdown"
+                        class="custom-multiselect-dropdown absolute left-0 top-full z-50 mt-1.5 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 hidden">
+                        <div class="relative mb-2">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" id="ms-nomdevolucion-search" placeholder="Buscar devolución..."
+                                class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-800">
+                        </div>
+                        <div id="ms-nomdevolucion-options" class="max-h-60 overflow-y-auto space-y-0.5 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 8. DISPOSICIÓN DE PANELES (VERTICAL / HORIZONTAL) -->
+                <div id="wrapper-filtro-disposicion" class="flex flex-col">
+                    <label for="select-disposicion-graficos"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DISPOSICIÓN</label>
+                    <div class="relative inline-flex items-center">
+                        <div id="icono-disposicion-activa"
+                            class="absolute left-2.5 pointer-events-none text-slate-600 flex items-center">
+                            <svg id="icon-disp-vertical" class="w-4 h-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                            <svg id="icon-disp-horizontal" class="w-4 h-4 hidden" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 4v16M15 4v16M4 4h16M4 20h16"></path>
+                            </svg>
+                        </div>
+                        <select id="select-disposicion-graficos"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg pl-8 pr-8 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer appearance-none">
+                            <option value="vertical" selected>Vertical</option>
+                            <option value="horizontal">Horizontal</option>
+                        </select>
+                        <div class="absolute right-2.5 pointer-events-none text-slate-400 flex items-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="flex items-center gap-2 ml-auto sm:ml-0">
+                    <button id="btn-cargar" type="button"
+                        class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        <span>Cargar</span>
+                    </button>
+                    <button id="btn-limpiar" type="button"
+                        class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200 transition-all cursor-pointer">
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR DINÁMICO DE GRÁFICOS (TARJETAS INDEPENDIENTES) -->
+    <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-10">
+        <!-- Generado dinámicamente por ventasResumen.controller.js -->
+    </div>
+
+    <!-- POPUP MENÚ FLOTANTE AL HACER CLIC EN UN PUNTO/BARRA (ESTILO TABLEAU) -->
+    <div id="popup-menu-barra"
+        class="hidden fixed z-50 bg-white border border-slate-200/90 rounded-xl shadow-xl p-2 min-w-[170px] flex flex-col gap-1 transition-all">
+        <button id="btn-abrir-ver-datos" type="button"
+            class="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer text-left">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
+            </svg>
+            <span>Ver datos</span>
+        </button>
+        <button id="btn-abrir-analisis-secundario" type="button"
+            class="hidden w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/80 rounded-lg transition-colors cursor-pointer text-left border-t border-slate-100">
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                </path>
+            </svg>
+            <span>Análisis Detallado</span>
+        </button>
+    </div>
+
+    <!-- MODAL "VER DATOS" ESTILO TABLEAU -->
+    <div id="modal-ver-datos"
+        class="hidden fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div
+            class="bg-white w-full max-w-[130vh] max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in duration-200">
+
+            <!-- HEADER DEL MODAL -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-100/80 text-blue-600 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800" id="modal-titulo-vista">Ver datos: Ventas y Devoluciones</h3>
+                        <p class="text-xs text-slate-500" id="modal-subtitulo-filas">Cargando información...</p>
+                    </div>
+                </div>
+                <button id="btn-cerrar-modal" type="button"
+                    class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- CUERPO CON PESTAÑAS (SIDEBAR IZQUIERDO Y TABLA DERECHA) -->
+            <div class="flex flex-1 overflow-hidden">
+                <!-- SIDEBAR DE TABS -->
+                <div class="w-48 bg-slate-50 border-r border-slate-100 p-3 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <button id="tab-btn-resumen" type="button"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200/60 transition-all text-left cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                                </path>
+                            </svg>
+                            <span>Resumen</span>
+                        </button>
+                        <button id="tab-btn-completos" type="button"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all text-left cursor-pointer">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                            </svg>
+                            <span>Datos completos</span>
+                        </button>
+
+                        <!-- SEPARADOR Y BOTÓN EXPORTAR EXCEL -->
+                        <div class="pt-2">
+                            <div class="border-t border-slate-200/80 mb-2"></div>
+                            <button id="btn-exportar-excel-modal" type="button"
+                                class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-emerald-700 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200/70 transition-all text-left cursor-pointer group shadow-2xs">
+                                <svg class="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                                <span>Exportar Excel</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTENIDO DE LAS TABLAS -->
+                <div class="flex-1 p-5 overflow-y-auto custom-scrollbar">
+
+                    <!-- 1. VISTA RESUMEN -->
+                    <div id="vista-tab-resumen" class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                            <thead id="thead-modal-resumen"
+                                class="bg-blue-600 border-b border-slate-200 text-white font-bold uppercase tracking-wider text-[10px]">
+                                <!-- Llenado dinámicamente por ModalSchemas -->
+                            </thead>
+                            <tbody id="tbody-modal-resumen" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Llenado por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 2. VISTA DATOS COMPLETOS -->
+                    <div id="vista-tab-completos"
+                        class="hidden overflow-x-auto max-h-[65vh] overflow-y-auto custom-scrollbar">
+                        <div id="loader-modal-detalle"
+                            class="py-12 text-center text-blue-600 flex flex-col items-center justify-center gap-2">
+                            <svg class="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            <span class="text-xs font-semibold">Cargando desglose transaccional...</span>
+                        </div>
+                        <table id="tabla-modal-completos"
+                            class="hidden w-full text-left text-xs border border-slate-200 rounded-lg">
+                            <thead id="thead-modal-completos"
+                                class="sticky top-0 z-10 bg-blue-600 border-b border-blue-700 text-white font-bold uppercase tracking-wider text-[10px] shadow-sm">
+                                <!-- Llenado dinámicamente por ModalSchemas -->
+                            </thead>
+                            <tbody id="tbody-modal-completos" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- Llenado por JS -->
+                            </tbody>
+                            <tfoot id="tfoot-modal-completos">
+                                <!-- Llenado dinámicamente por ModalSchemas -->
+                            </tfoot>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SECUNDARIO PARA ANÁLISIS DE CLIENTES / DEVOLUCIONES (TABLAS INFERIORES) -->
+    <div id="modal-analisis-secundario"
+        class="hidden fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+        <div
+            class="bg-white w-full max-w-[96vw] h-[75vh] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in duration-200">
+
+            <!-- HEADER DEL MODAL -->
+            <div class="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50/80 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-indigo-100 text-indigo-700 rounded-lg shadow-xs">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800" id="modal-secundario-titulo">Detalle de Ventas y Devoluciones por Cliente</h3>
+                        <p class="text-xs text-slate-500" id="modal-secundario-subtitulo">Cargando desglose...</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-cerrar-modal-secundario" type="button"
+                        class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                        title="Cerrar ventana">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- LOADER CENTRAL -->
+            <div id="loader-modal-secundario"
+                class="flex-1 flex flex-col items-center justify-center gap-3 text-indigo-600 bg-white">
+                <svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span class="text-xs font-semibold text-slate-600">Cargando desglose comparativo...</span>
+            </div>
+
+            <!-- CONTENIDO PRINCIPAL: DOS COLUMNAS DE ANÁLISIS (VENTAS VS DEVOLUCIONES) -->
+            <div id="contenido-modal-secundario" class="hidden flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 bg-slate-50/40">
+
+                <!-- COLUMNA IZQUIERDA: CLIENTES Y VENTAS (6 cols) -->
+                <div class="lg:col-span-6 flex flex-col h-full overflow-hidden bg-white border-r border-slate-200">
+                    <div class="px-5 py-3 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between shrink-0">
+                        <div>
+                            <span class="text-[11px] font-bold tracking-wider text-slate-500 uppercase block">Ventas/Devoluciones</span>
+                            <h4 class="text-sm font-semibold text-slate-800" id="label-titulo-col-ventas">Detalle General</h4>
+                        </div>
+                    </div>
+
+                    <!-- LISTA CON SCROLL DE CLIENTES -->
+                    <div id="lista-analisis-ventas" class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scrollbar">
+                        <!-- Generado dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: DEVOLUCIONES ESPECÍFICAS (6 cols) -->
+                <div class="lg:col-span-6 flex flex-col h-full overflow-hidden bg-white">
+                    <div class="px-5 py-3 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between shrink-0">
+                        <div>
+                            <span class="text-[11px] font-bold tracking-wider text-slate-500 uppercase block">Devoluciones por Motivo</span>
+                            <h4 class="text-sm font-bold text-slate-800" id="label-titulo-col-devoluciones">Motivos de Devolución</h4>
+                        </div>
+                    </div>
+
+                    <!-- LISTA CON SCROLL DE DEVOLUCIONES -->
+                    <div id="lista-analisis-devoluciones" class="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scrollbar">
+                        <!-- Generado dinámicamente -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- SCRIPTS Y DEPENDENCIAS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <script src="../../core/config.js"></script>
+
+    <script src="../../assets/utils-graficos/custom-multiselect.js"></script>
+    <script src="../../assets/utils-graficos/periodo-helper.js"></script>
+    <script src="../../assets/utils-graficos/modal-schemas.js"></script>
+
+    <script src="ventasResumen.service.js?v=20260904_1"></script>
+    <script src="ventasResumen.controller.js?v=20260904_1"></script>
+
+</body>
+
+</html>
