@@ -77,7 +77,12 @@ class VentasResumenController {
             PeriodoHelper.renderizarInputs();
         });
 
-        // 3. Selector de Disposición (Actualiza iconos)
+        // 3.1 Selector de Línea de Proceso (Reactivo: actualiza Items en cascada)
+        document.getElementById('select-lineaproceso')?.addEventListener('change', async (e) => {
+            await this.onLineaProcesoChange(e.target.value);
+        });
+
+        // 3.2 Selector de Disposición (Actualiza iconos)
         document.getElementById('select-disposicion-graficos')?.addEventListener('change', (e) => {
             const esHorizontal = e.target.value === 'horizontal';
             document.getElementById('icon-disp-vertical')?.classList.toggle('hidden', esHorizontal);
@@ -198,31 +203,88 @@ class VentasResumenController {
      * Puebla los selects con los datos devueltos por el backend
      */
     poblarFiltrosUI() {
-        // Linea de proceso
+        // Linea de proceso (con opción '(Todo)')
         const selLinea = document.getElementById('select-lineaproceso');
         if (selLinea && this.opcionesFiltros.lineasProceso?.length > 0) {
-            selLinea.innerHTML = this.opcionesFiltros.lineasProceso.map((lp, idx) => 
-                `<option value="${lp.id || lp}" ${idx === 0 ? 'selected' : ''}>${lp.label || lp}</option>`
-            ).join('');
+            selLinea.innerHTML = `<option value="TODO" selected>(Todo)</option>` +
+                this.opcionesFiltros.lineasProceso.map((lp, idx) => 
+                    `<option value="${lp.id || lp}" ${idx === 0 ? '' : ''}>${lp.label || lp}</option>`
+                ).join('');
         }
 
         // Zona fiscal
-        const selZona = document.getElementById('select-zonafiscal');
-        if (selZona && this.opcionesFiltros.zonasFiscales?.length > 0) {
-            selZona.innerHTML = `<option value="TODO" selected>(Todo)</option>` + 
-                this.opcionesFiltros.zonasFiscales.map(z => `<option value="${z.id || z}">${z.label || z}</option>`).join('');
-        }
+        this.renderizarZonas(this.opcionesFiltros.zonasFiscales || []);
 
         // Item
-        const selItem = document.getElementById('select-item');
-        if (selItem && this.opcionesFiltros.items?.length > 0) {
-            selItem.innerHTML = `<option value="TODO" selected>(Todo)</option>` + 
-                this.opcionesFiltros.items.map(it => `<option value="${it.id || it}">${it.label || it}</option>`).join('');
-        }
+        this.renderizarItems(this.opcionesFiltros.items || []);
 
         // NomDevolucion (MultiSelect)
         if (this.msNomDevolucion && this.opcionesFiltros.nomDevoluciones?.length > 0) {
             this.msNomDevolucion.setOptions(this.opcionesFiltros.nomDevoluciones);
+        }
+    }
+
+    /**
+     * Renderiza las opciones en el select de Zonas Fiscales
+     */
+    renderizarZonas(zonas) {
+        const selZona = document.getElementById('select-zonafiscal');
+        if (!selZona) return;
+
+        const valorPrevio = selZona.value;
+        selZona.innerHTML = `<option value="TODO" selected>(Todo)</option>` + 
+            zonas.map(z => `<option value="${z.id || z}">${z.label || z}</option>`).join('');
+
+        // Mantener selección previa si aún existe entre las opciones válidas
+        if (valorPrevio && Array.from(selZona.options).some(o => o.value === valorPrevio)) {
+            selZona.value = valorPrevio;
+        }
+    }
+
+    /**
+     * Renderiza las opciones en el select de Items
+     */
+    renderizarItems(items) {
+        const selItem = document.getElementById('select-item');
+        if (!selItem) return;
+
+        const valorPrevio = selItem.value;
+        selItem.innerHTML = `<option value="TODO" selected>(Todo)</option>` + 
+            items.map(it => `<option value="${it.id || it}">${it.label || it}</option>`).join('');
+
+        // Mantener selección previa si aún existe entre las opciones válidas
+        if (valorPrevio && Array.from(selItem.options).some(o => o.value === valorPrevio)) {
+            selItem.value = valorPrevio;
+        }
+    }
+
+    /**
+     * Evento al cambiar la Línea de Proceso: consulta y actualiza reactivamente Zonas e Items
+     */
+    async onLineaProcesoChange(lineaProceso) {
+        const selZona = document.getElementById('select-zonafiscal');
+        const selItem = document.getElementById('select-item');
+
+        if (selZona) {
+            selZona.innerHTML = `<option value="TODO">(Cargando zonas...)</option>`;
+            selZona.disabled = true;
+        }
+        if (selItem) {
+            selItem.innerHTML = `<option value="TODO">(Cargando items...)</option>`;
+            selItem.disabled = true;
+        }
+
+        try {
+            const opciones = await this.service.obtenerOpcionesPorLinea(lineaProceso);
+            this.renderizarZonas(opciones.zonasFiscales || []);
+            this.renderizarItems(opciones.items || []);
+        } catch (error) {
+            console.error('Error al actualizar opciones en cascada:', error);
+            if (selZona) selZona.innerHTML = `<option value="TODO" selected>(Todo)</option>`;
+            if (selItem) selItem.innerHTML = `<option value="TODO" selected>(Todo)</option>`;
+        } finally {
+            if (selZona) selZona.disabled = false;
+            if (selItem) selItem.disabled = false;
         }
     }
 
