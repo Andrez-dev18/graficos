@@ -34,6 +34,12 @@ class SaldosController {
             docs: [],
             corpSeleccionado: null
         };
+
+        // Estado de la Matriz Corporativos por Zona (18CorporativosZonaDeudores)
+        this.matrizZonaDeudoresState = {
+            dataOriginal: null,
+            zonasSeleccionadas: [] // vacío significa "todas las zonas visibles"
+        };
     }
 
     async init() {
@@ -744,15 +750,21 @@ class SaldosController {
     alternarVisibilidadFiltrosSegunTipo() {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
         const esBarras = tipoGrafico === 'saltosXcobrarXbarra';
-        const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
+        const esCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
+        const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs' || esCorporativosZona;
 
         const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
         const wrapperVenc = document.getElementById('wrapper-filtro-vencimiento');
         const wrapperDec = document.getElementById('wrapper-filtro-decision');
         const wrapperObs = document.getElementById('wrapper-filtro-observacion');
+        const wrapperDisp = document.getElementById('wrapper-filtro-disposicion');
 
         if (wrapperCliente) {
             wrapperCliente.classList.toggle('hidden', !esBarras);
+        }
+
+        if (wrapperDisp) {
+            wrapperDisp.classList.toggle('hidden', esCorporativosZona);
         }
 
         [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
@@ -786,6 +798,7 @@ class SaldosController {
         const esVistaZona = tipoGrafico === '02SalxCobrarxZona';
         const esVistaAnticipos = tipoGrafico === '08IndAnticipos';
         const esVistaAnalisisCuentas = tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
+        const esVistaCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
 
         contenedor.innerHTML = `
             <div id="loader-graficos" class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-blue-600 font-medium flex items-center justify-center gap-2">
@@ -798,7 +811,33 @@ class SaldosController {
         `;
 
         try {
-            if (esVistaAnalisisCuentas) {
+            if (esVistaCorporativosZona) {
+                // CONSULTA PARA 18CorporativosZonaDeudores (Matriz Corporativos x Zona Fiscal)
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    fechacarga: fFin, // Toma la fecha de corte exacta como en Tableau
+                    cuentas: selectedCuentas,
+                    vencimientos: this.msVencimiento ? this.msVencimiento.getSelectedValues() : [],
+                    decisiones: this.msDecision ? this.msDecision.getSelectedValues() : [],
+                    observaciones: this.msObservacion ? this.msObservacion.getSelectedValues() : []
+                };
+
+                const res = await this.service.obtenerCorporativosZonaDeudores(payload);
+                document.getElementById('loader-graficos')?.remove();
+
+                if (!res.success || !res.data || !res.data.corporativos || res.data.corporativos.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
+                            No se encontraron registros de corporativos deudores para los filtros seleccionados.
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.crearMatrizCorporativosZonaDeudores(res.data);
+
+            } else if (esVistaAnalisisCuentas) {
                 // CONSULTA PARA 20DashAnalisisCtasMaxDeudoresDocs (Saldos por Cuenta de Venta)
                 const payload = {
                     fecha_inicio: fInicio,
@@ -920,6 +959,270 @@ class SaldosController {
                 </div>
             `;
         }
+    }
+
+    /**
+     * Renderiza la matriz de Corporativos más Deudores por Zona Fiscal (18CorporativosZonaDeudores)
+     * Reproduce exactamente la visualización de Tableau con sus columnas por zona, barras y leyenda.
+     */
+    crearMatrizCorporativosZonaDeudores(data) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+
+        this.matrizZonaDeudoresState.dataOriginal = data;
+        this.matrizZonaDeudoresState.zonasSeleccionadas = []; // Al inicio: todas visibles
+
+        const { corporativos } = data;
+
+        const tarjetaHtml = `
+            <div class="col-span-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <!-- CABECERA DE LA TARJETA -->
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800 tracking-tight">CORPORATIVOS MAS DEUDORES POR ZONA</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5" id="matriz-subtitulo-info">
+                            Vision Corporativa &bull; <span class="font-semibold text-slate-700">${corporativos.length} corporativos</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 font-semibold rounded-lg border border-blue-200">
+                            18CorporativosZonaDeudores
+                        </span>
+                    </div>
+                </div>
+
+                <!-- CONTENEDOR PRINCIPAL: TABLA MATRIZ + LEYENDA LATERAL -->
+                <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
+                    <!-- ÁREA DE LA TABLA MATRICIAL CON SCROLL -->
+                    <div id="contenedor-tabla-matriz-zonas" class="flex-1 overflow-x-auto overflow-y-auto max-h-[680px] custom-scrollbar">
+                        <!-- Generado dinámicamente -->
+                    </div>
+
+                    <!-- PANEL LATERAL: LEYENDA ZONA FISCAL REACTIVA -->
+                    <div class="w-full lg:w-48 border-t lg:border-t-0 lg:border-l border-slate-200 bg-slate-50/40 p-4 shrink-0 flex flex-col">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <h4 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">zonafiscal</h4>
+                            <button id="btn-reset-zonas-matriz" class="hidden text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer">
+                                Ver todas
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mb-2 leading-tight">Haz clic para filtrar o alternar zonas:</p>
+                        <div id="lista-botones-zonas-matriz" class="flex flex-col gap-1.5 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                            <!-- Botones generados dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        contenedor.innerHTML = tarjetaHtml;
+
+        // Botón "Ver todas"
+        document.getElementById('btn-reset-zonas-matriz')?.addEventListener('click', () => {
+            this.matrizZonaDeudoresState.zonasSeleccionadas = [];
+            this.actualizarVistaMatrizZonas();
+        });
+
+        // Renderizado inicial
+        this.actualizarVistaMatrizZonas();
+    }
+
+    /**
+     * Re-renderiza la tabla matricial y el panel lateral según las zonas seleccionadas
+     */
+    actualizarVistaMatrizZonas() {
+        const { dataOriginal, zonasSeleccionadas } = this.matrizZonaDeudoresState;
+        if (!dataOriginal) return;
+
+        const { zonas: todasZonas, corporativos, max_saldo } = dataOriginal;
+        const maxVal = max_saldo > 0 ? max_saldo : 1;
+
+        // Si zonasSeleccionadas está vacío, se muestran todas
+        const zonasActivas = zonasSeleccionadas.length > 0
+            ? todasZonas.filter(z => zonasSeleccionadas.includes(z))
+            : todasZonas;
+
+        // Paleta oficial de colores por Zona Fiscal idéntica a Tableau
+        const colorMapZonas = {
+            'AREQUIPA': '#a0cbe8',
+            'CAMANA':   '#f28e2b',
+            'CUZCO':    '#8cd17d',
+            'ILO':      '#b6992d',
+            'JULIACA':  '#edc948',
+            'LA JOYA':  '#499894',
+            'MOLLENDO': '#ff9d9a',
+            'MOQUEGUA': '#d4a6c8',
+            'PEDREGAL': '#79706e',
+            'PUNO':     '#bab0ac',
+            'TACNA':    '#fabfd2'
+        };
+        const obtenerColorZona = (zona) => colorMapZonas[zona.toUpperCase()] || '#4e79a7';
+
+        // 1. Renderizar Botones de la Leyenda Lateral
+        const btnReset = document.getElementById('btn-reset-zonas-matriz');
+        if (btnReset) {
+            btnReset.classList.toggle('hidden', zonasSeleccionadas.length === 0);
+        }
+
+        const contenedorBotones = document.getElementById('lista-botones-zonas-matriz');
+        if (contenedorBotones) {
+            contenedorBotones.innerHTML = todasZonas.map(z => {
+                const color = obtenerColorZona(z);
+                const estaSeleccionada = zonasSeleccionadas.includes(z);
+                const modoTodos = zonasSeleccionadas.length === 0;
+
+                // Estilos reactivos tipo botón
+                let clasesBtn = 'flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer text-left ';
+                if (modoTodos) {
+                    clasesBtn += 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100/70';
+                } else if (estaSeleccionada) {
+                    clasesBtn += 'bg-blue-50 border-blue-400 text-blue-800 font-bold shadow-xs';
+                } else {
+                    clasesBtn += 'bg-white/60 border-slate-200/60 text-slate-400 hover:border-slate-300 hover:text-slate-600 opacity-60';
+                }
+
+                return `
+                    <button type="button" 
+                            class="btn-zona-filtro ${clasesBtn}" 
+                            data-zona="${z}"
+                            title="${estaSeleccionada ? 'Quitar filtro de ' + z : 'Filtrar por ' + z}">
+                        <div class="flex items-center gap-2 truncate">
+                            <span class="w-3 h-3 rounded-xs shrink-0 shadow-2xs" style="background-color: ${color};"></span>
+                            <span class="truncate">${z}</span>
+                        </div>
+                        ${estaSeleccionada ? `<span class="text-blue-600 text-[10px] ml-1 shrink-0 font-bold">&check;</span>` : ''}
+                    </button>
+                `;
+            }).join('');
+
+            // Asignar listeners a cada botón
+            contenedorBotones.querySelectorAll('.btn-zona-filtro').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const zona = btn.getAttribute('data-zona');
+                    if (this.matrizZonaDeudoresState.zonasSeleccionadas.includes(zona)) {
+                        // Quitar de la selección
+                        this.matrizZonaDeudoresState.zonasSeleccionadas = this.matrizZonaDeudoresState.zonasSeleccionadas.filter(item => item !== zona);
+                    } else {
+                        // Agregar a la selección
+                        this.matrizZonaDeudoresState.zonasSeleccionadas.push(zona);
+                    }
+                    this.actualizarVistaMatrizZonas();
+                });
+            });
+        }
+
+        // 2. Filtrar y ordenar corporativos que tengan deuda en al menos una de las zonas activas
+        const corporativosVisibles = corporativos.filter(corp => {
+            return zonasActivas.some(z => (corp.zonas[z] || 0) > 0);
+        });
+
+        // 3. Renderizar Tabla Matricial
+        const contenedorTabla = document.getElementById('contenedor-tabla-matriz-zonas');
+        if (!contenedorTabla) return;
+
+        // Actualizar subtítulo con info de corporativos visibles
+        const subInfo = document.getElementById('matriz-subtitulo-info');
+        if (subInfo) {
+            const txtFiltro = zonasSeleccionadas.length > 0 
+                ? ` &bull; Filtrado por: <span class="text-blue-700 font-semibold">${zonasActivas.join(', ')}</span>`
+                : '';
+            subInfo.innerHTML = `Vision Corporativa &bull; <span class="font-semibold text-slate-700">${corporativosVisibles.length} corporativos</span>${txtFiltro}`;
+        }
+
+        if (zonasActivas.length === 0 || corporativosVisibles.length === 0) {
+            contenedorTabla.innerHTML = `
+                <div class="p-12 text-center text-slate-400 text-xs">
+                    No se encontraron registros de deudores para las zonas seleccionadas.
+                </div>
+            `;
+            return;
+        }
+
+        // Cabeceras de columnas activas
+        const theadZonasHtml = zonasActivas.map(z => `
+            <th class="px-2 py-2.5 text-center font-semibold text-[11px] tracking-wide whitespace-nowrap border-l border-blue-500/40 min-w-[110px]">
+                <span>${z}</span>
+            </th>
+        `).join('');
+
+        // Pie de columnas activas
+        const tfootZonasHtml = zonasActivas.map(() => `
+            <td class="px-2 py-1 text-center font-mono text-[9px] text-slate-400 border-l border-slate-200">
+                <div class="flex justify-between px-1">
+                    <span>0K</span>
+                    <span>50K</span>
+                    <span>100K</span>
+                </div>
+                <div class="text-[9px] text-slate-400 text-center mt-0.5">saldofinal</div>
+            </td>
+        `).join('');
+
+        // Filas de corporativos visibles
+        const tbodyRowsHtml = corporativosVisibles.map((corp, idx) => {
+            const bgFila = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40';
+
+            const celdasZonasHtml = zonasActivas.map(z => {
+                const monto = corp.zonas[z] || 0;
+                if (monto <= 0) {
+                    return `<td class="px-2 py-1.5 border-l border-slate-100 text-center"></td>`;
+                }
+
+                const pctAncho = Math.min(Math.max((monto / maxVal) * 100, 3), 100);
+                const colorBarra = obtenerColorZona(z);
+                const montoFmt = this.formatearNumeroTableau(monto, false);
+
+                return `
+                    <td class="px-2 py-1.5 border-l border-slate-100 align-middle">
+                        <div class="flex items-center gap-1.5 w-full">
+                            <div class="flex-1 h-3.5 bg-slate-100 rounded-none overflow-hidden relative">
+                                <div class="h-full rounded-none transition-all duration-300" 
+                                     style="width: ${pctAncho}%; background-color: ${colorBarra};"
+                                     title="${corp.nomcorporativo} - ${z}: S/ ${this.formatearNumeroTableau(monto, true)}">
+                                </div>
+                            </div>
+                            <span class="text-[10.5px] font-mono text-slate-700 font-medium whitespace-nowrap min-w-[42px] text-right">
+                                ${montoFmt}
+                            </span>
+                        </div>
+                    </td>
+                `;
+            }).join('');
+
+            return `
+                <tr class="${bgFila} hover:bg-blue-50/50 transition-colors group">
+                    <td class="sticky left-0 z-10 px-3 py-1.5 text-xs text-slate-700 font-medium whitespace-nowrap max-w-[260px] truncate bg-inherit shadow-[1px_0_0_0_rgba(226,232,240,1)]" 
+                        title="${corp.nomcorporativo}">
+                        ${corp.nomcorporativo}
+                    </td>
+                    ${celdasZonasHtml}
+                </tr>
+            `;
+        }).join('');
+
+        contenedorTabla.innerHTML = `
+            <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 z-20 bg-blue-600 text-white uppercase text-[10.5px] tracking-wider border-b border-slate-200 shadow-xs">
+                    <tr>
+                        <th class="sticky left-0 z-30 bg-blue-600 px-3 py-2.5 font-bold whitespace-nowrap min-w-[220px] shadow-[1px_0_0_0_rgba(37,99,235,1)]">
+                            <div class="flex items-center gap-1">
+                                <span>nomcorporativo</span>
+                                <svg class="w-3 h-3 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M3 8h12m-12 4h6"></path></svg>
+                            </div>
+                        </th>
+                        ${theadZonasHtml}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    ${tbodyRowsHtml}
+                </tbody>
+                <tfoot class="sticky bottom-0 z-20 bg-slate-50/90 backdrop-blur-xs border-t border-slate-200">
+                    <tr>
+                        <td class="sticky left-0 z-30 bg-slate-50 px-3 py-1 font-mono text-[9px] text-slate-400"></td>
+                        ${tfootZonasHtml}
+                    </tr>
+                </tfoot>
+            </table>
+        `;
     }
 
 

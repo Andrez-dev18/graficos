@@ -16,4 +16,7 @@ $this->post('/saldosxCobrar/grafico-anticipos', 'saldosxCobrarController@getGraf
 $this->post('/saldosxCobrar/grafico-analisis-cuentas', 'saldosxCobrarController@getGraficoAnalisisCuentas');
 $this->post('/saldosxCobrar/analisis-corporativos', 'saldosxCobrarController@getAnalisisCorporativosYDocs');
 
+// Ruta para 18CorporativosZonaDeudores (Corporativos más deudores por zona fiscal)
+$this->post('/saldosxCobrar/corporativos-zona-deudores', 'saldosxCobrarController@getCorporativosZonaDeudores');
+
 ?>

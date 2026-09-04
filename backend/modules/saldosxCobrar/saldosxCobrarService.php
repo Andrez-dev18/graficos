@@ -436,5 +436,104 @@ class saldosxCobrarService
             'docs'          => $listadoDocs
         ];
     }
+
+    /**
+     * Procesa y estructura la matriz de Corporativos x Zona Fiscal para 18CorporativosZonaDeudores
+     *
+     * @param array $filtros
+     * @return array
+     */
+    public function obtenerCorporativosZonaDeudores(array $filtros)
+    {
+        $rows = $this->repo->getCorporativosZonaDeudores($filtros);
+
+        if (empty($rows)) {
+            return [
+                'status'       => 'empty',
+                'zonas'        => [],
+                'corporativos' => [],
+                'max_saldo'    => 0,
+                'total_deuda'  => 0
+            ];
+        }
+
+        // Orden canónico de zonas fiscales de Tableau
+        $zonasCanonicas = [
+            'AREQUIPA', 'CAMANA', 'CUZCO', 'ILO', 'JULIACA', 
+            'LA JOYA', 'MOLLENDO', 'MOQUEGUA', 'PEDREGAL', 'PUNO', 'TACNA'
+        ];
+
+        // Mapeo y acumulación
+        $corporativosMap = [];
+        $zonasDetectadas = [];
+        $maxSaldo = 0.0;
+        $totalDeuda = 0.0;
+
+        foreach ($rows as $row) {
+            $corp = trim($row['nomcorporativo']);
+            $zona = trim($row['zonafiscal']);
+            $saldo = (float) $row['saldofinal'];
+
+            if (!in_array($zona, $zonasDetectadas, true)) {
+                $zonasDetectadas[] = $zona;
+            }
+
+            if (!isset($corporativosMap[$corp])) {
+                $corporativosMap[$corp] = [
+                    'nomcorporativo' => $corp,
+                    'total'          => 0.0,
+                    'zonas'          => []
+                ];
+            }
+
+            $corporativosMap[$corp]['zonas'][$zona] = $saldo;
+            $corporativosMap[$corp]['total'] += $saldo;
+            $totalDeuda += $saldo;
+
+            if ($saldo > $maxSaldo) {
+                $maxSaldo = $saldo;
+            }
+        }
+
+        // Construir lista de zonas ordenadas respetando el orden canónico y agregando otras si hubiera
+        $zonasOrdenadas = [];
+        foreach ($zonasCanonicas as $zCan) {
+            if (in_array($zCan, $zonasDetectadas, true)) {
+                $zonasOrdenadas[] = $zCan;
+            }
+        }
+        foreach ($zonasDetectadas as $zDet) {
+            if (!in_array($zDet, $zonasOrdenadas, true)) {
+                $zonasOrdenadas[] = $zDet;
+            }
+        }
+
+        // Ordenar corporativos por total deudor descendente
+        $corporativosList = array_values($corporativosMap);
+        usort($corporativosList, function ($a, $b) {
+            if ($b['total'] == $a['total']) {
+                return strcmp($a['nomcorporativo'], $b['nomcorporativo']);
+            }
+            return ($b['total'] > $a['total']) ? 1 : -1;
+        });
+
+        // Redondear totales
+        foreach ($corporativosList as &$c) {
+            $c['total'] = round($c['total'], 2);
+            foreach ($c['zonas'] as $z => $val) {
+                $c['zonas'][$z] = round($val, 2);
+            }
+        }
+        unset($c);
+
+        return [
+            'status'       => 'success',
+            'zonas'        => $zonasOrdenadas,
+            'corporativos' => $corporativosList,
+            'max_saldo'    => round($maxSaldo, 2),
+            'total_deuda'  => round($totalDeuda, 2)
+        ];
+    }
 }
+
 

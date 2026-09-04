@@ -251,5 +251,32 @@ class saldosxCobrarController
         exit;
     }
 
+    /**
+     * Endpoint para obtener Corporativos más Deudores por Zona Fiscal (18CorporativosZonaDeudores)
+     */
+    public function getCorporativosZonaDeudores()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerCorporativosZonaDeudores($filtros);
+
+            echo json_encode([
+                'success' => true,
+                'data'    => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener corporativos por zona: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
 }
+
 

@@ -21,6 +21,9 @@ class saldosService {
         GRAFICO_ANALISIS_CUENTAS: '/saldosxCobrar/grafico-analisis-cuentas',
         ANALISIS_CORPORATIVOS: '/saldosxCobrar/analisis-corporativos',
 
+        // Gráfico 18CorporativosZonaDeudores
+        CORPORATIVOS_ZONA_DEUDORES: '/saldosxCobrar/corporativos-zona-deudores',
+
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
 
@@ -269,6 +272,32 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error en saldosService.obtenerAnalisisCorporativos:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Consulta la matriz de corporativos más deudores por zona fiscal (18CorporativosZonaDeudores)
+     * @param {Object} payload { fecha_inicio, fecha_fin, fechacarga, cuentas: [], vencimientos: [], decisiones: [], observaciones: [] }
+     */
+    async obtenerCorporativosZonaDeudores(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.CORPORATIVOS_ZONA_DEUDORES}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar corporativos por zona: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerCorporativosZonaDeudores:', error);
             throw error;
         }
     }

@@ -525,5 +525,101 @@ class saldosxCobrarRepo
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene los saldos agrupados por nomcorporativo y zonafiscal para 18CorporativosZonaDeudores
+     *
+     * @param array $filtros ['fechacarga' o 'fecha_inicio'/'fecha_fin', 'cuentas', 'vencimientos', 'decisiones', 'observaciones']
+     * @return array
+     */
+    public function getCorporativosZonaDeudores(array $filtros)
+    {
+        $params = [];
+        $where = [];
+
+        // Filtro de fecha: soporta fechacarga exacta o rango fechacarga
+        if (!empty($filtros['fechacarga'])) {
+            $where[] = "fechacarga = :fechacarga";
+            $params[':fechacarga'] = $filtros['fechacarga'];
+        } elseif (!empty($filtros['fecha_inicio']) && !empty($filtros['fecha_fin'])) {
+            $where[] = "fechacarga BETWEEN :fecha_inicio AND :fecha_fin";
+            $params[':fecha_inicio'] = $filtros['fecha_inicio'];
+            $params[':fecha_fin'] = $filtros['fecha_fin'];
+        }
+
+        // Filtro Cuentas
+        if (!empty($filtros['cuentas'])) {
+            $inCuentas = [];
+            foreach ($filtros['cuentas'] as $i => $cta) {
+                $ph = ":cta_" . $i;
+                $inCuentas[] = $ph;
+                $params[$ph] = $cta;
+            }
+            $where[] = "cuentaventa IN (" . implode(', ', $inCuentas) . ")";
+        }
+
+        // Helper para filtros nullable (vencimiento, decision, observacion)
+        $procesarNullable = function ($campo, $valores, $prefijo) use (&$where, &$params) {
+            if (empty($valores)) return;
+            $tieneNull = in_array('NULL', $valores, true);
+            $valoresLimpios = array_filter($valores, function ($v) {
+                return $v !== 'NULL';
+            });
+
+            $condiciones = [];
+            if (!empty($valoresLimpios)) {
+                $inPlaceholders = [];
+                foreach (array_values($valoresLimpios) as $i => $val) {
+                    $ph = ":{$prefijo}_" . $i;
+                    $inPlaceholders[] = $ph;
+                    $params[$ph] = $val;
+                }
+                $condiciones[] = "{$campo} IN (" . implode(', ', $inPlaceholders) . ")";
+            }
+
+            if ($tieneNull) {
+                $condiciones[] = "({$campo} IS NULL OR {$campo} = '')";
+            }
+
+            if (!empty($condiciones)) {
+                $where[] = '(' . implode(' OR ', $condiciones) . ')';
+            }
+        };
+
+        if (!empty($filtros['vencimientos'])) {
+            $procesarNullable('vencimiento', $filtros['vencimientos'], 'venc');
+        }
+        if (!empty($filtros['decisiones'])) {
+            $procesarNullable('decision', $filtros['decisiones'], 'dec');
+        }
+        if (!empty($filtros['observaciones'])) {
+            $procesarNullable('observacion', $filtros['observaciones'], 'obs');
+        }
+
+        // Excluir registros sin corporativo o sin zona fiscal
+        $where[] = "COALESCE(nomcorporativo, '') != ''";
+        $where[] = "COALESCE(zonafiscal, '') != ''";
+
+        $sqlWhere = !empty($where) ? "WHERE " . implode(' AND ', $where) : "";
+
+        $sql = "SELECT 
+                    nomcorporativo,
+                    zonafiscal,
+                    ROUND(SUM(COALESCE(saldofinal, 0)), 2) AS saldofinal
+                FROM dmdocventas2
+                {$sqlWhere}
+                GROUP BY nomcorporativo, zonafiscal
+                HAVING saldofinal > 0
+                ORDER BY saldofinal DESC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
+
 
