@@ -267,7 +267,7 @@ class SaldosController {
         const modal = document.getElementById('modal-ver-datos');
         if (!modal || !this.puntoSeleccionado) return;
 
-        const { tipoGrafico, metrica, cuenta, nomcuentaventa, zona, fechaFormateada, saldofinal, saldoinicial, resta_saldo, ratioCobranza } = this.puntoSeleccionado;
+        const { tipoGrafico, metrica, cuenta, nomcuentaventa, zona, nomcorporativo, fechaFormateada, saldofinal, saldoinicial, resta_saldo, ratioCobranza } = this.puntoSeleccionado;
         const tipoActivo = tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
         const schema = ModalSchemas.getSchema(tipoActivo, metrica);
 
@@ -277,9 +277,14 @@ class SaldosController {
             formatearFecha: (f) => this.formatearFechaTableau(f)
         };
 
-        const subTitulo = nomcuentaventa ? ` - ${nomcuentaventa}` : '';
-        document.getElementById('modal-titulo-vista').textContent = `Ver datos: Cuenta ${cuenta}${subTitulo}`;
-        document.getElementById('modal-subtitulo-filas').textContent = `Día de fechacarga: ${fechaFormateada}${zona ? ` - Zona: ${zona}` : ''}`;
+        if (tipoActivo === '18CorporativosZonaDeudores') {
+            document.getElementById('modal-titulo-vista').textContent = `Ver datos: 18CorporativosZonaDeudores (1 marca)`;
+            document.getElementById('modal-subtitulo-filas').textContent = `${nomcorporativo} - Zona: ${zona}`;
+        } else {
+            const subTitulo = nomcuentaventa ? ` - ${nomcuentaventa}` : '';
+            document.getElementById('modal-titulo-vista').textContent = `Ver datos: Cuenta ${cuenta}${subTitulo}`;
+            document.getElementById('modal-subtitulo-filas').textContent = `Día de fechacarga: ${fechaFormateada}${zona ? ` - Zona: ${zona}` : ''}`;
+        }
 
         // 1. Renderizar pestaña Resumen dinámicamente
         const theadResumen = document.getElementById('thead-modal-resumen');
@@ -288,7 +293,8 @@ class SaldosController {
         ModalSchemas.renderThead(theadResumen, schema.resumen, false);
 
         const dataResumen = {
-            cuentaventa: cuenta,
+            nomcorporativo: nomcorporativo || '',
+            cuentaventa: cuenta || '',
             nomcuentaventa: nomcuentaventa || '',
             zonafiscal: zona || '',
             dia_fechacarga: fechaFormateada,
@@ -357,7 +363,14 @@ class SaldosController {
                 fechacarga: this.puntoSeleccionado.fecha
             };
 
-            if (tipoGrafico === '02SalxCobrarxZona') {
+            if (tipoGrafico === '18CorporativosZonaDeudores') {
+                payloadDetalle.nomcorporativo = this.puntoSeleccionado.nomcorporativo;
+                payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
+                payloadDetalle.cuentas = this.puntoSeleccionado.cuentas || (this.msCuentaVenta ? this.msCuentaVenta.getSelectedValues() : []);
+                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '02SalxCobrarxZona') {
                 // FILTROS ESPECÍFICOS DE LÍNEAS POR ZONA
                 payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
                 payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
@@ -424,6 +437,71 @@ class SaldosController {
             tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
             ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
             tabla?.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Exporta el desglose transaccional a Excel según el tipo de gráfico activo y punto seleccionado
+     */
+    async exportarExcelDesdeModal() {
+        if (!this.puntoSeleccionado) return;
+
+        const tipoGrafico = this.puntoSeleccionado.tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
+
+        const btnExportar = document.getElementById('btn-exportar-excel-modal');
+        const contenidoOriginal = btnExportar ? btnExportar.innerHTML : '';
+
+        try {
+            if (btnExportar) {
+                btnExportar.disabled = true;
+                btnExportar.innerHTML = `
+                    <svg class="animate-spin w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Generando...</span>
+                `;
+            }
+
+            let payloadExcel = {
+                tipo_grafico: tipoGrafico,
+                cuentaventa: this.puntoSeleccionado.cuenta,
+                fechacarga: this.puntoSeleccionado.fecha
+            };
+
+            if (tipoGrafico === '18CorporativosZonaDeudores') {
+                payloadExcel.nomcorporativo = this.puntoSeleccionado.nomcorporativo;
+                payloadExcel.zonafiscal = this.puntoSeleccionado.zona;
+                payloadExcel.cuentas = this.puntoSeleccionado.cuentas || (this.msCuentaVenta ? this.msCuentaVenta.getSelectedValues() : []);
+                payloadExcel.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadExcel.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadExcel.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '02SalxCobrarxZona') {
+                payloadExcel.zonafiscal = this.puntoSeleccionado.zona;
+                payloadExcel.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadExcel.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadExcel.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '08IndAnticipos') {
+                // Anticipos sin filtros extras
+            } else if (tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs') {
+                payloadExcel.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadExcel.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
+                payloadExcel.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else {
+                const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
+                const selectedClientes = this.msNomCliente ? this.msNomCliente.getSelectedValues() : [];
+                payloadExcel.clientes = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+            }
+
+            await this.service.exportarExcel(payloadExcel);
+        } catch (error) {
+            console.error('Error al exportar Excel:', error);
+            alert('Ocurrió un error al generar el archivo Excel.');
+        } finally {
+            if (btnExportar) {
+                btnExportar.disabled = false;
+                btnExportar.innerHTML = contenidoOriginal;
+            }
         }
     }
 
@@ -1172,15 +1250,17 @@ class SaldosController {
                 const montoFmt = this.formatearNumeroTableau(monto, false);
 
                 return `
-                    <td class="px-2 py-1.5 border-l border-slate-100 align-middle">
+                    <td class="px-2 py-1.5 border-l border-slate-100 align-middle celda-matriz-zona cursor-pointer hover:bg-blue-100/60 transition-colors"
+                        data-corp="${encodeURIComponent(corp.nomcorporativo)}"
+                        data-zona="${encodeURIComponent(z)}"
+                        data-monto="${monto}">
                         <div class="flex items-center gap-1.5 w-full">
-                            <div class="flex-1 h-3.5 bg-slate-100 rounded-none overflow-hidden relative">
+                            <div class="flex-1 h-3.5 bg-slate-100 rounded-none overflow-hidden relative pointer-events-none">
                                 <div class="h-full rounded-none transition-all duration-300" 
-                                     style="width: ${pctAncho}%; background-color: ${colorBarra};"
-                                     title="${corp.nomcorporativo} - ${z}: S/ ${this.formatearNumeroTableau(monto, true)}">
+                                     style="width: ${pctAncho}%; background-color: ${colorBarra};">
                                 </div>
                             </div>
-                            <span class="text-[10.5px] font-mono text-slate-700 font-medium whitespace-nowrap min-w-[42px] text-right">
+                            <span class="text-[10.5px] font-mono text-slate-700 font-medium whitespace-nowrap min-w-[42px] text-right pointer-events-none">
                                 ${montoFmt}
                             </span>
                         </div>
@@ -1223,6 +1303,41 @@ class SaldosController {
                 </tfoot>
             </table>
         `;
+
+        // Asignar eventos de clic a cada celda con saldo para abrir el modal 'Ver datos'
+        const fechaCorte = this.currentPeriodo?.fin || '';
+        const fechaFmt = fechaCorte ? this.formatearFechaCortaTableau(fechaCorte) : '';
+        const cuentasSeleccionadas = this.msCuentaVenta ? this.msCuentaVenta.getSelectedValues() : [];
+
+        contenedorTabla.querySelectorAll('.celda-matriz-zona').forEach(celda => {
+            celda.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const nomcorp = decodeURIComponent(celda.getAttribute('data-corp'));
+                const zona = decodeURIComponent(celda.getAttribute('data-zona'));
+                const monto = parseFloat(celda.getAttribute('data-monto')) || 0;
+
+                this.puntoSeleccionado = {
+                    tipoGrafico: '18CorporativosZonaDeudores',
+                    nomcorporativo: nomcorp,
+                    zona: zona,
+                    fecha: fechaCorte,
+                    fechaFormateada: fechaFmt,
+                    saldofinal: monto,
+                    cuentas: cuentasSeleccionadas
+                };
+
+                // Posicionar menú flotante 'Ver datos'
+                const popup = document.getElementById('popup-menu-barra');
+                const btnDeudores = document.getElementById('btn-abrir-analisis-corporativos');
+                if (btnDeudores) btnDeudores.classList.add('hidden');
+
+                if (popup) {
+                    popup.style.left = `${e.clientX + 10}px`;
+                    popup.style.top = `${e.clientY + 10}px`;
+                    popup.classList.remove('hidden');
+                }
+            });
+        });
     }
 
 
@@ -1460,69 +1575,7 @@ class SaldosController {
         return `${diasSemana[fecha.getDay()]}, ${day} de ${meses[month - 1]} de ${year}`;
     }
 
-    /**
-     * Construye los filtros actuales del modal y detona la descarga del Excel
-     */
-    async exportarExcelDesdeModal() {
-        if (!this.puntoSeleccionado) return;
 
-        const btnExportar = document.getElementById('btn-exportar-excel-modal');
-        const contenidoOriginal = btnExportar ? btnExportar.innerHTML : '';
-
-        try {
-            // Feedback visual de carga en el botón
-            if (btnExportar) {
-                btnExportar.disabled = true;
-                btnExportar.classList.add('opacity-70', 'cursor-not-allowed');
-                btnExportar.innerHTML = `
-                    <svg class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    <span>Generando...</span>
-                `;
-            }
-
-            const tipoGrafico = this.puntoSeleccionado.tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
-            let payloadDetalle = {
-                tipo_grafico: tipoGrafico,
-                cuentaventa: this.puntoSeleccionado.cuenta,
-                fechacarga: this.puntoSeleccionado.fecha
-            };
-
-            if (tipoGrafico === '02SalxCobrarxZona') {
-                // Filtros de líneas por zona
-                payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
-                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
-                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
-                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
-            } else if (tipoGrafico === '08IndAnticipos') {
-                // Anticipos no filtra por cliente ni zona
-            } else if (tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs') {
-                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
-                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
-                payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
-            } else {
-                // Filtros de barras por cliente
-                const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
-                const selectedClientes = this.msNomCliente ? this.msNomCliente.getSelectedValues() : [];
-                payloadDetalle.clientes = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
-            }
-
-            await this.service.exportarDetalleExcel(payloadDetalle);
-
-        } catch (error) {
-            console.error('Error al exportar archivo Excel:', error);
-            alert('Ocurrió un inconveniente al generar el archivo Excel.');
-        } finally {
-            // Restaurar estado del botón
-            if (btnExportar) {
-                btnExportar.disabled = false;
-                btnExportar.classList.remove('opacity-70', 'cursor-not-allowed');
-                btnExportar.innerHTML = contenidoOriginal;
-            }
-        }
-    }
 
     /**
      * Renderiza una tarjeta por cuenta con mini-gráficos de líneas apilados por cada Zona Fiscal (Small Multiples)

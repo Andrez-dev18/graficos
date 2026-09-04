@@ -100,23 +100,40 @@ class saldosxCobrarRepo
     public function getDetallePorCuentaYFecha(array $filtros)
     {
         $params = [
-            ':cuentaventa' => $filtros['cuentaventa'],
             ':fechacarga'  => $filtros['fechacarga']
         ];
 
         $where = [
-            "cuentaventa = :cuentaventa",
             "fechacarga = :fechacarga"
         ];
 
-        // Para gráficos de saldos tradicionales se filtraba saldofinal > 0
-        // En Anticipos o Análisis por Cuentas se incluyen todas las transacciones (positivas, negativas y cero)
+        // Filtro por cuentaventa: puede ser una cuenta individual o una lista de cuentas
+        if (!empty($filtros['cuentas']) && is_array($filtros['cuentas'])) {
+            $ctaPhs = [];
+            foreach ($filtros['cuentas'] as $i => $cta) {
+                $ph = ":cta_det_" . $i;
+                $ctaPhs[] = $ph;
+                $params[$ph] = $cta;
+            }
+            $where[] = "cuentaventa IN (" . implode(', ', $ctaPhs) . ")";
+        } elseif (!empty($filtros['cuentaventa'])) {
+            $where[] = "cuentaventa = :cuentaventa";
+            $params[':cuentaventa'] = $filtros['cuentaventa'];
+        }
+
+        // Filtro opcional por Corporativo (para 18CorporativosZonaDeudores)
+        if (!empty($filtros['nomcorporativo'])) {
+            $where[] = "nomcorporativo = :nomcorporativo";
+            $params[':nomcorporativo'] = $filtros['nomcorporativo'];
+        }
+
+        // Para gráficos de saldos tradicionales y corporativos se filtra saldofinal > 0
         $tipoGrafico = $filtros['tipo_grafico'] ?? '';
-        if ($tipoGrafico === 'saltosXcobrarXbarra' || $tipoGrafico === '02SalxCobrarxZona') {
+        if ($tipoGrafico === 'saltosXcobrarXbarra' || $tipoGrafico === '02SalxCobrarxZona' || $tipoGrafico === '18CorporativosZonaDeudores') {
             $where[] = "COALESCE(saldofinal, 0) > 0";
         }
 
-        // Filtro opcional por Zona Fiscal (cuando el clic viene de líneas)
+        // Filtro opcional por Zona Fiscal (cuando el clic viene de líneas o corporativos)
         if (!empty($filtros['zonafiscal'])) {
             $where[] = "zonafiscal = :zonafiscal";
             $params[':zonafiscal'] = $filtros['zonafiscal'];
@@ -189,7 +206,8 @@ class saldosxCobrarRepo
                     COALESCE(horacreacion, '') AS horacreacion,
                     COALESCE(nomcorporativo, '') AS nomcorporativo
                 FROM dmdocventas2
-                WHERE " . implode(' AND ', $where);
+                WHERE " . implode(' AND ', $where) . "
+                ORDER BY numerodoc ASC";
 
         $stmt = $this->conn->prepare($sql);
         foreach ($params as $key => $val) {

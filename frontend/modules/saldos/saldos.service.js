@@ -176,6 +176,10 @@ class saldosService {
      * Envía los filtros aplicados y descarga directamente el archivo Excel generado
      * @param {Object} filtros Parámetros del modal (cuentaventa, fechacarga, zona, etc.)
      */
+    async exportarExcel(filtros) {
+        return this.exportarDetalleExcel(filtros);
+    }
+
     async exportarDetalleExcel(filtros) {
         try {
             const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.EXPORTAR_EXCEL}`, {

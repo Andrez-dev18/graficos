@@ -114,6 +114,25 @@ const ModalSchemas = {
                 { key: 'vencimiento', label: 'vencimiento', align: 'left', nowrap: true, fontClass: 'font-semibold text-slate-700' },
                 { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
             ]
+        },
+
+        // 5. Gráfico 18CorporativosZonaDeudores (Corporativos más deudores por zona fiscal)
+        '18CorporativosZonaDeudores': {
+            resumen: [
+                { key: 'nomcorporativo', label: 'nomcorporativo', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'zonafiscal', label: 'zonafiscal', align: 'left', fontClass: 'font-semibold text-slate-700' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ],
+            detalle: [
+                { key: 'nomcorporativo', label: 'nomcorporativo', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'zonafiscal', label: 'zonafiscal', align: 'left', fontClass: 'font-semibold text-slate-700' },
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'decision', label: 'decision', align: 'left', nowrap: true, fontClass: 'text-slate-600' },
+                { key: 'fechacarga', label: 'fechacarga', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
+                { key: 'numerodoc', label: 'numerodoc', align: 'left', nowrap: true, fontClass: 'font-mono text-slate-700' },
+                { key: 'vencimiento', label: 'vencimiento', align: 'left', nowrap: true, fontClass: 'font-semibold text-slate-700' },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ]
         }
     },
 

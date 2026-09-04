@@ -52,6 +52,16 @@ class SaldosExportExcel
             ['key' => 'observacion',   'label' => 'observacion',    'type' => 'string'],
             ['key' => 'vencimiento',   'label' => 'vencimiento',    'type' => 'string'],
             ['key' => 'saldofinal',    'label' => 'saldofinal',     'type' => 'currency']
+        ],
+        '18CorporativosZonaDeudores' => [
+            ['key' => 'nomcorporativo', 'label' => 'nomcorporativo', 'type' => 'string'],
+            ['key' => 'zonafiscal',    'label' => 'zonafiscal',     'type' => 'string'],
+            ['key' => 'cuentaventa',   'label' => 'cuentaventa',    'type' => 'string'],
+            ['key' => 'decision',      'label' => 'decision',       'type' => 'string'],
+            ['key' => 'fechacarga',    'label' => 'fechacarga',     'type' => 'short_date'],
+            ['key' => 'numerodoc',     'label' => 'numerodoc',      'type' => 'string'],
+            ['key' => 'vencimiento',   'label' => 'vencimiento',    'type' => 'string'],
+            ['key' => 'saldofinal',    'label' => 'saldofinal',     'type' => 'currency']
         ]
     ];
 
@@ -210,11 +220,18 @@ class SaldosExportExcel
         }
 
         // 4. Salida en streaming
-        $tipoEtiqueta = ($tipoGrafico === '02SalxCobrarxZona') ? 'Zona' : 'Cliente';
-        $cuentaNombre = isset($params['cuentaventa']) ? $params['cuentaventa'] : 'cuenta';
-        $zonaNombre   = !empty($params['zonafiscal']) ? '_' . preg_replace('/[^A-Za-z0-9]/', '', $params['zonafiscal']) : '';
-        $fechaNombre  = isset($params['fechacarga']) ? $params['fechacarga'] : date('Ymd');
-        $filename = "Detalle_Saldos_{$tipoEtiqueta}_{$cuentaNombre}{$zonaNombre}_{$fechaNombre}.xlsx";
+        if ($tipoGrafico === '18CorporativosZonaDeudores') {
+            $corpNombre = !empty($params['nomcorporativo']) ? preg_replace('/[^A-Za-z0-9]/', '', $params['nomcorporativo']) : 'Corporativo';
+            $zonaNombre = !empty($params['zonafiscal']) ? '_' . preg_replace('/[^A-Za-z0-9]/', '', $params['zonafiscal']) : '';
+            $fechaNombre = isset($params['fechacarga']) ? str_replace('-', '', $params['fechacarga']) : date('Ymd');
+            $filename = "Detalle_Corporativo_{$corpNombre}{$zonaNombre}_{$fechaNombre}.xlsx";
+        } else {
+            $tipoEtiqueta = ($tipoGrafico === '02SalxCobrarxZona') ? 'Zona' : (($tipoGrafico === '08IndAnticipos') ? 'Anticipos' : 'Cliente');
+            $cuentaNombre = isset($params['cuentaventa']) ? $params['cuentaventa'] : 'cuenta';
+            $zonaNombre   = !empty($params['zonafiscal']) ? '_' . preg_replace('/[^A-Za-z0-9]/', '', $params['zonafiscal']) : '';
+            $fechaNombre  = isset($params['fechacarga']) ? str_replace('-', '', $params['fechacarga']) : date('Ymd');
+            $filename = "Detalle_Saldos_{$tipoEtiqueta}_{$cuentaNombre}{$zonaNombre}_{$fechaNombre}.xlsx";
+        }
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header("Content-Disposition: attachment; filename=\"{$filename}\"");

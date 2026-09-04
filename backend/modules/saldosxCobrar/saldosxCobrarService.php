@@ -96,14 +96,28 @@ class saldosxCobrarService
     {
         $cuentaventa = $params['cuentaventa'] ?? '';
         $fechacarga  = $params['fechacarga'] ?? '';
+        $nomcorp     = $params['nomcorporativo'] ?? '';
+        $tipoGrafico = $params['tipo_grafico'] ?? '';
 
-        if (empty($cuentaventa) || empty($fechacarga)) {
-            return [
-                'status' => 'error',
-                'message' => 'Parámetros cuentaventa y fechacarga son requeridos',
-                'resumen' => null,
-                'datos_completos' => []
-            ];
+        // Para gráficos estándar se requiere cuentaventa. Para 18CorporativosZonaDeudores se requiere nomcorporativo y fechacarga
+        if ($tipoGrafico === '18CorporativosZonaDeudores') {
+            if (empty($nomcorp) || empty($fechacarga)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Parámetros nomcorporativo y fechacarga son requeridos',
+                    'resumen' => null,
+                    'datos_completos' => []
+                ];
+            }
+        } else {
+            if (empty($cuentaventa) || empty($fechacarga)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Parámetros cuentaventa y fechacarga son requeridos',
+                    'resumen' => null,
+                    'datos_completos' => []
+                ];
+            }
         }
 
         // Pasar los filtros dinámicos al repo
@@ -150,6 +164,7 @@ class saldosxCobrarService
         return [
             'status' => 'success',
             'resumen' => [
+                'nomcorporativo' => $nomcorp ?: ($detalleRaw[0]['nomcorporativo'] ?? ''),
                 'cuentaventa'    => $cuentaventa,
                 'nomcuentaventa' => $detalleRaw[0]['nomcuentaventa'] ?? '',
                 'zonafiscal'     => $params['zonafiscal'] ?? ($detalleRaw[0]['zonafiscal'] ?? ''),
