@@ -10,4 +10,7 @@ $this->post('/ventasResumen/opciones-linea', 'VentasResumenController@getOpcione
 // Gráfico 07VentasSacCoor
 $this->post('/ventasResumen/ventas-sac-coor', 'VentasResumenController@getGraficoVentasSacCoor');
 
+// Modal Análisis Secundario (Mini Gráficos: Clientes y Devoluciones)
+$this->post('/ventasResumen/analisis-secundario', 'VentasResumenController@getAnalisisSecundario');
+
 

@@ -96,4 +96,31 @@ class VentasResumenController
         }
         exit;
     }
+
+    /**
+     * Endpoint POST: Devuelve el desglose para el Modal de Análisis Secundario (Mini Gráficos)
+     */
+    public function getAnalisisSecundario()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerAnalisisSecundario($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener análisis secundario: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
 }
+

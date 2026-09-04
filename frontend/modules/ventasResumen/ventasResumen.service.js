@@ -9,9 +9,48 @@ class VentasResumenService {
             FILTROS: '/ventasResumen/filtros',
             OPCIONES_LINEA: '/ventasResumen/opciones-linea',
             VENTAS_SAC_COOR: '/ventasResumen/ventas-sac-coor',
+            ANALISIS_SECUNDARIO: '/ventasResumen/analisis-secundario',
             DETALLE: '/ventasResumen/detalle',
             EXPORTAR_EXCEL: '/ventasResumen/exportar-detalle-excel'
         };
+    }
+
+    /**
+     * Consulta el desglose secundario (Clientes y Devoluciones) para el modal interactivo
+     */
+    async consultarAnalisisSecundario(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.ANALISIS_SECUNDARIO}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(filtros)
+            });
+
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (err) {
+                console.error("Respuesta del servidor no es JSON:", text);
+                throw new Error(`Respuesta inválida del servidor: ${text.substring(0, 100)}...`);
+            }
+
+            if (!response.ok) {
+                throw new Error(data.message || `Error HTTP: ${response.status}`);
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error al consultar analisis secundario en VentasResumenService:', error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
     }
 
     /**

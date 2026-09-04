@@ -13,6 +13,14 @@ class VentasResumenController {
         this.cacheData = null;
         this.puntoSeleccionado = null;
 
+        // Estado del Modal de Análisis Secundario (Mini Gráficos Tableau)
+        this.analisisSecundarioState = {
+            clientes: [],
+            devoluciones: [],
+            clienteSeleccionado: null,
+            filtroTipo: 'TODO'
+        };
+
         // Opciones por defecto para inicialización rápida
         this.opcionesFiltros = {
             lineasProceso: [],
@@ -163,8 +171,26 @@ class VentasResumenController {
         // Modal Secundario
         const modalSecundario = document.getElementById('modal-analisis-secundario');
         const btnCerrarSecundario = document.getElementById('btn-cerrar-modal-secundario');
+        const btnAbrirSecundario = document.getElementById('btn-abrir-analisis-secundario');
+        const selectFiltroTipo = document.getElementById('select-filtro-tipo-secundario');
+        const btnDeseleccionar = document.getElementById('btn-deseleccionar-cliente');
+
+        btnAbrirSecundario?.addEventListener('click', () => {
+            document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            this.abrirModalAnalisisSecundario();
+        });
+
         btnCerrarSecundario?.addEventListener('click', () => {
             modalSecundario?.classList.add('hidden');
+        });
+
+        selectFiltroTipo?.addEventListener('change', (e) => {
+            this.analisisSecundarioState.filtroTipo = e.target.value;
+            this.renderizarTablaClientes();
+        });
+
+        btnDeseleccionar?.addEventListener('click', () => {
+            this.seleccionarClienteAnalisis(null);
         });
 
         // Cerrar modales con tecla ESC
@@ -675,6 +701,29 @@ class VentasResumenController {
                 }]
             },
             options: {
+                onClick: (event, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const fechaOriginal = fullData.fechas[index];
+                        const fechaTexto = labels[index];
+                        const monto = dataSerie[index];
+
+                        self.puntoSeleccionado = {
+                            tipoGrafico: '07VentasSacCoor',
+                            pista: 'track1',
+                            fecha: fechaOriginal,
+                            fechaFormateada: fechaTexto,
+                            valor: monto
+                        };
+
+                        const popup = document.getElementById('popup-menu-barra');
+                        if (popup) {
+                            popup.style.left = `${event.native.clientX + 10}px`;
+                            popup.style.top = `${event.native.clientY + 10}px`;
+                            popup.classList.remove('hidden');
+                        }
+                    }
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
@@ -785,6 +834,31 @@ class VentasResumenController {
                 ]
             },
             options: {
+                onClick: (event, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const fechaOriginal = fullData.fechas[index];
+                        const fechaTexto = labels[index];
+                        const datasetIndex = elements[0].datasetIndex;
+                        const monto = datasetIndex === 0 ? ventasSerie[index] : devsSerie[index];
+
+                        self.puntoSeleccionado = {
+                            tipoGrafico: '07VentasSacCoor',
+                            pista: 'track2',
+                            tipoSerie: datasetIndex === 0 ? 'ventas' : 'devoluciones',
+                            fecha: fechaOriginal,
+                            fechaFormateada: fechaTexto,
+                            valor: monto
+                        };
+
+                        const popup = document.getElementById('popup-menu-barra');
+                        if (popup) {
+                            popup.style.left = `${event.native.clientX + 10}px`;
+                            popup.style.top = `${event.native.clientY + 10}px`;
+                            popup.classList.remove('hidden');
+                        }
+                    }
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
@@ -883,6 +957,29 @@ class VentasResumenController {
                 }]
             },
             options: {
+                onClick: (event, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const fechaOriginal = fullData.fechas[index];
+                        const fechaTexto = labels[index];
+                        const monto = ratioSerie[index];
+
+                        self.puntoSeleccionado = {
+                            tipoGrafico: '07VentasSacCoor',
+                            pista: 'track3',
+                            fecha: fechaOriginal,
+                            fechaFormateada: fechaTexto,
+                            valor: monto
+                        };
+
+                        const popup = document.getElementById('popup-menu-barra');
+                        if (popup) {
+                            popup.style.left = `${event.native.clientX + 10}px`;
+                            popup.style.top = `${event.native.clientY + 10}px`;
+                            popup.classList.remove('hidden');
+                        }
+                    }
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
@@ -946,6 +1043,345 @@ class VentasResumenController {
                 }
             }
         });
+    }
+
+    /**
+     * Abre y consulta los datos para el modal de Análisis Secundario (Mini Gráficos por Cliente)
+     */
+    async abrirModalAnalisisSecundario() {
+        const modal = document.getElementById('modal-analisis-secundario');
+        if (!modal) return;
+
+        const loader = document.getElementById('loader-modal-secundario');
+        const contenido = document.getElementById('contenido-modal-secundario');
+        const subtitulo = document.getElementById('modal-secundario-subtitulo');
+
+        const filtros = this.obtenerFiltrosActivos();
+        let fechaConsulta = '';
+
+        if (this.puntoSeleccionado && this.puntoSeleccionado.fecha) {
+            fechaConsulta = this.puntoSeleccionado.fecha;
+            if (subtitulo) {
+                subtitulo.textContent = `Fecha seleccionada: ${this.formatearFechaConDiaSemana(fechaConsulta)}`;
+            }
+        } else {
+            fechaConsulta = filtros.fecha_fin || filtros.fecha_inicio;
+            if (subtitulo) {
+                subtitulo.textContent = `Período: ${filtros.fecha_inicio} al ${filtros.fecha_fin}`;
+            }
+        }
+
+        modal.classList.remove('hidden');
+        loader?.classList.remove('hidden');
+        contenido?.classList.add('hidden');
+
+        try {
+            const payload = {
+                fecha: fechaConsulta,
+                fecha_inicio: filtros.fecha_inicio,
+                fecha_fin: filtros.fecha_fin,
+                lineaproceso: filtros.lineaproceso,
+                zonafiscal: filtros.zonafiscal,
+                item: filtros.item,
+                nomdevoluciones: filtros.nomdevoluciones
+            };
+
+            const res = await this.service.consultarAnalisisSecundario(payload);
+
+            loader?.classList.add('hidden');
+
+            if (res && res.success && res.payload) {
+                this.analisisSecundarioState.clientes = res.payload.clientes || [];
+                this.analisisSecundarioState.devoluciones = res.payload.devoluciones || [];
+                this.analisisSecundarioState.clienteSeleccionado = null;
+                this.analisisSecundarioState.filtroTipo = document.getElementById('select-filtro-tipo-secundario')?.value || 'TODO';
+
+                this.renderizarTablaClientes();
+                this.renderizarTablaDevoluciones();
+
+                contenido?.classList.remove('hidden');
+            } else {
+                alert('No se pudieron obtener los datos de análisis por cliente.');
+                modal.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error al abrir modal análisis secundario:', error);
+            loader?.classList.add('hidden');
+            alert('Ocurrió un error al consultar el servidor.');
+            modal.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Renderiza la columna izquierda: Lista de Clientes con Mini-Barras estilo Tableau
+     */
+    renderizarTablaClientes() {
+        const contenedor = document.getElementById('lista-analisis-ventas');
+        if (!contenedor) return;
+
+        const { clientes, clienteSeleccionado, filtroTipo } = this.analisisSecundarioState;
+
+        if (!clientes || clientes.length === 0) {
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No se encontraron clientes para esta fecha.</div>`;
+            return;
+        }
+
+        // Calcular los máximos absolutos según el filtro activo para la escala de las mini-barras
+        let maxCant = 1;
+        let maxPeso = 1;
+        let maxSubtotal = 1;
+
+        clientes.forEach(c => {
+            let cant = 0, peso = 0, subtotal = 0;
+            if (filtroTipo === 'VENTAS') {
+                cant = Number(c.cant_ventas || 0);
+                peso = Number(c.peso_ventas || 0);
+                subtotal = Number(c.subtotal_ventas || 0);
+            } else if (filtroTipo === 'DEVOLUCIONES') {
+                cant = Math.abs(Number(c.cant_dev || 0));
+                peso = Math.abs(Number(c.peso_dev || 0));
+                subtotal = Math.abs(Number(c.subtotal_dev || 0));
+            } else {
+                // (Todo): En Tableau el orden y las barras de la vista principal son las Ventas
+                cant = Math.max(Number(c.cant_ventas || 0), Number(c.cant_total || 0));
+                peso = Math.max(Number(c.peso_ventas || 0), Number(c.peso_total || 0));
+                subtotal = Math.max(Number(c.subtotal_ventas || 0), Number(c.subtotal_total || 0));
+            }
+            if (cant > maxCant) maxCant = cant;
+            if (peso > maxPeso) maxPeso = peso;
+            if (subtotal > maxSubtotal) maxSubtotal = subtotal;
+        });
+
+        contenedor.innerHTML = clientes.map(c => {
+            const nom = c.corporativo || c.nomcliente || 'SIN NOMBRE';
+            const esActivo = (clienteSeleccionado === nom);
+            const fondoNom = esActivo ? 'bg-sky-200 text-slate-900 font-bold' : 'text-slate-700 hover:bg-slate-50';
+
+            // Determinar valores a mostrar según filtroTipo
+            let cantVal = 0, pesoVal = 0, subtotalVal = 0;
+            let esDev = false;
+
+            if (filtroTipo === 'VENTAS') {
+                cantVal = Number(c.cant_ventas || 0);
+                pesoVal = Number(c.peso_ventas || 0);
+                subtotalVal = Number(c.subtotal_ventas || 0);
+            } else if (filtroTipo === 'DEVOLUCIONES') {
+                cantVal = Number(c.cant_dev || 0);
+                pesoVal = Number(c.peso_dev || 0);
+                subtotalVal = Number(c.subtotal_dev || 0);
+                esDev = true;
+            } else {
+                // En la vista (Todo) de Tableau, las columnas muestran las Ventas netas/brutas del cliente
+                cantVal = Number(c.cant_ventas || 0);
+                pesoVal = Number(c.peso_ventas || 0);
+                subtotalVal = Number(c.subtotal_ventas || 0);
+            }
+
+            const pctCant = Math.min(Math.max((Math.abs(cantVal) / maxCant) * 100, 0), 100);
+            const pctPeso = Math.min(Math.max((Math.abs(pesoVal) / maxPeso) * 100, 0), 100);
+            const pctSub = Math.min(Math.max((Math.abs(subtotalVal) / maxSubtotal) * 100, 0), 100);
+
+            const colorBarra = esDev ? '#BA2525' : '#4E79A7';
+
+            // Formatos de texto estilo Tableau
+            const txtCant = this.formatearNumeroTableau(cantVal, false);
+            const txtPeso = this.formatearNumeroTableau(pesoVal, true);
+            const txtSub = (subtotalVal < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(subtotalVal), true);
+
+            return `
+                <div class="cliente-item grid grid-cols-12 items-center px-3 py-1.5 cursor-pointer transition-colors border-b border-slate-100 last:border-b-0 hover:bg-slate-50"
+                     data-cliente="${encodeURIComponent(nom)}">
+                    <!-- 1. Nombre Cliente / Corporativo -->
+                    <div class="col-span-4 pr-2">
+                        <div class="text-[11px] truncate px-1.5 py-0.5 rounded-xs ${fondoNom}" title="${nom}">
+                            ${nom}
+                        </div>
+                    </div>
+
+                    <!-- 2. Mini Barras Horizontales con Valor a la Derecha (Tableau Style) -->
+                    <div class="col-span-8 grid grid-cols-3 gap-2 h-4 items-center">
+                        <!-- Cantidad -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            <div class="h-full rounded-none transition-all" style="background-color: ${colorBarra}; width: ${pctCant}%;"></div>
+                            <span class="ml-1 text-[9.5px] font-mono font-medium text-slate-700 whitespace-nowrap">
+                                ${txtCant}
+                            </span>
+                        </div>
+
+                        <!-- Peso -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            <div class="h-full rounded-none transition-all" style="background-color: ${colorBarra}; width: ${pctPeso}%;"></div>
+                            <span class="ml-1 text-[9.5px] font-mono font-medium text-slate-700 whitespace-nowrap">
+                                ${txtPeso}
+                            </span>
+                        </div>
+
+                        <!-- Subtotal -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            <div class="h-full rounded-none transition-all" style="background-color: ${colorBarra}; width: ${pctSub}%;"></div>
+                            <span class="ml-1 text-[9.5px] font-mono font-medium text-slate-700 whitespace-nowrap">
+                                ${txtSub}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Event listener de selección de fila
+        contenedor.querySelectorAll('.cliente-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const nom = decodeURIComponent(el.getAttribute('data-cliente'));
+                this.seleccionarClienteAnalisis(nom);
+            });
+        });
+    }
+
+    /**
+     * Renderiza la columna derecha: Motivos de Devolución por Cliente con Mini-Barras Rojas
+     */
+    renderizarTablaDevoluciones() {
+        const contenedor = document.getElementById('lista-analisis-devoluciones');
+        const badgeContador = document.getElementById('badge-contador-devoluciones');
+        const footerTotales = document.getElementById('footer-totales-devoluciones');
+        if (!contenedor) return;
+
+        const { devoluciones, clienteSeleccionado } = this.analisisSecundarioState;
+
+        // Filtrar por cliente si hay uno seleccionado
+        const devsFiltradas = clienteSeleccionado
+            ? devoluciones.filter(d => (d.corporativo || d.nomcliente) === clienteSeleccionado)
+            : devoluciones;
+
+        if (badgeContador) {
+            badgeContador.textContent = `${devsFiltradas.length} devoluciones`;
+        }
+
+        if (devsFiltradas.length === 0) {
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No se encontraron devoluciones para este cliente.</div>`;
+            if (footerTotales) footerTotales.innerHTML = '';
+            return;
+        }
+
+        // Calcular los máximos de devoluciones para la escala de las barras rojas
+        let maxDevCant = 1;
+        let maxDevPeso = 1;
+        let maxDevSubtotal = 1;
+
+        devsFiltradas.forEach(d => {
+            const c = Math.abs(Number(d.cantidad || 0));
+            const p = Math.abs(Number(d.peso || 0));
+            const s = Math.abs(Number(d.subtotal || 0));
+            if (c > maxDevCant) maxDevCant = c;
+            if (p > maxDevPeso) maxDevPeso = p;
+            if (s > maxDevSubtotal) maxDevSubtotal = s;
+        });
+
+        // Calcular totales acumulados para el pie
+        let totalCant = 0;
+        let totalPeso = 0;
+        let totalSubtotal = 0;
+
+        contenedor.innerHTML = devsFiltradas.map(d => {
+            const cant = Number(d.cantidad || 0);
+            const peso = Number(d.peso || 0);
+            const subtotal = Number(d.subtotal || 0);
+
+            totalCant += cant;
+            totalPeso += peso;
+            totalSubtotal += subtotal;
+
+            const pctCant = Math.min(Math.max((Math.abs(cant) / maxDevCant) * 100, 0), 100);
+            const pctPeso = Math.min(Math.max((Math.abs(peso) / maxDevPeso) * 100, 0), 100);
+            const pctSub = Math.min(Math.max((Math.abs(subtotal) / maxDevSubtotal) * 100, 0), 100);
+
+            const txtCant = this.formatearNumeroTableau(cant, false);
+            const txtPeso = this.formatearNumeroTableau(peso, true) + ' Kg';
+            const txtSub = (subtotal < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(subtotal), true);
+
+            return `
+                <div class="grid grid-cols-12 items-center px-3 py-1.5 text-[11px] hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
+                    <!-- 1. Motivo de Devolución -->
+                    <div class="col-span-2 font-semibold text-rose-700 truncate pr-1" title="${d.nomdevolucion}">
+                        ${d.nomdevolucion}
+                    </div>
+                    <!-- 2. Nombre del Cliente / Corporativo -->
+                    <div class="col-span-3 text-slate-600 truncate pr-1" title="${d.nomcliente || d.corporativo}">
+                        ${d.nomcliente || d.corporativo}
+                    </div>
+
+                    <!-- 3. Mini Barras Rojas Horizontales con Valores (Tableau Style) -->
+                    <div class="col-span-7 grid grid-cols-3 gap-2 h-4 items-center">
+                        <!-- Cantidad -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            ${pctCant > 0 ? `<div class="h-full rounded-none transition-all bg-[#BA2525]" style="width: ${pctCant}%;"></div>` : ''}
+                            <span class="ml-1 text-[9.5px] font-mono font-medium text-rose-700 whitespace-nowrap">
+                                ${txtCant}
+                            </span>
+                        </div>
+
+                        <!-- Peso -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            ${pctPeso > 0 ? `<div class="h-full rounded-none transition-all bg-[#BA2525]" style="width: ${pctPeso}%;"></div>` : ''}
+                            <span class="ml-1 text-[9.5px] font-mono font-medium text-rose-700 whitespace-nowrap">
+                                ${txtPeso}
+                            </span>
+                        </div>
+
+                        <!-- Subtotal -->
+                        <div class="w-full h-full flex items-center justify-start relative">
+                            ${pctSub > 0 ? `<div class="h-full rounded-none transition-all bg-[#BA2525]" style="width: ${pctSub}%;"></div>` : ''}
+                            <span class="ml-1 text-[9.5px] font-mono font-medium text-rose-700 whitespace-nowrap">
+                                ${txtSub}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Renderizar Footer Total General
+        if (footerTotales) {
+            const txtTotCant = this.formatearNumeroTableau(totalCant, false);
+            const txtTotPeso = this.formatearNumeroTableau(totalPeso, true) + ' Kg';
+            const txtTotSub = (totalSubtotal < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(totalSubtotal), true);
+
+            footerTotales.innerHTML = `
+                <div class="col-span-5 font-bold uppercase tracking-wider text-slate-800">
+                    Total general
+                </div>
+                <div class="col-span-7 grid grid-cols-3 gap-2">
+                    <div class="text-left font-mono font-bold text-rose-700 pl-1">${txtTotCant}</div>
+                    <div class="text-left font-mono font-bold text-rose-700 pl-1">${txtTotPeso}</div>
+                    <div class="text-left font-mono font-bold text-rose-700 pl-1">${txtTotSub}</div>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Selecciona o deselecciona un cliente/corporativo reactivamente en el modal
+     */
+    seleccionarClienteAnalisis(nomCliente) {
+        if (this.analisisSecundarioState.clienteSeleccionado === nomCliente) {
+            this.analisisSecundarioState.clienteSeleccionado = null;
+        } else {
+            this.analisisSecundarioState.clienteSeleccionado = nomCliente;
+        }
+
+        const btnDeseleccionar = document.getElementById('btn-deseleccionar-cliente');
+        const labelActivo = document.getElementById('label-filtro-cliente-activo');
+
+        if (this.analisisSecundarioState.clienteSeleccionado) {
+            btnDeseleccionar?.classList.remove('hidden');
+            if (labelActivo) labelActivo.textContent = `Filtrado por: ${this.analisisSecundarioState.clienteSeleccionado}`;
+        } else {
+            btnDeseleccionar?.classList.add('hidden');
+            if (labelActivo) labelActivo.textContent = 'Todos los clientes';
+        }
+
+        this.renderizarTablaClientes();
+        this.renderizarTablaDevoluciones();
     }
 
     /**

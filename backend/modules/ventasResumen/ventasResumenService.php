@@ -204,6 +204,89 @@ class VentasResumenService
     }
 
     /**
+     * Procesa y estructura la información para el Modal de Análisis Secundario (Mini Gráficos)
+     */
+    public function obtenerAnalisisSecundario(array $filtros)
+    {
+        $raw = $this->repo->getAnalisisSecundario($filtros);
+
+        $clientesRaw = $raw['clientes'] ?? [];
+        $devsRaw     = $raw['devoluciones'] ?? [];
+
+        $clientes = [];
+        $totalesGenerales = [
+            'cant_ventas'     => 0.0,
+            'cant_devs'       => 0.0,
+            'cant_total'      => 0.0,
+            'peso_ventas'     => 0.0,
+            'peso_devs'       => 0.0,
+            'peso_total'      => 0.0,
+            'subtotal_ventas' => 0.0,
+            'subtotal_devs'   => 0.0,
+            'subtotal_total'  => 0.0
+        ];
+
+        foreach ($clientesRaw as $row) {
+            $cVenta = (float)($row['cant_ventas'] ?? 0);
+            $cDev   = (float)($row['cant_dev'] ?? ($row['cant_devs'] ?? 0));
+            $cTot   = (float)($row['cant_total'] ?? 0);
+
+            $pVenta = (float)($row['peso_ventas'] ?? 0);
+            $pDev   = (float)($row['peso_dev'] ?? ($row['peso_devs'] ?? 0));
+            $pTot   = (float)($row['peso_total'] ?? 0);
+
+            $sVenta = (float)($row['subtotal_ventas'] ?? 0);
+            $sDev   = (float)($row['subtotal_dev'] ?? ($row['subtotal_devs'] ?? 0));
+            $sTot   = (float)($row['subtotal_total'] ?? 0);
+
+            $clientes[] = [
+                'corporativo'     => $row['corporativo'] ?? '',
+                'cant_ventas'     => round($cVenta, 2),
+                'cant_dev'        => round($cDev, 2),
+                'cant_devs'       => round($cDev, 2),
+                'cant_total'      => round($cTot, 2),
+                'peso_ventas'     => round($pVenta, 2),
+                'peso_dev'        => round($pDev, 2),
+                'peso_devs'       => round($pDev, 2),
+                'peso_total'      => round($pTot, 2),
+                'subtotal_ventas' => round($sVenta, 2),
+                'subtotal_dev'    => round($sDev, 2),
+                'subtotal_devs'   => round($sDev, 2),
+                'subtotal_total'  => round($sTot, 2)
+            ];
+
+            $totalesGenerales['cant_ventas']     += $cVenta;
+            $totalesGenerales['cant_devs']       += $cDev;
+            $totalesGenerales['cant_total']      += $cTot;
+            $totalesGenerales['peso_ventas']     += $pVenta;
+            $totalesGenerales['peso_devs']       += $pDev;
+            $totalesGenerales['peso_total']      += $pTot;
+            $totalesGenerales['subtotal_ventas'] += $sVenta;
+            $totalesGenerales['subtotal_devs']   += $sDev;
+            $totalesGenerales['subtotal_total']  += $sTot;
+        }
+
+        $devoluciones = [];
+        foreach ($devsRaw as $row) {
+            $devoluciones[] = [
+                'nomdevolucion' => $row['nomdevolucion'],
+                'corporativo'   => $row['corporativo'],
+                'cantidad'      => round((float)$row['cantidad'], 2),
+                'peso'          => round((float)$row['peso'], 2),
+                'subtotal'      => round((float)$row['subtotal'], 2)
+            ];
+        }
+
+        return [
+            'fecha'        => $filtros['fecha'] ?? null,
+            'lineaproceso' => $filtros['lineaproceso'] ?? 'TODO',
+            'clientes'     => $clientes,
+            'devoluciones' => $devoluciones,
+            'totales'      => $totalesGenerales
+        ];
+    }
+
+    /**
      * Formatea fecha YYYY-MM-DD al formato corto D/M/YYYY estilo Tableau (ej. 24/8/2026)
      */
     private function formatearFechaCorta($fechaStr)
@@ -216,3 +299,4 @@ class VentasResumenService
         return $fechaStr;
     }
 }
+
