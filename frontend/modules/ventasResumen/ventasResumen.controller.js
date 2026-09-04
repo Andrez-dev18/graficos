@@ -8,6 +8,9 @@ class VentasResumenController {
         // Estado y Filtros Activos
         this.currentPeriodo = { inicio: '', fin: '' };
         this.chartsMap = new Map();
+        this.activeCharts = [];
+        this.resizeObservers = [];
+        this.cacheData = null;
         this.puntoSeleccionado = null;
 
         // Opciones por defecto para inicialización rápida
@@ -25,6 +28,14 @@ class VentasResumenController {
      * Inicialización del controlador
      */
     async init() {
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
+
+        // Fuerza alta resolución (super-sampling) en todos los canvas
+        Chart.defaults.devicePixelRatio = Math.max(window.devicePixelRatio || 1, 2);
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
         this.setupMultiSelects();
         this.setupPeriodo();
         this.setupEventListeners();
@@ -77,7 +88,7 @@ class VentasResumenController {
             PeriodoHelper.renderizarInputs();
         });
 
-        // 3.1 Selector de Línea de Proceso (Reactivo: actualiza Items en cascada)
+        // 3.1 Selector de Línea de Proceso (Reactivo: actualiza Zonas e Items en cascada)
         document.getElementById('select-lineaproceso')?.addEventListener('change', async (e) => {
             await this.onLineaProcesoChange(e.target.value);
         });
@@ -90,9 +101,11 @@ class VentasResumenController {
             this.aplicarLayoutGrid();
         });
 
-        // 4. Selector de Métrica (Unidades vs Pesos)
+        // 4. Selector de Métrica (Unidades vs Pesos) - Redibujar reactivamente si hay datos en memoria
         document.getElementById('select-metrica-vista')?.addEventListener('change', () => {
-            console.log('Métrica cambiada a:', document.getElementById('select-metrica-vista')?.value);
+            if (this.cacheData) {
+                this.renderizarGraficoVentasSacCoor(this.cacheData);
+            }
         });
 
         // 5. Selector de Tipo de Gráfico
@@ -207,8 +220,8 @@ class VentasResumenController {
         const selLinea = document.getElementById('select-lineaproceso');
         if (selLinea && this.opcionesFiltros.lineasProceso?.length > 0) {
             selLinea.innerHTML = `<option value="TODO" selected>(Todo)</option>` +
-                this.opcionesFiltros.lineasProceso.map((lp, idx) => 
-                    `<option value="${lp.id || lp}" ${idx === 0 ? '' : ''}>${lp.label || lp}</option>`
+                this.opcionesFiltros.lineasProceso.map(lp => 
+                    `<option value="${lp.id || lp}">${lp.label || lp}</option>`
                 ).join('');
         }
 
@@ -295,7 +308,8 @@ class VentasResumenController {
         const selLinea = document.getElementById('select-lineaproceso');
         if (selLinea) {
             selLinea.innerHTML = `
-                <option value="1 P. Vivo" selected>1 P. Vivo</option>
+                <option value="TODO" selected>(Todo)</option>
+                <option value="1 P. Vivo">1 P. Vivo</option>
                 <option value="2 P. Beneficiado">2 P. Beneficiado</option>
             `;
         }
@@ -327,28 +341,667 @@ class VentasResumenController {
      * Obtiene el payload consolidado de filtros listos para enviar a los endpoints
      */
     obtenerFiltrosActivos() {
-        const periodo = PeriodoHelper.obtenerRangoFechas();
-        this.currentPeriodo = periodo;
+        const rango = PeriodoHelper.obtenerRangoFechas ? PeriodoHelper.obtenerRangoFechas() : (PeriodoHelper.calcularRangoFechas ? PeriodoHelper.calcularRangoFechas() : {});
+        const fechaInicio = rango.fechaInicio || rango.inicio || '';
+        const fechaFin = rango.fechaFin || rango.fin || '';
+        this.currentPeriodo = { inicio: fechaInicio, fin: fechaFin };
 
         return {
             tipo_grafico: document.getElementById('select-tipo-grafico')?.value || '07VentasSacCoor',
             metrica: document.getElementById('select-metrica-vista')?.value || 'unidades',
-            lineaproceso: document.getElementById('select-lineaproceso')?.value || '',
+            lineaproceso: document.getElementById('select-lineaproceso')?.value || 'TODO',
             zonafiscal: document.getElementById('select-zonafiscal')?.value || 'TODO',
             item: document.getElementById('select-item')?.value || 'TODO',
             nomdevoluciones: this.msNomDevolucion ? this.msNomDevolucion.getSelectedValues() : [],
-            fecha_inicio: periodo.inicio,
-            fecha_fin: periodo.fin
+            fecha_inicio: fechaInicio,
+            fecha_fin: fechaFin
         };
+    }
+
+    /**
+     * Destruye instancias activas de Chart.js y desconecta ResizeObservers
+     */
+    destruirGraficos() {
+        this.activeCharts.forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
+        this.activeCharts = [];
+
+        this.resizeObservers.forEach(ro => {
+            if (ro && typeof ro.disconnect === 'function') {
+                ro.disconnect();
+            }
+        });
+        this.resizeObservers = [];
+        this.chartsMap.clear();
     }
 
     /**
      * Handler al pulsar el botón Cargar
      */
-    onCargarClick() {
+    async onCargarClick() {
         const filtros = this.obtenerFiltrosActivos();
-        console.log('Cargando con filtros:', filtros);
-        // La lógica de renderizado se implementará en la siguiente fase
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+
+        // Mostrar estado de carga
+        contenedor.innerHTML = `
+            <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
+                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
+                <h3 class="text-base font-bold text-slate-800">Consultando datos de ventas y devoluciones...</h3>
+                <p class="text-xs text-slate-500 mt-1">Procesando registros de ventas y devoluciones secuenciales</p>
+            </div>
+        `;
+
+        try {
+            const res = await this.service.consultarVentasSacCoor(filtros);
+            if (res && res.success && res.payload && res.payload.fechas && res.payload.fechas.length > 0) {
+                this.cacheData = res.payload;
+                this.renderizarGraficoVentasSacCoor(this.cacheData);
+            } else {
+                this.cacheData = null;
+                this.destruirGraficos();
+                contenedor.innerHTML = `
+                    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
+                        <div class="p-4 bg-slate-50 text-slate-400 rounded-full mb-3">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-700">No se encontraron registros</h3>
+                        <p class="text-xs text-slate-500 mt-1">Intente cambiando el rango de fechas o los filtros seleccionados.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error al cargar datos del gráfico:', error);
+            this.destruirGraficos();
+            contenedor.innerHTML = `
+                <div class="w-full bg-white rounded-2xl shadow-sm border border-rose-200 p-8 flex flex-col items-center justify-center text-center text-rose-600">
+                    <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <h3 class="text-sm font-bold">Error al procesar la solicitud</h3>
+                    <p class="text-xs text-rose-500 mt-1">${error.message || 'Ocurrió un error inesperado al consultar el servidor.'}</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Renderiza el gráfico interactivo 07VentasSacCoor con la misma arquitectura probada de saldos
+     */
+    renderizarGraficoVentasSacCoor(data) {
+        this.destruirGraficos();
+
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+        contenedor.innerHTML = '';
+
+        const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
+        const metrica = document.getElementById('select-metrica-vista')?.value || 'unidades';
+        const esUnidades = metrica === 'unidades';
+        const unidadTexto = esUnidades ? 'Unidades' : 'Pesos (Kg)';
+
+        const fechas = data.fechas || [];
+        const labelsCortos = data.labels || [];
+        const totalPuntos = fechas.length;
+        const lineaActiva = document.getElementById('select-lineaproceso')?.options[document.getElementById('select-lineaproceso')?.selectedIndex]?.text || data.lineaproceso || '(Todo)';
+
+        // Determinar series según métrica
+        const seriesData = esUnidades ? data.unidades : data.pesos;
+        const totalGenSerie = seriesData.total_general || [];
+        const ventasSerie = seriesData.ventas || [];
+        const devsSerie = seriesData.devoluciones || [];
+        const ratioSerie = seriesData.ratio_dev || [];
+
+        // Nombres de pistas
+        const track1Title = esUnidades ? 'Total Cant General' : 'Total Peso General';
+        const track2Title = esUnidades ? 'Cantidad Ventas / Devoluciones' : 'Peso Ventas / Devoluciones';
+        const track3Title = '% Devolucion';
+
+        // Ancho mínimo por punto (igual que en saldos)
+        const pxMinimoPorPunto = (modoDisposicion === 'horizontal') ? 38 : 46;
+        const anchoMinimoRequerido = totalPuntos * pxMinimoPorPunto;
+
+        const cardId = 'card-ventas-sac-coor';
+        const canvasTrack1Id = 'canvas-sac-track1';
+        const canvasTrack2Id = 'canvas-sac-track2';
+        const canvasTrack3Id = 'canvas-sac-track3';
+        const canvasEjeXId = 'canvas-sac-ejex';
+
+        const tarjeta = document.createElement('div');
+        tarjeta.id = cardId;
+        tarjeta.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col justify-between transition-all';
+
+        tarjeta.innerHTML = `
+            <!-- CABECERA LIMPIA ESTILO SALDOS (SIN TOTALES INNECESARIOS) -->
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 font-bold text-xs rounded-lg border border-blue-100">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                        07VentasSacCoor
+                    </span>
+                    <span class="text-xs font-semibold text-slate-700">${lineaActiva}</span>
+                    <span class="text-xs text-slate-400 font-medium">(Análisis SACA Secuencial de Ventas y Devoluciones)</span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px]">
+                    <span class="text-slate-400 font-medium">Período: <strong class="text-slate-700 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong></span>
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-semibold rounded border border-slate-200">${unidadTexto}</span>
+                </div>
+            </div>
+
+            <!-- CONTENEDOR CON UN SOLO SCROLLBAR (ESTRUCTURA DE SALDOS) -->
+            <div class="relative w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+                <div style="min-width: max(100%, ${anchoMinimoRequerido + 176}px);" class="w-full flex flex-col">
+                    
+                    <div class="flex flex-col pr-1">
+                        <!-- PISTA 1: TOTAL GENERAL -->
+                        <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1 min-w-0">
+                            <div class="w-36 sm:w-44 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10 sticky left-0">
+                                <span class="text-[11px] font-bold text-slate-700 truncate">${track1Title}</span>
+                                <span class="text-[10px] text-slate-400 mt-0.5 font-medium">${esUnidades ? 'Total Unidades' : 'Total Kg'}</span>
+                            </div>
+                            <div class="flex-1 relative min-w-0" style="height: 140px;">
+                                <canvas id="${canvasTrack1Id}"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- PISTA 2: VENTAS VS DEVOLUCIONES -->
+                        <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1 min-w-0">
+                            <div class="w-36 sm:w-44 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10 sticky left-0">
+                                <span class="text-[11px] font-bold text-slate-700 truncate">${track2Title}</span>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="inline-flex items-center gap-1 text-[9.5px] text-blue-700 font-semibold"><span class="w-2 h-2 rounded-full bg-[#4E79A7]"></span>Venta</span>
+                                    <span class="inline-flex items-center gap-1 text-[9.5px] text-rose-600 font-semibold"><span class="w-2 h-2 rounded-full bg-[#BA2525]"></span>Dev</span>
+                                </div>
+                            </div>
+                            <div class="flex-1 relative min-w-0" style="height: 160px;">
+                                <canvas id="${canvasTrack2Id}"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- PISTA 3: % DEVOLUCIÓN -->
+                        <div class="flex items-stretch border-b border-slate-100 last:border-b-0 py-1 min-w-0">
+                            <div class="w-36 sm:w-44 shrink-0 flex flex-col justify-center pr-3 border-r border-slate-100 bg-white z-10 sticky left-0">
+                                <span class="text-[11px] font-bold text-slate-700 truncate">${track3Title}</span>
+                                <span class="text-[10px] text-emerald-600 font-medium mt-0.5">% Devolución</span>
+                            </div>
+                            <div class="flex-1 relative min-w-0" style="height: 140px;">
+                                <canvas id="${canvasTrack3Id}"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EJE X FIJO INFERIOR -->
+                    <div class="sticky bottom-0 z-20 bg-white border-t border-slate-200 flex items-stretch shadow-xs min-w-0">
+                        <div class="w-36 sm:w-44 shrink-0 flex items-start justify-end pt-2 pr-3 border-r border-slate-100 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-30">
+                            fechaProceso
+                        </div>
+                        <div class="flex-1 relative min-w-0" style="height: 135px;">
+                            <canvas id="${canvasEjeXId}"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        contenedor.appendChild(tarjeta);
+
+        // 1. Instanciar Pistas
+        const chartTrack1 = this.crearChartTrack1(canvasTrack1Id, labelsCortos, totalGenSerie, data, esUnidades);
+        const chartTrack2 = this.crearChartTrack2(canvasTrack2Id, labelsCortos, ventasSerie, devsSerie, data, esUnidades);
+        const chartTrack3 = this.crearChartTrack3(canvasTrack3Id, labelsCortos, ratioSerie, data, esUnidades);
+
+        const chartsArray = [chartTrack1, chartTrack2, chartTrack3];
+        this.activeCharts.push(...chartsArray);
+
+        // 2. Renderizado directo del Eje X estático inferior (patrón idéntico a saldos)
+        const canvasEjeXEl = document.getElementById(canvasEjeXId);
+        if (canvasEjeXEl) {
+            const renderEjeX = () => {
+                const primerChart = chartsArray[0];
+                if (!primerChart || !primerChart.scales || !primerChart.scales.x) return;
+
+                const parent = canvasEjeXEl.parentElement;
+                const width = parent.clientWidth || canvasEjeXEl.clientWidth;
+                const height = parent.clientHeight || 135;
+                if (!width || !height) return;
+
+                const dpr = Math.max(window.devicePixelRatio || 1, 2);
+                canvasEjeXEl.width = width * dpr;
+                canvasEjeXEl.height = height * dpr;
+                canvasEjeXEl.style.width = width + 'px';
+                canvasEjeXEl.style.height = height + 'px';
+
+                const ctx = canvasEjeXEl.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.clearRect(0, 0, width, height);
+
+                const chartArea = primerChart.chartArea;
+                if (!chartArea) return;
+
+                // Línea divisoria superior del eje
+                ctx.beginPath();
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1;
+                ctx.moveTo(chartArea.left, 0.5);
+                ctx.lineTo(chartArea.right, 0.5);
+                ctx.stroke();
+
+                ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillStyle = '#475569';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+
+                labelsCortos.forEach((label, i) => {
+                    const x = primerChart.scales.x.getPixelForValue(i);
+                    if (x === undefined || isNaN(x)) return;
+
+                    // Tick mark vertical de 4px
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, 4);
+                    ctx.stroke();
+
+                    // Fecha rotada -90°
+                    ctx.save();
+                    ctx.translate(x, 8);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                });
+            };
+
+            const resizeObserver = new ResizeObserver(() => {
+                if (!document.body.contains(tarjeta)) {
+                    resizeObserver.disconnect();
+                    return;
+                }
+                chartsArray.forEach(chart => {
+                    if (chart && typeof chart.resize === 'function' && chart.canvas && chart.canvas.isConnected) {
+                        chart.resize();
+                    }
+                });
+                renderEjeX();
+            });
+
+            resizeObserver.observe(tarjeta);
+            this.resizeObservers.push(resizeObserver);
+
+            setTimeout(() => {
+                if (document.body.contains(tarjeta)) {
+                    renderEjeX();
+                }
+            }, 60);
+        }
+    }
+
+    /**
+     * Crea el gráfico para la Pista 1: Total General (Escala Dinámica Tableau)
+     */
+    crearChartTrack1(canvasId, labels, dataSerie, fullData, esUnidades) {
+        const canvasEl = document.getElementById(canvasId);
+        if (!canvasEl) return null;
+        const ctx = canvasEl.getContext('2d');
+        const self = this;
+
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: esUnidades ? 'Total Cant General' : 'Total Peso General',
+                    data: dataSerie,
+                    borderColor: '#4E79A7',
+                    backgroundColor: '#4E79A7',
+                    borderWidth: 2.5,
+                    pointRadius: 3.5,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#4E79A7',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.2,
+                    tension: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 36, bottom: 8, left: 10, right: 10 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        offset: 6,
+                        color: '#475569',
+                        font: { size: 10, weight: '500' },
+                        formatter: (val) => self.formatearNumeroTableau(val, false),
+                        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) !== 0
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0f172a',
+                        bodyColor: '#334155',
+                        borderColor: '#cbd5e1',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        usePointStyle: false,
+                        displayColors: false,
+                        titleFont: { size: 11, weight: 'normal' },
+                        bodyFont: { size: 11, family: 'sans-serif' },
+                        callbacks: {
+                            title: () => '',
+                            label: (context) => {
+                                const idx = context.dataIndex;
+                                const fRaw = fullData.fechas[idx];
+                                const fLarga = self.formatearFechaConDiaSemana(fRaw);
+                                const totVal = self.formatearNumeroTableau(context.raw, false);
+                                return [
+                                    `fechaProceso: ${fLarga}`,
+                                    `${esUnidades ? 'Total Cant General' : 'Total Peso General'}: ${totVal}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grace: '10%',
+                        ticks: {
+                            callback: (v) => self.formatearTickEjeY(v),
+                            font: { size: 9.5 },
+                            color: '#94a3b8',
+                            maxTicksLimit: 3
+                        },
+                        grid: { color: '#f8fafc' }
+                    },
+                    x: {
+                        ticks: { display: false },
+                        grid: { color: '#f8fafc' }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Crea el gráfico para la Pista 2: Ventas y Devoluciones (Tableau Style)
+     */
+    crearChartTrack2(canvasId, labels, ventasSerie, devsSerie, fullData, esUnidades) {
+        const canvasEl = document.getElementById(canvasId);
+        if (!canvasEl) return null;
+        const ctx = canvasEl.getContext('2d');
+        const self = this;
+
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Ventas',
+                        data: ventasSerie,
+                        borderColor: '#4E79A7',
+                        backgroundColor: '#4E79A7',
+                        borderWidth: 2.5,
+                        pointRadius: 3.5,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#4E79A7',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 1.2,
+                        tension: 0,
+                        fill: false
+                    },
+                    {
+                        label: 'Devoluciones',
+                        data: devsSerie,
+                        borderColor: '#BA2525',
+                        backgroundColor: '#BA2525',
+                        borderWidth: 2.5,
+                        pointRadius: 3.5,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#BA2525',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 1.2,
+                        tension: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 36, bottom: 8, left: 10, right: 10 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        offset: 6,
+                        color: (ctx) => (ctx.datasetIndex === 0 ? '#4E79A7' : '#BA2525'),
+                        font: { size: 10, weight: '500' },
+                        formatter: (val) => self.formatearNumeroTableau(val, false),
+                        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) !== 0
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0f172a',
+                        bodyColor: '#334155',
+                        borderColor: '#cbd5e1',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        usePointStyle: false,
+                        displayColors: false,
+                        titleFont: { size: 11, weight: 'normal' },
+                        bodyFont: { size: 11, family: 'sans-serif' },
+                        callbacks: {
+                            title: () => '',
+                            label: (context) => {
+                                const idx = context.dataIndex;
+                                const fRaw = fullData.fechas[idx];
+                                const fLarga = self.formatearFechaConDiaSemana(fRaw);
+                                const vVal = self.formatearNumeroTableau(ventasSerie[idx], false);
+                                const dVal = self.formatearNumeroTableau(devsSerie[idx], false);
+                                return [
+                                    `fechaProceso: ${fLarga}`,
+                                    `Ventas: ${vVal}`,
+                                    `Devoluciones: ${dVal}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        grace: '8%',
+                        ticks: {
+                            callback: (v) => self.formatearTickEjeY(v),
+                            font: { size: 9.5 },
+                            color: '#94a3b8',
+                            maxTicksLimit: 4
+                        },
+                        grid: {
+                            color: (context) => (context.tick.value === 0 ? '#cbd5e1' : '#f8fafc'),
+                            lineWidth: (context) => (context.tick.value === 0 ? 1.5 : 1)
+                        }
+                    },
+                    x: {
+                        ticks: { display: false },
+                        grid: { color: '#f8fafc' }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Crea el gráfico para la Pista 3: % Devolución (Escala Dinámica Tableau)
+     */
+    crearChartTrack3(canvasId, labels, ratioSerie, fullData, esUnidades) {
+        const canvasEl = document.getElementById(canvasId);
+        if (!canvasEl) return null;
+        const ctx = canvasEl.getContext('2d');
+        const self = this;
+
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '% Devolucion',
+                    data: ratioSerie,
+                    borderColor: '#1E6B27',
+                    backgroundColor: '#1E6B27',
+                    borderWidth: 2.8,
+                    pointRadius: 3.5,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#1E6B27',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.2,
+                    tension: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 36, bottom: 8, left: 10, right: 10 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        offset: 6,
+                        color: '#1E6B27',
+                        font: { size: 10, weight: '500' },
+                        formatter: (val) => self.formatearPorcentaje(val),
+                        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0f172a',
+                        bodyColor: '#334155',
+                        borderColor: '#cbd5e1',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        usePointStyle: false,
+                        displayColors: false,
+                        titleFont: { size: 11, weight: 'normal' },
+                        bodyFont: { size: 11, family: 'sans-serif' },
+                        callbacks: {
+                            title: () => '',
+                            label: (context) => {
+                                const idx = context.dataIndex;
+                                const fRaw = fullData.fechas[idx];
+                                const fLarga = self.formatearFechaConDiaSemana(fRaw);
+                                const pctVal = self.formatearPorcentaje(context.raw);
+                                return [
+                                    `fechaProceso: ${fLarga}`,
+                                    `% Devolucion: ${pctVal}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grace: '10%',
+                        ticks: {
+                            callback: (v) => `${Number(v).toFixed(2).replace('.', ',')}%`,
+                            font: { size: 9.5 },
+                            color: '#94a3b8',
+                            maxTicksLimit: 3
+                        },
+                        grid: { color: '#f8fafc' }
+                    },
+                    x: {
+                        ticks: { display: false },
+                        grid: { color: '#f8fafc' }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Formateador de números estilo Tableau con separador de miles '.' y decimales ','
+     */
+    formatearNumeroTableau(numero, incluirDecimales = true) {
+        if (numero === null || numero === undefined) return incluirDecimales ? '0,00' : '0';
+        const num = Number(numero);
+        if (isNaN(num)) return '0,00';
+
+        if (!incluirDecimales) {
+            const signo = num < 0 ? '-' : '';
+            const absRedondeado = Math.abs(Math.round(num)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `${signo}${absRedondeado}`;
+        }
+
+        const partes = num.toFixed(2).split('.');
+        partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return partes.join(',');
+    }
+
+    /**
+     * Formatea porcentajes estilo Tableau ej: '0,21%'
+     */
+    formatearPorcentaje(pct) {
+        if (pct === null || pct === undefined || isNaN(pct)) return '0,00%';
+        return Number(pct).toFixed(2).replace('.', ',') + '%';
+    }
+
+    /**
+     * Formatea ticks numéricos de los ejes Y ej: 10000 -> 10K
+     */
+    formatearTickEjeY(val) {
+        if (val === 0) return '0';
+        const absVal = Math.abs(val);
+        const signo = val < 0 ? '-' : '';
+        if (absVal >= 1000) {
+            return `${signo}${(absVal / 1000).toFixed(0)}K`;
+        }
+        return `${val}`;
+    }
+
+    /**
+     * Formatea fecha completa con día de la semana para tooltips
+     */
+    formatearFechaConDiaSemana(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = fechaStr.split('-').map(Number);
+        const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const meses = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        ];
+        const d = new Date(year, month - 1, day);
+        const nombreDia = diasSemana[d.getDay()];
+        return `${nombreDia}, ${day} de ${meses[month - 1]} de ${year}`;
     }
 
     /**
@@ -361,6 +1014,9 @@ class VentasResumenController {
         document.getElementById('select-tipo-grafico').value = '07VentasSacCoor';
         document.getElementById('select-metrica-vista').value = 'unidades';
 
+        const selLinea = document.getElementById('select-lineaproceso');
+        if (selLinea) selLinea.value = 'TODO';
+
         const selZona = document.getElementById('select-zonafiscal');
         if (selZona) selZona.value = 'TODO';
 
@@ -371,6 +1027,10 @@ class VentasResumenController {
             this.msNomDevolucion.selectAll();
         }
 
+        this.destruirGraficos();
+        this.cacheData = null;
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (contenedor) contenedor.innerHTML = '';
         console.log('Filtros reseteados');
     }
 
@@ -394,3 +1054,4 @@ class VentasResumenController {
 document.addEventListener('DOMContentLoaded', () => {
     window.ventasResumenController = new VentasResumenController();
 });
+

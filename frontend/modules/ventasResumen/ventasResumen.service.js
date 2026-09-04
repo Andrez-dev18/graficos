@@ -68,6 +68,34 @@ class VentasResumenService {
             return { zonasFiscales: [], items: [] };
         }
     }
+    /**
+     * Consulta la data consolidada de Ventas y Devoluciones (07VentasSacCoor)
+     */
+    async consultarVentasSacCoor(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.VENTAS_SAC_COOR}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(filtros)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al consultar VentasSacCoor en VentasResumenService:', error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
+    }
 }
 
 window.VentasResumenService = VentasResumenService;
+

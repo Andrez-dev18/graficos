@@ -147,7 +147,11 @@ const PeriodoHelper = {
             fin = obtenerFechaSemana(valHasta, true);
         }
 
-        return { fechaInicio: inicio, fechaFin: fin };
+        return { fechaInicio: inicio, fechaFin: fin, inicio: inicio, fin: fin };
+    },
+
+    obtenerRangoFechas(selectId = 'select-tipo-periodo') {
+        return this.calcularRangoFechas(selectId);
     }
 };
 
