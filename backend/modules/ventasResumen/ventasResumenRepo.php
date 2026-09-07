@@ -308,4 +308,132 @@ class VentasResumenRepo
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene la matriz principal de Devoluciones por Zona, Item y Motivo (08DevolucionesSaca)
+     */
+    public function getDevolucionesPorZonaMotivo(array $filtros)
+    {
+        $fechaInicio  = $filtros['fecha_inicio'] ?? date('Y-01-01');
+        $fechaFin     = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $lineaProceso = $filtros['lineaproceso'] ?? 'TODO';
+        $zonaFiscal   = $filtros['zonafiscal'] ?? 'TODO';
+        $item         = $filtros['item'] ?? 'TODO';
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "coddoc NOT IN ('01', '03')",
+            "nomdevolucion IS NOT NULL AND nomdevolucion != ''"
+        ];
+
+        if (!empty($lineaProceso) && $lineaProceso !== 'TODO') {
+            $where[] = "lineaproceso = :lineaproceso";
+            $params[':lineaproceso'] = $lineaProceso;
+        }
+
+        if (!empty($zonaFiscal) && $zonaFiscal !== 'TODO') {
+            $where[] = "zonafiscal = :zonafiscal";
+            $params[':zonafiscal'] = $zonaFiscal;
+        }
+
+        if (!empty($item) && $item !== 'TODO') {
+            $where[] = "coditem = :item";
+            $params[':item'] = $item;
+        }
+
+        $sql = "SELECT 
+                    TRIM(zonafiscal) AS zonafiscal,
+                    coditem,
+                    CONCAT(coditem, ' ', nomitem) AS item,
+                    nomdevolucion,
+                    ROUND(SUM(COALESCE(cantidad, 0)), 2) AS total_cant,
+                    ROUND(SUM(COALESCE(peso, 0)), 2) AS total_peso,
+                    ROUND(SUM(COALESCE(total, 0)), 2) AS total_valor
+                FROM dmdocventasdet
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY TRIM(zonafiscal), coditem, nomitem, nomdevolucion
+                ORDER BY total_valor ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el desglose para el modal al hacer clic en un motivo:
+     * 1. Tendencia cronológica (Evolución diaria en Kg)
+     * 2. Ranking de clientes/corporativos
+     */
+    public function getDetalleMotivoDevolucion(array $filtros)
+    {
+        $fechaInicio  = $filtros['fecha_inicio'] ?? date('Y-01-01');
+        $fechaFin     = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $lineaProceso = $filtros['lineaproceso'] ?? 'TODO';
+        $zonaFiscal   = $filtros['zonafiscal'] ?? '';
+        $codItem      = $filtros['coditem'] ?? '';
+        $nomDev       = $filtros['nomdevolucion'] ?? '';
+
+        $params = [
+            ':f_ini'  => $fechaInicio,
+            ':f_fin'  => $fechaFin,
+            ':zona'   => $zonaFiscal,
+            ':item'   => $codItem,
+            ':nomdev' => $nomDev
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "coddoc NOT IN ('01', '03')",
+            "TRIM(zonafiscal) = :zona",
+            "coditem = :item",
+            "nomdevolucion = :nomdev"
+        ];
+
+        if (!empty($lineaProceso) && $lineaProceso !== 'TODO') {
+            $where[] = "lineaproceso = :lineaproceso";
+            $params[':lineaproceso'] = $lineaProceso;
+        }
+
+        $whereStr = implode(' AND ', $where);
+
+        // 1. Tendencia diaria por fecha
+        $sqlTendencia = "SELECT 
+                            fechaproceso,
+                            ROUND(SUM(COALESCE(peso, 0)), 2) AS peso_diario
+                         FROM dmdocventasdet
+                         WHERE {$whereStr}
+                         GROUP BY fechaproceso
+                         ORDER BY fechaproceso ASC";
+
+        $stmtTendencia = $this->conn->prepare($sqlTendencia);
+        $stmtTendencia->execute($params);
+        $tendencia = $stmtTendencia->fetchAll(PDO::FETCH_ASSOC);
+
+        // 2. Ranking de Clientes
+        $sqlClientes = "SELECT 
+                            TRIM(zonafiscal) AS zonafiscal,
+                            COALESCE(NULLIF(nomcorporativo, ''), nomcliente) AS corporativo,
+                            nomcliente,
+                            ROUND(SUM(COALESCE(cantidad, 0)), 2) AS cant_dev,
+                            ROUND(SUM(COALESCE(peso, 0)), 2) AS peso_dev,
+                            ROUND(SUM(COALESCE(total, 0)), 2) AS valor_dev
+                        FROM dmdocventasdet
+                        WHERE {$whereStr}
+                        GROUP BY TRIM(zonafiscal), corporativo, nomcliente
+                        ORDER BY valor_dev DESC";
+
+        $stmtClientes = $this->conn->prepare($sqlClientes);
+        $stmtClientes->execute($params);
+        $clientes = $stmtClientes->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'tendencia' => $tendencia,
+            'clientes'  => $clientes
+        ];
+    }
 }

@@ -150,5 +150,57 @@ class VentasResumenController
         exit;
     }
 
+    /**
+     * Endpoint POST: Matriz principal de Mayores Devoluciones por Zona y Motivo (08 DevolucionesSaca)
+     */
+    public function getDevolucionesPorZonaMotivo()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerDevolucionesPorZonaMotivo($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener devoluciones por zona y motivo: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    /**
+     * Endpoint POST: Modal maestro al hacer clic en un motivo (Tendencia diaria + Ranking clientes)
+     */
+    public function getDetalleMotivoDevolucion()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerDetalleMotivoDevolucion($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener detalle del motivo de devolución: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
 }
 

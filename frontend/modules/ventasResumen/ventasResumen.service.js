@@ -11,6 +11,8 @@ class VentasResumenService {
             VENTAS_SAC_COOR: '/ventasResumen/ventas-sac-coor',
             CUMPLIMIENTO_PLAN_REAL: '/ventasResumen/cumplimiento-plan-real',
             ANALISIS_SECUNDARIO: '/ventasResumen/analisis-secundario',
+            DEVOLUCIONES_ZONA_MOTIVO: '/ventasResumen/devoluciones-zona-motivo',
+            DETALLE_MOTIVO_DEV: '/ventasResumen/detalle-motivo-devolucion',
             DETALLE: '/ventasResumen/detalle',
             EXPORTAR_EXCEL: '/ventasResumen/exportar-detalle-excel'
         };
@@ -157,6 +159,64 @@ class VentasResumenService {
             return await response.json();
         } catch (error) {
             console.error('Error al consultar CumplimientoPlanReal en VentasResumenService:', error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
+    }
+
+    /**
+     * Consulta la matriz principal de Devoluciones por Zona y Motivo (08DevolucionesSaca)
+     */
+    async consultarDevolucionesPorZonaMotivo(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.DEVOLUCIONES_ZONA_MOTIVO}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(filtros)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al consultar DevolucionesPorZonaMotivo:', error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
+    }
+
+    /**
+     * Consulta el desglose del modal (Tendencia + Clientes) para un motivo de devolución
+     */
+    async consultarDetalleMotivoDevolucion(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.DETALLE_MOTIVO_DEV}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al consultar detalle del motivo:', error);
             return {
                 success: false,
                 message: error.message,

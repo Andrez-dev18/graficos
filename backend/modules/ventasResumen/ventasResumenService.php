@@ -456,4 +456,58 @@ class VentasResumenService
         }
         return $fechaStr;
     }
+
+    /**
+     * Procesa la matriz principal de Devoluciones por Zona y Motivo
+     */
+    public function obtenerDevolucionesPorZonaMotivo(array $filtros)
+    {
+        $raw = $this->repo->getDevolucionesPorZonaMotivo($filtros);
+
+        $matriz = [];
+        foreach ($raw as $row) {
+            $matriz[] = [
+                'zona'          => $row['zonafiscal'],
+                'coditem'       => $row['coditem'],
+                'item'          => $row['item'],
+                'nomdevolucion' => $row['nomdevolucion'],
+                'cant'          => (float)$row['total_cant'],
+                'peso'          => (float)$row['total_peso'],
+                'valor'         => (float)$row['total_valor']
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'data'   => $matriz
+        ];
+    }
+
+    /**
+     * Procesa el modal de tendencia y clientes para un motivo específico
+     */
+    public function obtenerDetalleMotivoDevolucion(array $filtros)
+    {
+        $res = $this->repo->getDetalleMotivoDevolucion($filtros);
+
+        $fechas = [];
+        $pesos = [];
+
+        foreach ($res['tendencia'] as $t) {
+            $fechas[] = $this->formatearFechaCorta($t['fechaproceso']);
+            $pesos[]  = (float)$t['peso_diario'];
+        }
+
+        return [
+            'status' => 'success',
+            'data'   => [
+                'tendencia' => [
+                    'fechas' => $fechas,
+                    'pesos'  => $pesos
+                ],
+                'clientes'  => $res['clientes']
+            ]
+        ];
+    }
+
 }

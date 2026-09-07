@@ -16,4 +16,8 @@ $this->post('/ventasResumen/analisis-secundario', 'VentasResumenController@getAn
 // Modal Plan vs Real (06 Ventas Saca)
 $this->post('/ventasResumen/cumplimiento-plan-real', 'VentasResumenController@getCumplimientoPlanReal');
 
+// Gráfico 08 DevolucionesSaca (Matriz Principal y Modal Detalle)
+$this->post('/ventasResumen/devoluciones-zona-motivo', 'VentasResumenController@getDevolucionesPorZonaMotivo');
+$this->post('/ventasResumen/detalle-motivo-devolucion', 'VentasResumenController@getDetalleMotivoDevolucion');
+
 

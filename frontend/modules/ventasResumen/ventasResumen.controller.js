@@ -203,6 +203,7 @@ class VentasResumenController {
                 modalVerDatos?.classList.add('hidden');
                 modalSecundario?.classList.add('hidden');
                 document.getElementById('popup-menu-barra')?.classList.add('hidden');
+                modalDev?.classList.add('hidden');
             }
         });
 
@@ -222,6 +223,14 @@ class VentasResumenController {
 
         // En el listener de tecla ESC, añade el modal:
         modalPlanReal?.classList.add('hidden');
+
+        // Modal Detalle Devolución (Ranking + Tendencia)
+        const modalDev = document.getElementById('modal-detalle-devolucion');
+        const btnCerrarDev = document.getElementById('btn-cerrar-modal-dev');
+
+        btnCerrarDev?.addEventListener('click', () => {
+            modalDev?.classList.add('hidden');
+        });
     }
 
     /**
@@ -433,7 +442,16 @@ class VentasResumenController {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
-        // Mostrar estado de carga
+        // Limpiar gráficos y observadores previos
+        this.destruirGraficos();
+
+        // Enrutar al nuevo gráfico principal 08DevolucionesSaca
+        if (filtros.tipo_grafico === '08DevolucionesSaca') {
+            await this.cargarMatrizDevoluciones(filtros);
+            return;
+        }
+
+        // Mostrar estado de carga para 07VentasSacCoor
         contenedor.innerHTML = `
             <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
                 <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
@@ -449,14 +467,8 @@ class VentasResumenController {
                 this.renderizarGraficoVentasSacCoor(this.cacheData);
             } else {
                 this.cacheData = null;
-                this.destruirGraficos();
                 contenedor.innerHTML = `
                     <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                        <div class="p-4 bg-slate-50 text-slate-400 rounded-full mb-3">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-                            </svg>
-                        </div>
                         <h3 class="text-sm font-bold text-slate-700">No se encontraron registros</h3>
                         <p class="text-xs text-slate-500 mt-1">Intente cambiando el rango de fechas o los filtros seleccionados.</p>
                     </div>
@@ -464,14 +476,10 @@ class VentasResumenController {
             }
         } catch (error) {
             console.error('Error al cargar datos del gráfico:', error);
-            this.destruirGraficos();
             contenedor.innerHTML = `
                 <div class="w-full bg-white rounded-2xl shadow-sm border border-rose-200 p-8 flex flex-col items-center justify-center text-center text-rose-600">
-                    <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
                     <h3 class="text-sm font-bold">Error al procesar la solicitud</h3>
-                    <p class="text-xs text-rose-500 mt-1">${error.message || 'Ocurrió un error inesperado al consultar el servidor.'}</p>
+                    <p class="text-xs text-rose-500 mt-1">${error.message || 'Error inesperado.'}</p>
                 </div>
             `;
         }
@@ -1916,6 +1924,451 @@ class VentasResumenController {
         if (!fechaStr) return '';
         const [year, month, day] = fechaStr.split('-').map(Number);
         return `${day}/${month}/${year}`;
+    }
+
+    /**
+     * Consulta los datos de Mayores Devoluciones por Zona y Motivo
+     */
+    async cargarMatrizDevoluciones(filtros) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+
+        contenedor.innerHTML = `
+            <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
+                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-rose-600 border-t-transparent mb-4"></div>
+                <h3 class="text-base font-bold text-slate-800">Cargando Mayores Devoluciones...</h3>
+                <p class="text-xs text-slate-500 mt-1">Analizando motivos por zona fiscal y producto</p>
+            </div>
+        `;
+
+        try {
+            const res = await this.service.consultarDevolucionesPorZonaMotivo(filtros);
+            if (res && res.success && res.payload && res.payload.data && res.payload.data.length > 0) {
+                this.renderizarMatrizDevoluciones(res.payload.data);
+            } else {
+                contenedor.innerHTML = `
+                    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
+                        <h3 class="text-sm font-bold text-slate-700">Sin devoluciones registradas</h3>
+                        <p class="text-xs text-slate-500 mt-1">No hay notas de crédito ni motivos para los filtros seleccionados.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error al cargar matriz devoluciones:', error);
+            contenedor.innerHTML = `
+                <div class="w-full bg-white rounded-2xl shadow-sm border border-rose-200 p-8 flex flex-col items-center justify-center text-center text-rose-600">
+                    <h3 class="text-sm font-bold">Error de consulta</h3>
+                    <p class="text-xs text-rose-500 mt-1">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Renderiza la tabla principal con barras rojas divergentes idéntica a Tableau
+     */
+    renderizarMatrizDevoluciones(filas) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+        contenedor.innerHTML = '';
+
+        if (!filas || filas.length === 0) {
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Sin devoluciones registradas.</div>`;
+            return;
+        }
+
+        // 1. ORDENAMIENTO ESTRICTO: Primero por ZONA, luego por ITEM, y finalmente por VALOR
+        const filasOrdenadas = [...filas].sort((a, b) => {
+            const cmpZona = (a.zona || '').localeCompare(b.zona || '');
+            if (cmpZona !== 0) return cmpZona;
+            const cmpItem = (a.coditem || '').localeCompare(b.coditem || '', undefined, { numeric: true });
+            if (cmpItem !== 0) return cmpItem;
+            return Number(a.valor || 0) - Number(b.valor || 0); // Mayor impacto negativo primero
+        });
+
+        // 2. Conteo exacto de filas para rowspan jerárquico
+        const conteoZona = {};
+        const conteoItem = {};
+
+        filasOrdenadas.forEach(f => {
+            const z = f.zona;
+            const itemKey = `${f.zona}|${f.coditem}`;
+            conteoZona[z] = (conteoZona[z] || 0) + 1;
+            conteoItem[itemKey] = (conteoItem[itemKey] || 0) + 1;
+        });
+
+        // Valores máximos para la escala de barras
+        const maxCant = Math.max(...filasOrdenadas.map(f => Math.abs(Number(f.cant || 0))), 1);
+        const maxPeso = Math.max(...filasOrdenadas.map(f => Math.abs(Number(f.peso || 0))), 1);
+        const maxValor = Math.max(...filasOrdenadas.map(f => Math.abs(Number(f.valor || 0))), 1);
+
+        const zonasRenderizadas = new Set();
+        const itemsRenderizados = new Set();
+
+        const card = document.createElement('div');
+        card.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
+
+        card.innerHTML = `
+            <!-- HEADER DE LA TARJETA PRINCIPAL -->
+            <div class="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-xs rounded-lg border border-rose-100">
+                        08DevolucionesSaca
+                    </span>
+                    <h3 class="text-sm font-bold text-slate-800">Mayores Devoluciones por Zona y Motivo</h3>
+                </div>
+                <div class="text-[11px] text-slate-500 font-medium">
+                    Período: <strong class="text-slate-700">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong>
+                </div>
+            </div>
+
+            <!-- TABLA PRINCIPAL TABLEAU -->
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-2.5 whitespace-nowrap text-center">Zona Fiscal</th>
+                            <th class="px-4 py-2.5 whitespace-nowrap text-center">Item</th>
+                            <th class="px-4 py-2.5 whitespace-nowrap">Motivo Devolución</th>
+                            <th class="px-4 py-2.5 text-center min-w-[150px]">Cantidad</th>
+                            <th class="px-4 py-2.5 text-center min-w-[170px]">Peso</th>
+                            <th class="px-4 py-2.5 text-center min-w-[180px]">Valor (S/)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        ${filasOrdenadas.map(r => {
+            const z = r.zona;
+            const itemKey = `${r.zona}|${r.coditem}`;
+
+            let celdaZona = '';
+            if (!zonasRenderizadas.has(z)) {
+                zonasRenderizadas.add(z);
+                celdaZona = `
+                                    <td rowspan="${conteoZona[z]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b-2 border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
+                                        ${r.zona}
+                                    </td>
+                                `;
+            }
+
+            let celdaItem = '';
+            if (!itemsRenderizados.has(itemKey)) {
+                itemsRenderizados.add(itemKey);
+                celdaItem = `
+                                    <td rowspan="${conteoItem[itemKey]}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-middle text-left text-[11px]">
+                                        ${r.item}
+                                    </td>
+                                `;
+            }
+
+            const valCant = Number(r.cant || 0);
+            const valPeso = Number(r.peso || 0);
+            const valMonto = Number(r.valor || 0);
+
+            // Porcentajes de ancho de barra
+            const pctCant = Math.min(Math.max((Math.abs(valCant) / maxCant) * 100, 0), 100);
+            const pctPeso = Math.min(Math.max((Math.abs(valPeso) / maxPeso) * 100, 0), 100);
+            const pctValor = Math.min(Math.max((Math.abs(valMonto) / maxValor) * 100, 0), 100);
+
+            const txtCant = this.formatearNumeroTableau(valCant, false);
+            const txtPeso = this.formatearNumeroTableau(valPeso, true) + ' Kg';
+            const txtValor = (valMonto < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(valMonto), true);
+
+            return `
+                                <tr class="hover:bg-rose-50/40 transition-colors text-[11px] cursor-pointer border-b border-slate-100 last:border-b-2 last:border-slate-300 fila-motivo-dev"
+                                    data-zona="${r.zona}"
+                                    data-coditem="${r.coditem}"
+                                    data-item="${r.item}"
+                                    data-nomdev="${r.nomdevolucion}">
+                                    ${celdaZona}
+                                    ${celdaItem}
+                                    <td class="px-3 py-2 font-medium text-slate-800 whitespace-nowrap border-r border-slate-100">
+                                        ${r.nomdevolucion}
+                                    </td>
+
+                                    <!-- Barra Cantidad (Divergente estilo Tableau con límite derecho) -->
+                                    <td class="px-3 py-2 border-r border-slate-100">
+                                        <div class="flex items-center justify-end gap-1.5 w-full">
+                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">
+                                                ${txtCant}
+                                            </span>
+                                            <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
+                                                ${pctCant > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctCant}%;"></div>` : ''}
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Barra Peso (Divergente estilo Tableau) -->
+                                    <td class="px-3 py-2 border-r border-slate-100">
+                                        <div class="flex items-center justify-end gap-1.5 w-full">
+                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">
+                                                ${txtPeso}
+                                            </span>
+                                            <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
+                                                ${pctPeso > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctPeso}%;"></div>` : ''}
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Barra Valor (Divergente estilo Tableau) -->
+                                    <td class="px-3 py-2">
+                                        <div class="flex items-center justify-end gap-1.5 w-full">
+                                            <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">
+                                                ${txtValor}
+                                            </span>
+                                            <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
+                                                ${pctValor > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctValor}%;"></div>` : ''}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        contenedor.appendChild(card);
+        this.asignarEventosFilasDevolucion();
+    }
+
+    /**
+     * Registra el evento de clic en cada fila de la matriz para abrir el modal
+     */
+    asignarEventosFilasDevolucion() {
+        document.querySelectorAll('.fila-motivo-dev').forEach(fila => {
+            fila.addEventListener('click', () => {
+                const zona = fila.getAttribute('data-zona');
+                const coditem = fila.getAttribute('data-coditem');
+                const item = fila.getAttribute('data-item');
+                const nomdevolucion = fila.getAttribute('data-nomdev');
+
+                this.abrirModalDetalleDevolucion({ zona, coditem, item, nomdevolucion });
+            });
+        });
+    }
+
+    /**
+     * Abre y consulta la información del modal
+     */
+    async abrirModalDetalleDevolucion({ zona, coditem, item, nomdevolucion }) {
+        const modal = document.getElementById('modal-detalle-devolucion');
+        if (!modal) return;
+
+        const loader = document.getElementById('loader-modal-dev');
+        const contenido = document.getElementById('contenido-modal-dev');
+        const titulo = document.getElementById('modal-dev-titulo');
+        const subtitulo = document.getElementById('modal-dev-subtitulo');
+
+        const filtros = this.obtenerFiltrosActivos();
+
+        if (titulo) titulo.textContent = `${nomdevolucion}`;
+        if (subtitulo) subtitulo.textContent = `${zona} | ${item} (Período: ${filtros.fecha_inicio} al ${filtros.fecha_fin})`;
+
+        modal.classList.remove('hidden');
+        loader?.classList.remove('hidden');
+        contenido?.classList.add('hidden');
+
+        try {
+            const payload = {
+                fecha_inicio: filtros.fecha_inicio,
+                fecha_fin: filtros.fecha_fin,
+                lineaproceso: filtros.lineaproceso,
+                zonafiscal: zona,
+                coditem: coditem,
+                nomdevolucion: nomdevolucion
+            };
+
+            const res = await this.service.consultarDetalleMotivoDevolucion(payload);
+            loader?.classList.add('hidden');
+
+            if (res && res.success && res.payload && res.payload.data) {
+                const { tendencia, clientes } = res.payload.data;
+                this.renderizarRankingClientesDev(clientes || []);
+                this.renderizarGraficoTendenciaDev(tendencia || { fechas: [], pesos: [] });
+                contenido?.classList.remove('hidden');
+            } else {
+                alert('No se encontraron registros para este motivo.');
+                modal.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error al abrir modal detalle devolucion:', error);
+            loader?.classList.add('hidden');
+            alert('Error al consultar el servidor.');
+            modal.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Renderiza la tabla superior de clientes con barras rojas divergentes
+     */
+    renderizarRankingClientesDev(clientes) {
+        const tbody = document.getElementById('tbody-ranking-clientes-dev');
+        const badge = document.getElementById('badge-contador-clientes-dev');
+        if (!tbody) return;
+
+        if (badge) badge.textContent = `${clientes.length} clientes`;
+
+        if (clientes.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-xs text-slate-400">Sin devoluciones para este motivo.</td></tr>`;
+            return;
+        }
+
+        // Orden de menor a mayor impacto (ej. -12, -14 ... hasta los montos más grandes)
+        const clientesOrdenados = [...clientes].sort((a, b) => Number(b.valor_dev || 0) - Number(a.valor_dev || 0));
+
+        const maxCant = Math.max(...clientesOrdenados.map(c => Math.abs(Number(c.cant_dev || 0))), 1);
+        const maxPeso = Math.max(...clientesOrdenados.map(c => Math.abs(Number(c.peso_dev || 0))), 1);
+        const maxValor = Math.max(...clientesOrdenados.map(c => Math.abs(Number(c.valor_dev || 0))), 1);
+
+        // Conteo por Zona para rowspan vertical
+        const conteoZona = {};
+        clientesOrdenados.forEach(c => {
+            const z = c.zonafiscal || 'SIN ZONA';
+            conteoZona[z] = (conteoZona[z] || 0) + 1;
+        });
+
+        const zonasRenderizadas = new Set();
+
+        tbody.innerHTML = clientesOrdenados.map(c => {
+            const z = c.zonafiscal || 'SIN ZONA';
+            const valCant = Number(c.cant_dev || 0);
+            const valPeso = Number(c.peso_dev || 0);
+            const valValor = Number(c.valor_dev || 0);
+
+            let celdaZona = '';
+            if (!zonasRenderizadas.has(z)) {
+                zonasRenderizadas.add(z);
+                celdaZona = `
+                    <td rowspan="${conteoZona[z]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b-2 border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
+                        ${z}
+                    </td>
+                `;
+            }
+
+            const pctCant = Math.min(Math.max((Math.abs(valCant) / maxCant) * 100, 0), 100);
+            const pctPeso = Math.min(Math.max((Math.abs(valPeso) / maxPeso) * 100, 0), 100);
+            const pctValor = Math.min(Math.max((Math.abs(valValor) / maxValor) * 100, 0), 100);
+
+            const txtCant = this.formatearNumeroTableau(valCant, false);
+            const txtPeso = this.formatearNumeroTableau(valPeso, true) + ' Kg';
+            const txtValor = (valValor < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(valValor), true);
+
+            return `
+                <tr class="hover:bg-rose-50/30 transition-colors text-[11px] border-b border-slate-100">
+                    ${celdaZona}
+                    <td class="px-3 py-1.5 font-bold text-slate-800 whitespace-nowrap">${c.corporativo || '-'}</td>
+                    <td class="px-3 py-1.5 text-slate-600 whitespace-nowrap border-r border-slate-100">${c.nomcliente || '-'}</td>
+                    
+                    <!-- Barra Cantidad -->
+                    <td class="px-3 py-1.5 border-r border-slate-100">
+                        <div class="flex items-center justify-end gap-1.5 w-full">
+                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtCant}</span>
+                            <div class="w-20 h-3 bg-slate-100 flex justify-start">
+                                ${pctCant > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctCant}%;"></div>` : ''}
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Barra Peso -->
+                    <td class="px-3 py-1.5 border-r border-slate-100">
+                        <div class="flex items-center justify-end gap-1.5 w-full">
+                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtPeso}</span>
+                            <div class="w-24 h-3 bg-slate-100 flex justify-start">
+                                ${pctPeso > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctPeso}%;"></div>` : ''}
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Barra Valor -->
+                    <td class="px-3 py-1.5">
+                        <div class="flex items-center justify-end gap-1.5 w-full">
+                            <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">${txtValor}</span>
+                            <div class="w-24 h-3 bg-slate-100 flex justify-start">
+                                ${pctValor > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctValor}%;"></div>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Renderiza el gráfico inferior de tendencia con línea roja y etiquetas de datos (Tableau Style)
+     */
+    renderizarGraficoTendenciaDev(tendencia) {
+        const canvas = document.getElementById('canvas-tendencia-devolucion');
+        if (!canvas) return;
+
+        // Destruir instancia previa si existe
+        if (this.chartTendenciaDev) {
+            this.chartTendenciaDev.destroy();
+            this.chartTendenciaDev = null;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const self = this;
+
+        this.chartTendenciaDev = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: tendencia.fechas || [],
+                datasets: [{
+                    label: 'Peso (Kg)',
+                    data: tendencia.pesos || [],
+                    borderColor: '#BA2525',
+                    backgroundColor: '#BA2525',
+                    borderWidth: 2.5,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#BA2525',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.5,
+                    tension: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 25, bottom: 5, left: 15, right: 25 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'start',
+                        align: 'bottom',
+                        offset: 4,
+                        color: '#a50026',
+                        font: { size: 9.5, weight: 'bold' },
+                        formatter: (val) => `${self.formatearNumeroTableau(val, true)} Kg`
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: (ctx) => `Devolución: ${self.formatearNumeroTableau(ctx.raw, true)} Kg`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        grace: '10%',
+                        ticks: {
+                            callback: (v) => `${self.formatearNumeroTableau(v, false)} Kg`,
+                            font: { size: 9.5 },
+                            color: '#94a3b8'
+                        },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        ticks: { font: { size: 10 }, color: '#64748b' },
+                        grid: { color: '#f8fafc' }
+                    }
+                }
+            }
+        });
     }
 
 }
