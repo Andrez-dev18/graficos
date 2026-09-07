@@ -458,6 +458,25 @@ class VentasResumenService
     }
 
     /**
+     * Formatea fecha YYYY-MM-DD al formato largo estilo Tableau (ej. 1 de septiembre de 2026)
+     */
+    private function formatearFechaLarga($fechaStr)
+    {
+        if (empty($fechaStr)) return '';
+        $meses = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+            5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+            9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre'
+        ];
+        $partes = explode('-', $fechaStr);
+        if (count($partes) === 3) {
+            $mes = (int)$partes[1];
+            return (int)$partes[2] . ' de ' . ($meses[$mes] ?? '') . ' de ' . $partes[0];
+        }
+        return $fechaStr;
+    }
+
+    /**
      * Procesa la matriz principal de Devoluciones por Zona y Motivo
      */
     public function obtenerDevolucionesPorZonaMotivo(array $filtros)
@@ -510,4 +529,90 @@ class VentasResumenService
         ];
     }
 
+    /**
+     * Procesa y retorna los datos detallados y resumen para el modal "Ver Datos"
+     */
+    public function obtenerDetalle(array $filtros)
+    {
+        $rawRows = $this->repo->getDetalle($filtros);
+
+        $datosCompletos = [];
+        $sumVentas = 0;
+        $sumDevs = 0;
+        $sumCantTotal = 0;
+        $lineaProceso = $filtros['lineaproceso'] ?? '';
+        $fechaProceso = $filtros['fechaproceso'] ?? ($filtros['fecha'] ?? '');
+
+        foreach ($rawRows as $row) {
+            if (empty($lineaProceso) && !empty($row['lineaproceso'])) {
+                $lineaProceso = $row['lineaproceso'];
+            }
+            if (empty($fechaProceso) && !empty($row['fechaproceso'])) {
+                $fechaProceso = $row['fechaproceso'];
+            }
+
+            $cant = (float)$row['cantidad'];
+            $cantVenta = $row['cantidadventa'] !== null ? (float)$row['cantidadventa'] : null;
+            $cantDev = $row['cantidaddevolucion'] !== null ? (float)$row['cantidaddevolucion'] : null;
+
+            $sumCantTotal += $cant;
+            if ($cantVenta !== null) {
+                $sumVentas += $cantVenta;
+            }
+            if ($cantDev !== null) {
+                $sumDevs += $cantDev;
+            }
+
+            $datosCompletos[] = [
+                'lineaproceso'       => $row['lineaproceso'],
+                'fechaproceso'       => $row['fechaproceso'],
+                'dia_fechaproceso'   => $this->formatearFechaLarga($row['fechaproceso']),
+                'tipo_doc'           => $row['tipo_doc'],
+                'coditem'            => $row['coditem'],
+                'nomcorporativo'     => $row['nomcorporativo'],
+                'nomdevolucion'      => $row['nomdevolucion'],
+                'nomdoc'             => $row['nomdoc'],
+                'nomitem'            => $row['nomitem'],
+                'zonafiscal'         => $row['zonafiscal'],
+                'item'               => $row['item'],
+                'coddoc'             => $row['coddoc'],
+                'cantidad'           => $cant,
+                'cantidaddevolucion' => $cantDev,
+                'cantidadventa'      => $cantVenta,
+                'sum_ratio'          => null
+            ];
+        }
+
+        $ratio = ($sumVentas > 0) ? (abs($sumDevs) / $sumVentas) : 0;
+
+        $resumen = [
+            'lineaproceso'     => $lineaProceso ?: '1 P. Vivo',
+            'dia_fechaproceso' => $this->formatearFechaLarga($fechaProceso),
+            'ratio_dev'        => $ratio,
+            'cantidad'         => $sumCantTotal
+        ];
+
+        return [
+            'success' => true,
+            'payload' => [
+                'resumen'         => $resumen,
+                'datos_completos' => $datosCompletos
+            ]
+        ];
+    }
+
+    /**
+     * Exporta el detalle filtrado a un archivo Excel (.xlsx)
+     */
+    public function exportarExcelDetalle(array $params)
+    {
+        require_once __DIR__ . '/ventasResumenExportExcel.php';
+
+        $datos = $this->repo->getDetalle($params);
+
+        $exportador = new VentasResumenExportExcel();
+        $exportador->generarExcelDetalle($datos, $params);
+    }
 }
+
+

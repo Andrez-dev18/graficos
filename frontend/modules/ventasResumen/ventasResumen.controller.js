@@ -155,10 +155,21 @@ class VentasResumenController {
         // Modal "Ver Datos" Tableau
         const modalVerDatos = document.getElementById('modal-ver-datos');
         const btnCerrarModal = document.getElementById('btn-cerrar-modal');
+        const btnAbrirVerDatos = document.getElementById('btn-abrir-ver-datos');
         const tabBtnResumen = document.getElementById('tab-btn-resumen');
         const tabBtnCompletos = document.getElementById('tab-btn-completos');
         const vistaResumen = document.getElementById('vista-tab-resumen');
         const vistaCompletos = document.getElementById('vista-tab-completos');
+        const btnExportarExcel = document.getElementById('btn-exportar-excel-modal');
+
+        btnAbrirVerDatos?.addEventListener('click', () => {
+            document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            this.abrirModalVerDatos();
+        });
+
+        btnExportarExcel?.addEventListener('click', () => {
+            this.exportarExcelDesdeModal();
+        });
 
         btnCerrarModal?.addEventListener('click', () => {
             modalVerDatos?.classList.add('hidden');
@@ -197,16 +208,6 @@ class VentasResumenController {
             this.seleccionarClienteAnalisis(null);
         });
 
-        // Cerrar modales con tecla ESC
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                modalVerDatos?.classList.add('hidden');
-                modalSecundario?.classList.add('hidden');
-                document.getElementById('popup-menu-barra')?.classList.add('hidden');
-                modalDev?.classList.add('hidden');
-            }
-        });
-
         // Modal Plan vs Real (06VentasSaca)
         const modalPlanReal = document.getElementById('modal-plan-vs-real');
         const btnCerrarPlanReal = document.getElementById('btn-cerrar-modal-plan-real');
@@ -221,15 +222,23 @@ class VentasResumenController {
             modalPlanReal?.classList.add('hidden');
         });
 
-        // En el listener de tecla ESC, añade el modal:
-        modalPlanReal?.classList.add('hidden');
-
         // Modal Detalle Devolución (Ranking + Tendencia)
         const modalDev = document.getElementById('modal-detalle-devolucion');
         const btnCerrarDev = document.getElementById('btn-cerrar-modal-dev');
 
         btnCerrarDev?.addEventListener('click', () => {
             modalDev?.classList.add('hidden');
+        });
+
+        // Cerrar modales con tecla ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                modalVerDatos?.classList.add('hidden');
+                modalSecundario?.classList.add('hidden');
+                modalPlanReal?.classList.add('hidden');
+                modalDev?.classList.add('hidden');
+                document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            }
         });
     }
 
@@ -2371,10 +2380,170 @@ class VentasResumenController {
         });
     }
 
+    /**
+     * Abre el modal "Ver Datos" estilo Tableau
+     */
+    async abrirModalVerDatos() {
+        const modal = document.getElementById('modal-ver-datos');
+        if (!modal || !this.puntoSeleccionado) return;
+
+        const { tipoGrafico, fecha, fechaFormateada, valor } = this.puntoSeleccionado;
+        const tipoActivo = tipoGrafico || '07VentasSacCoor';
+        const schema = ModalSchemas.getSchema(tipoActivo);
+
+        const helpers = {
+            formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
+            formatearFechaCorta: (f) => this.formatearFechaCortaTableau(f),
+            formatearFecha: (f) => this.formatearFechaTableau(f)
+        };
+
+        const lineaSeleccionada = this.msLineaProceso ? this.msLineaProceso.getSelectedValues()[0] : '1 P. Vivo';
+
+        document.getElementById('modal-titulo-vista').textContent = 'Ver datos: 7.1 VentTotalesProcZonaCant (1 marca)';
+        document.getElementById('modal-subtitulo-filas').textContent = `Día de fechaproceso: ${fechaFormateada || fecha}`;
+
+        // 1. Renderizar pestaña Resumen
+        const theadResumen = document.getElementById('thead-modal-resumen');
+        const tbodyResumen = document.getElementById('tbody-modal-resumen');
+
+        ModalSchemas.renderThead(theadResumen, schema.resumen, false);
+
+        const dataResumenInicial = {
+            lineaproceso: lineaSeleccionada || '1 P. Vivo',
+            dia_fechaproceso: fechaFormateada || fecha,
+            ratio_dev: 0,
+            cantidad: valor || 0
+        };
+
+        ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumenInicial, helpers);
+
+        const tabBtnResumen = document.getElementById('tab-btn-resumen');
+        const tabBtnCompletos = document.getElementById('tab-btn-completos');
+        const vistaResumen = document.getElementById('vista-tab-resumen');
+        const vistaCompletos = document.getElementById('vista-tab-completos');
+        this.cambiarTabModal('resumen', tabBtnResumen, tabBtnCompletos, vistaResumen, vistaCompletos);
+
+        modal.classList.remove('hidden');
+
+        // 2. Cargar datos completos y resumen real en background
+        await this.cargarDatosCompletosModal();
+    }
+
+    /**
+     * Carga el desglose transaccional para la pestaña "Datos completos"
+     */
+    async cargarDatosCompletosModal() {
+        const loader = document.getElementById('loader-modal-detalle');
+        const tabla = document.getElementById('tabla-modal-completos');
+        const thead = document.getElementById('thead-modal-completos');
+        const tbody = document.getElementById('tbody-modal-completos');
+        const tfoot = document.getElementById('tfoot-modal-completos');
+
+        loader?.classList.remove('hidden');
+        tabla?.classList.add('hidden');
+        if (tbody) tbody.innerHTML = '';
+        if (tfoot) tfoot.innerHTML = '';
+
+        const tipoGrafico = this.puntoSeleccionado?.tipoGrafico || '07VentasSacCoor';
+        const schema = ModalSchemas.getSchema(tipoGrafico);
+
+        const helpers = {
+            formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
+            formatearFechaCorta: (f) => this.formatearFechaCortaTableau(f),
+            formatearFecha: (f) => this.formatearFechaTableau(f)
+        };
+
+        ModalSchemas.renderThead(thead, schema.detalle, true);
+
+        try {
+            const payloadDetalle = {
+                fechaproceso: this.puntoSeleccionado.fecha,
+                lineaproceso: this.msLineaProceso ? this.msLineaProceso.getSelectedValues()[0] : '1 P. Vivo',
+                zonafiscal: this.msZonaFiscal ? this.msZonaFiscal.getSelectedValues()[0] : 'TODO',
+                item: this.msItem ? this.msItem.getSelectedValues()[0] : 'TODO',
+                nomdevoluciones: this.msNomDevolucion ? this.msNomDevolucion.getSelectedValues() : []
+            };
+
+            const res = await this.service.obtenerDetalle(payloadDetalle);
+
+            loader?.classList.add('hidden');
+
+            if (res && res.success && res.payload && res.payload.datos_completos) {
+                const filas = res.payload.datos_completos;
+                const resumenData = res.payload.resumen;
+
+                document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas ${schema.detalle.length} campos`;
+
+                // Actualizar la pestaña Resumen con los valores exactos calculados
+                if (resumenData) {
+                    const tbodyResumen = document.getElementById('tbody-modal-resumen');
+                    ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, resumenData, helpers);
+                }
+
+                // Renderizar tbody de datos completos
+                ModalSchemas.renderDetalleTbody(tbody, schema.detalle, filas, helpers);
+
+                tabla?.classList.remove('hidden');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
+                tabla?.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error al cargar datos completos:', error);
+            loader?.classList.add('hidden');
+            tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-rose-500">Error al cargar datos: ${error.message}</td></tr>`;
+            tabla?.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Exporta el desglose del modal Ver Datos a un archivo Excel
+     */
+    async exportarExcelDesdeModal() {
+        if (!this.puntoSeleccionado) return;
+
+        const tipoGrafico = this.puntoSeleccionado.tipoGrafico || '07VentasSacCoor';
+        const btnExportar = document.getElementById('btn-exportar-excel-modal');
+        const contenidoOriginal = btnExportar ? btnExportar.innerHTML : '';
+
+        try {
+            if (btnExportar) {
+                btnExportar.disabled = true;
+                btnExportar.innerHTML = `
+                    <svg class="animate-spin w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Generando...</span>
+                `;
+            }
+
+            const payloadExcel = {
+                tipo_grafico: tipoGrafico,
+                fechaproceso: this.puntoSeleccionado.fecha,
+                lineaproceso: this.msLineaProceso ? this.msLineaProceso.getSelectedValues()[0] : '1 P. Vivo',
+                zonafiscal: this.msZonaFiscal ? this.msZonaFiscal.getSelectedValues()[0] : 'TODO',
+                item: this.msItem ? this.msItem.getSelectedValues()[0] : 'TODO',
+                nomdevoluciones: this.msNomDevolucion ? this.msNomDevolucion.getSelectedValues() : []
+            };
+
+            await this.service.exportarExcel(payloadExcel);
+        } catch (error) {
+            console.error('Error al exportar Excel:', error);
+            alert('Ocurrió un error al generar el archivo Excel.');
+        } finally {
+            if (btnExportar) {
+                btnExportar.disabled = false;
+                btnExportar.innerHTML = contenidoOriginal;
+            }
+        }
+    }
 }
 
 // Instanciar al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
     window.ventasResumenController = new VentasResumenController();
 });
+
+
 

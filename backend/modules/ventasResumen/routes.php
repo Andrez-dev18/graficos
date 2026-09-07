@@ -20,4 +20,10 @@ $this->post('/ventasResumen/cumplimiento-plan-real', 'VentasResumenController@ge
 $this->post('/ventasResumen/devoluciones-zona-motivo', 'VentasResumenController@getDevolucionesPorZonaMotivo');
 $this->post('/ventasResumen/detalle-motivo-devolucion', 'VentasResumenController@getDetalleMotivoDevolucion');
 
+// Modal Ver Datos (Resumen y Datos Completos)
+$this->post('/ventasResumen/detalle', 'VentasResumenController@getDetalle');
+$this->post('/ventasResumen/exportar-detalle-excel', 'VentasResumenController@exportarExcelDetalle');
+
+
+
 

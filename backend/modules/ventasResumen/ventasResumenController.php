@@ -202,5 +202,53 @@ class VentasResumenController
         exit;
     }
 
+    /**
+     * Endpoint POST: Obtiene el detalle de ventas y devoluciones para el modal Ver Datos
+     */
+    public function getDetalle()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerDetalle($data);
+
+            echo json_encode($resultado);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener detalle de ventas resumen: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    /**
+     * Endpoint POST: Exporta el detalle filtrado a Excel
+     */
+    public function exportarExcelDetalle()
+    {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true);
+            if (!$filtros) {
+                $filtros = $_POST;
+            }
+
+            $this->service->exportarExcelDetalle($filtros);
+        } catch (Exception $e) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al exportar Excel: ' . $e->getMessage()
+            ]);
+            exit;
+        }
+    }
 }
+
+
 

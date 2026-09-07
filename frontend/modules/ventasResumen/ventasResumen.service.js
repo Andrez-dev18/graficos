@@ -224,7 +224,86 @@ class VentasResumenService {
             };
         }
     }
+
+    /**
+     * Obtiene el desglose completo para el punto seleccionado (Modal Ver Datos)
+     * @param {Object} params { fechaproceso, lineaproceso, zonafiscal, item, nomdevoluciones }
+     */
+    async obtenerDetalle(params) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.DETALLE}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(params)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error al obtener detalle en VentasResumenService:', error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
+    }
+
+    /**
+     * Descarga el archivo Excel generado desde el endpoint backend
+     * @param {Object} filtros 
+     */
+    async exportarExcel(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.EXPORTAR_EXCEL}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(filtros)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al exportar: ${response.status} - ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+
+            let filename = `Detalle_Ventas_${filtros.lineaproceso || 'linea'}_${filtros.fechaproceso || 'fecha'}.xlsx`;
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition && disposition.includes('filename=')) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error al exportar Excel en VentasResumenService:', error);
+            throw error;
+        }
+    }
 }
 
 window.VentasResumenService = VentasResumenService;
+
 

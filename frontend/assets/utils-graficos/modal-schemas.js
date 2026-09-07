@@ -133,6 +133,34 @@ const ModalSchemas = {
                 { key: 'vencimiento', label: 'vencimiento', align: 'left', nowrap: true, fontClass: 'font-semibold text-slate-700' },
                 { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
             ]
+        },
+
+        // 6. Gráfico 07VentasSacCoor (Ventas y Devoluciones Resumen / Completos)
+        '07VentasSacCoor': {
+            resumen: [
+                { key: 'lineaproceso', label: 'lineaproceso', align: 'left', fontClass: 'font-medium' },
+                { key: 'dia_fechaproceso', label: 'Día de fechaproceso', align: 'left', nowrap: true },
+                { key: 'ratio_dev', label: 'SUM([cantidaddevolucion])/SUM([cantidadventa])', align: 'right', format: 'ratio8', fontClass: 'font-medium' },
+                { key: 'cantidad', label: 'cantidad', align: 'right', format: 'currency', fontClass: 'font-medium' }
+            ],
+            detalle: [
+                { key: 'lineaproceso', label: 'lineaproceso', align: 'left', fontClass: 'font-medium' },
+                { key: 'dia_fechaproceso', label: 'Día de fechaproceso', align: 'left', nowrap: true },
+                { key: 'tipo_doc', label: 'iF [coddoc]="01" OR [codc', align: 'left', nowrap: true },
+                { key: 'coditem', label: 'coditem', align: 'left', fontClass: 'font-mono' },
+                { key: 'nomcorporativo', label: 'nomcorporativo', align: 'left', fontClass: 'font-medium' },
+                { key: 'nomdevolucion', label: 'nomdevolucion', align: 'left' },
+                { key: 'nomdoc', label: 'nomdoc', align: 'left' },
+                { key: 'nomitem', label: 'nomitem', align: 'left' },
+                { key: 'zonafiscal', label: 'zonafiscal', align: 'left' },
+                { key: 'fechaproceso', label: 'fechaproceso', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
+                { key: 'item', label: 'Item', align: 'left' },
+                { key: 'coddoc', label: 'coddoc', align: 'left', fontClass: 'font-mono' },
+                { key: 'cantidad', label: 'cantidad', align: 'right', format: 'currency4' },
+                { key: 'cantidaddevolucion', label: 'cantidaddevolucion', align: 'right', format: 'currency4' },
+                { key: 'cantidadventa', label: 'cantidadventa', align: 'right', format: 'currency4' },
+                { key: 'sum_ratio', label: 'SUM([cantidaddevolucion', align: 'right' }
+            ]
         }
     },
 
@@ -175,16 +203,22 @@ const ModalSchemas = {
      */
     formatearValor(val, col, row, helpers) {
         if (col.format === 'currency') {
-            return helpers && helpers.formatearNumero ? helpers.formatearNumero(val, true) : val;
+            const num = (val !== null && val !== undefined && val !== '') ? val : 0;
+            return helpers && helpers.formatearNumero ? helpers.formatearNumero(num, true) : num;
+        }
+        if (col.format === 'currency4') {
+            const num = (val !== null && val !== undefined && val !== '') ? Number(val) : 0;
+            const validNum = isNaN(num) ? 0 : num;
+            return validNum.toLocaleString('es-PE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
         }
         if (col.format === 'shortDate') {
-            return helpers && helpers.formatearFechaCorta ? helpers.formatearFechaCorta(val) : val;
+            return helpers && helpers.formatearFechaCorta ? helpers.formatearFechaCorta(val) : (val || '');
         }
         if (col.format === 'fullDate') {
-            return helpers && helpers.formatearFecha ? helpers.formatearFecha(val) : val;
+            return helpers && helpers.formatearFecha ? helpers.formatearFecha(val) : (val || '');
         }
         if (col.format === 'dateTime') {
-            if (!val) return '-';
+            if (!val) return '';
             // Formato Tableau: D/M/YYYY H:mm:ss
             const partes = String(val).trim().split(' ');
             if (partes.length === 2 && partes[0].includes('-')) {
@@ -192,6 +226,11 @@ const ModalSchemas = {
                 return `${d}/${m}/${y} ${partes[1]}`;
             }
             return val;
+        }
+        if (col.format === 'ratio8') {
+            const num = Number(val);
+            if (isNaN(num)) return '0,00000000';
+            return num.toFixed(8).replace('.', ',');
         }
         if (col.format === 'ratio6') {
             const num = Number(val);
@@ -203,7 +242,7 @@ const ModalSchemas = {
             if (isNaN(num)) return '0,00000';
             return num.toFixed(5).replace('.', ',');
         }
-        return (val !== null && val !== undefined && val !== '') ? val : '-';
+        return (val !== null && val !== undefined) ? String(val) : '';
     },
 
     /**

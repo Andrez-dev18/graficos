@@ -436,4 +436,77 @@ class VentasResumenRepo
             'clientes'  => $clientes
         ];
     }
+
+    /**
+     * Obtiene los registros detallados de ventas y devoluciones para el modal Ver Datos
+     */
+    public function getDetalle(array $filtros)
+    {
+        $fecha        = $filtros['fechaproceso'] ?? ($filtros['fecha'] ?? null);
+        $fechaInicio  = $filtros['fecha_inicio'] ?? ($fecha ?: date('Y-01-01'));
+        $fechaFin     = $filtros['fecha_fin'] ?? ($fecha ?: date('Y-m-d'));
+        $lineaProceso = $filtros['lineaproceso'] ?? 'TODO';
+        $zonaFiscal   = $filtros['zonafiscal'] ?? 'TODO';
+        $item         = $filtros['item'] ?? 'TODO';
+        $nomDevs      = is_array($filtros['nomdevoluciones'] ?? null) ? $filtros['nomdevoluciones'] : [];
+
+        $params = [
+            ':f_ini' => $fecha ?: $fechaInicio,
+            ':f_fin' => $fecha ?: $fechaFin
+        ];
+
+        $where = ["fechaproceso BETWEEN :f_ini AND :f_fin"];
+
+        if (!empty($lineaProceso) && $lineaProceso !== 'TODO') {
+            $where[] = "lineaproceso = :lineaproceso";
+            $params[':lineaproceso'] = $lineaProceso;
+        }
+
+        if (!empty($zonaFiscal) && $zonaFiscal !== 'TODO') {
+            $where[] = "zonafiscal = :zonafiscal";
+            $params[':zonafiscal'] = $zonaFiscal;
+        }
+
+        if (!empty($item) && $item !== 'TODO') {
+            $where[] = "coditem = :item";
+            $params[':item'] = $item;
+        }
+
+        if (!empty($nomDevs)) {
+            $devPhs = [];
+            foreach (array_values($nomDevs) as $i => $dev) {
+                $ph = ":dev_" . $i;
+                $devPhs[] = $ph;
+                $params[$ph] = $dev;
+            }
+            $where[] = "(coddoc IN ('01', '03') OR nomdevolucion IN (" . implode(', ', $devPhs) . "))";
+        }
+
+        $whereStr = implode(' AND ', $where);
+
+        $sql = "SELECT 
+                    lineaproceso,
+                    fechaproceso,
+                    CASE WHEN coddoc IN ('01', '03') THEN 'VENTAS' ELSE 'DEVOLUCIONES' END AS tipo_doc,
+                    coditem,
+                    COALESCE(NULLIF(nomcorporativo, ''), nomcliente) AS nomcorporativo,
+                    COALESCE(nomdevolucion, '') AS nomdevolucion,
+                    COALESCE(nomdoc, '') AS nomdoc,
+                    COALESCE(nomitem, '') AS nomitem,
+                    COALESCE(zonafiscal, '') AS zonafiscal,
+                    CONCAT(coditem, ' ', COALESCE(nomitem, '')) AS item,
+                    COALESCE(coddoc, '') AS coddoc,
+                    ROUND(COALESCE(cantidad, 0), 4) AS cantidad,
+                    CASE WHEN coddoc NOT IN ('01', '03') THEN ROUND(COALESCE(cantidad, 0), 4) ELSE NULL END AS cantidaddevolucion,
+                    CASE WHEN coddoc IN ('01', '03') THEN ROUND(COALESCE(cantidad, 0), 4) ELSE NULL END AS cantidadventa,
+                    NULL AS sum_ratio
+                FROM dmdocventasdet
+                WHERE {$whereStr}
+                ORDER BY lineaproceso ASC, nomcorporativo ASC, coddoc ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
+
