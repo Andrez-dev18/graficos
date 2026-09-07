@@ -287,6 +287,164 @@ class VentasResumenService
     }
 
     /**
+     * Procesa la matriz de cumplimiento Plan vs Real, calcula acumulados e indicadores,
+     * y estructura dos bloques separados: Resumen por Zona y Resumen por Item.
+     */
+    public function obtenerCumplimientoPlanReal(array $filtros)
+    {
+        $filas = $this->repo->getCumplimientoPlanVsReal($filtros);
+
+        // -------------------------------------------------------------
+        // BLOQUE 1: AGRUPACIÓN POR ZONA FISCAL (DIARIO + ACUMULADO)
+        // -------------------------------------------------------------
+        $porZona = [];
+        $acumuladosZona = [];
+
+        // Primero ordenamos los registros crudos por fecha cronológica para que el acumulado sume en orden correcto
+        usort($filas, function ($a, $b) {
+            return strcmp($a['fechaproceso'], $b['fechaproceso']);
+        });
+
+        foreach ($filas as $row) {
+            $fecha = $row['fechaproceso'];
+            $zona  = $row['zonafiscal'];
+            $plan  = (float)$row['cant_plan_diario'];
+            $real  = (float)$row['cant_real_diario'];
+
+            $keyZona = $zona . '|' . $fecha;
+            if (!isset($porZona[$keyZona])) {
+                $porZona[$keyZona] = [
+                    'fecha'       => $fecha,
+                    'zona'        => $zona,
+                    'plan_diario' => 0.0,
+                    'real_diario' => 0.0
+                ];
+            }
+            $porZona[$keyZona]['plan_diario'] += $plan;
+            $porZona[$keyZona]['real_diario'] += $real;
+
+            if (!isset($acumuladosZona[$zona])) {
+                $acumuladosZona[$zona] = ['plan' => 0.0, 'real' => 0.0];
+            }
+            $acumuladosZona[$zona]['plan'] += $plan;
+            $acumuladosZona[$zona]['real'] += $real;
+
+            $porZona[$keyZona]['plan_acum'] = $acumuladosZona[$zona]['plan'];
+            $porZona[$keyZona]['real_acum'] = $acumuladosZona[$zona]['real'];
+        }
+
+        // Ordenamos las filas de la tabla superior: primero por ZONA y luego por FECHA (estilo Tableau)
+        $zonasFinales = array_values($porZona);
+        usort($zonasFinales, function ($a, $b) {
+            $cmpZona = strcmp($a['zona'], $b['zona']);
+            if ($cmpZona !== 0) return $cmpZona;
+            return strcmp($a['fecha'], $b['fecha']);
+        });
+
+        // Calculamos los indicadores porcentuales de la primera tabla
+        foreach ($zonasFinales as &$r) {
+            $pDiario = $r['plan_diario'];
+            $rDiario = $r['real_diario'];
+            $r['ind_diario'] = ($pDiario > 0) ? (($rDiario - $pDiario) / $pDiario) * 100 : 0.0;
+
+            $pAcum = $r['plan_acum'];
+            $rAcum = $r['real_acum'];
+            $r['ind_acum'] = ($pAcum > 0) ? (($rAcum - $pAcum) / $pAcum) * 100 : 0.0;
+        }
+        unset($r);
+
+
+        // -------------------------------------------------------------
+        // BLOQUE 2: AGRUPACIÓN POR ITEM / PRODUCTO (CON FILA TOTAL)
+        // -------------------------------------------------------------
+        $porItem = [];
+        $totalesPorItem = [];
+
+        foreach ($filas as $row) {
+            $fecha   = $row['fechaproceso'];
+            $zona    = $row['zonafiscal'];
+            $codItem = $row['coditem'];
+            $itemNom = $codItem . ' - ' . $row['nomitem'];
+            $plan    = (float)$row['cant_plan_diario'];
+            $real    = (float)$row['cant_real_diario'];
+
+            $keyItem = $zona . '|' . $codItem . '|' . $fecha;
+            if (!isset($porItem[$keyItem])) {
+                $porItem[$keyItem] = [
+                    'fecha'       => $fecha,
+                    'zona'        => $zona,
+                    'coditem'     => $codItem,
+                    'item'        => $itemNom,
+                    'plan_diario' => 0.0,
+                    'real_diario' => 0.0,
+                    'es_total'    => false
+                ];
+            }
+            $porItem[$keyItem]['plan_diario'] += $plan;
+            $porItem[$keyItem]['real_diario'] += $real;
+
+            // Acumulador general de todo el período para el producto
+            $keyTot = $zona . '|' . $codItem;
+            if (!isset($totalesPorItem[$keyTot])) {
+                $totalesPorItem[$keyTot] = [
+                    'zona'       => $zona,
+                    'coditem'    => $codItem,
+                    'item'       => $itemNom,
+                    'plan_total' => 0.0,
+                    'real_total' => 0.0
+                ];
+            }
+            $totalesPorItem[$keyTot]['plan_total'] += $plan;
+            $totalesPorItem[$keyTot]['real_total'] += $real;
+        }
+
+        // Armamos la lista ordenada de items e inyectamos la fila "Total"
+        $itemsFinales = [];
+        foreach ($totalesPorItem as $keyTot => $tot) {
+            // Extraer solo los días pertenecientes a este item y zona
+            $diasProducto = array_filter($porItem, function ($it) use ($tot) {
+                return $it['zona'] === $tot['zona'] && $it['coditem'] === $tot['coditem'];
+            });
+
+            // Ordenar sus días cronológicamente
+            usort($diasProducto, function ($a, $b) {
+                return strcmp($a['fecha'], $b['fecha']);
+            });
+
+            foreach ($diasProducto as $dia) {
+                $p = $dia['plan_diario'];
+                $r = $dia['real_diario'];
+                $dia['ind_diario'] = ($p > 0) ? (($r - $p) / $p) * 100 : 0.0;
+                $itemsFinales[] = $dia;
+            }
+
+            // Fila de Total idéntica a Tableau
+            $pTot = $tot['plan_total'];
+            $rTot = $tot['real_total'];
+            $indTot = ($pTot > 0) ? (($rTot - $pTot) / $pTot) * 100 : 0.0;
+
+            $itemsFinales[] = [
+                'fecha'       => 'Total',
+                'zona'        => $tot['zona'],
+                'coditem'     => $tot['coditem'],
+                'item'        => $tot['item'],
+                'plan_diario' => $pTot,
+                'real_diario' => $rTot,
+                'ind_diario'  => $indTot,
+                'es_total'    => true
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'data'   => [
+                'porZona' => $zonasFinales,
+                'porItem' => $itemsFinales
+            ]
+        ];
+    }
+
+    /**
      * Formatea fecha YYYY-MM-DD al formato corto D/M/YYYY estilo Tableau (ej. 24/8/2026)
      */
     private function formatearFechaCorta($fechaStr)
@@ -299,4 +457,3 @@ class VentasResumenService
         return $fechaStr;
     }
 }
-

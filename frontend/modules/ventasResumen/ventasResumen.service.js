@@ -9,6 +9,7 @@ class VentasResumenService {
             FILTROS: '/ventasResumen/filtros',
             OPCIONES_LINEA: '/ventasResumen/opciones-linea',
             VENTAS_SAC_COOR: '/ventasResumen/ventas-sac-coor',
+            CUMPLIMIENTO_PLAN_REAL: '/ventasResumen/cumplimiento-plan-real',
             ANALISIS_SECUNDARIO: '/ventasResumen/analisis-secundario',
             DETALLE: '/ventasResumen/detalle',
             EXPORTAR_EXCEL: '/ventasResumen/exportar-detalle-excel'
@@ -127,6 +128,35 @@ class VentasResumenService {
             return await response.json();
         } catch (error) {
             console.error('Error al consultar VentasSacCoor en VentasResumenService:', error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
+    }
+    
+    /**
+     * Consulta el comparativo de Plan vs Real (Zonas e Items) para el modal de 06VentasSaca
+     */
+    async consultarCumplimientoPlanReal(filtros) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.CUMPLIMIENTO_PLAN_REAL}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(filtros)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al consultar CumplimientoPlanReal en VentasResumenService:', error);
             return {
                 success: false,
                 message: error.message,

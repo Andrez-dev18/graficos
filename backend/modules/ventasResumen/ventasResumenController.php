@@ -122,5 +122,33 @@ class VentasResumenController
         }
         exit;
     }
+
+    /**
+     * Endpoint POST: Devuelve el comparativo de Cumplimiento Plan vs Real
+     * para el modal de 06 Ventas Saca
+     */
+    public function getCumplimientoPlanReal()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerCumplimientoPlanReal($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener cumplimiento Plan vs Real: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
 }
 

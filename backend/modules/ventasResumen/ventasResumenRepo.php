@@ -257,5 +257,55 @@ class VentasResumenRepo
             'devoluciones' => $devoluciones
         ];
     }
-}
 
+    /**
+     * Obtiene el comparativo Plan vs Real (Diario y Acumulado) agrupado por Zona y por Item
+     * Para ser consumido en el Modal de Cumplimiento (06VentasSaca)
+     */
+    public function getCumplimientoPlanVsReal(array $filtros)
+    {
+        $fechaInicio  = $filtros['fecha_inicio'] ?? date('Y-01-01');
+        $fechaFin     = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $lineaProceso = $filtros['lineaproceso'] ?? 'TODO';
+        $zonaFiscal   = $filtros['zonafiscal'] ?? 'TODO';
+        $item         = $filtros['item'] ?? 'TODO';
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = ["fechaproceso BETWEEN :f_ini AND :f_fin"];
+
+        if (!empty($lineaProceso) && $lineaProceso !== 'TODO') {
+            $where[] = "lineaproceso = :lineaproceso";
+            $params[':lineaproceso'] = $lineaProceso;
+        }
+
+        if (!empty($zonaFiscal) && $zonaFiscal !== 'TODO') {
+            $where[] = "zonafiscal = :zonafiscal";
+            $params[':zonafiscal'] = $zonaFiscal;
+        }
+
+        if (!empty($item) && $item !== 'TODO') {
+            $where[] = "coditem = :item";
+            $params[':item'] = $item;
+        }
+
+        $sql = "SELECT 
+                    fechaproceso,
+                    TRIM(COALESCE(NULLIF(zonafiscal, ''), 'SIN ZONA')) AS zonafiscal,
+                    coditem,
+                    COALESCE(NULLIF(nomitem, ''), coditem) AS nomitem,
+                    ROUND(SUM(COALESCE(cantidadplan, 0)), 2) AS cant_plan_diario,
+                    ROUND(SUM(COALESCE(cantidadreal, 0)), 2) AS cant_real_diario
+                FROM dmmetasventa
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY fechaproceso, TRIM(COALESCE(NULLIF(zonafiscal, ''), 'SIN ZONA')), coditem, nomitem
+                ORDER BY zonafiscal ASC, fechaproceso ASC, coditem ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}

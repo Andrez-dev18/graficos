@@ -13,4 +13,7 @@ $this->post('/ventasResumen/ventas-sac-coor', 'VentasResumenController@getGrafic
 // Modal Análisis Secundario (Mini Gráficos: Clientes y Devoluciones)
 $this->post('/ventasResumen/analisis-secundario', 'VentasResumenController@getAnalisisSecundario');
 
+// Modal Plan vs Real (06 Ventas Saca)
+$this->post('/ventasResumen/cumplimiento-plan-real', 'VentasResumenController@getCumplimientoPlanReal');
+
 

@@ -29,6 +29,10 @@ class VentasResumenController {
             nomDevoluciones: []
         };
 
+        // Estado de selección cruzada Plan vs Real
+        this.planRealFiltroActivo = null; // { zona: 'AREQUIPA', fecha: '2026-08-31' }
+        this.cachePlanRealData = { porZona: [], porItem: [] };
+
         this.init();
     }
 
@@ -118,7 +122,7 @@ class VentasResumenController {
 
         // 5. Selector de Tipo de Gráfico
         document.getElementById('select-tipo-grafico')?.addEventListener('change', () => {
-            console.log('Tipo de gráfico cambiado a:', document.getElementById('select-tipo-grafico')?.value);
+            console.log('', document.getElementById('select-tipo-grafico')?.value);
         });
 
         // 6. Botón Cargar
@@ -201,6 +205,23 @@ class VentasResumenController {
                 document.getElementById('popup-menu-barra')?.classList.add('hidden');
             }
         });
+
+        // Modal Plan vs Real (06VentasSaca)
+        const modalPlanReal = document.getElementById('modal-plan-vs-real');
+        const btnCerrarPlanReal = document.getElementById('btn-cerrar-modal-plan-real');
+        const btnAbrirPlanReal = document.getElementById('btn-abrir-plan-real');
+
+        btnAbrirPlanReal?.addEventListener('click', () => {
+            document.getElementById('popup-menu-barra')?.classList.add('hidden');
+            this.abrirModalPlanVsReal();
+        });
+
+        btnCerrarPlanReal?.addEventListener('click', () => {
+            modalPlanReal?.classList.add('hidden');
+        });
+
+        // En el listener de tecla ESC, añade el modal:
+        modalPlanReal?.classList.add('hidden');
     }
 
     /**
@@ -246,7 +267,7 @@ class VentasResumenController {
         const selLinea = document.getElementById('select-lineaproceso');
         if (selLinea && this.opcionesFiltros.lineasProceso?.length > 0) {
             selLinea.innerHTML = `<option value="TODO" selected>(Todo)</option>` +
-                this.opcionesFiltros.lineasProceso.map(lp => 
+                this.opcionesFiltros.lineasProceso.map(lp =>
                     `<option value="${lp.id || lp}">${lp.label || lp}</option>`
                 ).join('');
         }
@@ -271,7 +292,7 @@ class VentasResumenController {
         if (!selZona) return;
 
         const valorPrevio = selZona.value;
-        selZona.innerHTML = `<option value="TODO" selected>(Todo)</option>` + 
+        selZona.innerHTML = `<option value="TODO" selected>(Todo)</option>` +
             zonas.map(z => `<option value="${z.id || z}">${z.label || z}</option>`).join('');
 
         // Mantener selección previa si aún existe entre las opciones válidas
@@ -288,7 +309,7 @@ class VentasResumenController {
         if (!selItem) return;
 
         const valorPrevio = selItem.value;
-        selItem.innerHTML = `<option value="TODO" selected>(Todo)</option>` + 
+        selItem.innerHTML = `<option value="TODO" selected>(Todo)</option>` +
             items.map(it => `<option value="${it.id || it}">${it.label || it}</option>`).join('');
 
         // Mantener selección previa si aún existe entre las opciones válidas
@@ -709,7 +730,7 @@ class VentasResumenController {
                         const monto = dataSerie[index];
 
                         self.puntoSeleccionado = {
-                            tipoGrafico: '07VentasSacCoor',
+                            tipoGrafico: document.getElementById('select-tipo-grafico')?.value || '07VentasSacCoor',
                             pista: 'track1',
                             fecha: fechaOriginal,
                             fechaFormateada: fechaTexto,
@@ -717,6 +738,13 @@ class VentasResumenController {
                         };
 
                         const popup = document.getElementById('popup-menu-barra');
+                        const tipoActivo = document.getElementById('select-tipo-grafico')?.value;
+                        const btnSecundario = document.getElementById('btn-abrir-analisis-secundario');
+                        const btnPlanReal = document.getElementById('btn-abrir-plan-real');
+
+                        if (btnSecundario) btnSecundario.classList.toggle('hidden', tipoActivo === '06VentasSaca');
+                        if (btnPlanReal) btnPlanReal.classList.toggle('hidden', tipoActivo !== '06VentasSaca');
+
                         if (popup) {
                             popup.style.left = `${event.native.clientX + 10}px`;
                             popup.style.top = `${event.native.clientY + 10}px`;
@@ -843,7 +871,7 @@ class VentasResumenController {
                         const monto = datasetIndex === 0 ? ventasSerie[index] : devsSerie[index];
 
                         self.puntoSeleccionado = {
-                            tipoGrafico: '07VentasSacCoor',
+                            tipoGrafico: document.getElementById('select-tipo-grafico')?.value || '07VentasSacCoor',
                             pista: 'track2',
                             tipoSerie: datasetIndex === 0 ? 'ventas' : 'devoluciones',
                             fecha: fechaOriginal,
@@ -852,6 +880,13 @@ class VentasResumenController {
                         };
 
                         const popup = document.getElementById('popup-menu-barra');
+                        const tipoActivo = document.getElementById('select-tipo-grafico')?.value;
+                        const btnSecundario = document.getElementById('btn-abrir-analisis-secundario');
+                        const btnPlanReal = document.getElementById('btn-abrir-plan-real');
+
+                        if (btnSecundario) btnSecundario.classList.toggle('hidden', tipoActivo === '06VentasSaca');
+                        if (btnPlanReal) btnPlanReal.classList.toggle('hidden', tipoActivo !== '06VentasSaca');
+
                         if (popup) {
                             popup.style.left = `${event.native.clientX + 10}px`;
                             popup.style.top = `${event.native.clientY + 10}px`;
@@ -965,7 +1000,7 @@ class VentasResumenController {
                         const monto = ratioSerie[index];
 
                         self.puntoSeleccionado = {
-                            tipoGrafico: '07VentasSacCoor',
+                            tipoGrafico: document.getElementById('select-tipo-grafico')?.value || '07VentasSacCoor',
                             pista: 'track3',
                             fecha: fechaOriginal,
                             fechaFormateada: fechaTexto,
@@ -973,6 +1008,13 @@ class VentasResumenController {
                         };
 
                         const popup = document.getElementById('popup-menu-barra');
+                        const tipoActivo = document.getElementById('select-tipo-grafico')?.value;
+                        const btnSecundario = document.getElementById('btn-abrir-analisis-secundario');
+                        const btnPlanReal = document.getElementById('btn-abrir-plan-real');
+
+                        if (btnSecundario) btnSecundario.classList.toggle('hidden', tipoActivo === '06VentasSaca');
+                        if (btnPlanReal) btnPlanReal.classList.toggle('hidden', tipoActivo !== '06VentasSaca');
+
                         if (popup) {
                             popup.style.left = `${event.native.clientX + 10}px`;
                             popup.style.top = `${event.native.clientY + 10}px`;
@@ -1484,6 +1526,398 @@ class VentasResumenController {
             contenedor.className = 'flex flex-col gap-6 mt-6 pb-10';
         }
     }
+
+    /**
+     * Consulta y abre el modal de Cumplimiento Plan vs Real para la fecha o período seleccionado
+     */
+    async abrirModalPlanVsReal() {
+        const modal = document.getElementById('modal-plan-vs-real');
+        if (!modal) return;
+
+        const loader = document.getElementById('loader-modal-plan-real');
+        const contenido = document.getElementById('contenido-modal-plan-real');
+        const subtitulo = document.getElementById('modal-plan-real-subtitulo');
+
+        const filtros = this.obtenerFiltrosActivos();
+        const fechaSeleccionada = (this.puntoSeleccionado && this.puntoSeleccionado.fecha) ? this.puntoSeleccionado.fecha : '';
+
+        if (subtitulo) {
+            subtitulo.textContent = fechaSeleccionada
+                ? `Fecha evaluada: ${this.formatearFechaConDiaSemana(fechaSeleccionada)} (Rango: ${filtros.fecha_inicio} al ${filtros.fecha_fin})`
+                : `Período completo: ${filtros.fecha_inicio} al ${filtros.fecha_fin}`;
+        }
+
+        modal.classList.remove('hidden');
+        loader?.classList.remove('hidden');
+        contenido?.classList.add('hidden');
+
+        try {
+            // Se envía el período completo para que los acumulados se calculen correctamente
+            const payload = {
+                fecha_inicio: filtros.fecha_inicio,
+                fecha_fin: filtros.fecha_fin,
+                lineaproceso: filtros.lineaproceso,
+                zonafiscal: filtros.zonafiscal,
+                item: filtros.item
+            };
+
+            const res = await this.service.consultarCumplimientoPlanReal(payload);
+            loader?.classList.add('hidden');
+
+            if (res && res.success && res.payload && res.payload.data) {
+                this.cachePlanRealData = res.payload.data;
+                this.planRealFiltroActivo = null; // Reiniciar selección
+
+                this.renderizarMatrizPlanRealZonas(this.cachePlanRealData.porZona || []);
+                this.renderizarMatrizPlanRealItems(this.cachePlanRealData.porItem || []);
+                contenido?.classList.remove('hidden');
+            } else {
+                alert('No se encontraron registros de cumplimiento para el período seleccionado.');
+                modal.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error al consultar Plan vs Real:', error);
+            loader?.classList.add('hidden');
+            alert('Ocurrió un error al obtener la información.');
+            modal.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Helper para pintar celdas con barras horizontales y etiquetas
+     */
+    generarCeldaBarra(valor, maxValor, colorHex) {
+        const pct = maxValor > 0 ? Math.min(Math.max((valor / maxValor) * 100, 0), 100) : 0;
+        const valorFmt = this.formatearNumeroTableau(valor, false);
+
+        return `
+            <div class="flex items-center gap-2 w-full justify-start">
+                <div class="flex-1 h-3.5 bg-slate-100 rounded-none overflow-hidden relative max-w-[100px]">
+                    <div class="h-full rounded-none" style="width: ${pct}%; background-color: ${colorHex};"></div>
+                </div>
+                <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap min-w-[40px] text-right">
+                    ${valorFmt}
+                </span>
+            </div>
+        `;
+    }
+
+    /**
+     * Helper para pintar el semáforo circular con el porcentaje
+     */
+    generarCeldaIndicador(ratio, esTotal = false) {
+        const val = Number(ratio) || 0;
+        const absVal = Math.abs(val);
+
+        // 1. Paleta divergente por desviación absoluta (ABS) estilo Tableau
+        let colorPunto = '#2e7d32'; // Verde base
+        if (esTotal) {
+            colorPunto = '#8c8c8c'; // Gris para fila Total
+        } else if (absVal <= 5) {
+            colorPunto = '#2e7d32'; // Verde oscuro
+        } else if (absVal <= 10) {
+            colorPunto = '#59a14f'; // Verde claro
+        } else if (absVal <= 20) {
+            colorPunto = '#f28e8c'; // Salmón / alerta moderada
+        } else {
+            colorPunto = '#a50026'; // Rojo intenso / Borgoña
+        }
+
+        // 2. Rango visible del eje (-50% a +50% Tableau)
+        // Se limita el desplazamiento del centro para dejar 8px de margen en los bordes
+        const maxEscala = 50;
+        const desplazamientoMaximo = 34; // porcentaje máximo hacia izq o der desde el centro
+        const offsetPct = Math.min(Math.max((val / maxEscala) * desplazamientoMaximo, -desplazamientoMaximo), desplazamientoMaximo);
+        const posLeft = 50 + offsetPct; // 50% es la línea central
+
+        const signo = (val > 0 ? '+' : '');
+        const textoPct = `${signo}${val.toFixed(2).replace('.', ',')}%`;
+        const esNegativo = val < 0;
+
+        // Si el valor positivo es muy alto (> 25%), colocamos el texto a la izquierda del punto
+        // para garantizar que nunca toque ni desborde el margen derecho de la celda
+        const textoALaIzquierda = esNegativo || val > 25;
+
+        return `
+            <div class="relative w-full h-7 flex items-center justify-center min-w-[130px] px-2 select-none overflow-hidden">
+                <!-- Línea guía vertical central (0,00%) -->
+                <div class="absolute top-1 bottom-1 left-1/2 w-px bg-slate-300 pointer-events-none"></div>
+
+                <!-- Contenedor del punto posicionado -->
+                <div class="absolute flex items-center gap-1 transition-all"
+                     style="left: ${posLeft}%; transform: translateX(${textoALaIzquierda ? '-100%' : '0%'});">
+                    
+                    ${textoALaIzquierda ? `<span class="text-[9.5px] font-mono font-bold text-slate-700 whitespace-nowrap">${textoPct}</span>` : ''}
+                    
+                    <span class="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs border border-white"
+                          style="background-color: ${colorPunto};"
+                          title="${textoPct}"></span>
+
+                    ${!textoALaIzquierda ? `<span class="text-[9.5px] font-mono font-bold text-slate-700 whitespace-nowrap">${textoPct}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Renderiza la tabla superior con acción de selección cruzada estilo Tableau
+     */
+    renderizarMatrizPlanRealZonas(filas) {
+        const tbody = document.getElementById('tbody-plan-real-zonas');
+        if (!tbody) return;
+
+        if (!filas || filas.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400">Sin registros por zona.</td></tr>`;
+            return;
+        }
+
+        // Limpiar espacios en blanco de las zonas
+        filas.forEach(f => {
+            f.zona = (f.zona || '').trim();
+        });
+
+        const maxPlan = Math.max(...filas.map(f => f.plan_diario || 0), 1);
+        const maxReal = Math.max(...filas.map(f => f.real_diario || 0), 1);
+        const maxPlanAcum = Math.max(...filas.map(f => f.plan_acum || 0), 1);
+        const maxRealAcum = Math.max(...filas.map(f => f.real_acum || 0), 1);
+
+        const conteoPorZona = {};
+        filas.forEach(f => {
+            conteoPorZona[f.zona] = (conteoPorZona[f.zona] || 0) + 1;
+        });
+
+        const zonasRenderizadas = new Set();
+        const seleccion = this.planRealFiltroActivo;
+
+        tbody.innerHTML = filas.map(r => {
+            const esPrimeraFilaZona = !zonasRenderizadas.has(r.zona);
+            let celdaZona = '';
+
+            if (esPrimeraFilaZona) {
+                zonasRenderizadas.add(r.zona);
+                const totalFilasZona = conteoPorZona[r.zona];
+                celdaZona = `
+                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
+                        ${r.zona}
+                    </td>
+                `;
+            }
+
+            const estaSeleccionada = seleccion && seleccion.zona === r.zona && seleccion.fecha === r.fecha;
+            const haySeleccion = seleccion !== null;
+
+            // Opacidad tenue de Tableau para filas no seleccionadas
+            const opacidadClase = (haySeleccion && !estaSeleccionada) ? 'opacity-30 transition-opacity' : 'opacity-100 transition-opacity';
+            const filaBorde = estaSeleccionada
+                ? 'bg-amber-50/70 ring-2 ring-blue-500 ring-inset z-10'
+                : 'hover:bg-slate-50/80';
+            const fechaBg = estaSeleccionada ? 'bg-amber-200 text-amber-950 font-bold' : 'text-slate-600 font-medium';
+
+            return `
+                <tr class="fila-zona-click cursor-pointer select-none text-[11px] border-b border-slate-100 last:border-b-2 last:border-slate-300 ${filaBorde} ${opacidadClase}"
+                    data-zona="${r.zona}" 
+                    data-fecha="${r.fecha}">
+                    ${celdaZona}
+                    <td class="px-3 py-1.5 whitespace-nowrap text-center border-r border-slate-100 ${fechaBg}">
+                        ${this.formatearFechaCortaTableau(r.fecha)}
+                    </td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(r.ind_diario, false)}</td>
+                    <td class="px-3 py-1.5 border-l border-slate-200">${this.generarCeldaBarra(r.plan_acum, maxPlanAcum, '#59a14f')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.real_acum, maxRealAcum, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(r.ind_acum, false)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Eventos de selección cruzada
+        tbody.querySelectorAll('.fila-zona-click').forEach(fila => {
+            fila.addEventListener('click', () => {
+                const z = fila.getAttribute('data-zona');
+                const f = fila.getAttribute('data-fecha');
+
+                if (this.planRealFiltroActivo && this.planRealFiltroActivo.zona === z && this.planRealFiltroActivo.fecha === f) {
+                    this.planRealFiltroActivo = null;
+                } else {
+                    this.planRealFiltroActivo = { zona: z, fecha: f };
+                }
+
+                this.renderizarMatrizPlanRealZonas(this.cachePlanRealData.porZona || []);
+                this.renderizarMatrizPlanRealItems(this.cachePlanRealData.porItem || []);
+            });
+        });
+    }
+
+    /**
+     * Renderiza la tabla inferior por Item con totales reactivos idénticos a Tableau
+     */
+    renderizarMatrizPlanRealItems(filas) {
+        const tbody = document.getElementById('tbody-plan-real-items');
+        if (!tbody) return;
+
+        if (!filas || filas.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-xs text-slate-400">Sin registros por item.</td></tr>`;
+            return;
+        }
+
+        // Zona activa (por clic en la tabla superior o AREQUIPA por defecto)
+        let zonaActiva = (this.planRealFiltroActivo?.zona || document.getElementById('select-zonafiscal')?.value || 'AREQUIPA').trim();
+        if (!zonaActiva || zonaActiva === 'TODO') {
+            zonaActiva = 'AREQUIPA';
+        }
+
+        const fechaActiva = this.planRealFiltroActivo?.fecha || null;
+
+        // 1. Filtrar registros base reales (excluyendo filas 'Total' precocinadas)
+        let baseItems = filas.filter(f => (f.zona || '').trim() === zonaActiva && !f.es_total);
+
+        if (fechaActiva) {
+            baseItems = baseItems.filter(f => f.fecha === fechaActiva);
+        }
+
+        if (baseItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-xs text-slate-400">Sin registros de items para la selección.</td></tr>`;
+            return;
+        }
+
+        // Agrupar por producto y calcular sus filas diarias + fila Total reactiva
+        const itemsMap = new Map();
+        baseItems.forEach(r => {
+            if (!itemsMap.has(r.coditem)) {
+                itemsMap.set(r.coditem, {
+                    coditem: r.coditem,
+                    item: r.item,
+                    zona: r.zona,
+                    dias: []
+                });
+            }
+            itemsMap.get(r.coditem).dias.push(r);
+        });
+
+        // Construir lista con subtotales calculados dinámicamente según lo visible
+        let filasFinales = [];
+        let totalGeneralPlan = 0;
+        let totalGeneralReal = 0;
+
+        // Ordenar productos
+        const itemsOrdenados = Array.from(itemsMap.values()).sort((a, b) =>
+            a.coditem.localeCompare(b.coditem, undefined, { numeric: true })
+        );
+
+        itemsOrdenados.forEach(prod => {
+            prod.dias.sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+            let subPlan = 0;
+            let subReal = 0;
+
+            prod.dias.forEach(d => {
+                subPlan += Number(d.plan_diario || 0);
+                subReal += Number(d.real_diario || 0);
+                filasFinales.push({
+                    ...d,
+                    es_total: false
+                });
+            });
+
+            totalGeneralPlan += subPlan;
+            totalGeneralReal += subReal;
+
+            const subInd = (subPlan > 0) ? ((subReal - subPlan) / subPlan) * 100 : 0;
+
+            // Fila de Total por ítem
+            filasFinales.push({
+                zona: prod.zona,
+                coditem: prod.coditem,
+                item: prod.item,
+                fecha: 'Total',
+                plan_diario: subPlan,
+                real_diario: subReal,
+                ind_diario: subInd,
+                es_total: true
+            });
+        });
+
+        const maxPlan = Math.max(...filasFinales.map(f => f.plan_diario || 0), totalGeneralPlan, 1);
+        const maxReal = Math.max(...filasFinales.map(f => f.real_diario || 0), totalGeneralReal, 1);
+
+        // Conteo de filas para los rowspan
+        const conteoPorItem = {};
+        filasFinales.forEach(f => {
+            conteoPorItem[f.coditem] = (conteoPorItem[f.coditem] || 0) + 1;
+        });
+
+        const totalFilasZona = filasFinales.length + (fechaActiva ? 1 : 0);
+        const itemsRenderizados = new Set();
+        let zonaYaRenderizada = false;
+
+        let html = filasFinales.map(r => {
+            const esTotal = r.es_total;
+
+            let celdaZona = '';
+            if (!zonaYaRenderizada) {
+                zonaYaRenderizada = true;
+                celdaZona = `
+                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
+                        ${r.zona}
+                    </td>
+                `;
+            }
+
+            let celdaItem = '';
+            if (!itemsRenderizados.has(r.coditem)) {
+                itemsRenderizados.add(r.coditem);
+                const spanItem = conteoPorItem[r.coditem];
+                celdaItem = `
+                    <td rowspan="${spanItem}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-middle text-left text-[11px]">
+                        ${r.item}
+                    </td>
+                `;
+            }
+
+            const fechaTxt = esTotal ? 'Total' : this.formatearFechaCortaTableau(r.fecha);
+            const filaEstilo = esTotal
+                ? 'bg-slate-50/80 font-bold border-b-2 border-slate-200 text-slate-800'
+                : 'hover:bg-slate-50/60 border-b border-slate-100 text-slate-700';
+
+            return `
+                <tr class="${filaEstilo} text-[11px] transition-colors">
+                    ${celdaZona}
+                    ${celdaItem}
+                    <td class="px-3 py-1.5 whitespace-nowrap text-center font-medium border-r border-slate-100 ${esTotal ? 'font-bold text-slate-900' : 'text-slate-600'}">
+                        ${fechaTxt}
+                    </td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(r.ind_diario, esTotal)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Fila Total General perfectamente alineada (colspan="2" abarcando Item + Día)
+        if (fechaActiva) {
+            const indGlobal = (totalGeneralPlan > 0) ? ((totalGeneralReal - totalGeneralPlan) / totalGeneralPlan) * 100 : 0;
+            html += `
+                <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-[11px]">
+                    <td colspan="2" class="px-3 py-2 text-left uppercase tracking-wider font-bold border-r border-slate-200">
+                        Total
+                    </td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(totalGeneralPlan, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaBarra(totalGeneralReal, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(indGlobal, true)}</td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+    }
+
+    formatearFechaCortaTableau(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = fechaStr.split('-').map(Number);
+        return `${day}/${month}/${year}`;
+    }
+
 }
 
 // Instanciar al cargar el DOM
