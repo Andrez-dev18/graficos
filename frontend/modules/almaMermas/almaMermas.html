@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Almacén Mermas Vivo</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Scrollbars delgadas y estilizadas */
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 h-screen m-0 p-0 font-sans">
+
+    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 relative">
+
+        <!-- BARRA SUPERIOR DE CABECERA Y TOGGLE -->
+        <div id="cabecera-filtros"
+            class="flex flex-wrap items-center justify-between bg-white border-b border-slate-200/80 rounded-t-2xl transition-all">
+            <div class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Almacén Mermas Vivo</h1>
+                    <p class="text-xs text-slate-500">Análisis operativo de mermas por proceso, cliente, zona fiscal y transporte.</p>
+                </div>
+            </div>
+
+            <!-- BOTÓN TOGGLE PLEGAR / DESPLEGAR -->
+            <div class="px-3 py-2 sm:px-4">
+                <button id="btn-toggle-filtros" type="button"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
+                    <span id="label-toggle-filtros">Ocultar filtros</span>
+                    <svg id="icon-toggle-filtros" class="w-4 h-4 transition-transform duration-300" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DE FILTROS -->
+        <div id="contenedor-filtros-contenido" class="p-4 sm:p-5 transition-all duration-300">
+            <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+
+                <!-- 1. FILTRO PERÍODO Y CONTENEDOR DINÁMICO DE FECHAS -->
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="flex flex-col">
+                        <label for="select-tipo-periodo"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO</label>
+                        <select id="select-tipo-periodo"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="por_mes">Por mes</option>
+                            <option value="entre_meses">Entre meses</option>
+                            <option value="por_fecha" selected>Por fecha</option>
+                            <option value="entre_fechas">Entre fechas</option>
+                            <option value="ultima_semana">Última Semana</option>
+                            <option value="entre_semanas">Entre semanas</option>
+                        </select>
+                    </div>
+
+                    <!-- Contenedor generado por JS según el periodo -->
+                    <div id="contenedor-inputs-periodo" class="flex items-end gap-2">
+                        <!-- Generado dinámicamente por periodo-helper.js -->
+                    </div>
+                </div>
+
+                <!-- 2. SELECT TIPO DE GRÁFICO (LAS VISTAS DEL LIBRO 3) -->
+                <div class="flex flex-col">
+                    <label for="select-tipo-grafico"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICO</label>
+                    <select id="select-tipo-grafico"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[220px]">
+                        <option value="PorcMermaProcesoDiaClientePlaca" selected>PorcMermaProcesoDiaClientePlaca</option>
+                        <option value="PorcMermaProcesoDiaCliente">PorcMermaProcesoDiaCliente</option>
+                        <option value="PorcMermaProcesoDiaClienteZona">PorcMermaProcesoDiaClienteZona</option>
+                        <option value="DashPrueba1">Dash Prueba 1</option>
+                    </select>
+                </div>
+
+                <!-- 3. SELECT DATO (TODO / CANTIDAD / PESO / VALOR) -->
+                <div class="flex flex-col">
+                    <label for="select-filtro-dato"
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DATO</label>
+                    <select id="select-filtro-dato"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[140px]">
+                        <option value="TODO" selected>(Todo)</option>
+                        <option value="CANTIDAD">Cantidad</option>
+                        <option value="PESO">Peso</option>
+                        <option value="VALOR">Valor</option>
+                    </select>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="flex items-center gap-2 ml-auto sm:ml-0">
+                    <button id="btn-cargar" type="button"
+                        class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        <span>Cargar</span>
+                    </button>
+                    <button id="btn-limpiar" type="button"
+                        class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200 transition-all cursor-pointer">
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL DINÁMICO DONDE SE RENDERIZAN LOS GRÁFICOS -->
+    <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-10">
+        <!-- Generado dinámicamente por almacenMermasVivo.controller.js -->
+    </div>
+
+    <!-- TOOLTIP FLOTANTE ESTILO TABLEAU MERMAS -->
+    <div id="tooltip-tableau-mermas"
+        class="hidden fixed z-50 pointer-events-none bg-white text-slate-700 text-xs rounded-md shadow-2xl border border-slate-300/80 p-3 min-w-[280px] max-w-[360px] font-sans transition-opacity duration-100">
+        <!-- Generado dinámicamente por JS -->
+    </div>
+
+    <!-- SCRIPTS Y DEPENDENCIAS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <script src="../../core/config.js"></script>
+    <script src="../../assets/utils-graficos/periodo-helper.js"></script>
+
+    <script src="almacenMermasVivo.service.js"></script>
+    <script src="almacenMermasVivo.controller.js"></script>
+
+</body>
+
+</html>
