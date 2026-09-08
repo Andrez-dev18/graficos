@@ -629,23 +629,36 @@
                         <span class="text-[10px] text-slate-500 font-medium">Diario y Acumulado</span>
                     </div>
                     <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="w-full text-left text-xs border-collapse">
+                        <table class="w-full text-left text-xs border-separate border-spacing-0">
                             <thead
-                                class="sticky top-0 z-10 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-xs">
+                                class="sticky top-0 z-30 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-xs">
                                 <tr>
-                                    <th class="px-3 py-2 text-center whitespace-nowrap">Zona Fiscal</th>
-                                    <th class="px-3 py-2 text-center whitespace-nowrap">Día Fechaproceso</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px]">Cant Plan Diaria</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px]">Cant Real Diaria</th>
-                                    <th class="px-3 py-2 text-center min-w-[90px]">Ind Cumplimiento</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px] border-l border-blue-500">Cant Plan
-                                        Acum</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px]">Cant Real Acum</th>
-                                    <th class="px-3 py-2 text-center min-w-[90px]">Ind Acumulado</th>
+                                    <th
+                                        class="px-3 py-2 text-center whitespace-nowrap border-b border-blue-700 bg-blue-600">
+                                        Zona Fiscal</th>
+                                    <th
+                                        class="px-3 py-2 text-center whitespace-nowrap border-b border-blue-700 bg-blue-600">
+                                        Día Fechaproceso</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-b border-blue-700 bg-blue-600">
+                                        Cant Plan Diaria</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-b border-blue-700 bg-blue-600">
+                                        Cant Real Diaria</th>
+                                    <th class="px-3 py-2 text-center min-w-[90px] border-b border-blue-700 bg-blue-600">
+                                        Ind Cumplimiento</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-l border-blue-500 border-b border-blue-700 bg-blue-600">
+                                        Cant Plan Acum</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-b border-blue-700 bg-blue-600">
+                                        Cant Real Acum</th>
+                                    <th class="px-3 py-2 text-center min-w-[90px] border-b border-blue-700 bg-blue-600">
+                                        Ind Acumulado</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-plan-real-zonas" class="divide-y divide-slate-100 text-slate-700">
-                                <!-- Filas con rowspan generadas dinámicamente -->
+                                <!-- Filas generadas dinámicamente -->
                             </tbody>
                         </table>
                     </div>
@@ -664,16 +677,27 @@
                         <span class="text-[10px] text-slate-500 font-medium">Desglose Diario y Totales</span>
                     </div>
                     <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="w-full text-left text-xs border-collapse">
+                        <table class="w-full text-left text-xs border-separate border-spacing-0">
                             <thead
-                                class="sticky top-0 z-10 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-xs">
+                                class="sticky top-0 z-30 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-xs">
                                 <tr>
-                                    <th class="px-3 py-2 text-center whitespace-nowrap">Zona Fiscal</th>
-                                    <th class="px-3 py-2 whitespace-nowrap">Item</th>
-                                    <th class="px-3 py-2 text-center whitespace-nowrap">Día Fechaproceso</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px]">Cantidad Plan</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px]">Cantidad Real</th>
-                                    <th class="px-3 py-2 text-center min-w-[130px]">Indicador</th>
+                                    <th
+                                        class="px-3 py-2 text-center whitespace-nowrap border-b border-blue-700 bg-blue-600">
+                                        Zona Fiscal</th>
+                                    <th class="px-3 py-2 whitespace-nowrap border-b border-blue-700 bg-blue-600">Item
+                                    </th>
+                                    <th
+                                        class="px-3 py-2 text-center whitespace-nowrap border-b border-blue-700 bg-blue-600">
+                                        Día Fechaproceso</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-b border-blue-700 bg-blue-600">
+                                        Cantidad Plan</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-b border-blue-700 bg-blue-600">
+                                        Cantidad Real</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[130px] border-b border-blue-700 bg-blue-600">
+                                        Indicador</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-plan-real-items" class="divide-y divide-slate-100 text-slate-700">
@@ -745,17 +769,27 @@
                         <span id="badge-contador-clientes-dev"
                             class="text-[11px] text-slate-500 font-semibold font-mono">0 clientes</span>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar">
-                        <table class="w-full text-left text-xs border-collapse">
+                    <div class="flex-1 overflow-auto max-h-[42vh] custom-scrollbar">
+                        <table class="w-full text-left text-xs border-separate border-spacing-0">
                             <thead
-                                class="sticky top-0 z-10 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-xs">
+                                class="sticky top-0 z-30 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-xs">
                                 <tr>
-                                    <th class="px-3 py-2 text-center whitespace-nowrap">Zona Fiscal</th>
-                                    <th class="px-3 py-2 whitespace-nowrap">Corporativo</th>
-                                    <th class="px-3 py-2 whitespace-nowrap">nomcliente</th>
-                                    <th class="px-3 py-2 text-center min-w-[140px]">Cantidad</th>
-                                    <th class="px-3 py-2 text-center min-w-[160px]">Peso</th>
-                                    <th class="px-3 py-2 text-center min-w-[160px]">Subtotal / Valor</th>
+                                    <th
+                                        class="px-3 py-2 text-center whitespace-nowrap border-b border-slate-200 bg-blue-600">
+                                        Zona Fiscal</th>
+                                    <th class="px-3 py-2 whitespace-nowrap border-b border-slate-200 bg-blue-600">
+                                        Corporativo</th>
+                                    <th class="px-3 py-2 whitespace-nowrap border-b border-slate-200 bg-blue-600">
+                                        nomcliente</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[140px] border-b border-slate-200 bg-blue-600">
+                                        Cantidad</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[160px] border-b border-slate-200 bg-blue-600">
+                                        Peso</th>
+                                    <th
+                                        class="px-3 py-2 text-center min-w-[160px] border-b border-slate-200 bg-blue-600">
+                                        Subtotal / Valor</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-ranking-clientes-dev" class="divide-y divide-slate-100 text-slate-700">

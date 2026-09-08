@@ -1688,7 +1688,6 @@ class VentasResumenController {
             return;
         }
 
-        // Limpiar espacios en blanco de las zonas
         filas.forEach(f => {
             f.zona = (f.zona || '').trim();
         });
@@ -1714,8 +1713,10 @@ class VentasResumenController {
                 zonasRenderizadas.add(r.zona);
                 const totalFilasZona = conteoPorZona[r.zona];
                 celdaZona = `
-                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
-                        ${r.zona}
+                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top text-center uppercase tracking-wider text-[11px]">
+                        <div class="sticky top-[36px] z-10 py-1 inline-block font-bold text-slate-800">
+                            ${r.zona}
+                        </div>
                     </td>
                 `;
             }
@@ -1723,7 +1724,6 @@ class VentasResumenController {
             const estaSeleccionada = seleccion && seleccion.zona === r.zona && seleccion.fecha === r.fecha;
             const haySeleccion = seleccion !== null;
 
-            // Opacidad tenue de Tableau para filas no seleccionadas
             const opacidadClase = (haySeleccion && !estaSeleccionada) ? 'opacity-30 transition-opacity' : 'opacity-100 transition-opacity';
             const filaBorde = estaSeleccionada
                 ? 'bg-amber-50/70 ring-2 ring-blue-500 ring-inset z-10'
@@ -1731,24 +1731,23 @@ class VentasResumenController {
             const fechaBg = estaSeleccionada ? 'bg-amber-200 text-amber-950 font-bold' : 'text-slate-600 font-medium';
 
             return `
-                <tr class="fila-zona-click cursor-pointer select-none text-[11px] border-b border-slate-100 last:border-b-2 last:border-slate-300 ${filaBorde} ${opacidadClase}"
+                <tr class="fila-zona-click cursor-pointer select-none text-[11px] border-b border-slate-100 ${filaBorde} ${opacidadClase}"
                     data-zona="${r.zona}" 
                     data-fecha="${r.fecha}">
                     ${celdaZona}
-                    <td class="px-3 py-1.5 whitespace-nowrap text-center border-r border-slate-100 ${fechaBg}">
+                    <td class="px-3 py-1.5 whitespace-nowrap text-center border-r border-b border-slate-100 ${fechaBg}">
                         ${this.formatearFechaCortaTableau(r.fecha)}
                     </td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(r.ind_diario, false)}</td>
-                    <td class="px-3 py-1.5 border-l border-slate-200">${this.generarCeldaBarra(r.plan_acum, maxPlanAcum, '#59a14f')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.real_acum, maxRealAcum, '#4e79a7')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(r.ind_acum, false)}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaIndicador(r.ind_diario, false)}</td>
+                    <td class="px-3 py-1.5 border-l border-b border-slate-200">${this.generarCeldaBarra(r.plan_acum, maxPlanAcum, '#59a14f')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.real_acum, maxRealAcum, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaIndicador(r.ind_acum, false)}</td>
                 </tr>
             `;
         }).join('');
 
-        // Eventos de selección cruzada
         tbody.querySelectorAll('.fila-zona-click').forEach(fila => {
             fila.addEventListener('click', () => {
                 const z = fila.getAttribute('data-zona');
@@ -1778,7 +1777,6 @@ class VentasResumenController {
             return;
         }
 
-        // Zona activa (por clic en la tabla superior o AREQUIPA por defecto)
         let zonaActiva = (this.planRealFiltroActivo?.zona || document.getElementById('select-zonafiscal')?.value || 'AREQUIPA').trim();
         if (!zonaActiva || zonaActiva === 'TODO') {
             zonaActiva = 'AREQUIPA';
@@ -1786,7 +1784,6 @@ class VentasResumenController {
 
         const fechaActiva = this.planRealFiltroActivo?.fecha || null;
 
-        // 1. Filtrar registros base reales (excluyendo filas 'Total' precocinadas)
         let baseItems = filas.filter(f => (f.zona || '').trim() === zonaActiva && !f.es_total);
 
         if (fechaActiva) {
@@ -1798,7 +1795,6 @@ class VentasResumenController {
             return;
         }
 
-        // Agrupar por producto y calcular sus filas diarias + fila Total reactiva
         const itemsMap = new Map();
         baseItems.forEach(r => {
             if (!itemsMap.has(r.coditem)) {
@@ -1812,12 +1808,10 @@ class VentasResumenController {
             itemsMap.get(r.coditem).dias.push(r);
         });
 
-        // Construir lista con subtotales calculados dinámicamente según lo visible
         let filasFinales = [];
         let totalGeneralPlan = 0;
         let totalGeneralReal = 0;
 
-        // Ordenar productos
         const itemsOrdenados = Array.from(itemsMap.values()).sort((a, b) =>
             a.coditem.localeCompare(b.coditem, undefined, { numeric: true })
         );
@@ -1842,7 +1836,6 @@ class VentasResumenController {
 
             const subInd = (subPlan > 0) ? ((subReal - subPlan) / subPlan) * 100 : 0;
 
-            // Fila de Total por ítem
             filasFinales.push({
                 zona: prod.zona,
                 coditem: prod.coditem,
@@ -1858,7 +1851,6 @@ class VentasResumenController {
         const maxPlan = Math.max(...filasFinales.map(f => f.plan_diario || 0), totalGeneralPlan, 1);
         const maxReal = Math.max(...filasFinales.map(f => f.real_diario || 0), totalGeneralReal, 1);
 
-        // Conteo de filas para los rowspan
         const conteoPorItem = {};
         filasFinales.forEach(f => {
             conteoPorItem[f.coditem] = (conteoPorItem[f.coditem] || 0) + 1;
@@ -1875,8 +1867,10 @@ class VentasResumenController {
             if (!zonaYaRenderizada) {
                 zonaYaRenderizada = true;
                 celdaZona = `
-                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
-                        ${r.zona}
+                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top text-center uppercase tracking-wider text-[11px]">
+                        <div class="sticky top-[36px] z-10 py-1 inline-block font-bold text-slate-800">
+                            ${r.zona}
+                        </div>
                     </td>
                 `;
             }
@@ -1886,8 +1880,10 @@ class VentasResumenController {
                 itemsRenderizados.add(r.coditem);
                 const spanItem = conteoPorItem[r.coditem];
                 celdaItem = `
-                    <td rowspan="${spanItem}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-middle text-left text-[11px]">
-                        ${r.item}
+                    <td rowspan="${spanItem}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-top text-left text-[11px]">
+                        <div class="sticky top-[36px] z-10 py-1 font-semibold text-slate-800">
+                            ${r.item}
+                        </div>
                     </td>
                 `;
             }
@@ -1901,27 +1897,26 @@ class VentasResumenController {
                 <tr class="${filaEstilo} text-[11px] transition-colors">
                     ${celdaZona}
                     ${celdaItem}
-                    <td class="px-3 py-1.5 whitespace-nowrap text-center font-medium border-r border-slate-100 ${esTotal ? 'font-bold text-slate-900' : 'text-slate-600'}">
+                    <td class="px-3 py-1.5 whitespace-nowrap text-center font-medium border-r border-b border-slate-100 ${esTotal ? 'font-bold text-slate-900' : 'text-slate-600'}">
                         ${fechaTxt}
                     </td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(r.ind_diario, esTotal)}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaIndicador(r.ind_diario, esTotal)}</td>
                 </tr>
             `;
         }).join('');
 
-        // Fila Total General perfectamente alineada (colspan="2" abarcando Item + Día)
         if (fechaActiva) {
             const indGlobal = (totalGeneralPlan > 0) ? ((totalGeneralReal - totalGeneralPlan) / totalGeneralPlan) * 100 : 0;
             html += `
                 <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-[11px]">
-                    <td colspan="2" class="px-3 py-2 text-left uppercase tracking-wider font-bold border-r border-slate-200">
+                    <td colspan="2" class="px-3 py-2 text-left uppercase tracking-wider font-bold border-r border-b border-slate-200">
                         Total
                     </td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(totalGeneralPlan, maxPlan, '#59a14f')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaBarra(totalGeneralReal, maxReal, '#4e79a7')}</td>
-                    <td class="px-3 py-1.5">${this.generarCeldaIndicador(indGlobal, true)}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaBarra(totalGeneralPlan, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaBarra(totalGeneralReal, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaIndicador(indGlobal, true)}</td>
                 </tr>
             `;
         }
@@ -2016,32 +2011,33 @@ class VentasResumenController {
         card.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
 
         card.innerHTML = `
-            <div class="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-xs rounded-lg border border-rose-100">
-                        08DevolucionesSaca
-                    </span>
-                    <h3 class="text-sm font-bold text-slate-800">Mayores Devoluciones por Zona y Motivo</h3>
-                </div>
-                <div class="text-[11px] text-slate-500 font-medium">
-                    Período: <strong class="text-slate-700">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong>
-                </div>
+        <div class="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-xs rounded-lg border border-rose-100">
+                    08DevolucionesSaca
+                </span>
+                <h3 class="text-sm font-bold text-slate-800">Mayores Devoluciones por Zona y Motivo</h3>
             </div>
+            <div class="text-[11px] text-slate-500 font-medium">
+                Período: <strong class="text-slate-700">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong>
+            </div>
+        </div>
 
-            <div class="overflow-x-auto custom-scrollbar">
-                <table class="w-full text-left text-xs border-collapse">
-                    <thead class="bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                        <tr>
-                            <th class="px-4 py-2.5 whitespace-nowrap text-center">Zona Fiscal</th>
-                            <th class="px-4 py-2.5 whitespace-nowrap text-center">Item</th>
-                            <th class="px-4 py-2.5 whitespace-nowrap">Motivo Devolución</th>
-                            <th class="px-4 py-2.5 text-center min-w-[150px]">Cantidad</th>
-                            <th class="px-4 py-2.5 text-center min-w-[170px]">Peso</th>
-                            <th class="px-4 py-2.5 text-center min-w-[180px]">Valor (S/)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 text-slate-700">
-                        ${filasOrdenadas.map(r => {
+        <div class="overflow-x-auto max-h-[75vh] overflow-y-auto custom-scrollbar">
+            <!-- Usamos border-separate y border-spacing-0 para garantizar el sticky en <td> -->
+            <table class="w-full text-left text-xs border-separate border-spacing-0">
+                <thead class="sticky top-0 z-30 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider shadow-sm">
+                    <tr>
+                        <th class="px-4 py-2.5 whitespace-nowrap text-center border-b border-slate-200 bg-blue-600">Zona Fiscal</th>
+                        <th class="px-4 py-2.5 whitespace-nowrap text-center border-b border-slate-200 bg-blue-600">Item</th>
+                        <th class="px-4 py-2.5 whitespace-nowrap border-b border-slate-200 bg-blue-600">Motivo Devolución</th>
+                        <th class="px-4 py-2.5 text-center min-w-[150px] border-b border-slate-200 bg-blue-600">Cantidad</th>
+                        <th class="px-4 py-2.5 text-center min-w-[170px] border-b border-slate-200 bg-blue-600">Peso</th>
+                        <th class="px-4 py-2.5 text-center min-w-[180px] border-b border-slate-200 bg-blue-600">Valor (S/)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    ${filasOrdenadas.map(r => {
             const z = r.zona;
             const itemKey = `${r.zona}|${r.coditem}`;
 
@@ -2049,20 +2045,24 @@ class VentasResumenController {
             if (!zonasRenderizadas.has(z)) {
                 zonasRenderizadas.add(z);
                 celdaZona = `
-                                    <td rowspan="${conteoZona[z]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b-2 border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
+                                <td rowspan="${conteoZona[z]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top text-center uppercase tracking-wider text-[11px]">
+                                    <div class="sticky top-[45px] z-10 py-1 inline-block font-bold text-slate-800">
                                         ${r.zona}
-                                    </td>
-                                `;
+                                    </div>
+                                </td>
+                            `;
             }
 
             let celdaItem = '';
             if (!itemsRenderizados.has(itemKey)) {
                 itemsRenderizados.add(itemKey);
                 celdaItem = `
-                                    <td rowspan="${conteoItem[itemKey]}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-middle text-left text-[11px]">
+                                <td rowspan="${conteoItem[itemKey]}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b border-slate-200 align-top text-left text-[11px]">
+                                    <div class="sticky top-[45px] z-10 py-1">
                                         ${r.item}
-                                    </td>
-                                `;
+                                    </div>
+                                </td>
+                            `;
             }
 
             const valCant = Number(r.cant || 0);
@@ -2078,61 +2078,61 @@ class VentasResumenController {
             const txtValor = (valMonto < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(valMonto), true);
 
             return `
-                                <tr class="hover:bg-rose-50/40 transition-colors text-[11px] cursor-pointer border-b border-slate-100 fila-motivo-dev"
-                                    data-zona="${r.zona}"
-                                    data-coditem="${r.coditem}"
-                                    data-item="${r.item}"
-                                    data-nomdev="${r.nomdevolucion}"
-                                    data-nomdoc="${r.nomdoc || 'Nota de crédito'}"
-                                    data-cant="${txtCant}"
-                                    data-peso="${txtPeso}"
-                                    data-total="${txtValor}">
-                                    ${celdaZona}
-                                    ${celdaItem}
-                                    <td class="px-3 py-2 font-medium text-slate-800 whitespace-nowrap border-r border-slate-100">
-                                        ${r.nomdevolucion}
-                                    </td>
+                            <tr class="hover:bg-rose-50/40 transition-colors text-[11px] cursor-pointer border-b border-slate-100 fila-motivo-dev"
+                                data-zona="${r.zona}"
+                                data-coditem="${r.coditem}"
+                                data-item="${r.item}"
+                                data-nomdev="${r.nomdevolucion}"
+                                data-nomdoc="${r.nomdoc || 'Nota de crédito'}"
+                                data-cant="${txtCant}"
+                                data-peso="${txtPeso}"
+                                data-total="${txtValor}">
+                                ${celdaZona}
+                                ${celdaItem}
+                                <td class="px-3 py-2 font-medium text-slate-800 whitespace-nowrap border-r border-b border-slate-100">
+                                    ${r.nomdevolucion}
+                                </td>
 
-                                    <!-- Barra Cantidad -->
-                                    <td class="px-3 py-2 border-r border-slate-100">
-                                        <div class="flex items-center justify-end gap-1.5 w-full">
-                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtCant}</span>
-                                            <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
-                                                ${pctCant > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctCant}%;"></div>` : ''}
-                                            </div>
+                                <!-- Barra Cantidad -->
+                                <td class="px-3 py-2 border-r border-b border-slate-100">
+                                    <div class="flex items-center justify-end gap-1.5 w-full">
+                                        <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtCant}</span>
+                                        <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
+                                            ${pctCant > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctCant}%;"></div>` : ''}
                                         </div>
-                                    </td>
+                                    </div>
+                                </td>
 
-                                    <!-- Barra Peso -->
-                                    <td class="px-3 py-2 border-r border-slate-100">
-                                        <div class="flex items-center justify-end gap-1.5 w-full">
-                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtPeso}</span>
-                                            <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
-                                                ${pctPeso > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctPeso}%;"></div>` : ''}
-                                            </div>
+                                <!-- Barra Peso -->
+                                <td class="px-3 py-2 border-r border-b border-slate-100">
+                                    <div class="flex items-center justify-end gap-1.5 w-full">
+                                        <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtPeso}</span>
+                                        <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
+                                            ${pctPeso > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctPeso}%;"></div>` : ''}
                                         </div>
-                                    </td>
+                                    </div>
+                                </td>
 
-                                    <!-- Barra Valor -->
-                                    <td class="px-3 py-2">
-                                        <div class="flex items-center justify-end gap-1.5 w-full">
-                                            <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">${txtValor}</span>
-                                            <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
-                                                ${pctValor > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctValor}%;"></div>` : ''}
-                                            </div>
+                                <!-- Barra Valor -->
+                                <td class="px-3 py-2 border-b border-slate-100">
+                                    <div class="flex items-center justify-end gap-1.5 w-full">
+                                        <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">${txtValor}</span>
+                                        <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
+                                            ${pctValor > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctValor}%;"></div>` : ''}
                                         </div>
-                                    </td>
-                                </tr>
-                            `;
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
         }).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
+                </tbody>
+            </table>
+        </div>
+    `;
 
         contenedor.appendChild(card);
         this.asignarEventosFilasDevolucion();
-        this.asignarEventosTooltipDevolucion(); // Enlazar tooltip de Tableau
+        this.asignarEventosTooltipDevolucion();
     }
 
     /**
@@ -2282,15 +2282,16 @@ class VentasResumenController {
         const badge = document.getElementById('badge-contador-clientes-dev');
         if (!tbody) return;
 
-        if (badge) badge.textContent = `${clientes.length} clientes`;
+        const listaSegura = Array.isArray(clientes) ? clientes : [];
+        if (badge) badge.textContent = `${listaSegura.length} clientes`;
 
-        if (clientes.length === 0) {
+        if (listaSegura.length === 0) {
             tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-xs text-slate-400">Sin devoluciones para este motivo.</td></tr>`;
             return;
         }
 
-        // Orden de menor a mayor impacto (ascendente en pérdida)
-        const clientesOrdenados = [...clientes].sort((a, b) => Number(b.valor_dev || 0) - Number(a.valor_dev || 0));
+        // Orden de menor a mayor importe negativo (ascendente en pérdida)
+        const clientesOrdenados = [...listaSegura].sort((a, b) => Number(b.valor_dev || 0) - Number(a.valor_dev || 0));
 
         const maxCant = Math.max(...clientesOrdenados.map(c => Math.abs(Number(c.cant_dev || 0))), 1);
         const maxPeso = Math.max(...clientesOrdenados.map(c => Math.abs(Number(c.peso_dev || 0))), 1);
@@ -2299,25 +2300,27 @@ class VentasResumenController {
         // Conteo por Zona para rowspan vertical
         const conteoZona = {};
         clientesOrdenados.forEach(c => {
-            const z = c.zonafiscal || 'SIN ZONA';
+            const z = (c.zonafiscal || 'SIN ZONA').trim();
             conteoZona[z] = (conteoZona[z] || 0) + 1;
         });
 
         const zonasRenderizadas = new Set();
 
-        tbody.innerHTML = clientesOrdenados.map(c => {
-            const z = c.zonafiscal || 'SIN ZONA';
-            const nomCorp = c.corporativo || c.nomcliente || '-';
-            const valCant = Number(c.cant_dev || 0);
-            const valPeso = Number(c.peso_dev || 0);
-            const valValor = Number(c.valor_dev || 0);
+        tbody.innerHTML = clientesOrdenados.map(r => {
+            const z = (r.zonafiscal || 'SIN ZONA').trim();
+            const nomCorp = r.corporativo || r.nomcliente || '-';
+            const valCant = Number(r.cant_dev || 0);
+            const valPeso = Number(r.peso_dev || 0);
+            const valValor = Number(r.valor_dev || 0);
 
             let celdaZona = '';
             if (!zonasRenderizadas.has(z)) {
                 zonasRenderizadas.add(z);
                 celdaZona = `
-                    <td rowspan="${conteoZona[z]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b-2 border-slate-200 align-middle text-center uppercase tracking-wider text-[11px]">
-                        ${z}
+                    <td rowspan="${conteoZona[z]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top text-center uppercase tracking-wider text-[11px]">
+                        <div class="sticky top-[38px] z-10 py-1 inline-block font-bold text-slate-800">
+                            ${z}
+                        </div>
                     </td>
                 `;
             }
@@ -2338,11 +2341,11 @@ class VentasResumenController {
                     data-peso="${txtPeso}"
                     data-total="${txtValor}">
                     ${celdaZona}
-                    <td class="px-3 py-1.5 font-bold text-slate-800 whitespace-nowrap">${nomCorp}</td>
-                    <td class="px-3 py-1.5 text-slate-600 whitespace-nowrap border-r border-slate-100">${c.nomcliente || '-'}</td>
+                    <td class="px-3 py-1.5 font-bold text-slate-800 whitespace-nowrap border-b border-slate-100">${nomCorp}</td>
+                    <td class="px-3 py-1.5 text-slate-600 whitespace-nowrap border-r border-b border-slate-100">${r.nomcliente || '-'}</td>
                     
                     <!-- Barra Cantidad -->
-                    <td class="px-3 py-1.5 border-r border-slate-100">
+                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
                         <div class="flex items-center justify-end gap-1.5 w-full">
                             <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtCant}</span>
                             <div class="w-20 h-3 bg-slate-100 flex justify-start">
@@ -2352,7 +2355,7 @@ class VentasResumenController {
                     </td>
 
                     <!-- Barra Peso -->
-                    <td class="px-3 py-1.5 border-r border-slate-100">
+                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
                         <div class="flex items-center justify-end gap-1.5 w-full">
                             <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtPeso}</span>
                             <div class="w-24 h-3 bg-slate-100 flex justify-start">
@@ -2362,7 +2365,7 @@ class VentasResumenController {
                     </td>
 
                     <!-- Barra Valor -->
-                    <td class="px-3 py-1.5">
+                    <td class="px-3 py-1.5 border-b border-slate-100">
                         <div class="flex items-center justify-end gap-1.5 w-full">
                             <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">${txtValor}</span>
                             <div class="w-24 h-3 bg-slate-100 flex justify-start">
