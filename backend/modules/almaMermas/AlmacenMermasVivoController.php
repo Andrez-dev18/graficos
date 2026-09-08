@@ -40,4 +40,30 @@ class AlmacenMermasVivoController
         }
         exit;
     }
-}
+
+    /**
+     * Endpoint POST: Porcentaje de Merma Diaria por Fecha de Proceso y Cliente
+     */
+    public function getPorcMermaProcesoDiaCliente()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerPorcMermaProcesoDiaCliente($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al procesar PorcMermaProcesoDiaCliente: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+}

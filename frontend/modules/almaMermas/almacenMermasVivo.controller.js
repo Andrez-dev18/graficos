@@ -110,7 +110,7 @@ class AlmacenMermasVivoController {
 
         return {
             tipo_grafico: document.getElementById('select-tipo-grafico')?.value || 'PorcMermaProcesoDiaClientePlaca',
-            dato: document.getElementById('select-filtro-dato')?.value || 'Valor',
+            dato: document.getElementById('select-filtro-dato')?.value || 'TODO',
             fecha_inicio: fechaInicio,
             fecha_fin: fechaFin
         };
@@ -485,10 +485,168 @@ class AlmacenMermasVivoController {
         });
     }
 
-    renderizarPorcMermaProcesoDiaCliente(data) {
+    /**
+     * Renderiza la tabla Porcentaje de Merma Diaria por Fecha de Proceso / Cliente
+     */
+    renderizarPorcMermaProcesoDiaCliente(filas) {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
-        contenedor.innerHTML = `<div class="p-6 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 font-semibold">Vista PorcMermaProcesoDiaCliente en desarrollo.</div>`;
+        contenedor.innerHTML = '';
+
+        if (!filas || filas.length === 0) {
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Sin registros para esta selección.</div>`;
+            return;
+        }
+
+        const filasOrdenadas = [...filas].sort((a, b) => {
+            const cmpFecha = (a.fechaproceso || '').localeCompare(b.fechaproceso || '');
+            if (cmpFecha !== 0) return cmpFecha;
+            return (a.cliente || '').localeCompare(b.cliente || '');
+        });
+
+        const conteoFecha = {};
+        filasOrdenadas.forEach(f => {
+            const fec = f.fechaproceso;
+            conteoFecha[fec] = (conteoFecha[fec] || 0) + 1;
+        });
+
+        const fechasRenderizadas = new Set();
+
+        const card = document.createElement('div');
+        card.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
+
+        card.innerHTML = `
+            <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                        Porcentaje de Merma Diaria por Fecha de Proceso/Cliente
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Métricas de mermas relativas calculadas sobre la Entrada Total
+                    </p>
+                </div>
+                <div class="text-[11px] text-slate-500 font-medium">
+                    Período: <strong class="text-slate-800 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[76vh] overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-xs border-separate border-spacing-0">
+                    <thead class="sticky top-0 z-30 bg-blue-600 text-white border-b border-slate-300 shadow-xs">
+                        <tr class="text-[10px] font-bold uppercase tracking-wider">
+                            <th class="px-3 py-2.5 whitespace-nowrap text-left border-b border-r border-slate-200">Día de fechap..</th>
+                            <th class="px-3 py-2.5 whitespace-nowrap text-left border-b border-r border-slate-200">cliente</th>
+                            
+                            <th class="px-3 py-2.5 text-center min-w-[140px] border-b border-r border-slate-200">Merma Total</th>
+                            <th class="px-3 py-2.5 text-center min-w-[120px] border-b border-r border-slate-200">Merma Almacenaje</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-r border-slate-200">Merma Muerto Distribucion</th>
+                            <th class="px-3 py-2.5 text-center min-w-[140px] border-b border-r border-slate-200">Merma Muerto Transporte</th>
+                            <th class="px-3 py-2.5 text-center min-w-[110px] border-b border-r border-slate-200">Merma No Apto</th>
+                            <th class="px-3 py-2.5 text-center min-w-[140px] border-b border-r border-slate-200">Merma Transporte</th>
+                            <th class="px-3 py-2.5 text-center min-w-[120px] border-b border-r border-slate-200">Merma Bene Manual</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-slate-200">Merma Bene Mecaniza</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-slate-700">
+                        ${filasOrdenadas.map(r => {
+            const fec = r.fechaproceso;
+
+            let celdaFecha = '';
+            if (!fechasRenderizadas.has(fec)) {
+                fechasRenderizadas.add(fec);
+                celdaFecha = `
+                                    <td rowspan="${conteoFecha[fec]}" class="px-3 py-2 font-semibold text-slate-800 bg-slate-50/80 border-r border-b border-slate-200 align-top text-left text-[11px]">
+                                        <div class="sticky top-[42px] z-10 py-1 font-semibold text-slate-800">
+                                            ${r.fecha_formateada || fec}
+                                        </div>
+                                    </td>
+                                `;
+            }
+
+            // Metadatos empaquetados para la barra y tooltip
+            const meta = {
+                cliente: r.cliente,
+                fecha: r.fecha_formateada || fec,
+                total: this.formatearPorcentaje(r.pct_mermatotal),
+                alm: this.formatearPorcentaje(r.pct_mermaalmacenaje),
+                muertodist: this.formatearPorcentaje(r.pct_mermamuertodistribucion),
+                muertotransp: this.formatearPorcentaje(r.pct_mermamuertotransporte),
+                noapto: this.formatearPorcentaje(r.pct_mermanoapto),
+                transp: this.formatearPorcentaje(r.pct_mermatransporte)
+            };
+
+            return `
+                                <tr class="hover:bg-slate-50/40 transition-colors text-[11px] border-b border-slate-100">
+                                    ${celdaFecha}
+                                    <td class="px-3 py-2 font-bold text-slate-800 bg-white border-r border-b border-slate-100 align-middle text-left uppercase tracking-wider text-[11px] whitespace-nowrap">
+                                        ${r.cliente}
+                                    </td>
+
+                                    <!-- 1. Merma Total -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermatotal, 6.0, meta)}
+                                    </td>
+
+                                    <!-- 2. Merma Almacenaje -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermaalmacenaje, 4.0, meta)}
+                                    </td>
+
+                                    <!-- 3. Merma Muerto Distribucion -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermamuertodistribucion, 4.0, meta)}
+                                    </td>
+
+                                    <!-- 4. Merma Muerto Transporte -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermamuertotransporte, 4.0, meta)}
+                                    </td>
+
+                                    <!-- 5. Merma No Apto -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermanoapto, 4.0, meta)}
+                                    </td>
+
+                                    <!-- 6. Merma Transporte -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermatransporte, 6.0, meta)}
+                                    </td>
+
+                                    <!-- 7. Merma Bene Manual -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermatransbenemanual, 4.0, meta)}
+                                    </td>
+
+                                    <!-- 8. Merma Bene Mecaniza -->
+                                    <td class="px-3 py-1.5 border-b border-slate-100">
+                                        ${this.generarBarraTableau(r.pct_mermatransbenemecani, 6.0, meta)}
+                                    </td>
+                                </tr>
+                            `;
+        }).join('')}
+                    </tbody>
+
+                    <tfoot class="sticky bottom-0 z-20 bg-slate-50 border-t-2 border-slate-300 text-[9px] font-mono text-slate-500">
+                        <tr>
+                            <td colspan="2" class="px-3 py-1 text-right font-bold uppercase tracking-wider text-slate-600 border-r border-slate-200">
+                                Escala
+                            </td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0,00% 2,00% 4,00% 6,00%</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0,00 0,01 0,02 0,03 0,04</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0,00 0,02 0,04 0,06</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0</td>
+                            <td class="px-2 py-1 text-left">0,00 0,02 0,04 0,06</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+
+        contenedor.appendChild(card);
+        this.asignarEventosTooltipMermas();
     }
 
     renderizarPorcMermaProcesoDiaClienteZona(data) {
