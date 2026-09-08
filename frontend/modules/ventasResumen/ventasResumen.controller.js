@@ -1986,16 +1986,15 @@ class VentasResumenController {
             return;
         }
 
-        // 1. ORDENAMIENTO ESTRICTO: Primero por ZONA, luego por ITEM, y finalmente por VALOR
+        // Ordenamiento estricto: Zona -> Item -> Valor
         const filasOrdenadas = [...filas].sort((a, b) => {
             const cmpZona = (a.zona || '').localeCompare(b.zona || '');
             if (cmpZona !== 0) return cmpZona;
             const cmpItem = (a.coditem || '').localeCompare(b.coditem || '', undefined, { numeric: true });
             if (cmpItem !== 0) return cmpItem;
-            return Number(a.valor || 0) - Number(b.valor || 0); // Mayor impacto negativo primero
+            return Number(a.valor || 0) - Number(b.valor || 0);
         });
 
-        // 2. Conteo exacto de filas para rowspan jerárquico
         const conteoZona = {};
         const conteoItem = {};
 
@@ -2006,7 +2005,6 @@ class VentasResumenController {
             conteoItem[itemKey] = (conteoItem[itemKey] || 0) + 1;
         });
 
-        // Valores máximos para la escala de barras
         const maxCant = Math.max(...filasOrdenadas.map(f => Math.abs(Number(f.cant || 0))), 1);
         const maxPeso = Math.max(...filasOrdenadas.map(f => Math.abs(Number(f.peso || 0))), 1);
         const maxValor = Math.max(...filasOrdenadas.map(f => Math.abs(Number(f.valor || 0))), 1);
@@ -2018,7 +2016,6 @@ class VentasResumenController {
         card.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
 
         card.innerHTML = `
-            <!-- HEADER DE LA TARJETA PRINCIPAL -->
             <div class="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 font-bold text-xs rounded-lg border border-rose-100">
@@ -2031,7 +2028,6 @@ class VentasResumenController {
                 </div>
             </div>
 
-            <!-- TABLA PRINCIPAL TABLEAU -->
             <div class="overflow-x-auto custom-scrollbar">
                 <table class="w-full text-left text-xs border-collapse">
                     <thead class="bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
@@ -2073,7 +2069,6 @@ class VentasResumenController {
             const valPeso = Number(r.peso || 0);
             const valMonto = Number(r.valor || 0);
 
-            // Porcentajes de ancho de barra
             const pctCant = Math.min(Math.max((Math.abs(valCant) / maxCant) * 100, 0), 100);
             const pctPeso = Math.min(Math.max((Math.abs(valPeso) / maxPeso) * 100, 0), 100);
             const pctValor = Math.min(Math.max((Math.abs(valMonto) / maxValor) * 100, 0), 100);
@@ -2083,47 +2078,45 @@ class VentasResumenController {
             const txtValor = (valMonto < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(valMonto), true);
 
             return `
-                                <tr class="hover:bg-rose-50/40 transition-colors text-[11px] cursor-pointer border-b border-slate-100 last:border-b-2 last:border-slate-300 fila-motivo-dev"
+                                <tr class="hover:bg-rose-50/40 transition-colors text-[11px] cursor-pointer border-b border-slate-100 fila-motivo-dev"
                                     data-zona="${r.zona}"
                                     data-coditem="${r.coditem}"
                                     data-item="${r.item}"
-                                    data-nomdev="${r.nomdevolucion}">
+                                    data-nomdev="${r.nomdevolucion}"
+                                    data-nomdoc="${r.nomdoc || 'Nota de crédito'}"
+                                    data-cant="${txtCant}"
+                                    data-peso="${txtPeso}"
+                                    data-total="${txtValor}">
                                     ${celdaZona}
                                     ${celdaItem}
                                     <td class="px-3 py-2 font-medium text-slate-800 whitespace-nowrap border-r border-slate-100">
                                         ${r.nomdevolucion}
                                     </td>
 
-                                    <!-- Barra Cantidad (Divergente estilo Tableau con límite derecho) -->
+                                    <!-- Barra Cantidad -->
                                     <td class="px-3 py-2 border-r border-slate-100">
                                         <div class="flex items-center justify-end gap-1.5 w-full">
-                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">
-                                                ${txtCant}
-                                            </span>
+                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtCant}</span>
                                             <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
                                                 ${pctCant > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctCant}%;"></div>` : ''}
                                             </div>
                                         </div>
                                     </td>
 
-                                    <!-- Barra Peso (Divergente estilo Tableau) -->
+                                    <!-- Barra Peso -->
                                     <td class="px-3 py-2 border-r border-slate-100">
                                         <div class="flex items-center justify-end gap-1.5 w-full">
-                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">
-                                                ${txtPeso}
-                                            </span>
+                                            <span class="text-[10px] font-mono font-medium text-slate-700 whitespace-nowrap">${txtPeso}</span>
                                             <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
                                                 ${pctPeso > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctPeso}%;"></div>` : ''}
                                             </div>
                                         </div>
                                     </td>
 
-                                    <!-- Barra Valor (Divergente estilo Tableau) -->
+                                    <!-- Barra Valor -->
                                     <td class="px-3 py-2">
                                         <div class="flex items-center justify-end gap-1.5 w-full">
-                                            <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">
-                                                ${txtValor}
-                                            </span>
+                                            <span class="text-[10px] font-mono font-bold text-rose-800 whitespace-nowrap">${txtValor}</span>
                                             <div class="w-24 h-3.5 bg-slate-100 flex justify-start">
                                                 ${pctValor > 0 ? `<div class="h-full bg-[#BA2525]" style="width: ${pctValor}%;"></div>` : ''}
                                             </div>
@@ -2139,6 +2132,7 @@ class VentasResumenController {
 
         contenedor.appendChild(card);
         this.asignarEventosFilasDevolucion();
+        this.asignarEventosTooltipDevolucion(); // Enlazar tooltip de Tableau
     }
 
     /**
@@ -2153,6 +2147,78 @@ class VentasResumenController {
                 const nomdevolucion = fila.getAttribute('data-nomdev');
 
                 this.abrirModalDetalleDevolucion({ zona, coditem, item, nomdevolucion });
+            });
+        });
+    }
+
+    /**
+     * Gestiona la visualización del Tooltip flotante al pasar el mouse por las filas
+     */
+    asignarEventosTooltipDevolucion() {
+        const tooltip = document.getElementById('tooltip-tableau-devoluciones');
+        if (!tooltip) return;
+
+        document.querySelectorAll('.fila-motivo-dev').forEach(fila => {
+            fila.addEventListener('mouseenter', (e) => {
+                const nomdev = fila.getAttribute('data-nomdev');
+                const nomdoc = fila.getAttribute('data-nomdoc');
+                const item = fila.getAttribute('data-item');
+                const zona = fila.getAttribute('data-zona');
+                const cant = fila.getAttribute('data-cant');
+                const peso = fila.getAttribute('data-peso');
+                const total = fila.getAttribute('data-total');
+
+                tooltip.innerHTML = `
+                    <div class="grid grid-cols-12 gap-y-1 text-[11px] leading-tight select-none">
+                        <div class="col-span-5 text-slate-500 font-normal">nomdevolucion:</div>
+                        <div class="col-span-7 font-semibold text-slate-900 truncate" title="${nomdev}">${nomdev}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">nomdoc:</div>
+                        <div class="col-span-7 font-medium text-slate-800">${nomdoc}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">Item:</div>
+                        <div class="col-span-7 font-medium text-slate-800 truncate" title="${item}">${item}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">zonafiscal:</div>
+                        <div class="col-span-7 font-medium text-slate-800">${zona}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">cantidad:</div>
+                        <div class="col-span-7 font-mono font-medium text-slate-900">${cant}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">peso:</div>
+                        <div class="col-span-7 font-mono font-medium text-slate-900">${peso}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">total:</div>
+                        <div class="col-span-7 font-mono font-semibold text-slate-900">${total}</div>
+                    </div>
+                `;
+
+                tooltip.classList.remove('hidden');
+            });
+
+            fila.addEventListener('mousemove', (e) => {
+                const offsetX = 16;
+                const offsetY = 16;
+                const tooltipWidth = tooltip.offsetWidth;
+                const tooltipHeight = tooltip.offsetHeight;
+
+                let posX = e.clientX + offsetX;
+                let posY = e.clientY + offsetY;
+
+                // Evitar que el tooltip se salga de la pantalla por la derecha o por abajo
+                if (posX + tooltipWidth > window.innerWidth) {
+                    posX = e.clientX - tooltipWidth - 10;
+                }
+                if (posY + tooltipHeight > window.innerHeight) {
+                    posY = e.clientY - tooltipHeight - 10;
+                }
+
+                tooltip.style.left = `${posX}px`;
+                tooltip.style.top = `${posY}px`;
+            });
+
+            fila.addEventListener('mouseleave', () => {
+                tooltip.classList.add('hidden');
             });
         });
     }
@@ -2194,7 +2260,7 @@ class VentasResumenController {
             if (res && res.success && res.payload && res.payload.data) {
                 const { tendencia, clientes } = res.payload.data;
                 this.renderizarRankingClientesDev(clientes || []);
-                this.renderizarGraficoTendenciaDev(tendencia || { fechas: [], pesos: [] });
+                this.renderizarGraficoTendenciaDev(tendencia || { fechas: [], pesos: [] }, { zona, coditem, item, nomdevolucion });
                 contenido?.classList.remove('hidden');
             } else {
                 alert('No se encontraron registros para este motivo.');
@@ -2223,7 +2289,7 @@ class VentasResumenController {
             return;
         }
 
-        // Orden de menor a mayor impacto (ej. -12, -14 ... hasta los montos más grandes)
+        // Orden de menor a mayor impacto (ascendente en pérdida)
         const clientesOrdenados = [...clientes].sort((a, b) => Number(b.valor_dev || 0) - Number(a.valor_dev || 0));
 
         const maxCant = Math.max(...clientesOrdenados.map(c => Math.abs(Number(c.cant_dev || 0))), 1);
@@ -2241,6 +2307,7 @@ class VentasResumenController {
 
         tbody.innerHTML = clientesOrdenados.map(c => {
             const z = c.zonafiscal || 'SIN ZONA';
+            const nomCorp = c.corporativo || c.nomcliente || '-';
             const valCant = Number(c.cant_dev || 0);
             const valPeso = Number(c.peso_dev || 0);
             const valValor = Number(c.valor_dev || 0);
@@ -2264,9 +2331,14 @@ class VentasResumenController {
             const txtValor = (valValor < 0 ? '-S/ ' : 'S/ ') + this.formatearNumeroTableau(Math.abs(valValor), true);
 
             return `
-                <tr class="hover:bg-rose-50/30 transition-colors text-[11px] border-b border-slate-100">
+                <tr class="hover:bg-rose-50/30 transition-colors text-[11px] border-b border-slate-100 cursor-pointer fila-cliente-modal"
+                    data-tipo="DEVOLUCIONES"
+                    data-corporativo="${nomCorp}"
+                    data-cant="${txtCant}"
+                    data-peso="${txtPeso}"
+                    data-total="${txtValor}">
                     ${celdaZona}
-                    <td class="px-3 py-1.5 font-bold text-slate-800 whitespace-nowrap">${c.corporativo || '-'}</td>
+                    <td class="px-3 py-1.5 font-bold text-slate-800 whitespace-nowrap">${nomCorp}</td>
                     <td class="px-3 py-1.5 text-slate-600 whitespace-nowrap border-r border-slate-100">${c.nomcliente || '-'}</td>
                     
                     <!-- Barra Cantidad -->
@@ -2301,16 +2373,80 @@ class VentasResumenController {
                 </tr>
             `;
         }).join('');
+
+        this.asignarEventosTooltipClientesDev();
+    }
+
+    /**
+     * Gestiona la visualización del Tooltip flotante al pasar el mouse por las filas del modal
+     */
+    asignarEventosTooltipClientesDev() {
+        const tooltip = document.getElementById('tooltip-tableau-clientes-dev');
+        if (!tooltip) return;
+
+        document.querySelectorAll('.fila-cliente-modal').forEach(fila => {
+            fila.addEventListener('mouseenter', () => {
+                const tipo = fila.getAttribute('data-tipo');
+                const corp = fila.getAttribute('data-corporativo');
+                const cant = fila.getAttribute('data-cant');
+                const peso = fila.getAttribute('data-peso');
+                const total = fila.getAttribute('data-total');
+
+                tooltip.innerHTML = `
+                    <div class="grid grid-cols-12 gap-y-1 text-[11px] leading-tight select-none">
+                        <div class="col-span-5 text-slate-500 font-normal">Tipo:</div>
+                        <div class="col-span-7 font-bold text-slate-900">${tipo}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">nomcorporativo:</div>
+                        <div class="col-span-7 font-semibold text-slate-900 truncate" title="${corp}">${corp}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">cantidad:</div>
+                        <div class="col-span-7 font-mono font-medium text-slate-900">${cant}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">peso:</div>
+                        <div class="col-span-7 font-mono font-medium text-slate-900">${peso}</div>
+
+                        <div class="col-span-5 text-slate-500 font-normal">total:</div>
+                        <div class="col-span-7 font-mono font-semibold text-slate-900">${total}</div>
+                    </div>
+                `;
+
+                tooltip.classList.remove('hidden');
+            });
+
+            fila.addEventListener('mousemove', (e) => {
+                const offsetX = 16;
+                const offsetY = 16;
+                const tooltipWidth = tooltip.offsetWidth;
+                const tooltipHeight = tooltip.offsetHeight;
+
+                let posX = e.clientX + offsetX;
+                let posY = e.clientY + offsetY;
+
+                if (posX + tooltipWidth > window.innerWidth) {
+                    posX = e.clientX - tooltipWidth - 10;
+                }
+                if (posY + tooltipHeight > window.innerHeight) {
+                    posY = e.clientY - tooltipHeight - 10;
+                }
+
+                tooltip.style.left = `${posX}px`;
+                tooltip.style.top = `${posY}px`;
+            });
+
+            fila.addEventListener('mouseleave', () => {
+                tooltip.classList.add('hidden');
+            });
+        });
     }
 
     /**
      * Renderiza el gráfico inferior de tendencia con línea roja y etiquetas de datos (Tableau Style)
      */
-    renderizarGraficoTendenciaDev(tendencia) {
+    renderizarGraficoTendenciaDev(tendencia, contextoMotivo = {}) {
         const canvas = document.getElementById('canvas-tendencia-devolucion');
         if (!canvas) return;
 
-        // Destruir instancia previa si existe
         if (this.chartTendenciaDev) {
             this.chartTendenciaDev.destroy();
             this.chartTendenciaDev = null;
@@ -2356,8 +2492,30 @@ class VentasResumenController {
                     },
                     tooltip: {
                         enabled: true,
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0f172a',
+                        bodyColor: '#334155',
+                        borderColor: '#cbd5e1',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        displayColors: false,
+                        titleFont: { size: 11, weight: 'normal' },
+                        bodyFont: { size: 11, family: 'sans-serif' },
                         callbacks: {
-                            label: (ctx) => `Devolución: ${self.formatearNumeroTableau(ctx.raw, true)} Kg`
+                            title: () => '',
+                            label: (context) => {
+                                const fTexto = context.label;
+                                const pesoVal = `${self.formatearNumeroTableau(context.raw, true)} Kg`;
+                                return [
+                                    `fechaproceso:    ${fTexto}`,
+                                    `nomdevolucion:  ${contextoMotivo.nomdevolucion || '-'}`,
+                                    `nomdoc:             Nota de crédito`,
+                                    `Item:                  ${contextoMotivo.item || '-'}`,
+                                    `zonafiscal:         ${contextoMotivo.zona || '-'}`,
+                                    `peso:                 ${pesoVal}`
+                                ];
+                            }
                         }
                     }
                 },
@@ -2399,8 +2557,8 @@ class VentasResumenController {
 
         const lineaSeleccionada = this.msLineaProceso ? this.msLineaProceso.getSelectedValues()[0] : '1 P. Vivo';
 
-        const tituloVista = (tipoActivo === '06VentasSaca') 
-            ? 'Ver datos: 6.1 VentTotalesProcZonaCant (1 marca)' 
+        const tituloVista = (tipoActivo === '06VentasSaca')
+            ? 'Ver datos: 6.1 VentTotalesProcZonaCant (1 marca)'
             : 'Ver datos: 7.1 VentTotalesProcZonaCant (1 marca)';
 
         document.getElementById('modal-titulo-vista').textContent = tituloVista;

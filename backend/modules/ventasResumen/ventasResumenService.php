@@ -490,6 +490,7 @@ class VentasResumenService
                 'coditem'       => $row['coditem'],
                 'item'          => $row['item'],
                 'nomdevolucion' => $row['nomdevolucion'],
+                'nomdoc'        => $row['nomdoc'] ?? 'Nota de crédito',
                 'cant'          => (float)$row['total_cant'],
                 'peso'          => (float)$row['total_peso'],
                 'valor'         => (float)$row['total_valor']

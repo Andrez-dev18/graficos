@@ -351,6 +351,7 @@ class VentasResumenRepo
                     coditem,
                     CONCAT(coditem, ' ', nomitem) AS item,
                     nomdevolucion,
+                    COALESCE(NULLIF(MAX(nomdoc), ''), 'Nota de crédito') AS nomdoc,
                     ROUND(SUM(COALESCE(cantidad, 0)), 2) AS total_cant,
                     ROUND(SUM(COALESCE(peso, 0)), 2) AS total_peso,
                     ROUND(SUM(COALESCE(total, 0)), 2) AS total_valor
