@@ -161,6 +161,32 @@ const ModalSchemas = {
                 { key: 'cantidadventa', label: 'cantidadventa', align: 'right', format: 'currency4' },
                 { key: 'sum_ratio', label: 'SUM([cantidaddevolucion', align: 'right' }
             ]
+        },
+
+        // 7. Gráfico 06VentasSaca (Ventas SACA Resumen / Completos)
+        '06VentasSaca': {
+            resumen: [
+                { key: 'lineaproceso', label: 'lineaproceso', align: 'left', fontClass: 'font-medium' },
+                { key: 'dia_fechaproceso', label: 'Día de fechaproceso', align: 'left', nowrap: true },
+                { key: 'ratio_dev', label: 'SUM([cantidaddevolucion])/SUM([cantidadventa])', align: 'right', format: 'ratio8', fontClass: 'font-medium' },
+                { key: 'cantidad', label: 'cantidad', align: 'right', format: 'currency', fontClass: 'font-medium' }
+            ],
+            detalle: [
+                { key: 'lineaproceso', label: 'lineaproceso', align: 'left', fontClass: 'font-medium' },
+                { key: 'dia_fechaproceso', label: 'Día de fechaproceso', align: 'left', nowrap: true },
+                { key: 'tipo_doc', label: 'iF [coddoc]="01" OR [codd', align: 'left', nowrap: true },
+                { key: 'zonafiscal', label: 'zonafiscal', align: 'left' },
+                { key: 'familia', label: 'familia', align: 'left' },
+                { key: 'fechaproceso', label: 'fechaproceso', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
+                { key: 'item', label: 'Item', align: 'left' },
+                { key: 'coddoc', label: 'coddoc', align: 'left', fontClass: 'font-mono' },
+                { key: 'coditem', label: 'coditem', align: 'left', fontClass: 'font-mono' },
+                { key: 'nomitem', label: 'nomitem', align: 'left' },
+                { key: 'cantidad', label: 'cantidad', align: 'right', format: 'currency4' },
+                { key: 'cantidaddevolucion', label: 'cantidaddevolucion', align: 'right', format: 'currency4' },
+                { key: 'cantidadventa', label: 'cantidadventa', align: 'right', format: 'currency4' },
+                { key: 'sum_ratio', label: 'SUM([cantidaddevolucion', align: 'right' }
+            ]
         }
     },
 

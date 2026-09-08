@@ -494,6 +494,7 @@ class VentasResumenRepo
                     COALESCE(nomdoc, '') AS nomdoc,
                     COALESCE(nomitem, '') AS nomitem,
                     COALESCE(zonafiscal, '') AS zonafiscal,
+                    COALESCE(familia, '') AS familia,
                     CONCAT(coditem, ' ', COALESCE(nomitem, '')) AS item,
                     COALESCE(coddoc, '') AS coddoc,
                     ROUND(COALESCE(cantidad, 0), 4) AS cantidad,

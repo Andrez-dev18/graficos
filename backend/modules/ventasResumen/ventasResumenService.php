@@ -574,6 +574,7 @@ class VentasResumenService
                 'nomdoc'             => $row['nomdoc'],
                 'nomitem'            => $row['nomitem'],
                 'zonafiscal'         => $row['zonafiscal'],
+                'familia'            => $row['familia'] ?? '',
                 'item'               => $row['item'],
                 'coddoc'             => $row['coddoc'],
                 'cantidad'           => $cant,

@@ -2399,7 +2399,11 @@ class VentasResumenController {
 
         const lineaSeleccionada = this.msLineaProceso ? this.msLineaProceso.getSelectedValues()[0] : '1 P. Vivo';
 
-        document.getElementById('modal-titulo-vista').textContent = 'Ver datos: 7.1 VentTotalesProcZonaCant (1 marca)';
+        const tituloVista = (tipoActivo === '06VentasSaca') 
+            ? 'Ver datos: 6.1 VentTotalesProcZonaCant (1 marca)' 
+            : 'Ver datos: 7.1 VentTotalesProcZonaCant (1 marca)';
+
+        document.getElementById('modal-titulo-vista').textContent = tituloVista;
         document.getElementById('modal-subtitulo-filas').textContent = `Día de fechaproceso: ${fechaFormateada || fecha}`;
 
         // 1. Renderizar pestaña Resumen

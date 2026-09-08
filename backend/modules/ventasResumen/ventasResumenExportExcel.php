@@ -23,6 +23,22 @@ class VentasResumenExportExcel
             ['key' => 'cantidaddevolucion', 'label' => 'cantidaddevolucion',                          'type' => 'currency4'],
             ['key' => 'cantidadventa',      'label' => 'cantidadventa',                               'type' => 'currency4'],
             ['key' => 'sum_ratio',          'label' => 'SUM([cantidaddevolucion',                     'type' => 'string']
+        ],
+        '06VentasSaca' => [
+            ['key' => 'lineaproceso',       'label' => 'lineaproceso',                                'type' => 'string'],
+            ['key' => 'dia_fechaproceso',   'label' => 'Día de fechaproceso',                         'type' => 'dia_fechaproceso'],
+            ['key' => 'tipo_doc',           'label' => 'iF [coddoc]="01" OR [codd',                   'type' => 'string'],
+            ['key' => 'zonafiscal',         'label' => 'zonafiscal',                                  'type' => 'string'],
+            ['key' => 'familia',            'label' => 'familia',                                     'type' => 'string'],
+            ['key' => 'fechaproceso',       'label' => 'fechaproceso',                                'type' => 'short_date'],
+            ['key' => 'item',               'label' => 'Item',                                        'type' => 'string'],
+            ['key' => 'coddoc',             'label' => 'coddoc',                                      'type' => 'string'],
+            ['key' => 'coditem',            'label' => 'coditem',                                     'type' => 'string'],
+            ['key' => 'nomitem',            'label' => 'nomitem',                                     'type' => 'string'],
+            ['key' => 'cantidad',           'label' => 'cantidad',                                    'type' => 'currency4'],
+            ['key' => 'cantidaddevolucion', 'label' => 'cantidaddevolucion',                          'type' => 'currency4'],
+            ['key' => 'cantidadventa',      'label' => 'cantidadventa',                               'type' => 'currency4'],
+            ['key' => 'sum_ratio',          'label' => 'SUM([cantidaddevolucion',                     'type' => 'string']
         ]
     ];
 
