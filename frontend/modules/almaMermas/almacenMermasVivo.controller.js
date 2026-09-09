@@ -198,30 +198,72 @@ class AlmacenMermasVivoController {
      * Helper para renderizar mini-barras horizontales estilo Tableau con porcentaje a la derecha
      */
     generarBarraTableau(pctValor, maxEscala = 6.0, metadatosFila = null) {
-        const val = Number(pctValor || 0);
-        const anchoPct = maxEscala > 0 ? Math.min(Math.max((val / maxEscala) * 100, 0), 100) : 0;
-        const textoFmt = this.formatearPorcentaje(val);
+        return this.generarBarraColor(pctValor, maxEscala, '#1F77B4', metadatosFila, true);
+    }
 
-        // Si tiene valor > 0 y metadatos, se vuelve interactiva para el tooltip
-        const esInteractiva = val > 0 && metadatosFila !== null;
+    /**
+     * Helper universal para renderizar mini-barras horizontales estilo Tableau (porcentaje o valor absoluto)
+     */
+    generarBarraColor(valor, maxEscala = 6.0, colorHex = '#1F77B4', metadatosFila = null, esPorcentaje = true, metricLabel = 'mermatotal') {
+        const val = Number(valor || 0);
+        const anchoPct = maxEscala > 0 ? Math.min(Math.max((val / maxEscala) * 100, 0), 100) : 0;
+        const textoFmt = esPorcentaje ? this.formatearPorcentaje(val) : this.formatearNumeroTableau(val);
+
+        const esInteractiva = metadatosFila !== null;
         const attrsData = esInteractiva ? `
-            data-cliente="${metadatosFila.cliente}"
-            data-fecha="${metadatosFila.fecha}"
-            data-total="${metadatosFila.total}"
-            data-alm="${metadatosFila.alm}"
-            data-muertodist="${metadatosFila.muertodist}"
-            data-muertotransp="${metadatosFila.muertotransp}"
-            data-noapto="${metadatosFila.noapto}"
-            data-transp="${metadatosFila.transp}"
+            data-cliente="${metadatosFila.cliente || ''}"
+            data-fecha="${metadatosFila.fecha || ''}"
+            data-metric-label="${metricLabel}"
+            data-metric-val="${textoFmt}"
+            data-total="${metadatosFila.total || textoFmt}"
         ` : '';
 
         return `
             <div class="flex items-center gap-1.5 w-full justify-start select-none">
-                <div class="w-16 h-3.5 bg-transparent flex justify-start items-center ${esInteractiva ? 'cursor-pointer barra-merma-hover' : ''}" ${attrsData}>
-                    ${anchoPct > 0 ? `<div class="h-full bg-[#1F77B4] hover:bg-[#155A8A] transition-colors rounded-none" style="width: ${anchoPct}%;"></div>` : ''}
+                <div class="w-14 sm:w-16 h-3.5 bg-transparent flex justify-start items-center ${esInteractiva ? 'cursor-pointer barra-merma-hover' : ''}" ${attrsData}>
+                    ${anchoPct > 0 ? `<div class="h-full transition-all rounded-none" style="width: ${anchoPct}%; background-color: ${colorHex};"></div>` : ''}
                 </div>
-                <span class="text-[10px] font-mono font-medium ${val > 0 ? 'text-slate-900 font-semibold' : 'text-slate-500'} whitespace-nowrap">
+                <span class="text-[10px] font-mono font-medium ${val > 0 ? 'text-slate-900 font-semibold' : 'text-slate-400'} whitespace-nowrap">
                     ${textoFmt}
+                </span>
+            </div>
+        `;
+    }
+
+    /**
+     * Helper para renderizar el punto de color y porcentaje de variación vs Objetivo
+     */
+    generarPuntoVariacion(pctVariacion, avgObjetivo, metadatosFila = null) {
+        const obj = Number(avgObjetivo || 0);
+        if (obj <= 0) {
+            return `<span class="text-[10px] font-mono text-slate-300">-</span>`;
+        }
+
+        const val = Number(pctVariacion || 0);
+        let color = '#E0AA15'; // Amarillo / margen medio
+        if (val <= -5) {
+            color = '#2CA02C'; // Verde: favorable (merma menor al objetivo)
+        } else if (val >= 10) {
+            color = '#D62728'; // Rojo: desfavorable (merma supera el objetivo)
+        } else if (val > 5) {
+            color = '#F28E2B'; // Naranja
+        }
+
+        const texto = `${this.formatearPorcentaje(val)}`;
+        const esInteractiva = metadatosFila !== null;
+        const attrsData = esInteractiva ? `
+            data-cliente="${metadatosFila.cliente || ''}"
+            data-fecha="${metadatosFila.fecha || ''}"
+            data-metric-label="mermatotal"
+            data-metric-val="${texto}"
+            data-total="${texto}"
+        ` : '';
+
+        return `
+            <div class="flex items-center justify-start gap-1.5 whitespace-nowrap select-none ${esInteractiva ? 'cursor-pointer barra-merma-hover' : ''}" ${attrsData}>
+                <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-xs" style="background-color: ${color};"></span>
+                <span class="text-[10px] font-mono font-bold" style="color: ${color};">
+                    ${texto}
                 </span>
             </div>
         `;
@@ -419,40 +461,21 @@ class AlmacenMermasVivoController {
 
         document.querySelectorAll('.barra-merma-hover').forEach(barra => {
             barra.addEventListener('mouseenter', () => {
-                const cliente = barra.getAttribute('data-cliente');
-                const fecha = barra.getAttribute('data-fecha');
-                const mermatotal = barra.getAttribute('data-total');
-                const mermaalmacenaje = barra.getAttribute('data-alm');
-                const mermamuertodistribucion = barra.getAttribute('data-muertodist');
-                const mermamuertotransporte = barra.getAttribute('data-muertotransp');
-                const mermanoapto = barra.getAttribute('data-noapto');
-                const mermatransporte = barra.getAttribute('data-transp');
+                const cliente = barra.getAttribute('data-cliente') || '';
+                const fecha = barra.getAttribute('data-fecha') || '';
+                const metricLabel = barra.getAttribute('data-metric-label') || 'mermatotal';
+                const metricVal = barra.getAttribute('data-metric-val') || barra.getAttribute('data-total') || '';
 
                 tooltip.innerHTML = `
-                    <div class="grid grid-cols-12 gap-y-1 text-[11px] leading-snug select-none">
-                        <div class="col-span-6 text-slate-500 font-normal">cliente:</div>
-                        <div class="col-span-6 font-bold text-slate-900">${cliente}</div>
+                    <div class="grid grid-cols-12 gap-x-2 gap-y-1 text-[11px] leading-snug select-none min-w-[220px]">
+                        <div class="col-span-5 text-slate-500 font-normal">cliente:</div>
+                        <div class="col-span-7 font-bold text-slate-900">${cliente}</div>
 
-                        <div class="col-span-6 text-slate-500 font-normal">Día de fechaproceso:</div>
-                        <div class="col-span-6 font-bold text-slate-900 whitespace-nowrap">${fecha}</div>
+                        <div class="col-span-5 text-slate-500 font-normal">Día de fechaproceso:</div>
+                        <div class="col-span-7 font-bold text-slate-900 whitespace-nowrap">${fecha}</div>
 
-                        <div class="col-span-6 text-slate-500 font-normal">mermatotal:</div>
-                        <div class="col-span-6 font-mono font-bold text-slate-900">${mermatotal}</div>
-
-                        <div class="col-span-6 text-slate-500 font-normal">mermaalmacenaje:</div>
-                        <div class="col-span-6 font-mono font-bold text-slate-900">${mermaalmacenaje}</div>
-
-                        <div class="col-span-6 text-slate-500 font-normal">mermamuertodistribucion:</div>
-                        <div class="col-span-6 font-mono font-bold text-slate-900">${mermamuertodistribucion}</div>
-
-                        <div class="col-span-6 text-slate-500 font-normal">mermamuertotransporte:</div>
-                        <div class="col-span-6 font-mono font-bold text-slate-900">${mermamuertotransporte}</div>
-
-                        <div class="col-span-6 text-slate-500 font-normal">mermanoapto:</div>
-                        <div class="col-span-6 font-mono font-bold text-slate-900">${mermanoapto}</div>
-
-                        <div class="col-span-6 text-slate-500 font-normal">mermatransporte:</div>
-                        <div class="col-span-6 font-mono font-bold text-slate-900">${mermatransporte}</div>
+                        <div class="col-span-5 text-slate-500 font-normal">${metricLabel}:</div>
+                        <div class="col-span-7 font-mono font-bold text-slate-900">${metricVal}</div>
                     </div>
                 `;
 
@@ -649,10 +672,232 @@ class AlmacenMermasVivoController {
         this.asignarEventosTooltipMermas();
     }
 
-    renderizarPorcMermaProcesoDiaClienteZona(data) {
+    /**
+     * Renderiza la tabla Porcentaje de Merma Diaria por Fecha de Proceso, Cliente y Zona (con Objetivo y Desvío)
+     */
+    renderizarPorcMermaProcesoDiaClienteZona(filas) {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
-        contenedor.innerHTML = `<div class="p-6 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 font-semibold">Vista PorcMermaProcesoDiaClienteZona en desarrollo.</div>`;
+        contenedor.innerHTML = '';
+
+        if (!filas || filas.length === 0) {
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Sin registros para esta selección.</div>`;
+            return;
+        }
+
+        const filasOrdenadas = [...filas].sort((a, b) => {
+            const cmpFecha = (a.fechaproceso || '').localeCompare(b.fechaproceso || '');
+            if (cmpFecha !== 0) return cmpFecha;
+            const cmpZona = (a.zonaorigen || '').localeCompare(b.zonaorigen || '');
+            if (cmpZona !== 0) return cmpZona;
+            return (a.cliente || '').localeCompare(b.cliente || '');
+        });
+
+        const conteoFecha = {};
+        const conteoZona = {};
+
+        filasOrdenadas.forEach(f => {
+            const fec = f.fechaproceso;
+            const zonaKey = `${f.fechaproceso}|${f.zonaorigen || ''}`;
+            conteoFecha[fec] = (conteoFecha[fec] || 0) + 1;
+            conteoZona[zonaKey] = (conteoZona[zonaKey] || 0) + 1;
+        });
+
+        const fechasRenderizadas = new Set();
+        const zonasRenderizadas = new Set();
+
+        const card = document.createElement('div');
+        card.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
+
+        card.innerHTML = `
+            <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                        Porcentaje de Merma Diaria por Fecha de Proceso, Cliente, Objetivo
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Análisis comparativo de Merma vs Objetivo y desglose de mermas operativas
+                    </p>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-4 text-[11px]">
+                    <!-- Leyenda de Desvío / Variación -->
+                    <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-lg">
+                        <span class="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Variación vs Objetivo:</span>
+                        <div class="flex items-center gap-1.5" title="Favorable: merma menor al objetivo">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#2CA02C]"></span>
+                            <span class="font-mono text-slate-600 font-medium">&le; -5%</span>
+                        </div>
+                        <div class="flex items-center gap-1.5" title="En margen">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#E0AA15]"></span>
+                            <span class="font-mono text-slate-600 font-medium">&plusmn;5%</span>
+                        </div>
+                        <div class="flex items-center gap-1.5" title="Desfavorable: merma superior al objetivo">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#D62728]"></span>
+                            <span class="font-mono text-slate-600 font-medium">&ge; +10%</span>
+                        </div>
+                    </div>
+
+                    <div class="text-slate-500 font-medium">
+                        Período: <strong class="text-slate-800 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[76vh] overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-xs border-separate border-spacing-0">
+                    <thead class="sticky top-0 z-30 bg-blue-600 text-white border-b border-slate-300 shadow-xs">
+                        <tr class="text-[10px] font-bold uppercase tracking-wider">
+                            <th class="px-3 py-2.5 whitespace-nowrap text-left border-b border-r border-slate-200">Día de fechap..</th>
+                            <th class="px-3 py-2.5 whitespace-nowrap text-left border-b border-r border-slate-200">zonaorigen</th>
+                            <th class="px-3 py-2.5 whitespace-nowrap text-left border-b border-r border-slate-200">cliente</th>
+                            
+                            <th class="px-3 py-2.5 text-center min-w-[120px] border-b border-r border-slate-200">Objetivo</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-r border-slate-200">Merma Total</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-r border-slate-200">Merma Total (Var)</th>
+                            
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-r border-slate-200">Entrada</th>
+                            <th class="px-3 py-2.5 text-center min-w-[110px] border-b border-r border-slate-200">Merma Almacenaje</th>
+                            <th class="px-3 py-2.5 text-center min-w-[120px] border-b border-r border-slate-200">Merma Muerto Distribucion</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-r border-slate-200">Merma Muerto Transporte</th>
+                            <th class="px-3 py-2.5 text-center min-w-[110px] border-b border-r border-slate-200">Merma No Apto</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-r border-slate-200">Merma Transporte</th>
+                            <th class="px-3 py-2.5 text-center min-w-[110px] border-b border-r border-slate-200">Merma Bene Manual</th>
+                            <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-slate-200">Merma Bene Mecaniza</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-slate-700">
+                        ${filasOrdenadas.map(r => {
+            const fec = r.fechaproceso;
+            const zonaKey = `${r.fechaproceso}|${r.zonaorigen || ''}`;
+
+            let celdaFecha = '';
+            if (!fechasRenderizadas.has(fec)) {
+                fechasRenderizadas.add(fec);
+                celdaFecha = `
+                                    <td rowspan="${conteoFecha[fec]}" class="px-3 py-2 font-semibold text-slate-800 bg-slate-50/80 border-r border-b border-slate-200 align-top text-left text-[11px]">
+                                        <div class="sticky top-[42px] z-10 py-1 font-semibold text-slate-800">
+                                            ${r.fecha_formateada || fec}
+                                        </div>
+                                    </td>
+                                `;
+            }
+
+            let celdaZona = '';
+            if (!zonasRenderizadas.has(zonaKey)) {
+                zonasRenderizadas.add(zonaKey);
+                celdaZona = `
+                                    <td rowspan="${conteoZona[zonaKey]}" class="px-3 py-2 font-bold text-slate-700 bg-slate-50/40 border-r border-b border-slate-200 align-top text-left uppercase tracking-wider text-[11px]">
+                                        <div class="sticky top-[42px] z-10 py-1 font-bold text-slate-700">
+                                            ${r.zonaorigen || ''}
+                                        </div>
+                                    </td>
+                                `;
+            }
+
+            // Metadatos empaquetados para la barra interactiva y tooltip
+            const meta = {
+                cliente: r.cliente,
+                fecha: r.fecha_formateada || fec,
+                total: this.formatearPorcentaje(r.pct_mermatotal),
+                alm: this.formatearNumeroTableau(r.sum_mermaalmacenaje),
+                muertodist: this.formatearNumeroTableau(r.sum_mermamuertodistribucion),
+                muertotransp: this.formatearNumeroTableau(r.sum_mermamuertotransporte),
+                noapto: this.formatearNumeroTableau(r.sum_mermanoapto),
+                transp: this.formatearNumeroTableau(r.sum_mermatransporte)
+            };
+
+            return `
+                                <tr class="hover:bg-slate-50/40 transition-colors text-[11px] border-b border-slate-100">
+                                    ${celdaFecha}
+                                    ${celdaZona}
+                                    <td class="px-3 py-2 font-bold text-slate-800 bg-white border-r border-b border-slate-100 align-middle text-left uppercase tracking-wider text-[11px] whitespace-nowrap">
+                                        ${r.cliente}
+                                    </td>
+
+                                    <!-- 1. Objetivo (%) - Barra Verde -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.avg_objetivo, 5.0, '#59A14F', meta, true, 'objetivo')}
+                                    </td>
+
+                                    <!-- 2. Merma Total (%) - Barra Azul -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.pct_mermatotal, 5.0, '#1F77B4', meta, true, 'mermatotal')}
+                                    </td>
+
+                                    <!-- 3. Merma Total (Variación vs Objetivo) - Punto y % -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100 text-left">
+                                        ${this.generarPuntoVariacion(r.pct_variacion, r.avg_objetivo, meta)}
+                                    </td>
+
+                                    <!-- 4. Entrada - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.total_entrada, 100000.0, '#8C8C8C', meta, false, 'entrada')}
+                                    </td>
+
+                                    <!-- 5. Merma Almacenaje - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermaalmacenaje, 40.0, '#8C8C8C', meta, false, 'mermaalmacenaje')}
+                                    </td>
+
+                                    <!-- 6. Merma Muerto Distribucion - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermamuertodistribucion, 10.0, '#8C8C8C', meta, false, 'mermamuertodistribucion')}
+                                    </td>
+
+                                    <!-- 7. Merma Muerto Transporte - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermamuertotransporte, 600.0, '#8C8C8C', meta, false, 'mermamuertotransporte')}
+                                    </td>
+
+                                    <!-- 8. Merma No Apto - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermanoapto, 60.0, '#8C8C8C', meta, false, 'mermanoapto')}
+                                    </td>
+
+                                    <!-- 9. Merma Transporte - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermatransporte, 3000.0, '#8C8C8C', meta, false, 'mermatransporte')}
+                                    </td>
+
+                                    <!-- 10. Merma Bene Manual - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-r border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermatransbenemanual, 100.0, '#8C8C8C', meta, false, 'mermatransbenemanual')}
+                                    </td>
+
+                                    <!-- 11. Merma Bene Mecaniza - Barra Gris + Valor -->
+                                    <td class="px-3 py-1.5 border-b border-slate-100">
+                                        ${this.generarBarraColor(r.sum_mermatransbenemecani, 2000.0, '#8C8C8C', meta, false, 'mermatransbenemecani')}
+                                    </td>
+                                </tr>
+                            `;
+        }).join('')}
+                    </tbody>
+
+                    <tfoot class="sticky bottom-0 z-20 bg-slate-50 border-t-2 border-slate-300 text-[9px] font-mono text-slate-500">
+                        <tr>
+                            <td colspan="3" class="px-3 py-1 text-right font-bold uppercase tracking-wider text-slate-600 border-r border-slate-200">
+                                Escala
+                            </td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0,00% 5,00%</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0,00% 5,00%</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">-50,00% 0,00% 50,00%</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0,00 100.000,00</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0 20 40</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0 5 10</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0 200 400 600</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0 20 40 60</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0 1000 2000 3000</td>
+                            <td class="px-2 py-1 border-r border-slate-200 text-left">0</td>
+                            <td class="px-2 py-1 text-left">0 1000 2000</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+
+        contenedor.appendChild(card);
+        this.asignarEventosTooltipMermas();
     }
 
     renderizarPorcMermaProcesoDiaClienteZonaPlaca(data) {

@@ -80,6 +80,40 @@ class AlmacenMermasVivoService
         ];
     }
 
+    public function obtenerPorcMermaProcesoDiaClienteZona(array $filtros): array
+    {
+        $filasRaw = $this->repo->getPorcMermaProcesoDiaClienteZona($filtros);
+
+        $matriz = [];
+        foreach ($filasRaw as $row) {
+            $matriz[] = [
+                'fechaproceso'                => $row['fechaproceso'],
+                'fecha_formateada'            => $this->formatearFechaTableau($row['fechaproceso']),
+                'zonaorigen'                  => $row['zonaorigen'],
+                'cliente'                     => $row['cliente'],
+                'dato'                        => $row['dato'],
+                'avg_objetivo'                => (float)$row['avg_objetivo'],
+                'total_entrada'               => (float)$row['total_entrada'],
+                'pct_mermatotal'              => (float)$row['pct_mermatotal'],
+                'pct_variacion'               => (float)$row['pct_variacion'],
+                'sum_mermatotal'              => (float)$row['sum_mermatotal'],
+                'sum_mermaalmacenaje'         => (float)$row['sum_mermaalmacenaje'],
+                'sum_mermamuertodistribucion' => (float)$row['sum_mermamuertodistribucion'],
+                'sum_mermamuertotransporte'   => (float)$row['sum_mermamuertotransporte'],
+                'sum_mermanoapto'             => (float)$row['sum_mermanoapto'],
+                'sum_mermatransporte'         => (float)$row['sum_mermatransporte'],
+                'sum_mermatransbenemanual'    => (float)$row['sum_mermatransbenemanual'],
+                'sum_mermatransbenemecani'    => (float)$row['sum_mermatransbenemecani']
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'total'  => count($matriz),
+            'data'   => $matriz
+        ];
+    }
+
     private function formatearFechaTableau(?string $fecha): string
     {
         if (!$fecha) return '';
