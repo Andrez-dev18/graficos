@@ -92,4 +92,50 @@ class AlmacenMermasVivoController
         }
         exit;
     }
-}
+
+    public function getMermaProcesoPlacaObjetivo()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerMermaProcesoPlacaObjetivo($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al procesar MermaProcesoPlacaObjetivo: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    public function getDetallePlacaRutaCausales()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerDetallePlacaRutaCausales($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al procesar DetallePlacaRutaCausales: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+}

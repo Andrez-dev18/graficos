@@ -1,11 +1,19 @@
 class AlmacenMermasVivoController {
     constructor() {
         this.service = new AlmacenMermasVivoService();
-
-        // Estado y Filtros Activos
         this.currentPeriodo = { inicio: '', fin: '' };
         this.cacheData = null;
         this.activeCharts = [];
+
+        // Estado del combo de placas y modal DashPrueba1
+        this.todasLasPlacas = [];
+        this.modalDashState = {
+            fechaproceso: '',
+            fechaTxt: '',
+            cliente: '',
+            placaSeleccionada: '',
+            viendoTodos: false
+        };
 
         this.init();
     }
@@ -24,6 +32,7 @@ class AlmacenMermasVivoController {
 
         this.setupPeriodo();
         this.setupEventListeners();
+        this.setupModales();
 
         // Primera carga automática
         await this.onCargarClick();
@@ -94,6 +103,12 @@ class AlmacenMermasVivoController {
         document.getElementById('btn-limpiar')?.addEventListener('click', () => {
             this.limpiarFiltros();
         });
+
+        document.getElementById('select-tipo-grafico')?.addEventListener('change', (e) => {
+            const esDash1 = e.target.value === 'DashPrueba1';
+            const wrapperPlaca = document.getElementById('wrapper-filtro-placa');
+            if (wrapperPlaca) wrapperPlaca.classList.toggle('hidden', !esDash1);
+        });
     }
 
     /**
@@ -111,6 +126,7 @@ class AlmacenMermasVivoController {
         return {
             tipo_grafico: document.getElementById('select-tipo-grafico')?.value || 'PorcMermaProcesoDiaClientePlaca',
             dato: document.getElementById('select-filtro-dato')?.value || 'TODO',
+            placa: document.getElementById('select-filtro-placa')?.value || 'TODO',
             fecha_inicio: fechaInicio,
             fecha_fin: fechaFin
         };
@@ -152,6 +168,7 @@ class AlmacenMermasVivoController {
             if (res && res.success && res.payload && res.payload.data && res.payload.data.length > 0) {
                 this.cacheData = res.payload.data;
                 this.enrutarRenderizado(filtros.tipo_grafico, this.cacheData);
+                this.poblarSelectPlacas(this.cacheData);
             } else {
                 this.cacheData = null;
                 contenedor.innerHTML = `
@@ -188,6 +205,9 @@ class AlmacenMermasVivoController {
                 break;
             case 'PorcMermaProcesoDiaClienteZonaPlaca':
                 this.renderizarPorcMermaProcesoDiaClienteZonaPlaca(data);
+                break;
+            case 'DashPrueba1':
+                this.renderizarDashPrueba1(data);
                 break;
             default:
                 console.warn(`Vista no reconocida: ${tipoGrafico}`);
@@ -933,12 +953,371 @@ class AlmacenMermasVivoController {
 
         this.destruirGraficos();
         this.cacheData = null;
+        this.todasLasPlacas = [];
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (contenedor) contenedor.innerHTML = '';
 
         // Recargar automáticamente tras limpiar
         this.onCargarClick();
     }
+
+
+    setupModales() {
+        const modalDash = document.getElementById('modal-detalle-dashprueba');
+        const btnCerrar = document.getElementById('btn-cerrar-modal-dash');
+        const btnToggleVerTodos = document.getElementById('btn-toggle-modal-ver-todos');
+
+        btnCerrar?.addEventListener('click', () => {
+            modalDash?.classList.add('hidden');
+        });
+
+        // Alternar entre ver la placa seleccionada o ver todas las placas
+        btnToggleVerTodos?.addEventListener('click', async () => {
+            this.modalDashState.viendoTodos = !this.modalDashState.viendoTodos;
+            btnToggleVerTodos.textContent = this.modalDashState.viendoTodos
+                ? 'Ver placa seleccionada'
+                : 'Ver todas las placas';
+
+            await this.cargarDatosModalDash();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                modalDash?.classList.add('hidden');
+            }
+        });
+    }
+
+    poblarSelectPlacas(filas) {
+        const selPlaca = document.getElementById('select-filtro-placa');
+        if (!selPlaca) return;
+
+        const valorActual = selPlaca.value;
+
+        // Solo repoblamos el universo de placas cuando se consulta sin filtro individual
+        if (valorActual === 'TODO' || this.todasLasPlacas.length === 0) {
+            const placasSet = new Set();
+            filas.forEach(f => {
+                if (f.placa) placasSet.add(f.placa.trim());
+            });
+            this.todasLasPlacas = Array.from(placasSet).sort();
+
+            let optionsHtml = `<option value="TODO" selected>(Todo)</option>`;
+            this.todasLasPlacas.forEach(p => {
+                optionsHtml += `<option value="${p}">${p}</option>`;
+            });
+            selPlaca.innerHTML = optionsHtml;
+        }
+
+        if (valorActual && valorActual !== 'TODO') {
+            selPlaca.value = valorActual;
+        }
+    }
+
+    renderizarDashPrueba1(filas) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+        contenedor.innerHTML = '';
+
+        const filasOrdenadas = [...filas].sort((a, b) => {
+            const cF = (a.fechaproceso || '').localeCompare(b.fechaproceso || '');
+            if (cF !== 0) return cF;
+            const cZ = (a.zonaorigen || '').localeCompare(b.zonaorigen || '');
+            if (cZ !== 0) return cZ;
+            const cC = (a.cliente || '').localeCompare(b.cliente || '');
+            if (cC !== 0) return cC;
+            return (a.placa || '').localeCompare(b.placa || '');
+        });
+
+        const conteoFecha = {}, conteoZona = {}, conteoCliente = {};
+        filasOrdenadas.forEach(f => {
+            const fec = f.fechaproceso;
+            const zK = `${fec}|${f.zonaorigen || ''}`;
+            const cK = `${fec}|${f.zonaorigen || ''}|${f.cliente}`;
+            conteoFecha[fec] = (conteoFecha[fec] || 0) + 1;
+            conteoZona[zK] = (conteoZona[zK] || 0) + 1;
+            conteoCliente[cK] = (conteoCliente[cK] || 0) + 1;
+        });
+
+        const fechasVistas = new Set(), zonasVistas = new Set(), clientesVistos = new Set();
+        const card = document.createElement('div');
+        card.className = 'w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
+
+        card.innerHTML = `
+        <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Merma de Proceso, Placa, Objetivo</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Haga clic sobre cualquier placa para ver su Hoja de Ruta y Agentes Causales</p>
+            </div>
+            <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-lg text-[11px]">
+                <span class="font-bold text-slate-700 text-[10px] uppercase">Semáforo:</span>
+                <span class="inline-flex items-center gap-1 text-emerald-700 font-medium"><span class="w-2.5 h-2.5 rounded-full bg-[#2CA02C]"></span>&le; -5%</span>
+                <span class="inline-flex items-center gap-1 text-amber-700 font-medium"><span class="w-2.5 h-2.5 rounded-full bg-[#E0AA15]"></span>&plusmn;5%</span>
+                <span class="inline-flex items-center gap-1 text-rose-700 font-medium"><span class="w-2.5 h-2.5 rounded-full bg-[#D62728]"></span>&ge; +10%</span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[76vh] overflow-y-auto custom-scrollbar">
+            <table class="w-full text-left text-xs border-separate border-spacing-0">
+                <thead class="sticky top-0 z-30 bg-blue-600 text-white border-b border-slate-300 shadow-xs">
+                    <tr class="text-[10px] font-bold uppercase tracking-wider">
+                        <th class="px-3 py-2.5 whitespace-nowrap border-b border-r border-slate-200">Día de fechap..</th>
+                        <th class="px-3 py-2.5 whitespace-nowrap border-b border-r border-slate-200">zonaorigen</th>
+                        <th class="px-3 py-2.5 whitespace-nowrap border-b border-r border-slate-200">cliente</th>
+                        <th class="px-3 py-2.5 whitespace-nowrap border-b border-r border-slate-200">placa</th>
+                        <th class="px-3 py-2.5 text-center min-w-[140px] border-b border-r border-slate-200">Prom. objetivo</th>
+                        <th class="px-3 py-2.5 text-center min-w-[140px] border-b border-r border-slate-200">Merma Total</th>
+                        <th class="px-3 py-2.5 text-center min-w-[130px] border-b border-slate-200">Merma Total (Var)</th>
+                    </tr>
+                </thead>
+                <tbody class="text-slate-700">
+                    ${filasOrdenadas.map(r => {
+            const fec = r.fechaproceso;
+            const zK = `${fec}|${r.zonaorigen || ''}`;
+            const cK = `${fec}|${r.zonaorigen || ''}|${r.cliente}`;
+
+            let tdFecha = '';
+            if (!fechasVistas.has(fec)) {
+                fechasVistas.add(fec);
+                tdFecha = `<td rowspan="${conteoFecha[fec]}" class="px-3 py-2 font-semibold text-slate-800 bg-slate-50/80 border-r border-b border-slate-200 align-top"><div class="sticky top-[42px] z-10 py-1">${r.fecha_formateada || fec}</div></td>`;
+            }
+
+            let tdZona = '';
+            if (!zonasVistas.has(zK)) {
+                zonasVistas.add(zK);
+                tdZona = `<td rowspan="${conteoZona[zK]}" class="px-3 py-2 font-bold text-slate-700 bg-slate-50/40 border-r border-b border-slate-200 align-top uppercase"><div class="sticky top-[42px] z-10 py-1">${r.zonaorigen || ''}</div></td>`;
+            }
+
+            let tdCliente = '';
+            if (!clientesVistos.has(cK)) {
+                clientesVistos.add(cK);
+                tdCliente = `<td rowspan="${conteoCliente[cK]}" class="px-3 py-2 font-bold text-slate-800 bg-white border-r border-b border-slate-200 align-top uppercase"><div class="sticky top-[42px] z-10 py-1">${r.cliente}</div></td>`;
+            }
+
+            const meta = { cliente: r.cliente, fecha: r.fecha_formateada || fec, total: this.formatearPorcentaje(r.pct_mermatotal) };
+
+            return `
+                            <tr class="hover:bg-blue-50/50 transition-colors text-[11px] border-b border-slate-100 fila-placa-click cursor-pointer"
+                                data-fecha="${fec}" data-fecha-txt="${r.fecha_formateada || fec}" data-cliente="${r.cliente}" data-placa="${r.placa}">
+                                ${tdFecha}
+                                ${tdZona}
+                                ${tdCliente}
+                                <td class="px-3 py-2 font-mono font-bold text-blue-700 hover:text-blue-900 underline whitespace-nowrap border-r border-b border-slate-100 bg-white">${r.placa}</td>
+                                <td class="px-3 py-1.5 border-r border-b border-slate-100">${this.generarBarraColor(r.prom_objetivo, 6.0, '#59A14F', meta, true, 'Prom. objetivo')}</td>
+                                <td class="px-3 py-1.5 border-r border-b border-slate-100">${this.generarBarraColor(r.pct_mermatotal, 8.0, '#1F77B4', meta, true, 'Merma Total')}</td>
+                                <td class="px-3 py-1.5 border-b border-slate-100 text-left">${this.generarPuntoVariacion(r.variacion_pct, r.prom_objetivo, meta)}</td>
+                            </tr>
+                        `;
+        }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+        contenedor.appendChild(card);
+        this.asignarEventosTooltipMermas();
+        this.asignarEventosClickPlaca();
+    }
+
+    asignarEventosClickPlaca() {
+        document.querySelectorAll('.fila-placa-click').forEach(fila => {
+            fila.addEventListener('click', () => {
+                const fechaproceso = fila.getAttribute('data-fecha');
+                const fechaTxt = fila.getAttribute('data-fecha-txt');
+                const cliente = fila.getAttribute('data-cliente');
+                const placa = fila.getAttribute('data-placa');
+                this.abrirModalDetalleDashPrueba({ fechaproceso, fechaTxt, cliente, placa });
+            });
+        });
+    }
+
+    async abrirModalDetalleDashPrueba({ fechaproceso, fechaTxt, cliente, placa }) {
+        const modal = document.getElementById('modal-detalle-dashprueba');
+        if (!modal) return;
+
+        this.modalDashState = {
+            fechaproceso,
+            fechaTxt,
+            cliente,
+            placaSeleccionada: placa,
+            viendoTodos: false
+        };
+
+        const btnToggle = document.getElementById('btn-toggle-modal-ver-todos');
+        if (btnToggle) btnToggle.textContent = 'Ver todas las placas';
+
+        modal.classList.remove('hidden');
+        await this.cargarDatosModalDash();
+    }
+
+    async cargarDatosModalDash() {
+        const loader = document.getElementById('loader-modal-dash');
+        const contenido = document.getElementById('contenido-modal-dash');
+        const titulo = document.getElementById('modal-dash-titulo');
+        const subtitulo = document.getElementById('modal-dash-subtitulo');
+
+        const { fechaproceso, fechaTxt, cliente, placaSeleccionada, viendoTodos } = this.modalDashState;
+
+        if (titulo) {
+            titulo.textContent = viendoTodos
+                ? `Todas las unidades | ${fechaTxt}`
+                : `Placa: ${placaSeleccionada} | ${cliente}`;
+        }
+        if (subtitulo) {
+            subtitulo.textContent = viendoTodos
+                ? `Mostrando eventos y causas de todas las placas del día`
+                : `Día de fechaproceso: ${fechaTxt}`;
+        }
+
+        loader?.classList.remove('hidden');
+        contenido?.classList.add('hidden');
+
+        try {
+            const payload = {
+                fechaproceso: fechaproceso,
+                placa: viendoTodos ? 'TODO' : placaSeleccionada
+            };
+
+            const res = await this.service.consultarDetallePlacaRutaCausales(payload);
+            loader?.classList.add('hidden');
+
+            if (res && res.success && res.payload) {
+                const ruta = res.payload.ruta || [];
+                const causales = res.payload.causales || [];
+
+                this.renderizarTablaModalRuta(ruta, viendoTodos ? 'Todas' : placaSeleccionada);
+                this.renderizarTablaModalCausales(causales, viendoTodos ? 'Todos' : cliente, viendoTodos ? 'Todas' : placaSeleccionada);
+
+                contenido?.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('Error al cargar datos del modal:', err);
+            loader?.classList.add('hidden');
+        }
+    }
+
+    renderizarTablaModalRuta(ruta, placa) {
+        const tbody = document.getElementById('tbody-modal-ruta');
+        const badge = document.getElementById('badge-contador-ruta');
+        if (badge) badge.textContent = `${ruta.length} eventos`;
+        if (!tbody) return;
+
+        if (ruta.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400">Sin eventos en hoja de ruta.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = ruta.map(r => {
+            const area = (r.arearesponsable || '').trim().toUpperCase();
+            const esGeneral = area === 'GENERAL';
+            const esTransp = area === 'TRANSPORTE';
+
+            return `
+                <tr class="hover:bg-slate-50 text-[11px] border-b border-slate-100">
+                    <td class="px-3 py-1.5 font-mono font-bold text-center border-r border-slate-100">${r.placa || placa}</td>
+                    <td class="px-3 py-1.5 font-mono text-center border-r border-slate-100">${r.numeroruta || '-'}</td>
+                    <td class="px-3 py-1.5 text-center border-r border-slate-100 whitespace-nowrap">${r.fecha || '-'}</td>
+                    <td class="px-3 py-1.5 font-mono text-center border-r border-slate-100 whitespace-nowrap">${r.hora || '-'}</td>
+                    <td class="px-3 py-1.5 font-semibold text-slate-800 border-r border-slate-100 whitespace-nowrap">${r.evento || '-'}</td>
+                    <td class="px-3 py-1.5 text-slate-600 border-r border-slate-100">${r.localizacion || '-'}</td>
+                    <td class="px-2 py-1.5 text-center border-r border-slate-100 w-20">
+                        ${esGeneral ? '<span class="inline-block w-2.5 h-2.5 bg-[#2CA02C]"></span>' : ''}
+                    </td>
+                    <td class="px-2 py-1.5 text-center w-24">
+                        ${esTransp ? '<span class="inline-block w-2.5 h-2.5 bg-[#1F77B4]"></span>' : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    renderizarTablaModalCausales(causales, cliente, placa) {
+        const tbody = document.getElementById('tbody-modal-causales');
+        const badge = document.getElementById('badge-contador-causales');
+        if (badge) badge.textContent = `${causales.length} registros`;
+        if (!tbody) return;
+
+        if (causales.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400">Sin agentes causales registrados.</td></tr>`;
+            return;
+        }
+
+        // 1. Ordenar por jerarquía Tableau: Cliente -> Placa -> Área -> Código -> Hora
+        const lista = [...causales].sort((a, b) => {
+            const cliA = a.cliente || cliente, cliB = b.cliente || cliente;
+            if (cliA.localeCompare(cliB) !== 0) return cliA.localeCompare(cliB);
+
+            const plcA = a.placa || placa, plcB = b.placa || placa;
+            if (plcA.localeCompare(plcB) !== 0) return plcA.localeCompare(plcB);
+
+            const arA = a.area || '', arB = b.area || '';
+            if (arA.localeCompare(arB) !== 0) return arA.localeCompare(arB);
+
+            const cdA = a.codigoconta || '', cdB = b.codigoconta || '';
+            if (cdA.localeCompare(cdB) !== 0) return cdA.localeCompare(cdB);
+
+            return (a.horaregistro || '').localeCompare(b.horaregistro || '');
+        });
+
+        // 2. Calcular spans contiguos para evitar desfasajes entre filas
+        const n = lista.length;
+        const spanCli = new Array(n).fill(1);
+        const spanPlaca = new Array(n).fill(1);
+        const spanArea = new Array(n).fill(1);
+
+        for (let i = n - 2; i >= 0; i--) {
+            const act = lista[i], sig = lista[i + 1];
+            const mismoCli = (act.cliente || cliente) === (sig.cliente || cliente);
+            const mismaPlaca = mismoCli && ((act.placa || placa) === (sig.placa || placa));
+            const mismaArea = mismaPlaca && ((act.area || '') === (sig.area || ''));
+
+            if (mismoCli) spanCli[i] = spanCli[i + 1] + 1;
+            if (mismaPlaca) spanPlaca[i] = spanPlaca[i + 1] + 1;
+            if (mismaArea) spanArea[i] = spanArea[i + 1] + 1;
+        }
+
+        let html = '';
+        for (let i = 0; i < n; i++) {
+            const c = lista[i];
+            const cli = c.cliente || cliente;
+            const plc = c.placa || placa;
+            const ar = c.area || '-';
+
+            // Celda Cliente
+            let tdCli = '';
+            if (i === 0 || spanCli[i - 1] === 1 || (lista[i - 1].cliente || cliente) !== cli) {
+                tdCli = `<td rowspan="${spanCli[i]}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top uppercase whitespace-nowrap">${cli}</td>`;
+            }
+
+            // Celda Placa
+            let tdPlaca = '';
+            if (i === 0 || spanPlaca[i - 1] === 1 || (lista[i - 1].placa || placa) !== plc || (lista[i - 1].cliente || cliente) !== cli) {
+                tdPlaca = `<td rowspan="${spanPlaca[i]}" class="px-3 py-2 font-mono font-bold text-slate-800 bg-white border-r border-b border-slate-200 align-top text-center whitespace-nowrap">${plc}</td>`;
+            }
+
+            // Celda Área
+            let tdArea = '';
+            if (i === 0 || spanArea[i - 1] === 1 || (lista[i - 1].area || '') !== (c.area || '') || (lista[i - 1].placa || placa) !== plc) {
+                tdArea = `<td rowspan="${spanArea[i]}" class="px-3 py-2 font-medium text-slate-700 bg-white border-r border-b border-slate-200 align-top whitespace-nowrap">${ar}</td>`;
+            }
+
+            html += `
+                <tr class="hover:bg-slate-50 transition-colors text-[11px] border-b border-slate-100">
+                    ${tdCli}
+                    ${tdPlaca}
+                    ${tdArea}
+                    <td class="px-3 py-1.5 font-mono font-bold text-indigo-700 text-center border-r border-slate-100 whitespace-nowrap align-top">${c.codigoconta || '-'}</td>
+                    <td class="px-3 py-1.5 font-semibold text-slate-800 border-r border-slate-100 whitespace-nowrap align-top">${c.causatipo || '-'}</td>
+                    <td class="px-3 py-1.5 text-slate-600 text-center border-r border-slate-100 whitespace-nowrap align-top">${c.fecharegistro || '-'}</td>
+                    <td class="px-3 py-1.5 font-mono text-slate-600 text-center border-r border-slate-100 whitespace-nowrap align-top">${c.horaregistro || '-'}</td>
+                    <td class="px-3 py-1.5 text-slate-700 leading-snug align-top">${c.descripcion || '-'}</td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+    }
+
 }
 
 // Instanciación al cargar el DOM

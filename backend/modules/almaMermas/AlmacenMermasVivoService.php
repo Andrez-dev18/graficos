@@ -132,4 +132,45 @@ class AlmacenMermasVivoService
 
         return "{$dia} de {$mes} de {$anio}";
     }
-}
+
+    public function obtenerMermaProcesoPlacaObjetivo(array $filtros): array
+    {
+        $filasRaw = $this->repo->getMermaProcesoPlacaObjetivo($filtros);
+
+        $matriz = [];
+        foreach ($filasRaw as $row) {
+            $matriz[] = [
+                'fechaproceso'     => $row['fechaproceso'],
+                'fecha_formateada' => $this->formatearFechaTableau($row['fechaproceso']),
+                'zonaorigen'       => $row['zonaorigen'],
+                'cliente'          => $row['cliente'],
+                'placa'            => $row['placa'],
+                'dato'             => $row['dato'],
+                'total_entrada'    => (float)$row['total_entrada'],
+                'total_mermatotal' => (float)$row['total_mermatotal'],
+                'prom_objetivo'    => (float)$row['prom_objetivo'],
+                'pct_mermatotal'   => (float)$row['pct_mermatotal'],
+                'variacion_pct'    => (float)$row['variacion_pct']
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'total'  => count($matriz),
+            'data'   => $matriz
+        ];
+    }
+
+    public function obtenerDetallePlacaRutaCausales(array $filtros): array
+    {
+        $data = $this->repo->getDetallePlacaRutaCausales($filtros);
+
+        return [
+            'status'   => 'success',
+            'ruta'     => $data['ruta'],
+            'causales' => $data['causales']
+        ];
+    }
+
+
+}

@@ -3,13 +3,14 @@
  */
 class AlmacenMermasVivoService {
     constructor() {
-        this.baseUrl = window.AppConfig?.API?.BASE_URL || '/graficos/backend/public';
+        this.baseUrl = window.AppConfig?.API?.BASE_URL;
 
         this.ENDPOINTS = {
             PORC_MERMA_PROCESO_DIA_CLIENTE_PLACA: '/almaMermas/porc-merma-proceso-dia-cliente-placa',
-            PORC_MERMA_PROCESO_DIA_CLIENTE:       '/almaMermas/porc-merma-proceso-dia-cliente',
-            PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA:  '/almaMermas/porc-merma-proceso-dia-cliente-zona',
-            PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA_PLACA: '/almaMermas/porc-merma-proceso-dia-cliente-zona-placa'
+            PORC_MERMA_PROCESO_DIA_CLIENTE: '/almaMermas/porc-merma-proceso-dia-cliente',
+            PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA: '/almaMermas/porc-merma-proceso-dia-cliente-zona',
+            DASH_PRUEBA_1: '/almaMermas/merma-proceso-placa-objetivo',
+            DETALLE_PLACA_RUTA_CAUSALES: '/almaMermas/detalle-placa-ruta-causales'
         };
     }
 
@@ -24,8 +25,8 @@ class AlmacenMermasVivoService {
                 endpoint = this.ENDPOINTS.PORC_MERMA_PROCESO_DIA_CLIENTE;
             } else if (tipoGrafico === 'PorcMermaProcesoDiaClienteZona') {
                 endpoint = this.ENDPOINTS.PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA;
-            } else if (tipoGrafico === 'PorcMermaProcesoDiaClienteZonaPlaca') {
-                endpoint = this.ENDPOINTS.PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA_PLACA;
+            } else if (tipoGrafico === 'DashPrueba1') {
+                endpoint = this.ENDPOINTS.DASH_PRUEBA_1;
             }
 
             const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -44,6 +45,32 @@ class AlmacenMermasVivoService {
             return await response.json();
         } catch (error) {
             console.error(`Error al consultar ${tipoGrafico} en AlmacenMermasVivoService:`, error);
+            return {
+                success: false,
+                message: error.message,
+                payload: null
+            };
+        }
+    }
+
+    async consultarDetallePlacaRutaCausales(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.DETALLE_PLACA_RUTA_CAUSALES}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error al consultar DetallePlacaRutaCausales en AlmacenMermasVivoService:', error);
             return {
                 success: false,
                 message: error.message,
