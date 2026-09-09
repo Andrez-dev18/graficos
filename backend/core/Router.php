@@ -70,6 +70,16 @@ class Router
             // 4. Requerimos el archivo en su ubicación exacta anidada
             $controllerPath = $baseModulesPath . $modulePath . $controllerName . '.php';
 
+            if (!file_exists($controllerPath)) {
+                foreach ($pathParts as $part) {
+                    $singular = rtrim($part, 's');
+                    if (file_exists($baseModulesPath . $singular . '/' . $controllerName . '.php')) {
+                        $controllerPath = $baseModulesPath . $singular . '/' . $controllerName . '.php';
+                        break;
+                    }
+                }
+            }
+
             if (file_exists($controllerPath)) {
                 require_once $controllerPath;
                 $controller = new $controllerName();
