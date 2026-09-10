@@ -56,7 +56,7 @@
                 </div>
                 <div>
                     <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Costos Tradicionales</h1>
-                    <p class="text-xs text-slate-500">Costo de Producción Pollo Vivo - MES y Detalle de Indicadores</p>
+                    <p class="text-xs text-slate-500">Monitoreo de Costo de Producción y Costo de Alimentación</p>
                 </div>
             </div>
 
@@ -93,6 +93,17 @@
                     <div id="contenedor-inputs-periodo" class="flex items-end gap-2">
                         <!-- Generado dinámicamente por PeriodoHelper -->
                     </div>
+
+                    <!-- SELECT TIPO DE GRÁFICO (SELECCIÓN ÚNICA) -->
+                    <div class="flex flex-col">
+                        <label for="select-tipo-grafico"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICO</label>
+                        <select id="select-tipo-grafico"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="CPO1CostoProduccion" selected>CP01 Costo Produccion</option>
+                            <option value="CP02 CPVvsCA">CP02 CPVvsCA</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- BOTONES DE ACCIÓN -->
@@ -120,28 +131,26 @@
     <!-- CONTENEDOR PRINCIPAL DE PANELES 1X1 (STACK VERTICAL) -->
     <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-12">
 
-        <!-- 1. GRAFICA COSTO (LÍNEA MENSUAL DE COSTO DE PRODUCCIÓN POLLO VIVO) -->
+        <!-- 1. GRAFICA PRINCIPAL (CP01 O CP02 SEGÚN SELECT) -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
-            <div class="px-6 py-4 bg-white border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+            <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div class="flex items-center gap-2.5">
-                    <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Costo de Producción Pollo Vivo - MES</h2>
-                    <span id="badge-benchmark" class="text-xs font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-md">
-                        Promedio / Meta: 4,538
-                    </span>
+                    <h2 id="titulo-grafica-principal" class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                        Costo de Producción Pollo Vivo - MES
+                    </h2>
                 </div>
-                <div class="flex items-center gap-3 text-xs font-medium text-slate-500 hidden sm:flex">
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Bajo Meta (Favorable)</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-600"></span> Sobre Meta (Alto)</span>
+                <div id="contenedor-badges-grafica" class="flex items-center gap-3 text-xs font-medium">
+                    <!-- Inyectado dinámicamente según CP01 o CP02 -->
                 </div>
             </div>
 
-            <div id="contenedor-grafica-costo" class="relative w-full h-[360px] p-4">
+            <div id="contenedor-grafica-costo" class="relative w-full h-[400px] p-4">
                 <canvas id="chart-costo-produccion" style="image-rendering: -webkit-optimize-contrast;"></canvas>
             </div>
         </div>
 
-        <!-- 2. DETALLE COSTO DE PRODUCCIÓN POLLO VIVO - MES (TABLA DE INDICADORES MATRICIAL) -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
+        <!-- 2. DETALLE COSTO DE PRODUCCIÓN POLLO VIVO - MES (TABLA DE INDICADORES MATRICIAL PARA CP01) -->
+        <div id="card-tabla-metricas" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all">
             <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div>
                     <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Detalle Costo de Producción Pollo Vivo - MES</h2>
@@ -169,8 +178,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
-    <script src="costosTradicionales.service.js?v=20260910_1"></script>
-    <script src="costosTradicionales.controller.js?v=20260910_1"></script>
+    <script src="costosTradicionales.service.js?v=20260910_2"></script>
+    <script src="costosTradicionales.controller.js?v=20260910_2"></script>
 </body>
 
 </html>

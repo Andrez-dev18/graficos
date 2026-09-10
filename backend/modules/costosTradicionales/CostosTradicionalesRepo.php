@@ -32,6 +32,8 @@ class CostosTradicionalesRepo
                 calimento,
                 costoalim,
                 (costoavi / NULLIF(saca_kilos, 0)) AS costo_unitario,
+                (costoavi / NULLIF(saca_kilos, 0)) AS costo_produccion_kg,
+                (costoalim / NULLIF(saca_kilos, 0)) AS costo_alimentacion_kg,
                 ((mortalidad / NULLIF(pollo_ini, 0)) * 100) AS mortalidad_porc
             FROM costomen
             WHERE fecha >= :fecha_ini 

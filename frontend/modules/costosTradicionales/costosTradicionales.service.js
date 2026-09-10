@@ -1,5 +1,5 @@
 /**
- * Servicio para Costos Tradicionales - Costo de Producción Pollo Vivo (CP01)
+ * Servicio para Costos Tradicionales - Costo de Producción Pollo Vivo (CP01 y CP02)
  * Consume la API del Backend (/costosTradicionales/dashboard)
  */
 class CostosTradicionalesService {
@@ -8,8 +8,8 @@ class CostosTradicionalesService {
     }
 
     /**
-     * Consulta los datos reales del dashboard de Costo de Producción Pollo Vivo
-     * @param {Object} filtros { fecha_inicio: 'YYYY-MM-DD', fecha_fin: 'YYYY-MM-DD' }
+     * Consulta los datos reales del dashboard de Costos Tradicionales
+     * @param {Object} filtros { fecha_inicio: 'YYYY-MM-DD', fecha_fin: 'YYYY-MM-DD', tipo_grafico: 'CPO1CostoProduccion' | 'CP02 CPVvsCA' }
      */
     async obtenerDashboard(filtros = {}) {
         try {
@@ -38,6 +38,7 @@ class CostosTradicionalesService {
                     benchmark: 4.538,
                     periodos: [],
                     graficaCosto: [],
+                    graficaCP02: [],
                     tablaMetricas: []
                 }
             };

@@ -26,20 +26,22 @@ class CostosTradicionalesService
     }
 
     /**
-     * Procesa y estructura los datos para la gráfica de costo y la tabla de métricas
+     * Procesa y estructura los datos para la gráfica de costo, CP02 y la tabla de métricas
      */
     public function obtenerDashboard(array $filtros): array
     {
         // 1. Normalizar fechas de filtro
         $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : '2024-01-01';
         $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2025-10-31';
+        $tipoGrafico = !empty($filtros['tipo_grafico']) ? trim($filtros['tipo_grafico']) : 'CPO1CostoProduccion';
 
         // 2. Obtener datos del repositorio
         $registros = $this->repo->getCostosPorPeriodo($fechaInicio, $fechaFin);
 
         // 3. Estructurar colecciones de salida
         $periodos     = [];
-        $graficaCosto = [];
+        $graficaCosto = []; // CP01
+        $graficaCP02  = []; // CP02 (Doble eje: Producción vs Alimentación)
 
         // Inicializar mapas de valores por métrica
         $valoresSacaUnd   = [];
@@ -65,6 +67,9 @@ class CostosTradicionalesService
             $costoRedondeado = round($costoUnitario, 3);
             $estadoCosto = ($costoRedondeado <= self::BENCHMARK) ? 'bajo' : 'alto';
 
+            $costoAlim = (float)($row['costo_alimentacion_kg'] ?? 0);
+            $costoAlimRedondeado = round($costoAlim, 3);
+
             // Agregar a lista cronológica de periodos
             $periodos[] = [
                 'key'       => $key,
@@ -75,7 +80,7 @@ class CostosTradicionalesService
                 'mes_num'   => $mesNum
             ];
 
-            // Punto para la gráfica de costo
+            // Punto para CP01: Costo de Producción Pollo Vivo
             $graficaCosto[] = [
                 'key'       => $key,
                 'mes_corta' => $mesCorta,
@@ -84,6 +89,17 @@ class CostosTradicionalesService
                 'mes'       => $mesTitulo,
                 'costo'     => $costoRedondeado,
                 'estado'    => $estadoCosto
+            ];
+
+            // Punto para CP02: CPV vs CA (Doble serie)
+            $graficaCP02[] = [
+                'key'                => $key,
+                'mes_corta'          => $mesCorta,
+                'mes_larga'          => $mesLarga,
+                'anio'               => $anio,
+                'mes'                => $mesTitulo,
+                'costo_produccion'   => $costoRedondeado,
+                'costo_alimentacion' => $costoAlimRedondeado
             ];
 
             // Llenar mapas de métricas para la tabla
@@ -143,9 +159,11 @@ class CostosTradicionalesService
         ];
 
         return [
+            'tipo_grafico'  => $tipoGrafico,
             'benchmark'     => self::BENCHMARK,
             'periodos'      => $periodos,
             'graficaCosto'  => $graficaCosto,
+            'graficaCP02'   => $graficaCP02,
             'tablaMetricas' => $tablaMetricas
         ];
     }

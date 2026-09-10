@@ -1,6 +1,6 @@
 /**
- * Controlador para la vista Costos Tradicionales - Costo de Producción Pollo Vivo (CP01)
- * Administra filtros de período, renderizado del gráfico de líneas con línea de referencia y tabla de métricas
+ * Controlador para la vista Costos Tradicionales
+ * Administra filtros de período, alternancia entre CP01 (Costo Producción) y CP02 (CPV vs CA)
  */
 class CostosTradicionalesController {
     constructor() {
@@ -25,7 +25,6 @@ class CostosTradicionalesController {
                 selPeriodo.value = 'entre_meses';
             }
             PeriodoHelper.renderizarInputs();
-
         }
     }
 
@@ -37,6 +36,14 @@ class CostosTradicionalesController {
                 if (typeof PeriodoHelper !== 'undefined') {
                     PeriodoHelper.renderizarInputs();
                 }
+            });
+        }
+
+        // Selector de tipo de gráfico (CP01 vs CP02)
+        const selTipoGrafico = document.getElementById('select-tipo-grafico');
+        if (selTipoGrafico) {
+            selTipoGrafico.addEventListener('change', async () => {
+                await this.onCargarClick();
             });
         }
 
@@ -131,9 +138,12 @@ class CostosTradicionalesController {
                 rango = PeriodoHelper.obtenerRangoFechas();
             }
 
+            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'CPO1CostoProduccion';
+
             const payloadFiltros = {
                 fecha_inicio: rango.fechaInicio || rango.inicio || '2024-01-01',
-                fecha_fin: rango.fechaFin || rango.fin || '2025-10-31'
+                fecha_fin: rango.fechaFin || rango.fin || '2025-10-31',
+                tipo_grafico: tipoGrafico
             };
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
@@ -141,8 +151,12 @@ class CostosTradicionalesController {
             if (res && (res.success || res.status === 'success')) {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
-                this.renderizarGraficaCosto(data);
-                this.renderizarTablaMetricas(data);
+
+                if (tipoGrafico === 'CP02 CPVvsCA') {
+                    this.configurarVistaCP02(data);
+                } else {
+                    this.configurarVistaCP01(data);
+                }
             } else {
                 console.error('Error en respuesta del servicio:', res);
             }
@@ -178,6 +192,9 @@ class CostosTradicionalesController {
             case 'decimal1':
                 // e.g. 42,2 (1 decimal con coma)
                 return num.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace('.', ',');
+            case 'decimal2':
+                // e.g. 2,40 (2 decimales con coma)
+                return num.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',');
             case 'decimal3':
                 // e.g. 2,616 / 4,538 (3 decimales con coma)
                 return num.toLocaleString('es-PE', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',');
@@ -187,13 +204,80 @@ class CostosTradicionalesController {
     }
 
     /**
-     * 1. Renderizado del Gráfico de Líneas con Referencia (Costo de Producción Pollo Vivo - MES)
+     * Configura y renderiza la vista para CP01 (Costo de Producción Pollo Vivo + Tabla)
      */
-    renderizarGraficaCosto(data = {}) {
+    configurarVistaCP01(data) {
+        // Título
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Costo de Producción Pollo Vivo - MES';
+
+        // Ajustar altura del contenedor para CP01 (380px)
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full h-[360px] sm:h-[380px] p-4";
+        }
+
+        // Badges / Leyenda estática para CP01
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        const benchmark = data.benchmark || 4.538;
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = `
+                <span class="text-xs font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-md">
+                    Promedio / Meta: ${this.formatearNumero(benchmark, 'decimal3')}
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium hidden sm:inline-flex">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Bajo Meta (Favorable)
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium hidden sm:inline-flex">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-600"></span> Sobre Meta (Alto)
+                </span>
+            `;
+        }
+
+        // Mostrar Tabla de Métricas
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.remove('hidden');
+
+        // Renderizar
+        this.renderizarGraficaCP01(data);
+        this.renderizarTablaMetricas(data);
+    }
+
+    /**
+     * Configura y renderiza la vista para CP02 (Costo Producción vs Costo Alimentación - Doble Eje)
+     */
+    configurarVistaCP02(data) {
+        // Título
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Costo de Producción Pollo vivo vs. Costo de Alimentación (S/ por Kg)';
+
+        // Ajustar altura responsive expansiva para CP02 (Ocupa casi toda la pantalla disponible)
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[520px] h-[calc(100vh-250px)] max-h-[750px] p-4";
+        }
+
+        // Limpiar contenedor de badges externos porque usaremos la leyenda nativa interactiva de Chart.js
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = '';
+        }
+
+        // Ocultar Tabla de Métricas (en Tableau CP02 no incluye tabla de detalle)
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.add('hidden');
+
+        // Renderizar Gráfica Doble Eje con leyenda interactiva
+        this.renderizarGraficaCP02(data);
+    }
+
+    /**
+     * 1. Renderizado de Gráfica CP01 (Línea con Referencia Benchmark)
+     */
+    renderizarGraficaCP01(data = {}) {
         const canvas = document.getElementById('chart-costo-produccion');
         if (!canvas) return;
 
-        // Destruir instancia previa
         if (this.chartInstance && typeof this.chartInstance.destroy === 'function') {
             this.chartInstance.destroy();
             this.chartInstance = null;
@@ -202,25 +286,18 @@ class CostosTradicionalesController {
         const graficaCosto = data.graficaCosto || [];
         const benchmark = data.benchmark || 4.538;
 
-        if (graficaCosto.length === 0) {
-            return;
-        }
+        if (graficaCosto.length === 0) return;
 
-        // Labels del eje X (e.g. 'enero de 2024', 'febrero de 2024', etc.)
         const labels = graficaCosto.map(d => d.mes_larga || d.mes_corta || d.key);
         const valoresCosto = graficaCosto.map(d => Number(d.costo || 0));
 
-        // Colores condicionales por punto:
-        // Verde para valores bajos / eficientes (<= 4.538 o estado 'bajo')
-        // Rojo para valores altos (> 4.538 o estado 'alto')
         const coloresPuntos = graficaCosto.map(d => (d.estado === 'bajo' ? '#16a34a' : '#b91c1c'));
         const coloresHover = graficaCosto.map(d => (d.estado === 'bajo' ? '#15803d' : '#991b1b'));
 
-        // Dataset de la Línea Principal de Costo
         const datasetCosto = {
             label: 'Costo de Producción',
             data: valoresCosto,
-            borderColor: '#475569', // Color de la línea Tableau (slate oscuro/gris neutro)
+            borderColor: '#475569',
             backgroundColor: '#475569',
             borderWidth: 2,
             tension: 0.05,
@@ -245,11 +322,10 @@ class CostosTradicionalesController {
             }
         };
 
-        // Dataset de la Línea de Referencia Benchmark (4.538)
         const datasetBenchmark = {
             label: `Promedio / Meta (${this.formatearNumero(benchmark, 'decimal3')})`,
             data: labels.map(() => benchmark),
-            borderColor: '#3b82f6', // Azul Tableau
+            borderColor: '#3b82f6',
             backgroundColor: '#3b82f6',
             borderWidth: 1.5,
             borderDash: [5, 4],
@@ -270,7 +346,6 @@ class CostosTradicionalesController {
             }
         };
 
-        // Escala Y personalizada: 3.8 a 4.8 con pasos de 0.2 adaptativa
         let minY = 3.8;
         let maxY = 4.8;
         if (valoresCosto.length > 0) {
@@ -299,12 +374,7 @@ class CostosTradicionalesController {
                 maintainAspectRatio: false,
                 devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
-                    padding: {
-                        top: 24,
-                        bottom: 8,
-                        left: 10,
-                        right: 42 // Espacio para la etiqueta de benchmark a la derecha
-                    }
+                    padding: { top: 24, bottom: 8, left: 10, right: 42 }
                 },
                 interaction: {
                     mode: 'index',
@@ -327,10 +397,7 @@ class CostosTradicionalesController {
                             font: { size: 11, weight: '500' },
                             formatter: (val) => Number(val).toFixed(1).replace('.', ',')
                         },
-                        grid: {
-                            color: '#f1f5f9',
-                            drawBorder: false
-                        }
+                        grid: { color: '#f1f5f9', drawBorder: false }
                     },
                     x: {
                         ticks: {
@@ -340,15 +407,11 @@ class CostosTradicionalesController {
                             minRotation: 30,
                             autoSkip: false
                         },
-                        grid: {
-                            display: false
-                        }
+                        grid: { display: false }
                     }
                 },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         enabled: false,
                         external: (context) => {
@@ -407,7 +470,279 @@ class CostosTradicionalesController {
     }
 
     /**
-     * 2. Renderizado de la Tabla de Indicadores (Detalle Costo de Producción Pollo Vivo - MES)
+     * 2. Renderizado de Gráfica CP02 (Doble Eje con Leyenda Interactiva y Anticolisión Inteligente de Labels)
+     */
+    renderizarGraficaCP02(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        if (this.chartInstance && typeof this.chartInstance.destroy === 'function') {
+            this.chartInstance.destroy();
+            this.chartInstance = null;
+        }
+
+        const graficaCP02 = data.graficaCP02 || [];
+        if (graficaCP02.length === 0) return;
+
+        const labels = graficaCP02.map(d => d.mes_larga || d.mes_corta || d.key);
+        const valoresProd = graficaCP02.map(d => Number(d.costo_produccion || 0));
+        const valoresAlim = graficaCP02.map(d => Number(d.costo_alimentacion || 0));
+
+        // Escalas Y1 (Izquierda: PROD PV) y Y2 (Derecha: Cost Alim)
+        let minProd = 3.8, maxProd = 4.7;
+        if (valoresProd.length > 0) {
+            const minV = Math.min(...valoresProd);
+            const maxV = Math.max(...valoresProd);
+            minProd = Math.min(3.8, Math.floor((minV - 0.1) * 10) / 10);
+            maxProd = Math.max(4.7, Math.ceil((maxV + 0.1) * 10) / 10);
+        }
+
+        let minAlim = 2.40, maxAlim = 2.74;
+        if (valoresAlim.length > 0) {
+            const minV = Math.min(...valoresAlim);
+            const maxV = Math.max(...valoresAlim);
+            minAlim = Math.min(2.40, Math.floor((minV - 0.04) * 100) / 100);
+            maxAlim = Math.max(2.74, Math.ceil((maxV + 0.04) * 100) / 100);
+        }
+
+        // Función inteligente para evitar colisiones y superposición de etiquetas numéricas
+        const getSmartAlignment = (datasetIdx, dataIdx) => {
+            const prodVal = valoresProd[dataIdx];
+            const alimVal = valoresAlim[dataIdx];
+
+            // Normalización relativa de posición vertical en el canvas (0 = inferior, 1 = superior)
+            const normProd = (prodVal - minProd) / (maxProd - minProd || 1);
+            const normAlim = (alimVal - minAlim) / (maxAlim - minAlim || 1);
+
+            const diff = normProd - normAlim;
+
+            if (datasetIdx === 0) {
+                // Dataset PROD PV (Azul)
+                // Si la línea azul está muy cerca o por debajo de la roja (ej. Julio / Agosto o valle en Abril)
+                if (diff < 0.12 || (dataIdx > 0 && prodVal < valoresProd[dataIdx - 1] && dataIdx < valoresProd.length - 1 && prodVal < valoresProd[dataIdx + 1])) {
+                    return 'bottom';
+                }
+                return 'top';
+            } else {
+                // Dataset Cost Alim (Rojo)
+                // Si la línea roja está visualmente por encima o cruza, ponerla arriba
+                if (diff < 0.12) {
+                    return 'top';
+                }
+                return 'bottom';
+            }
+        };
+
+        // Dataset 1: PROD PV (Azul Tableau - Eje Y Izquierdo)
+        const datasetProd = {
+            label: 'PROD PV',
+            data: valoresProd,
+            yAxisID: 'y',
+            borderColor: '#4f7cac',
+            backgroundColor: '#4f7cac',
+            borderWidth: 2.2,
+            tension: 0.05,
+            pointRadius: 4.5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#4f7cac',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1.5,
+            datalabels: {
+                align: (context) => getSmartAlignment(0, context.dataIndex),
+                offset: 6,
+                color: '#2b5c8f',
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    size: 11,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        // Dataset 2: Cost Alim (Rojo/Coral Tableau - Eje Y Derecho)
+        const datasetAlim = {
+            label: 'Cost Alim',
+            data: valoresAlim,
+            yAxisID: 'y1',
+            borderColor: '#c0392b',
+            backgroundColor: '#c0392b',
+            borderWidth: 2.2,
+            tension: 0.05,
+            pointRadius: 4.5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#c0392b',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1.5,
+            datalabels: {
+                align: (context) => getSmartAlignment(1, context.dataIndex),
+                offset: 6,
+                color: '#c0392b',
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    size: 11,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'line',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: [datasetProd, datasetAlim]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 28, bottom: 12, left: 12, right: 12 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    // Eje Y Izquierdo (PROD PV)
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: minProd,
+                        max: maxProd,
+                        title: {
+                            display: true,
+                            text: 'PROD PV',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.1,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    // Eje Y Derecho (Cost Alim)
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: minAlim,
+                        max: maxAlim,
+                        title: {
+                            display: true,
+                            text: 'Cost Alim',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.02,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(2).replace('.', ',')
+                        },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#475569',
+                            font: { size: 11, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 30,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    // Leyenda interactiva nativa con estilo circular clicable para ocultar/mostrar series
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 16,
+                            font: {
+                                family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            color: '#475569',
+                            cursor: 'pointer'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataIndex = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+                            if (dataIndex === null || !graficaCP02[dataIndex]) return;
+
+                            const item = graficaCP02[dataIndex];
+
+                            tooltipEl.innerHTML = `
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
+                                    <span class="text-slate-500 font-normal">Mes de fecha:</span>
+                                    <span class="text-slate-900 font-semibold text-left capitalize">${item.mes_larga}</span>
+                                    <span class="text-[#2b5c8f] font-semibold">PROD PV:</span>
+                                    <span class="text-[#2b5c8f] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_produccion, 'decimal3')} S//Kg</span>
+                                    <span class="text-[#991b1b] font-semibold">Cost Alim:</span>
+                                    <span class="text-[#991b1b] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_alimentacion, 'decimal3')} S//Kg</span>
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 250;
+                            const tooltipHeight = tooltipEl.offsetHeight || 100;
+
+                            let x = canvasRect.left + tooltip.caretX + 12;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 12;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 3. Renderizado de la Tabla de Indicadores (Detalle Costo de Producción Pollo Vivo - MES para CP01)
      */
     renderizarTablaMetricas(data = {}) {
         const thead = document.getElementById('thead-detalle-metricas');
@@ -424,9 +759,8 @@ class CostosTradicionalesController {
             return;
         }
 
-        // 1. Construir Cabecera en 2 Niveles: Fila 1 (Mes de fecha) + Fila 2 (Indicador + Meses)
+        // Cabecera en 2 Niveles
         let theadHtml = `
-            <!-- Nivel 1: Título de Agrupador Superior -->
             <tr class="bg-blue-600 text-white font-bold text-xs uppercase tracking-wider">
                 <th class="py-2 px-3 text-center border-b border-r border-blue-500 sticky left-0 z-30 bg-blue-600">
                     Mes de fecha
@@ -435,7 +769,6 @@ class CostosTradicionalesController {
                     Mes de fecha
                 </th>
             </tr>
-            <!-- Nivel 2: Indicador y Nombres de Meses Abreviados (ene 2024, feb 2024, ...) -->
             <tr class="bg-blue-600 text-white font-bold text-xs">
                 <th class="py-2.5 px-3 text-left border-r border-blue-500 sticky left-0 z-30 bg-blue-600 min-w-[220px] max-w-[260px] shadow-sm">
                     Indicador
@@ -453,7 +786,7 @@ class CostosTradicionalesController {
         theadHtml += `</tr>`;
         thead.innerHTML = theadHtml;
 
-        // 2. Construir Cuerpo de la Tabla con las 7 Filas de Métricas
+        // Cuerpo de la Tabla con las 7 Filas de Métricas
         let tbodyHtml = '';
 
         tablaMetricas.forEach((metrica, idx) => {
@@ -463,7 +796,6 @@ class CostosTradicionalesController {
 
             tbodyHtml += `
                 <tr class="${rowBg} hover:bg-blue-50/50 transition-colors border-b border-slate-200/80">
-                    <!-- Nombre del Indicador (Sticky Left) -->
                     <td class="py-2 px-3 font-bold text-slate-800 text-[11px] border-r border-slate-200 sticky left-0 z-20 ${stickyBg} shadow-xs truncate">
                         ${metrica.nombre}
                     </td>
