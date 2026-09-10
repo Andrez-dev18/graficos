@@ -66,42 +66,120 @@ class TransportesController {
         if (!tooltip) return;
 
         document.addEventListener('mousemove', (e) => {
-            const target = e.target.closest('[data-tooltip-totales]');
-            if (target) {
-                const fechatxt = target.getAttribute('data-tt-fecha');
-                const validador = target.getAttribute('data-tt-validador');
-                const pct = target.getAttribute('data-tt-pct');
-                const cant = target.getAttribute('data-tt-cant');
-                const total = target.getAttribute('data-tt-total');
+            // 1. Tooltip Totales Diarios (sobre las barras)
+            const targetTotales = e.target.closest('[data-tooltip-totales]');
+            if (targetTotales) {
+                const fechatxt = targetTotales.getAttribute('data-tt-fecha');
+                const validador = targetTotales.getAttribute('data-tt-validador');
+                const pct = targetTotales.getAttribute('data-tt-pct');
+                const cant = targetTotales.getAttribute('data-tt-cant');
+                const total = targetTotales.getAttribute('data-tt-total');
 
                 tooltip.innerHTML = `
-                    <div class="space-y-1">
-                        <div class="text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-1">
-                            ${fechatxt}
-                        </div>
-                        <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
-                            <span class="text-slate-400">validador:</span>
-                            <span class="font-bold text-slate-800 text-right capitalize">${validador}</span>
-                            <span class="text-slate-400">% de total:</span>
-                            <span class="font-bold font-mono text-slate-900 text-right">${pct}</span>
-                            ${cant ? `<span class="text-slate-400">Conteo:</span><span class="font-semibold text-slate-700 text-right">${cant}</span>` : ''}
-                            ${total ? `<span class="text-slate-400">Total Día:</span><span class="font-semibold text-slate-700 text-right">${total}</span>` : ''}
-                        </div>
+                    <div class="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-[11px] font-sans">
+                        <span class="text-slate-500 font-normal">validador:</span>
+                        <span class="text-slate-900 font-semibold text-left">${validador}</span>
+                        <span class="text-slate-500 font-normal">Día de fechaproceso:</span>
+                        <span class="text-slate-900 font-semibold text-left">${fechatxt}</span>
+                        <span class="text-slate-500 font-normal">% de total conteo:</span>
+                        <span class="text-slate-900 font-semibold text-left font-mono">${pct}</span>
+                        ${cant ? `<span class="text-slate-500 font-normal">conteo:</span><span class="text-slate-900 font-semibold text-left">${cant}</span>` : ''}
+                        ${total ? `<span class="text-slate-500 font-normal">Total general:</span><span class="text-slate-900 font-semibold text-left">${total}</span>` : ''}
                     </div>
                 `;
+                this.posicionarTooltip(tooltip, e);
+                return;
+            }
 
-                tooltip.classList.remove('hidden');
-                const tooltipWidth = tooltip.offsetWidth || 220;
-                const tooltipHeight = tooltip.offsetHeight || 100;
-                const x = Math.min(e.clientX + 14, window.innerWidth - tooltipWidth - 20);
-                const y = Math.min(e.clientY + 14, window.innerHeight - tooltipHeight - 20);
+            // 2. Tooltip Hojas de Ruta (sobre la celda de validador)
+            const targetHoja = e.target.closest('[data-tooltip-hoja]');
+            if (targetHoja) {
+                const chofer = targetHoja.getAttribute('data-tt-chofer') || '';
+                const placa = targetHoja.getAttribute('data-tt-placa') || '';
+                const transportista = targetHoja.getAttribute('data-tt-transportista') || '';
+                const validador = targetHoja.getAttribute('data-tt-validador') || '';
+                const zona = targetHoja.getAttribute('data-tt-zona') || '';
+                const fechatxt = targetHoja.getAttribute('data-tt-fecha') || '';
 
-                tooltip.style.left = `${x}px`;
-                tooltip.style.top = `${y}px`;
-            } else {
+                tooltip.innerHTML = `
+                    <div class="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-[11px] font-sans">
+                        <span class="text-slate-500 font-normal">chofer:</span>
+                        <span class="text-slate-900 font-semibold text-left uppercase">${chofer}</span>
+                        <span class="text-slate-500 font-normal">placa:</span>
+                        <span class="text-slate-900 font-semibold text-left font-mono">${placa}</span>
+                        <span class="text-slate-500 font-normal">transportista:</span>
+                        <span class="text-slate-900 font-semibold text-left uppercase">${transportista}</span>
+                        <span class="text-slate-500 font-normal">validador:</span>
+                        <span class="text-slate-900 font-semibold text-left">${validador}</span>
+                        <span class="text-slate-500 font-normal">zona:</span>
+                        <span class="text-slate-900 font-semibold text-left uppercase">${zona}</span>
+                        <span class="text-slate-500 font-normal">Día de fechaproceso:</span>
+                        <span class="text-slate-900 font-semibold text-left">${fechatxt}</span>
+                    </div>
+                `;
+                this.posicionarTooltip(tooltip, e);
+                return;
+            }
+
+            // 3. Tooltip Detalle de Ruta (sobre los cuadrados de colores)
+            const targetDetalle = e.target.closest('[data-tooltip-detalle]');
+            if (targetDetalle) {
+                const dia = targetDetalle.getAttribute('data-tt-dia') || '';
+                const fechaproceso = targetDetalle.getAttribute('data-tt-fecha') || '';
+                const hora = targetDetalle.getAttribute('data-tt-hora') || '';
+                const placa = targetDetalle.getAttribute('data-tt-placa') || '';
+                const tipo = targetDetalle.getAttribute('data-tt-tipo') || '';
+                const validador = targetDetalle.getAttribute('data-tt-validador') || '';
+                const zona = targetDetalle.getAttribute('data-tt-zona') || '';
+                const conteo = targetDetalle.getAttribute('data-tt-conteo') || '1,000';
+
+                tooltip.innerHTML = `
+                    <div class="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-[11px] font-sans">
+                        <span class="text-slate-500 font-normal">dia:</span>
+                        <span class="text-slate-900 font-semibold text-left font-mono">${dia}</span>
+                        <span class="text-slate-500 font-normal">fechaproceso:</span>
+                        <span class="text-slate-900 font-semibold text-left font-mono">${fechaproceso}</span>
+                        <span class="text-slate-500 font-normal">hora:</span>
+                        <span class="text-slate-900 font-semibold text-left font-mono">${hora}</span>
+                        <span class="text-slate-500 font-normal">placa:</span>
+                        <span class="text-slate-900 font-semibold text-left font-mono">${placa}</span>
+                        <span class="text-slate-500 font-normal">tipo:</span>
+                        <span class="text-slate-900 font-semibold text-left">${tipo}</span>
+                        <span class="text-slate-500 font-normal">validador:</span>
+                        <span class="text-slate-900 font-semibold text-left">${validador}</span>
+                        <span class="text-slate-500 font-normal">zona:</span>
+                        <span class="text-slate-900 font-semibold text-left uppercase">${zona}</span>
+                        <span class="text-slate-500 font-normal">conteo:</span>
+                        <span class="text-slate-900 font-semibold text-left">${conteo}</span>
+                    </div>
+                `;
+                this.posicionarTooltip(tooltip, e);
+                return;
+            }
+
+            // Ocultar si no está sobre ningún target de tooltip (y no sobre el canvas)
+            if (!e.target.closest('#chart-tendencia-diaria')) {
                 tooltip.classList.add('hidden');
             }
         });
+    }
+
+    posicionarTooltip(tooltip, e) {
+        tooltip.classList.remove('hidden');
+        const tooltipWidth = tooltip.offsetWidth || 280;
+        const tooltipHeight = tooltip.offsetHeight || 130;
+        let x = e.clientX + 14;
+        let y = e.clientY + 14;
+
+        if (x + tooltipWidth > window.innerWidth - 12) {
+            x = e.clientX - tooltipWidth - 14;
+        }
+        if (y + tooltipHeight > window.innerHeight - 12) {
+            y = e.clientY - tooltipHeight - 14;
+        }
+
+        tooltip.style.left = `${Math.max(10, x)}px`;
+        tooltip.style.top = `${Math.max(10, y)}px`;
     }
 
     setupListeners() {
@@ -813,18 +891,71 @@ class TransportesController {
                         grid: { display: false }
                     }
                 },
+                interaction: {
+                    mode: 'nearest',
+                    intersect: true
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: '#ffffff',
-                        titleColor: '#0f172a',
-                        bodyColor: '#334155',
-                        borderColor: '#cbd5e1',
-                        borderWidth: 1,
-                        padding: 10,
-                        boxPadding: 4,
-                        callbacks: {
-                            label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(2).replace('.', ',')}%`
+                        enabled: false,
+                        external: (context) => {
+                            const tooltipEl = document.getElementById('tooltip-tableau-transporte');
+                            if (!tooltipEl) return;
+
+                            const tooltipModel = context.tooltip;
+                            if (tooltipModel.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            if (tooltipModel.dataPoints && tooltipModel.dataPoints.length > 0) {
+                                const dp = tooltipModel.dataPoints[0];
+                                const dataset = dp.dataset;
+                                const idx = dp.dataIndex;
+                                const item = this.chartTendenciaDatos?.[idx];
+
+                                if (!item) return;
+
+                                const valSelected = dataset.label;
+                                const esComp = (valSelected === 'completo');
+                                const pct = Number(dp.raw || 0);
+                                const cant = esComp ? item.cantCompleto : item.cantIncompleto;
+                                const cantFormatted = new Intl.NumberFormat('es-PE').format(cant);
+
+                                tooltipEl.innerHTML = `
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-[11px] font-sans">
+                                        <span class="text-slate-500 font-normal">validador:</span>
+                                        <span class="text-slate-900 font-semibold text-left">${valSelected}</span>
+                                        <span class="text-slate-500 font-normal">Día de fechaproceso:</span>
+                                        <span class="text-slate-900 font-semibold text-left">${item.fechaTxt}</span>
+                                        <span class="text-slate-500 font-normal">% de total conteo junto con validador:</span>
+                                        <span class="text-slate-900 font-semibold text-left font-mono">${pct.toFixed(2).replace('.', ',')}%</span>
+                                        <span class="text-slate-500 font-normal">conteo:</span>
+                                        <span class="text-slate-900 font-semibold text-left">${cantFormatted}</span>
+                                    </div>
+                                `;
+
+                                tooltipEl.classList.remove('hidden');
+
+                                const position = context.chart.canvas.getBoundingClientRect();
+                                const tooltipWidth = tooltipEl.offsetWidth || 280;
+                                const tooltipHeight = tooltipEl.offsetHeight || 110;
+
+                                let left = position.left + tooltipModel.caretX + 14;
+                                let top = position.top + tooltipModel.caretY - 20;
+
+                                if (left + tooltipWidth > window.innerWidth - 12) {
+                                    left = position.left + tooltipModel.caretX - tooltipWidth - 14;
+                                }
+                                if (top + tooltipHeight > window.innerHeight - 12) {
+                                    top = window.innerHeight - tooltipHeight - 12;
+                                }
+                                if (top < 10) top = 10;
+
+                                tooltipEl.style.left = `${Math.max(10, left)}px`;
+                                tooltipEl.style.top = `${Math.max(10, top)}px`;
+                            }
                         }
                     }
                 }
@@ -960,7 +1091,16 @@ class TransportesController {
                         ${h.placa}
                     </td>
                     <td class="px-3 py-2 text-left whitespace-nowrap font-medium border-b border-slate-100 ${colorVal}">
-                        ${h.validador}
+                        <span class="inline-block px-1 py-0.5 rounded-xs hover:bg-slate-100 hover:font-bold transition-all cursor-default"
+                              data-tooltip-hoja="true"
+                              data-tt-chofer="${h.chofer}"
+                              data-tt-placa="${h.placa}"
+                              data-tt-transportista="${h.transportista}"
+                              data-tt-validador="${h.validador}"
+                              data-tt-zona="${h.zona}"
+                              data-tt-fecha="${h.diaTxt}">
+                            ${h.validador}
+                        </span>
                     </td>
                 </tr>
             `;
@@ -1114,7 +1254,16 @@ class TransportesController {
                         ${d.tipo}
                     </td>
                     <td class="px-3 py-2 text-center align-middle border-b border-slate-100">
-                        <span class="inline-block w-3.5 h-3.5 rounded-none ${colorSquare}" title="${d.validador}"></span>
+                        <span class="inline-block w-3.5 h-3.5 rounded-none cursor-pointer ${colorSquare} hover:ring-1 hover:ring-black transition-all"
+                              data-tooltip-detalle="true"
+                              data-tt-dia="${diaDisplay}"
+                              data-tt-fecha="${this.formatearDiaCorta(d.fecha)}"
+                              data-tt-hora="${d.hora}"
+                              data-tt-placa="${d.placa}"
+                              data-tt-tipo="${d.tipo}"
+                              data-tt-validador="${d.validador}"
+                              data-tt-zona="${d.zona}"
+                              data-tt-conteo="1,000"></span>
                     </td>
                 </tr>
             `;
