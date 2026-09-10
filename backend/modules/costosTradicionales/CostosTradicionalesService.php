@@ -26,24 +26,28 @@ class CostosTradicionalesService
     }
 
     /**
-     * Procesa y estructura los datos para la gráfica de costo, CP02 y la tabla de métricas
+     * Procesa y estructura los datos para CP01, CP02 y CP03 con soporte de filtro de zona
      */
     public function obtenerDashboard(array $filtros): array
     {
-        // 1. Normalizar fechas de filtro
+        // 1. Normalizar fechas y filtros
         $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : '2024-01-01';
         $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2025-10-31';
         $tipoGrafico = !empty($filtros['tipo_grafico']) ? trim($filtros['tipo_grafico']) : 'CPO1CostoProduccion';
+        $zonaFiltro  = !empty($filtros['zona']) ? trim($filtros['zona']) : null;
 
-        // 2. Obtener datos del repositorio
+        // 2. Obtener datos generales de costomen (para CP01 y CP02)
         $registros = $this->repo->getCostosPorPeriodo($fechaInicio, $fechaFin);
 
-        // 3. Estructurar colecciones de salida
+        // 3. Obtener datos por zona de costomenzona (para CP03)
+        $registrosZona = $this->repo->getCostosPorZona($fechaInicio, $fechaFin, $zonaFiltro);
+        $zonasDisponibles = $this->repo->getZonasDisponibles();
+
+        // 4. Estructurar CP01 y CP02
         $periodos     = [];
         $graficaCosto = []; // CP01
-        $graficaCP02  = []; // CP02 (Doble eje: Producción vs Alimentación)
+        $graficaCP02  = []; // CP02
 
-        // Inicializar mapas de valores por métrica
         $valoresSacaUnd   = [];
         $valoresSacaKg    = [];
         $valoresPesoProm  = [];
@@ -53,7 +57,7 @@ class CostosTradicionalesService
         $valoresGanancia  = [];
 
         foreach ($registros as $row) {
-            $key    = $row['mes_key']; // e.g. 2026-03
+            $key    = $row['mes_key'];
             $anio   = $row['anio'];
             $mesNum = $row['mes_num'];
             $mesNomLargo = self::$mesesLargo[$mesNum] ?? "mes $mesNum";
@@ -70,7 +74,6 @@ class CostosTradicionalesService
             $costoAlim = (float)($row['costo_alimentacion_kg'] ?? 0);
             $costoAlimRedondeado = round($costoAlim, 3);
 
-            // Agregar a lista cronológica de periodos
             $periodos[] = [
                 'key'       => $key,
                 'mes_corta' => $mesCorta,
@@ -80,7 +83,7 @@ class CostosTradicionalesService
                 'mes_num'   => $mesNum
             ];
 
-            // Punto para CP01: Costo de Producción Pollo Vivo
+            // CP01
             $graficaCosto[] = [
                 'key'       => $key,
                 'mes_corta' => $mesCorta,
@@ -91,7 +94,7 @@ class CostosTradicionalesService
                 'estado'    => $estadoCosto
             ];
 
-            // Punto para CP02: CPV vs CA (Doble serie)
+            // CP02
             $graficaCP02[] = [
                 'key'                => $key,
                 'mes_corta'          => $mesCorta,
@@ -102,7 +105,7 @@ class CostosTradicionalesService
                 'costo_alimentacion' => $costoAlimRedondeado
             ];
 
-            // Llenar mapas de métricas para la tabla
+            // Métricas CP01
             $valoresSacaUnd[$key]   = (float)($row['saca_und'] ?? 0);
             $valoresSacaKg[$key]    = (float)($row['saca_kilos'] ?? 0);
             $valoresPesoProm[$key]  = round((float)($row['pesoprom'] ?? 0), 3);
@@ -112,7 +115,51 @@ class CostosTradicionalesService
             $valoresGanancia[$key]  = round((float)($row['ganancia'] ?? 0), 3);
         }
 
-        // 4. Construir las 7 filas de métricas con sus formatos
+        // 5. Estructurar CP03 (Costo Promedio de Producción Pollo Vivo por Zona)
+        $periodosZonaMap = [];
+        $seriesPorZona = [];
+
+        foreach ($registrosZona as $rz) {
+            $key    = $rz['mes_key'];
+            $anio   = $rz['anio'];
+            $mesNum = $rz['mes_num'];
+            $zona   = trim($rz['zona']);
+            $mesNomLargo = self::$mesesLargo[$mesNum] ?? "mes $mesNum";
+            $mesNomCorto = self::$mesesCorto[$mesNum] ?? "m$mesNum";
+
+            $mesLarga = "$mesNomLargo de $anio";
+            $mesCorta = "$mesNomCorto $anio";
+
+            if (!isset($periodosZonaMap[$key])) {
+                $periodosZonaMap[$key] = [
+                    'key'       => $key,
+                    'mes_corta' => $mesCorta,
+                    'mes_larga' => $mesLarga,
+                    'anio'      => $anio,
+                    'mes'       => ucfirst($mesNomLargo),
+                    'mes_num'   => $mesNum
+                ];
+            }
+
+            $cpv = round((float)($rz['costo_promedio_zona'] ?? 0), 3);
+
+            $seriesPorZona[$zona][$key] = [
+                'costo'   => $cpv,
+                'valoavi' => (float)($rz['sum_valoavi'] ?? 0),
+                'pesoavi' => (float)($rz['sum_pesoavi'] ?? 0)
+            ];
+        }
+
+        $periodosCP03 = array_values($periodosZonaMap);
+        $zonasCP03 = array_keys($seriesPorZona);
+
+        $graficaCP03 = [
+            'periodos' => $periodosCP03,
+            'zonas'    => $zonasCP03,
+            'series'   => $seriesPorZona
+        ];
+
+        // 6. Filas de métricas para CP01
         $tablaMetricas = [
             [
                 'id'      => 'saca_pollo_und',
@@ -159,12 +206,15 @@ class CostosTradicionalesService
         ];
 
         return [
-            'tipo_grafico'  => $tipoGrafico,
-            'benchmark'     => self::BENCHMARK,
-            'periodos'      => $periodos,
-            'graficaCosto'  => $graficaCosto,
-            'graficaCP02'   => $graficaCP02,
-            'tablaMetricas' => $tablaMetricas
+            'tipo_grafico'     => $tipoGrafico,
+            'zona'             => $zonaFiltro,
+            'benchmark'        => self::BENCHMARK,
+            'periodos'         => $periodos,
+            'graficaCosto'     => $graficaCosto,
+            'graficaCP02'      => $graficaCP02,
+            'graficaCP03'      => $graficaCP03,
+            'zonasDisponibles' => $zonasDisponibles,
+            'tablaMetricas'    => $tablaMetricas
         ];
     }
 }

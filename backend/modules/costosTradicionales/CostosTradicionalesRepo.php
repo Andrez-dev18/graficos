@@ -10,7 +10,7 @@ class CostosTradicionalesRepo
     }
 
     /**
-     * Obtiene los registros de la tabla costomen dentro del rango de fechas especificado
+     * Obtiene los registros generales de la tabla costomen (CP01 y CP02)
      */
     public function getCostosPorPeriodo(string $fechaInicio, string $fechaFin): array
     {
@@ -48,5 +48,54 @@ class CostosTradicionalesRepo
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene los costos agrupados por Zona y Mes desde costomenzona (CP03)
+     */
+    public function getCostosPorZona(string $fechaInicio, string $fechaFin, ?string $zona = null): array
+    {
+        $params = [
+            ':fecha_ini' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ];
+
+        $whereZona = "";
+        if (!empty($zona) && strtoupper($zona) !== 'TODOS' && strtoupper($zona) !== '(TODO)') {
+            $whereZona = " AND zona = :zona ";
+            $params[':zona'] = $zona;
+        }
+
+        $sql = "
+            SELECT 
+                DATE_FORMAT(fecha, '%Y-%m') AS mes_key,
+                DATE_FORMAT(fecha, '%Y') AS anio,
+                DATE_FORMAT(fecha, '%m') AS mes_num,
+                zona,
+                SUM(valoavi) AS sum_valoavi,
+                SUM(pesoavi) AS sum_pesoavi,
+                (SUM(valoavi) / NULLIF(SUM(pesoavi), 0)) AS costo_promedio_zona
+            FROM costomenzona
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+              {$whereZona}
+            GROUP BY mes_key, anio, mes_num, zona
+            ORDER BY mes_key ASC, zona ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene la lista de zonas únicas registradas
+     */
+    public function getZonasDisponibles(): array
+    {
+        $sql = "SELECT DISTINCT zona FROM costomenzona WHERE zona IS NOT NULL AND zona != '' ORDER BY zona ASC";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 }

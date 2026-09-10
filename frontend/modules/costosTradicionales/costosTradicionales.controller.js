@@ -1,6 +1,6 @@
 /**
  * Controlador para la vista Costos Tradicionales
- * Administra filtros de período, alternancia entre CP01 (Costo Producción) y CP02 (CPV vs CA)
+ * Administra filtros de período, zonas y alternancia entre CP01, CP02 y CP03
  */
 class CostosTradicionalesController {
     constructor() {
@@ -25,6 +25,14 @@ class CostosTradicionalesController {
                 selPeriodo.value = 'entre_meses';
             }
             PeriodoHelper.renderizarInputs();
+
+            // Configurar por defecto el rango inicial (2024-01 a 2025-10)
+            const inputMesIni = document.getElementById('input-mes-inicio');
+            const inputMesFin = document.getElementById('input-mes-fin');
+            if (inputMesIni && inputMesFin) {
+                inputMesIni.value = '2024-01';
+                inputMesFin.value = '2025-10';
+            }
         }
     }
 
@@ -39,10 +47,27 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de tipo de gráfico (CP01 vs CP02)
+        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03)
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
+                const tipo = selTipoGrafico.value;
+                if (contFiltroZona) {
+                    if (tipo === 'CP03 CPPVxZona') {
+                        contFiltroZona.classList.remove('hidden');
+                    } else {
+                        contFiltroZona.classList.add('hidden');
+                    }
+                }
+                await this.onCargarClick();
+            });
+        }
+
+        // Selector de zona (CP03)
+        const selZona = document.getElementById('select-zona');
+        if (selZona) {
+            selZona.addEventListener('change', async () => {
                 await this.onCargarClick();
             });
         }
@@ -139,11 +164,13 @@ class CostosTradicionalesController {
             }
 
             const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'CPO1CostoProduccion';
+            const zonaSeleccionada = document.getElementById('select-zona')?.value || 'TODOS';
 
             const payloadFiltros = {
                 fecha_inicio: rango.fechaInicio || rango.inicio || '2024-01-01',
                 fecha_fin: rango.fechaFin || rango.fin || '2025-10-31',
-                tipo_grafico: tipoGrafico
+                tipo_grafico: tipoGrafico,
+                zona: zonaSeleccionada
             };
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
@@ -152,7 +179,9 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP02 CPVvsCA') {
+                if (tipoGrafico === 'CP03 CPPVxZona') {
+                    this.configurarVistaCP03(data);
+                } else if (tipoGrafico === 'CP02 CPVvsCA') {
                     this.configurarVistaCP02(data);
                 } else {
                     this.configurarVistaCP01(data);
@@ -174,12 +203,14 @@ class CostosTradicionalesController {
     async limpiarFiltros() {
         const selPeriodo = document.getElementById('select-tipo-periodo');
         if (selPeriodo) selPeriodo.value = 'entre_meses';
+        const selZona = document.getElementById('select-zona');
+        if (selZona) selZona.value = 'TODOS';
         this.setupPeriodo();
         await this.onCargarClick();
     }
 
     /**
-     * Formateadores numéricos adaptados exactamente al formato Tableau
+     * Formateadores numéricos adaptados al formato Tableau
      */
     formatearNumero(valor, tipo) {
         if (valor === undefined || valor === null || isNaN(valor)) return '-';
@@ -187,16 +218,12 @@ class CostosTradicionalesController {
 
         switch (tipo) {
             case 'entero':
-                // e.g. 2.111.852 (separador de miles con punto)
                 return num.toLocaleString('es-ES', { maximumFractionDigits: 0, minimumFractionDigits: 0 }).replace(/,/g, '.');
             case 'decimal1':
-                // e.g. 42,2 (1 decimal con coma)
                 return num.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace('.', ',');
             case 'decimal2':
-                // e.g. 2,40 (2 decimales con coma)
                 return num.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',');
             case 'decimal3':
-                // e.g. 2,616 / 4,538 (3 decimales con coma)
                 return num.toLocaleString('es-PE', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',');
             default:
                 return num.toString();
@@ -207,17 +234,17 @@ class CostosTradicionalesController {
      * Configura y renderiza la vista para CP01 (Costo de Producción Pollo Vivo + Tabla)
      */
     configurarVistaCP01(data) {
-        // Título
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo de Producción Pollo Vivo - MES';
 
-        // Ajustar altura del contenedor para CP01 (380px)
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.add('hidden');
+
         const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
         if (contenedorGrafica) {
             contenedorGrafica.className = "relative w-full h-[360px] sm:h-[380px] p-4";
         }
 
-        // Badges / Leyenda estática para CP01
         const contenedorBadges = document.getElementById('contenedor-badges-grafica');
         const benchmark = data.benchmark || 4.538;
         if (contenedorBadges) {
@@ -234,11 +261,9 @@ class CostosTradicionalesController {
             `;
         }
 
-        // Mostrar Tabla de Métricas
         const cardTabla = document.getElementById('card-tabla-metricas');
         if (cardTabla) cardTabla.classList.remove('hidden');
 
-        // Renderizar
         this.renderizarGraficaCP01(data);
         this.renderizarTablaMetricas(data);
     }
@@ -247,28 +272,53 @@ class CostosTradicionalesController {
      * Configura y renderiza la vista para CP02 (Costo Producción vs Costo Alimentación - Doble Eje)
      */
     configurarVistaCP02(data) {
-        // Título
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo de Producción Pollo vivo vs. Costo de Alimentación (S/ por Kg)';
 
-        // Ajustar altura responsive expansiva para CP02 (Ocupa casi toda la pantalla disponible)
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.add('hidden');
+
         const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
         if (contenedorGrafica) {
             contenedorGrafica.className = "relative w-full min-h-[520px] h-[calc(100vh-250px)] max-h-[750px] p-4";
         }
 
-        // Limpiar contenedor de badges externos porque usaremos la leyenda nativa interactiva de Chart.js
         const contenedorBadges = document.getElementById('contenedor-badges-grafica');
         if (contenedorBadges) {
             contenedorBadges.innerHTML = '';
         }
 
-        // Ocultar Tabla de Métricas (en Tableau CP02 no incluye tabla de detalle)
         const cardTabla = document.getElementById('card-tabla-metricas');
         if (cardTabla) cardTabla.classList.add('hidden');
 
-        // Renderizar Gráfica Doble Eje con leyenda interactiva
         this.renderizarGraficaCP02(data);
+    }
+
+    /**
+     * Configura y renderiza la vista para CP03 (Costo Promedio de Producción Pollo Vivo por Zona)
+     */
+    configurarVistaCP03(data) {
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Costo Promedio de Producción Pollo Vivo por Zona';
+
+        // Mostrar selector de ZONA para CP03
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.remove('hidden');
+
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[520px] h-[calc(100vh-250px)] max-h-[750px] p-4";
+        }
+
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = '';
+        }
+
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.add('hidden');
+
+        this.renderizarGraficaCP03(data);
     }
 
     /**
@@ -470,7 +520,7 @@ class CostosTradicionalesController {
     }
 
     /**
-     * 2. Renderizado de Gráfica CP02 (Doble Eje con Leyenda Interactiva y Anticolisión Inteligente de Labels)
+     * 2. Renderizado de Gráfica CP02 (Doble Eje: PROD PV vs Cost Alim)
      */
     renderizarGraficaCP02(data = {}) {
         const canvas = document.getElementById('chart-costo-produccion');
@@ -488,7 +538,6 @@ class CostosTradicionalesController {
         const valoresProd = graficaCP02.map(d => Number(d.costo_produccion || 0));
         const valoresAlim = graficaCP02.map(d => Number(d.costo_alimentacion || 0));
 
-        // Escalas Y1 (Izquierda: PROD PV) y Y2 (Derecha: Cost Alim)
         let minProd = 3.8, maxProd = 4.7;
         if (valoresProd.length > 0) {
             const minV = Math.min(...valoresProd);
@@ -505,27 +554,20 @@ class CostosTradicionalesController {
             maxAlim = Math.max(2.74, Math.ceil((maxV + 0.04) * 100) / 100);
         }
 
-        // Función inteligente para evitar colisiones y superposición de etiquetas numéricas
         const getSmartAlignment = (datasetIdx, dataIdx) => {
             const prodVal = valoresProd[dataIdx];
             const alimVal = valoresAlim[dataIdx];
 
-            // Normalización relativa de posición vertical en el canvas (0 = inferior, 1 = superior)
             const normProd = (prodVal - minProd) / (maxProd - minProd || 1);
             const normAlim = (alimVal - minAlim) / (maxAlim - minAlim || 1);
-
             const diff = normProd - normAlim;
 
             if (datasetIdx === 0) {
-                // Dataset PROD PV (Azul)
-                // Si la línea azul está muy cerca o por debajo de la roja (ej. Julio / Agosto o valle en Abril)
                 if (diff < 0.12 || (dataIdx > 0 && prodVal < valoresProd[dataIdx - 1] && dataIdx < valoresProd.length - 1 && prodVal < valoresProd[dataIdx + 1])) {
                     return 'bottom';
                 }
                 return 'top';
             } else {
-                // Dataset Cost Alim (Rojo)
-                // Si la línea roja está visualmente por encima o cruza, ponerla arriba
                 if (diff < 0.12) {
                     return 'top';
                 }
@@ -533,7 +575,6 @@ class CostosTradicionalesController {
             }
         };
 
-        // Dataset 1: PROD PV (Azul Tableau - Eje Y Izquierdo)
         const datasetProd = {
             label: 'PROD PV',
             data: valoresProd,
@@ -552,7 +593,7 @@ class CostosTradicionalesController {
                 offset: 6,
                 color: '#2b5c8f',
                 font: {
-                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                     size: 11,
                     weight: 'bold'
                 },
@@ -560,7 +601,6 @@ class CostosTradicionalesController {
             }
         };
 
-        // Dataset 2: Cost Alim (Rojo/Coral Tableau - Eje Y Derecho)
         const datasetAlim = {
             label: 'Cost Alim',
             data: valoresAlim,
@@ -579,7 +619,7 @@ class CostosTradicionalesController {
                 offset: 6,
                 color: '#c0392b',
                 font: {
-                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                     size: 11,
                     weight: 'bold'
                 },
@@ -613,7 +653,6 @@ class CostosTradicionalesController {
                     intersect: false
                 },
                 scales: {
-                    // Eje Y Izquierdo (PROD PV)
                     y: {
                         type: 'linear',
                         display: true,
@@ -635,7 +674,6 @@ class CostosTradicionalesController {
                         },
                         grid: { color: '#f1f5f9', drawBorder: false }
                     },
-                    // Eje Y Derecho (Cost Alim)
                     y1: {
                         type: 'linear',
                         display: true,
@@ -669,7 +707,6 @@ class CostosTradicionalesController {
                     }
                 },
                 plugins: {
-                    // Leyenda interactiva nativa con estilo circular clicable para ocultar/mostrar series
                     legend: {
                         display: true,
                         position: 'top',
@@ -742,7 +779,246 @@ class CostosTradicionalesController {
     }
 
     /**
-     * 3. Renderizado de la Tabla de Indicadores (Detalle Costo de Producción Pollo Vivo - MES para CP01)
+     * 3. Renderizado de Gráfica CP03 (Costo Promedio de Producción Pollo Vivo por Zona)
+     */
+    renderizarGraficaCP03(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        if (this.chartInstance && typeof this.chartInstance.destroy === 'function') {
+            this.chartInstance.destroy();
+            this.chartInstance = null;
+        }
+
+        const graficaCP03 = data.graficaCP03 || {};
+        const periodos = graficaCP03.periodos || [];
+        const zonas = graficaCP03.zonas || [];
+        const seriesData = graficaCP03.series || {};
+
+        if (periodos.length === 0 || zonas.length === 0) return;
+
+        const labels = periodos.map(p => p.mes_larga || p.mes_corta || p.key);
+
+        const coloresPorZona = {
+            'JOYA': {
+                linea: '#2b5c8f', // Azul Tableau
+                fondo: '#2b5c8f',
+                texto: '#2b5c8f'
+            },
+            'MOLLENDO': {
+                linea: '#38a169', // Verde Tableau
+                fondo: '#38a169',
+                texto: '#2f855a'
+            }
+        };
+
+        const defaultColores = [
+            { linea: '#2b5c8f', fondo: '#2b5c8f', texto: '#2b5c8f' },
+            { linea: '#38a169', fondo: '#38a169', texto: '#2f855a' },
+            { linea: '#d97706', fondo: '#d97706', texto: '#b45309' },
+            { linea: '#7c3aed', fondo: '#7c3aed', texto: '#6d28d9' }
+        ];
+
+        const todosValores = [];
+        zonas.forEach(z => {
+            const zMap = seriesData[z] || {};
+            periodos.forEach(p => {
+                const v = zMap[p.key] ? Number(zMap[p.key].costo || 0) : null;
+                if (v !== null && v > 0) todosValores.push(v);
+            });
+        });
+
+        let minY = 3.6, maxY = 5.4;
+        if (todosValores.length > 0) {
+            const minV = Math.min(...todosValores);
+            const maxV = Math.max(...todosValores);
+            minY = Math.min(3.6, Math.floor((minV - 0.2) * 10) / 10);
+            maxY = Math.max(5.4, Math.ceil((maxV + 0.2) * 10) / 10);
+        }
+
+        const datasets = zonas.map((zona, zIdx) => {
+            const paleta = coloresPorZona[zona] || defaultColores[zIdx % defaultColores.length];
+            const zMap = seriesData[zona] || {};
+            const dataPuntos = periodos.map(p => (zMap[p.key] ? Number(zMap[p.key].costo || 0) : null));
+
+            return {
+                label: zona,
+                data: dataPuntos,
+                borderColor: paleta.linea,
+                backgroundColor: paleta.fondo,
+                borderWidth: 2.2,
+                tension: 0.05,
+                pointRadius: 4.5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: paleta.fondo,
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 1.5,
+                datalabels: {
+                    align: (context) => {
+                        const dataIdx = context.dataIndex;
+                        const pKey = periodos[dataIdx]?.key;
+                        if (zonas.length >= 2) {
+                            const valActual = dataPuntos[dataIdx];
+                            const otraZona = zonas.find(z => z !== zona);
+                            const valOtra = (seriesData[otraZona] && seriesData[otraZona][pKey]) ? Number(seriesData[otraZona][pKey].costo || 0) : null;
+                            if (valOtra !== null && valActual !== null) {
+                                if (valActual < valOtra) return 'bottom';
+                                return 'top';
+                            }
+                        }
+                        return 'top';
+                    },
+                    offset: 6,
+                    color: paleta.texto,
+                    font: {
+                        family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                        size: 11,
+                        weight: 'bold'
+                    },
+                    formatter: (value) => (value !== null && value !== undefined && value > 0 ? this.formatearNumero(value, 'decimal3') : '')
+                }
+            };
+        });
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'line',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 28, bottom: 12, left: 12, right: 12 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        min: minY,
+                        max: maxY,
+                        title: {
+                            display: true,
+                            text: 'CPV',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.2,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#475569',
+                            font: { size: 11, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 30,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 16,
+                            font: {
+                                family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            color: '#475569',
+                            cursor: 'pointer'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataIndex = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+                            if (dataIndex === null || !periodos[dataIndex]) return;
+
+                            const p = periodos[dataIndex];
+
+                            let seriesHtml = '';
+                            zonas.forEach((zona, zIdx) => {
+                                const paleta = coloresPorZona[zona] || defaultColores[zIdx % defaultColores.length];
+                                const zMap = seriesData[zona] || {};
+                                const item = zMap[p.key];
+                                if (item && item.costo) {
+                                    seriesHtml += `
+                                        <span class="font-semibold" style="color: ${paleta.texto};">${zona}:</span>
+                                        <span class="font-bold font-mono text-xs" style="color: ${paleta.texto};">${this.formatearNumero(item.costo, 'decimal3')} S//Kg</span>
+                                    `;
+                                }
+                            });
+
+                            tooltipEl.innerHTML = `
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
+                                    <span class="text-slate-500 font-normal">Mes de fecha:</span>
+                                    <span class="text-slate-900 font-semibold text-left capitalize">${p.mes_larga || p.mes_corta}</span>
+                                    ${seriesHtml}
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 250;
+                            const tooltipHeight = tooltipEl.offsetHeight || 100;
+
+                            let x = canvasRect.left + tooltip.caretX + 12;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 12;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 4. Renderizado de la Tabla de Indicadores (Detalle Costo de Producción Pollo Vivo - MES para CP01)
      */
     renderizarTablaMetricas(data = {}) {
         const thead = document.getElementById('thead-detalle-metricas');
@@ -759,7 +1035,6 @@ class CostosTradicionalesController {
             return;
         }
 
-        // Cabecera en 2 Niveles
         let theadHtml = `
             <tr class="bg-blue-600 text-white font-bold text-xs uppercase tracking-wider">
                 <th class="py-2 px-3 text-center border-b border-r border-blue-500 sticky left-0 z-30 bg-blue-600">
@@ -786,7 +1061,6 @@ class CostosTradicionalesController {
         theadHtml += `</tr>`;
         thead.innerHTML = theadHtml;
 
-        // Cuerpo de la Tabla con las 7 Filas de Métricas
         let tbodyHtml = '';
 
         tablaMetricas.forEach((metrica, idx) => {
