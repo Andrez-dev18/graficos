@@ -55,22 +55,13 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">SERVER AQP 5 Transportes / Transportes</h1>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Transportes</h1>
                     <p class="text-xs text-slate-500">Monitoreo de validación de rutas, despachos diarios y eventos de trazabilidad</p>
                 </div>
             </div>
 
-            <!-- BOTÓN TOGGLE Y FILTRO ACTIVO -->
+            <!-- BOTÓN TOGGLE DE FILTROS -->
             <div class="flex items-center gap-2 px-3 py-2 sm:px-4">
-                <!-- BREADCRUMB DE FILTRO INTERACTIVO -->
-                <div id="badge-filtro-activo" class="hidden flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg text-xs font-semibold text-blue-800">
-                    <i class="fa-solid fa-filter text-blue-600 text-[10px]"></i>
-                    <span id="texto-filtro-activo">Filtro aplicado</span>
-                    <button id="btn-limpiar-interaccion" type="button" title="Quitar filtro" class="text-blue-500 hover:text-blue-800 ml-1 cursor-pointer">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                    </button>
-                </div>
-
                 <button id="btn-toggle-filtros" type="button"
                     class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
                     <span id="label-toggle-filtros">Ocultar filtros</span>
@@ -104,16 +95,6 @@
                     </div>
                 </div>
 
-                <!-- 2. ESTADO / VALIDADOR -->
-                <div class="flex flex-col">
-                    <label for="select-filtro-validador" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">VALIDADOR</label>
-                    <select id="select-filtro-validador"
-                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[140px]">
-                        <option value="TODO" selected>(Todo)</option>
-                        <option value="completo">Completo</option>
-                        <option value="incompleto">Incompleto</option>
-                    </select>
-                </div>
 
                 <!-- BOTONES DE ACCIÓN -->
                 <div class="flex items-center gap-2 ml-auto sm:ml-0">
@@ -147,7 +128,7 @@
                     <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">TOTALES DIARIOS</h2>
                     <p class="text-xs text-slate-500 mt-0.5">Distribución porcentual por fecha y estado</p>
                 </div>
-                <span class="text-[10px] bg-slate-100 text-slate-500 font-medium px-2.5 py-1 rounded">Clic para filtrar</span>
+                
             </div>
 
             <div class="flex-1 overflow-auto custom-scrollbar w-full bg-white" id="contenedor-totales-diarios">
@@ -189,19 +170,18 @@
                         0 despachos
                     </span>
                 </div>
-                <span class="text-[10px] text-slate-400 font-medium">Selecciona una placa para filtrar</span>
             </div>
 
             <div class="flex-1 overflow-auto custom-scrollbar w-full">
                 <table class="w-full text-left text-xs border-separate border-spacing-0">
-                    <thead class="sticky top-0 z-20 bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-300 shadow-xs">
+                    <thead class="sticky top-0 z-20 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider border-b border-slate-300 shadow-xs">
                         <tr>
-                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 bg-slate-100 w-32">Día d..</th>
-                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 bg-slate-100 w-28">zona</th>
-                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 bg-slate-100">transportista</th>
-                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 bg-slate-100 w-44">chofer</th>
-                            <th class="px-3.5 py-2.5 text-center border-b border-r border-slate-200 bg-slate-100 w-24">placa</th>
-                            <th class="px-3.5 py-2.5 text-center border-b border-slate-200 bg-slate-100 w-24">validador</th>
+                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 w-32">Día d..</th>
+                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 w-28">zona</th>
+                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200">transportista</th>
+                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 w-44">chofer</th>
+                            <th class="px-3.5 py-2.5 text-center border-b border-r border-slate-200 w-24">placa</th>
+                            <th class="px-3.5 py-2.5 text-center border-b border-slate-200 w-24">validador</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-hojas-ruta" class="divide-y divide-slate-100 text-slate-700"></tbody>
@@ -225,14 +205,14 @@
 
             <div class="flex-1 overflow-auto custom-scrollbar w-full">
                 <table class="w-full text-left text-xs border-separate border-spacing-0">
-                    <thead class="sticky top-0 z-20 bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-300 shadow-xs">
+                    <thead class="sticky top-0 z-20 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-wider border-b border-slate-300 shadow-xs">
                         <tr>
-                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 bg-slate-100 w-28">zona</th>
-                            <th class="px-3.5 py-2.5 text-center border-b border-r border-slate-200 bg-slate-100 w-24">placa</th>
-                            <th class="px-3.5 py-2.5 text-center border-b border-r border-slate-200 bg-slate-100 w-24">dia</th>
-                            <th class="px-3.5 py-2.5 text-center border-b border-slate-200 bg-slate-100 w-24">hora</th>
-                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 bg-slate-100">tipo</th>
-                            <th class="px-3.5 py-2.5 text-center border-b border-slate-200 bg-slate-100 w-16">marca</th>
+                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200 w-28">zona</th>
+                            <th class="px-3.5 py-2.5 text-center border-b border-r border-slate-200 w-24">placa</th>
+                            <th class="px-3.5 py-2.5 text-center border-b border-r border-slate-200 w-24">dia</th>
+                            <th class="px-3.5 py-2.5 text-center border-b border-slate-200 w-24">hora</th>
+                            <th class="px-3.5 py-2.5 border-b border-r border-slate-200">tipo</th>
+                            <th class="px-3.5 py-2.5 text-center border-b border-slate-200 w-16">marca</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-detalle-ruta" class="divide-y divide-slate-100 text-slate-700"></tbody>
@@ -253,7 +233,7 @@
 
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
     <script src="transportes.service.js?v=20260909_3"></script>
-    <script src="transportes.controller.js?v=20260909_10"></script>
+    <script src="transportes.controller.js?v=20260909_15"></script>
 </body>
 
 </html>
