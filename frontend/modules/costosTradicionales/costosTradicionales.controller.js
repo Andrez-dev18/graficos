@@ -6,9 +6,22 @@ class CostosTradicionalesController {
     constructor() {
         this.service = new CostosTradicionalesService();
         this.chartInstance = null;
+        this.chartTipoActual = null;
         this.datosDashboard = null;
+        this.mesSeleccionadoCP04 = null;
 
         this.init();
+    }
+
+    destruirGraficaActual() {
+        if (this.chartInstance) {
+            try {
+                this.chartInstance.destroy();
+            } catch (e) {
+                console.warn('Error al destruir gráfico:', e);
+            }
+            this.chartInstance = null;
+        }
     }
 
     async init() {
@@ -228,6 +241,9 @@ class CostosTradicionalesController {
      * Configura y renderiza la vista para CP01 (Costo de Producción Pollo Vivo + Tabla)
      */
     configurarVistaCP01(data) {
+        this.chartTipoActual = 'CP01';
+        this.mesSeleccionadoCP04 = null;
+
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo de Producción Pollo Vivo - MES';
 
@@ -271,6 +287,9 @@ class CostosTradicionalesController {
      * Configura y renderiza la vista para CP02 (Costo Producción vs Costo Alimentación - Doble Eje)
      */
     configurarVistaCP02(data) {
+        this.chartTipoActual = 'CP02';
+        this.mesSeleccionadoCP04 = null;
+
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo de Producción Pollo vivo vs. Costo de Alimentación (S/ por Kg)';
 
@@ -297,6 +316,9 @@ class CostosTradicionalesController {
      * Configura y renderiza la vista para CP03 (Costo Promedio de Producción Pollo Vivo por Zona)
      */
     configurarVistaCP03(data) {
+        this.chartTipoActual = 'CP03';
+        this.mesSeleccionadoCP04 = null;
+
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo Promedio de Producción Pollo Vivo por Zona';
 
@@ -324,6 +346,8 @@ class CostosTradicionalesController {
      * Configura y renderiza la vista para CP04 (Costo por Kg. Pollo Vivo vs Costo de Alimentación - Barras + Línea + Detalle Cencos)
      */
     configurarVistaCP04(data) {
+        this.chartTipoActual = 'CP04';
+
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion';
 
@@ -336,22 +360,76 @@ class CostosTradicionalesController {
             contenedorGrafica.className = "relative w-full min-h-[440px] h-[calc(100vh-340px)] max-h-[580px] p-4";
         }
 
-        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
-        if (contenedorBadges) {
-            contenedorBadges.innerHTML = '';
-        }
-
         // Mostrar card de tabla de detalle
         const cardTabla = document.getElementById('card-tabla-metricas');
         if (cardTabla) cardTabla.classList.remove('hidden');
 
         const titTabla = document.getElementById('titulo-tabla-detalle');
-        const subTabla = document.getElementById('subtitulo-tabla-detalle');
         if (titTabla) titTabla.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion Detalle';
-        if (subTabla) subTabla.textContent = 'Histórico detallado por centro de costo (cencos) y mes de fecha';
 
-        this.renderizarGraficaCP04({ periodosGrafica: data.graficaCP04 || [] });
-        this.renderizarTablaCP04({ detalleMeses: data.detalleMesesCP04 || [] });
+        this.renderizarGraficaCP04(data);
+        this.actualizarFiltroCruzadoCP04(this.mesSeleccionadoCP04, false);
+    }
+
+    /**
+     * Actualiza el estado reactivo del filtro cruzado en CP04 sin destruir la gráfica
+     */
+    actualizarFiltroCruzadoCP04(mesKey, triggerChartUpdate = true) {
+        this.mesSeleccionadoCP04 = mesKey;
+        const data = this.datosDashboard || {};
+
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            if (this.mesSeleccionadoCP04) {
+                const mesObj = (data.graficaCP04 || []).find(m => m.key === this.mesSeleccionadoCP04);
+                const nombreMes = mesObj ? mesObj.mes_larga : this.mesSeleccionadoCP04;
+                contenedorBadges.innerHTML = `
+                    <div class="flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg text-xs font-semibold shadow-xs">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>Filtro cruzado activo: <strong class="capitalize text-slate-900">${nombreMes}</strong></span>
+                        <button type="button" id="btn-reset-filtro-cp04" class="ml-1.5 px-2 py-0.5 bg-amber-200/90 hover:bg-amber-300 text-amber-950 text-[10px] font-bold rounded cursor-pointer transition-colors" title="Restablecer todos los meses">
+                            ✕ Quitar filtro
+                        </button>
+                    </div>
+                `;
+                document.getElementById('btn-reset-filtro-cp04')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.actualizarFiltroCruzadoCP04(null, true);
+                });
+            } else {
+                contenedorBadges.innerHTML = `
+                    <span class="text-xs text-slate-500 font-medium hidden sm:inline-flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                        Haz clic en una barra o punto para filtrar el detalle
+                    </span>
+                `;
+            }
+        }
+
+        const subTabla = document.getElementById('subtitulo-tabla-detalle');
+        if (subTabla) {
+            if (this.mesSeleccionadoCP04) {
+                const mesObj = (data.graficaCP04 || []).find(m => m.key === this.mesSeleccionadoCP04);
+                const nombreMes = mesObj ? mesObj.mes_larga : this.mesSeleccionadoCP04;
+                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para el mes de <strong class="capitalize">${nombreMes}</strong></span>`;
+            } else {
+                subTabla.textContent = 'Histórico detallado por centro de costo (cencos) y mes de fecha';
+            }
+        }
+
+        const detalleAMostrar = this.mesSeleccionadoCP04
+            ? (data.detalleMesesCP04 || []).filter(m => m.key === this.mesSeleccionadoCP04)
+            : (data.detalleMesesCP04 || []);
+
+        this.renderizarTablaCP04({ detalleMeses: detalleAMostrar });
+
+        if (triggerChartUpdate && this.chartInstance && this.chartTipoActual === 'CP04') {
+            try {
+                this.chartInstance.update('none');
+            } catch (e) {
+                console.warn('Error al actualizar gráfica CP04:', e);
+            }
+        }
     }
 
     /**
@@ -500,6 +578,10 @@ class CostosTradicionalesController {
                         external: (context) => {
                             if (!tooltipEl) return;
                             const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
 
                             if (tooltip.opacity === 0) {
                                 tooltipEl.classList.add('hidden');
@@ -764,6 +846,10 @@ class CostosTradicionalesController {
                         external: (context) => {
                             if (!tooltipEl) return;
                             const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
 
                             if (tooltip.opacity === 0) {
                                 tooltipEl.classList.add('hidden');
@@ -993,6 +1079,10 @@ class CostosTradicionalesController {
                         external: (context) => {
                             if (!tooltipEl) return;
                             const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
 
                             if (tooltip.opacity === 0) {
                                 tooltipEl.classList.add('hidden');
@@ -1136,12 +1226,9 @@ class CostosTradicionalesController {
         const canvas = document.getElementById('chart-costo-produccion');
         if (!canvas) return;
 
-        if (this.chartInstance && typeof this.chartInstance.destroy === 'function') {
-            this.chartInstance.destroy();
-            this.chartInstance = null;
-        }
+        this.destruirGraficaActual();
 
-        const periodosGrafica = data.periodosGrafica || [];
+        const periodosGrafica = data.graficaCP04 || data.periodosGrafica || [];
         if (periodosGrafica.length === 0) return;
 
         const labels = periodosGrafica.map(d => d.mes_larga || d.key);
@@ -1169,10 +1256,25 @@ class CostosTradicionalesController {
             label: 'CostoAlimentacion',
             data: valoresCostoAlim,
             yAxisID: 'y1',
-            backgroundColor: '#f28e2b',
-            hoverBackgroundColor: '#e07d1b',
-            borderColor: '#f28e2b',
-            borderWidth: 0,
+            backgroundColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP04) return '#f28e2b';
+                return (item && item.key === this.mesSeleccionadoCP04) ? '#ea580c' : 'rgba(242, 142, 43, 0.22)';
+            },
+            hoverBackgroundColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP04) return '#e07d1b';
+                return (item && item.key === this.mesSeleccionadoCP04) ? '#c2410c' : 'rgba(242, 142, 43, 0.35)';
+            },
+            borderColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (item && item.key === this.mesSeleccionadoCP04) return '#0f172a';
+                return 'transparent';
+            },
+            borderWidth: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                return (item && item.key === this.mesSeleccionadoCP04) ? 2.5 : 0;
+            },
             borderRadius: 1,
             barPercentage: 0.54,
             categoryPercentage: 0.82,
@@ -1181,7 +1283,11 @@ class CostosTradicionalesController {
                 anchor: 'end',
                 align: 'top',
                 offset: 3,
-                color: '#c2410c',
+                color: (context) => {
+                    const item = periodosGrafica[context.dataIndex];
+                    if (!this.mesSeleccionadoCP04 || (item && item.key === this.mesSeleccionadoCP04)) return '#c2410c';
+                    return '#cbd5e1';
+                },
                 font: {
                     family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                     size: 10.5,
@@ -1197,20 +1303,46 @@ class CostosTradicionalesController {
             data: valoresCostoxKg,
             yAxisID: 'y',
             borderColor: '#4e79a7',
+            segment: {
+                borderColor: () => this.mesSeleccionadoCP04 ? 'rgba(78, 121, 167, 0.35)' : '#4e79a7'
+            },
             backgroundColor: '#4e79a7',
             borderWidth: 2.2,
             tension: 0.05,
-            pointRadius: 4,
-            pointHoverRadius: 6.5,
-            pointBackgroundColor: '#4e79a7',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 1.5,
+            pointRadius: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP04) return 4;
+                return (item && item.key === this.mesSeleccionadoCP04) ? 6 : 2;
+            },
+            pointHoverRadius: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP04) return 6.5;
+                return (item && item.key === this.mesSeleccionadoCP04) ? 8 : 4;
+            },
+            pointBackgroundColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP04) return '#4e79a7';
+                return (item && item.key === this.mesSeleccionadoCP04) ? '#1e40af' : 'rgba(78, 121, 167, 0.25)';
+            },
+            pointBorderColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP04 || (item && item.key === this.mesSeleccionadoCP04)) return '#ffffff';
+                return 'transparent';
+            },
+            pointBorderWidth: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                return (item && item.key === this.mesSeleccionadoCP04) ? 2.5 : 1;
+            },
             order: 1,
             datalabels: {
                 anchor: 'center',
                 align: 'top',
                 offset: 7,
-                color: '#1e40af',
+                color: (context) => {
+                    const item = periodosGrafica[context.dataIndex];
+                    if (!this.mesSeleccionadoCP04 || (item && item.key === this.mesSeleccionadoCP04)) return '#1e40af';
+                    return '#cbd5e1';
+                },
                 font: {
                     family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                     size: 10.5,
@@ -1220,7 +1352,35 @@ class CostosTradicionalesController {
             }
         };
 
-        const pluginsConfig = [];
+        const xLabelHighlightPlugin = {
+            id: 'xLabelHighlight',
+            beforeDraw: (chart) => {
+                if (!this.mesSeleccionadoCP04) return;
+                const xAxis = chart.scales.x;
+                if (!xAxis) return;
+                const selIdx = periodosGrafica.findIndex(p => p.key === this.mesSeleccionadoCP04);
+                if (selIdx === -1) return;
+
+                const xPos = xAxis.getPixelForTick(selIdx);
+                const ctx = chart.ctx;
+                const boxWidth = 92;
+                const boxHeight = 24;
+                const yPos = xAxis.top + 2;
+
+                ctx.save();
+                ctx.fillStyle = '#f59e0b'; // Fondo ámbar Tableau
+                ctx.beginPath();
+                if (typeof ctx.roundRect === 'function') {
+                    ctx.roundRect(xPos - boxWidth / 2, yPos, boxWidth, boxHeight, 4);
+                } else {
+                    ctx.rect(xPos - boxWidth / 2, yPos, boxWidth, boxHeight);
+                }
+                ctx.fill();
+                ctx.restore();
+            }
+        };
+
+        const pluginsConfig = [xLabelHighlightPlugin];
         if (typeof ChartDataLabels !== 'undefined') {
             pluginsConfig.push(ChartDataLabels);
         }
@@ -1244,6 +1404,26 @@ class CostosTradicionalesController {
                 interaction: {
                     mode: 'index',
                     intersect: false
+                },
+                onClick: (event, elements, chart) => {
+                    const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+                    if (points && points.length > 0) {
+                        const dataIndex = points[0].index;
+                        const clickedItem = periodosGrafica[dataIndex];
+                        if (clickedItem) {
+                            const newKey = (this.mesSeleccionadoCP04 === clickedItem.key) ? null : clickedItem.key;
+                            this.actualizarFiltroCruzadoCP04(newKey, true);
+                        }
+                    } else {
+                        if (this.mesSeleccionadoCP04 !== null) {
+                            this.actualizarFiltroCruzadoCP04(null, true);
+                        }
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
                 },
                 scales: {
                     y: {
@@ -1297,8 +1477,20 @@ class CostosTradicionalesController {
                             padding: { top: 6 }
                         },
                         ticks: {
-                            color: '#475569',
-                            font: { size: 10.5, weight: '600' },
+                            color: (ctx) => {
+                                const item = periodosGrafica[ctx.index];
+                                if (item && item.key === this.mesSeleccionadoCP04) return '#000000';
+                                if (this.mesSeleccionadoCP04) return '#94a3b8';
+                                return '#475569';
+                            },
+                            font: (ctx) => {
+                                const item = periodosGrafica[ctx.index];
+                                const isSel = (item && item.key === this.mesSeleccionadoCP04);
+                                return {
+                                    size: 10.5,
+                                    weight: isSel ? 'bold' : '600'
+                                };
+                            },
                             maxRotation: 45,
                             minRotation: 30,
                             autoSkip: false
@@ -1330,6 +1522,10 @@ class CostosTradicionalesController {
                         external: (context) => {
                             if (!tooltipEl) return;
                             const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
 
                             if (tooltip.opacity === 0) {
                                 tooltipEl.classList.add('hidden');
