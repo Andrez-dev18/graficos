@@ -10,6 +10,8 @@ class CostosTradicionalesController {
         this.datosDashboard = null;
         this.mesSeleccionadoCP04 = null;
         this.mesSeleccionadoCP05 = null;
+        this.itemsSeleccionadosCP07 = [];
+        this.catalogoInsumosCP07 = [];
 
         this.init();
     }
@@ -28,6 +30,7 @@ class CostosTradicionalesController {
     async init() {
         this.setupPeriodo();
         this.setupListeners();
+        this.setupDropdownItems();
         this.setupTableTooltips();
         await this.onCargarClick();
     }
@@ -53,9 +56,10 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05 vs CP05 MortVsPeso)
+        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05 vs CP05 MortVsPeso vs CP07 InsumosAABB)
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        const contFiltroItem = document.getElementById('contenedor-filtro-item');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
                 const tipo = selTipoGrafico.value;
@@ -64,6 +68,13 @@ class CostosTradicionalesController {
                         contFiltroZona.classList.remove('hidden');
                     } else {
                         contFiltroZona.classList.add('hidden');
+                    }
+                }
+                if (contFiltroItem) {
+                    if (tipo === 'CP07 InsumosAABB' || tipo === 'CP07') {
+                        contFiltroItem.classList.remove('hidden');
+                    } else {
+                        contFiltroItem.classList.add('hidden');
                     }
                 }
                 await this.onCargarClick();
@@ -179,13 +190,19 @@ class CostosTradicionalesController {
                 zona: zonaSeleccionada
             };
 
+            if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07') {
+                payloadFiltros.items = this.itemsSeleccionadosCP07;
+            }
+
             const res = await this.service.obtenerDashboard(payloadFiltros);
 
             if (res && (res.success || res.status === 'success')) {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP05 MortVsPeso' || tipoGrafico === 'CP06 MortVsPeso') {
+                if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07') {
+                    this.configurarVistaCP07(data);
+                } else if (tipoGrafico === 'CP05 MortVsPeso' || tipoGrafico === 'CP06 MortVsPeso') {
                     this.configurarVistaCP05MortVsPeso(data);
                 } else if (tipoGrafico === 'CP05 CPPVvsCAZonaBarra' || tipoGrafico === 'CPPVvsCAZonaBarra') {
                     this.configurarVistaCP05(data);
@@ -217,6 +234,7 @@ class CostosTradicionalesController {
         if (selPeriodo) selPeriodo.value = 'entre_meses';
         const selZona = document.getElementById('select-zona');
         if (selZona) selZona.value = 'TODOS';
+        this.itemsSeleccionadosCP07 = [];
         this.setupPeriodo();
         await this.onCargarClick();
     }
@@ -419,6 +437,9 @@ class CostosTradicionalesController {
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         if (contFiltroZona) contFiltroZona.classList.remove('hidden');
 
+        const contFiltroItem = document.getElementById('contenedor-filtro-item');
+        if (contFiltroItem) contFiltroItem.classList.add('hidden');
+
         const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
         if (contenedorGrafica) {
             contenedorGrafica.className = "relative w-full min-h-[440px] h-[calc(100vh-340px)] max-h-[580px] p-4";
@@ -433,6 +454,210 @@ class CostosTradicionalesController {
 
         this.renderizarGraficaCP05MortVsPeso(data);
         this.actualizarFiltroCruzadoCP05(this.mesSeleccionadoCP05, false);
+    }
+
+    /**
+     * Configura y renderiza la vista para CP07 (Costo de Producción de Alimento Balanceado vs Costo de Insumos)
+     */
+    configurarVistaCP07(data) {
+        this.chartTipoActual = 'CP07';
+
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Costo de Produccion de Alimento Balanceado';
+
+        // Ocultar selector de Zona y mostrar selector de Item
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.add('hidden');
+
+        const contFiltroItem = document.getElementById('contenedor-filtro-item');
+        if (contFiltroItem) contFiltroItem.classList.remove('hidden');
+
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[440px] h-[calc(100vh-340px)] max-h-[580px] p-4";
+        }
+
+        // Mostrar card de tabla de detalle
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.remove('hidden');
+
+        const titTabla = document.getElementById('titulo-tabla-detalle');
+        if (titTabla) titTabla.textContent = 'Costo de Insumos';
+
+        const subTabla = document.getElementById('subtitulo-tabla-detalle');
+        if (subTabla) subTabla.textContent = 'Costo unitario por kilogramo de materias primas e insumos por mes de fecha';
+
+        // Poblar catálogo de insumos en el dropdown
+        this.poblarDropdownItems(data.catalogoInsumos || []);
+
+        this.renderizarGraficaCP07(data);
+        this.renderizarTablaCP07(data);
+    }
+
+    /**
+     * Configura el comportamiento interactivo del dropdown multi-select de insumos
+     */
+    setupDropdownItems() {
+        const btnDropdown = document.getElementById('btn-dropdown-items');
+        const panelDropdown = document.getElementById('panel-dropdown-items');
+        const inputBuscar = document.getElementById('input-buscar-item');
+        const chkTodo = document.getElementById('chk-item-todo');
+
+        if (!btnDropdown || !panelDropdown) return;
+
+        // Toggle panel al hacer click en el botón
+        btnDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panelDropdown.classList.toggle('hidden');
+            if (!panelDropdown.classList.contains('hidden') && inputBuscar) {
+                inputBuscar.focus();
+            }
+        });
+
+        // Evitar que clicks dentro del panel cierren el dropdown
+        panelDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Cerrar al hacer click fuera
+        document.addEventListener('click', () => {
+            if (!panelDropdown.classList.contains('hidden')) {
+                panelDropdown.classList.add('hidden');
+            }
+        });
+
+        // Búsqueda en tiempo real dentro del dropdown
+        if (inputBuscar) {
+            inputBuscar.addEventListener('input', () => {
+                const term = inputBuscar.value.toLowerCase().trim();
+                const itemsDom = document.querySelectorAll('.item-checkbox-row');
+                itemsDom.forEach(row => {
+                    const text = row.getAttribute('data-search-text') || '';
+                    if (!term || text.includes(term)) {
+                        row.classList.remove('hidden');
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        // Checkbox "(Todo)"
+        if (chkTodo) {
+            chkTodo.addEventListener('change', () => {
+                const isChecked = chkTodo.checked;
+                const checkboxes = document.querySelectorAll('.chk-item-individual');
+                checkboxes.forEach(chk => {
+                    chk.checked = isChecked;
+                });
+                this.itemsSeleccionadosCP07 = isChecked ? [] : ['__NONE__'];
+                this.actualizarLabelItems();
+                if (this.chartTipoActual === 'CP07') {
+                    this.filtrarTablaCP07Localmente();
+                }
+            });
+        }
+    }
+
+    /**
+     * Llena la lista de checkboxes del dropdown de insumos
+     */
+    poblarDropdownItems(catalogo = []) {
+        this.catalogoInsumosCP07 = catalogo;
+        const listaContenedor = document.getElementById('lista-checkboxes-items');
+        if (!listaContenedor) return;
+
+        if (catalogo.length === 0) {
+            listaContenedor.innerHTML = '<div class="text-[11px] text-slate-400 text-center py-4">No hay insumos disponibles</div>';
+            return;
+        }
+
+        let html = '';
+        catalogo.forEach(item => {
+            const isChecked = this.itemsSeleccionadosCP07.length === 0 || this.itemsSeleccionadosCP07.includes(item.codigo);
+            const searchText = `${item.codigo} ${item.nomcodigo}`.toLowerCase();
+            html += `
+                <label class="item-checkbox-row flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded cursor-pointer text-[11px] text-slate-700 select-none transition-colors"
+                    data-search-text="${searchText}">
+                    <input type="checkbox" value="${item.codigo}" class="chk-item-individual w-3.5 h-3.5 rounded text-blue-600 focus:ring-0 cursor-pointer" ${isChecked ? 'checked' : ''}>
+                    <span class="truncate" title="${item.item_label}">${item.item_label}</span>
+                </label>
+            `;
+        });
+
+        listaContenedor.innerHTML = html;
+
+        // Listeners para checkboxes individuales
+        const checkboxes = listaContenedor.querySelectorAll('.chk-item-individual');
+        checkboxes.forEach(chk => {
+            chk.addEventListener('change', () => {
+                const total = checkboxes.length;
+                const marcados = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+                
+                const chkTodo = document.getElementById('chk-item-todo');
+                if (marcados.length === total) {
+                    if (chkTodo) chkTodo.checked = true;
+                    this.itemsSeleccionadosCP07 = []; // todos
+                } else if (marcados.length === 0) {
+                    if (chkTodo) chkTodo.checked = false;
+                    this.itemsSeleccionadosCP07 = ['__NONE__'];
+                } else {
+                    if (chkTodo) chkTodo.checked = false;
+                    this.itemsSeleccionadosCP07 = marcados;
+                }
+
+                this.actualizarLabelItems();
+                if (this.chartTipoActual === 'CP07') {
+                    this.filtrarTablaCP07Localmente();
+                }
+            });
+        });
+
+        this.actualizarLabelItems();
+    }
+
+    /**
+     * Actualiza la etiqueta del botón dropdown y el contador
+     */
+    actualizarLabelItems() {
+        const label = document.getElementById('label-items-seleccionados');
+        const badge = document.getElementById('badge-contador-items');
+        if (!label) return;
+
+        if (this.itemsSeleccionadosCP07.length === 0) {
+            label.textContent = '(Todo)';
+            if (badge) badge.textContent = 'Todos';
+        } else if (this.itemsSeleccionadosCP07.includes('__NONE__')) {
+            label.textContent = 'Ninguno';
+            if (badge) badge.textContent = '0 selecc.';
+        } else if (this.itemsSeleccionadosCP07.length === 1) {
+            const found = this.catalogoInsumosCP07.find(c => c.codigo === this.itemsSeleccionadosCP07[0]);
+            label.textContent = found ? found.item_label : this.itemsSeleccionadosCP07[0];
+            if (badge) badge.textContent = '1 selecc.';
+        } else {
+            label.textContent = `${this.itemsSeleccionadosCP07.length} items seleccionados`;
+            if (badge) badge.textContent = `${this.itemsSeleccionadosCP07.length} selecc.`;
+        }
+    }
+
+    /**
+     * Filtra la tabla matricial de insumos CP07 reactivamente sin reload
+     */
+    filtrarTablaCP07Localmente() {
+        const data = this.datosDashboard || {};
+        const todosInsumos = data.tablaInsumos || [];
+        
+        let filtrados = todosInsumos;
+        if (this.itemsSeleccionadosCP07.includes('__NONE__')) {
+            filtrados = [];
+        } else if (this.itemsSeleccionadosCP07.length > 0) {
+            filtrados = todosInsumos.filter(item => this.itemsSeleccionadosCP07.includes(item.codigo));
+        }
+
+        this.renderizarTablaCP07({
+            periodos: data.periodos,
+            tablaInsumos: filtrados
+        });
     }
 
     /**
@@ -2410,6 +2635,304 @@ class CostosTradicionalesController {
                         </td>
                     `;
                 });
+            });
+
+            tbodyHtml += `</tr>`;
+        });
+
+        tbody.innerHTML = tbodyHtml;
+    }
+
+    /**
+     * 10. Renderizado de Gráfica CP07 (Costo de Producción de Alimento Balanceado - Línea con Semáforo/Gradiente Verde a Rojo)
+     */
+    renderizarGraficaCP07(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        this.destruirGraficaActual();
+
+        const periodosGrafica = data.graficaCP07 || [];
+        if (periodosGrafica.length === 0) return;
+
+        const labels = periodosGrafica.map(d => d.mes_larga || d.key);
+        const valoresPU = periodosGrafica.map(d => Number(d.pu || 0));
+
+        const minPU = Math.min(...valoresPU);
+        const maxPU = Math.max(...valoresPU);
+
+        // Función interpoladora de color según Tableau (Verde para bajo ~1.63, Rojo para alto ~1.79)
+        const getColorPorValor = (val) => {
+            if (maxPU === minPU) return '#16a34a';
+            const ratio = (val - minPU) / (maxPU - minPU);
+            if (ratio < 0.4) {
+                return '#2e7d32'; // Verde Tableau
+            } else if (ratio < 0.7) {
+                return '#ea580c'; // Ámbar/Naranja
+            } else {
+                return '#b91c1c'; // Rojo Tableau
+            }
+        };
+
+        // Badge con escala de colores en la cabecera
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = `
+                <div class="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg text-xs shadow-xs">
+                    <span class="text-slate-500 font-semibold">Color:</span>
+                    <span class="font-bold text-emerald-700 font-mono text-[11px]">${this.formatearNumero(minPU, 'decimal3')}</span>
+                    <div class="w-20 h-2.5 rounded-full bg-gradient-to-r from-emerald-600 via-amber-400 to-rose-600 shadow-inner"></div>
+                    <span class="font-bold text-rose-700 font-mono text-[11px]">${this.formatearNumero(maxPU, 'decimal3')}</span>
+                </div>
+            `;
+        }
+
+        let minY = 1.60, maxY = 1.85;
+        if (valoresPU.length > 0) {
+            minY = Math.floor((minPU - 0.03) * 20) / 20;
+            maxY = Math.ceil((maxPU + 0.03) * 20) / 20;
+        }
+
+        const datasetAlimento = {
+            type: 'line',
+            label: 'PU',
+            data: valoresPU,
+            borderColor: '#b91c1c',
+            segment: {
+                borderColor: (ctx) => {
+                    const val = ctx.p1.parsed.y;
+                    return getColorPorValor(val);
+                }
+            },
+            borderWidth: 2.6,
+            tension: 0.1,
+            pointRadius: 5.5,
+            pointHoverRadius: 8,
+            pointBackgroundColor: (ctx) => {
+                const val = valoresPU[ctx.dataIndex];
+                return getColorPorValor(val);
+            },
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            datalabels: {
+                anchor: 'center',
+                align: 'top',
+                offset: 8,
+                color: (ctx) => {
+                    const val = valoresPU[ctx.dataIndex];
+                    return getColorPorValor(val);
+                },
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 11.5,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'line',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: [datasetAlimento]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 32, bottom: 8, left: 10, right: 10 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        min: minY,
+                        max: maxY,
+                        title: {
+                            display: true,
+                            text: 'PU',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.05,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(2).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mes de fecha',
+                            color: '#64748b',
+                            font: { size: 11, weight: '600' },
+                            padding: { top: 6 }
+                        },
+                        ticks: {
+                            color: '#475569',
+                            font: { size: 11, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 30
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataIndex = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+                            if (dataIndex === null || !periodosGrafica[dataIndex]) return;
+
+                            const item = periodosGrafica[dataIndex];
+
+                            tooltipEl.innerHTML = `
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
+                                    <span class="text-slate-500 font-normal">Mes de fecha:</span>
+                                    <span class="text-slate-900 font-semibold text-left capitalize">${item.mes_larga}</span>
+                                    <span class="text-emerald-700 font-semibold">PU (Alimento Balanceado):</span>
+                                    <span class="text-slate-900 font-bold text-left font-mono text-xs">${this.formatearNumero(item.pu, 'decimal3')} S//Kg</span>
+                                    <span class="text-slate-500 font-normal">Valor Alimento:</span>
+                                    <span class="text-slate-800 font-semibold text-left font-mono text-[11px]">S/ ${this.formatearNumero(item.sum_valoalim, 'entero')}</span>
+                                    <span class="text-slate-500 font-normal">Peso Alimento:</span>
+                                    <span class="text-slate-800 font-semibold text-left font-mono text-[11px]">${this.formatearNumero(item.sum_pesoalim, 'entero')} Kg</span>
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 250;
+                            const tooltipHeight = tooltipEl.offsetHeight || 100;
+
+                            let x = canvasRect.left + tooltip.caretX + 12;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 12;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 11. Renderizado de la Tabla de Insumos CP07 (Costo de Insumos Matricial por Mes)
+     */
+    renderizarTablaCP07(data = {}) {
+        const thead = document.getElementById('thead-detalle-metricas');
+        const tbody = document.getElementById('tbody-detalle-metricas');
+
+        if (!thead || !tbody) return;
+
+        const periodos = data.periodos || (this.datosDashboard && this.datosDashboard.periodos) || [];
+        const tablaInsumos = data.tablaInsumos || (this.datosDashboard && this.datosDashboard.tablaInsumos) || [];
+
+        if (periodos.length === 0 || tablaInsumos.length === 0) {
+            thead.innerHTML = '';
+            tbody.innerHTML = `<tr><td colspan="24" class="text-center py-10 text-slate-400">No hay insumos para mostrar con los filtros seleccionados.</td></tr>`;
+            return;
+        }
+
+        // Fila 1 de encabezado: Item (rowspan 2) + Mes de fecha (colspan)
+        let theadRow1 = `
+            <tr class="bg-blue-600 text-white font-bold text-xs border-b border-blue-500">
+                <th rowspan="2" class="py-2.5 px-3 text-left border-r border-b border-blue-500 sticky left-0 z-30 bg-blue-600 min-w-[260px] max-w-[340px] text-white font-bold text-xs shadow-sm">
+                    Item
+                </th>
+                <th colspan="${periodos.length}" class="py-2 px-3 text-center border-b border-blue-500 bg-blue-600 text-white font-bold text-xs">
+                    Mes de fecha
+                </th>
+            </tr>
+        `;
+
+        // Fila 2 de encabezado: Nombres de meses completos
+        let theadRow2 = `
+            <tr class="bg-blue-600 text-white font-semibold text-[11px] border-b border-blue-500">
+        `;
+
+        periodos.forEach(p => {
+            theadRow2 += `
+                <th class="py-2 px-3 text-center whitespace-nowrap border-r border-blue-500 min-w-[110px]">
+                    ${p.mes_larga || p.mes_corta || p.key}
+                </th>
+            `;
+        });
+
+        theadRow2 += `</tr>`;
+        thead.innerHTML = theadRow1 + theadRow2;
+
+        let tbodyHtml = '';
+
+        tablaInsumos.forEach((item, idx) => {
+            const isEven = (idx % 2 === 1);
+            const rowBg = isEven ? 'bg-slate-50/60' : 'bg-white';
+            const stickyBg = isEven ? 'bg-slate-50' : 'bg-white';
+
+            tbodyHtml += `
+                <tr class="${rowBg} hover:bg-blue-50/40 transition-colors border-b border-slate-200">
+                    <td class="py-2 px-3 font-semibold text-slate-800 text-[11px] border-r border-slate-200 sticky left-0 z-20 ${stickyBg} shadow-xs truncate max-w-[340px]" title="${item.item_label}">
+                        ${item.item_label}
+                    </td>
+            `;
+
+            periodos.forEach(p => {
+                const rawVal = item.valores && item.valores[p.key] !== undefined ? item.valores[p.key] : null;
+                const valFormateado = rawVal !== null ? this.formatearNumero(rawVal, 'decimal3') : '';
+
+                tbodyHtml += `
+                    <td class="py-1.5 px-3 text-right font-mono text-[11px] border-r border-slate-200/70 whitespace-nowrap text-slate-700 hover:bg-blue-100/60 transition-colors"
+                        data-tooltip-metrica="true"
+                        data-tt-indicador="${item.item_label}"
+                        data-tt-mes="${p.mes_larga || p.key}"
+                        data-tt-valor="${valFormateado || 'Sin consumo'}">
+                        ${valFormateado}
+                    </td>
+                `;
             });
 
             tbodyHtml += `</tr>`;

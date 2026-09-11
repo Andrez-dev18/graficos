@@ -266,4 +266,114 @@ class CostosTradicionalesRepo
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene el costo de producción de alimento balanceado (PU = valoalim / pesoalim) por Mes (CP07)
+     */
+    public function getCostosProduccionAlimentoBalanceado(string $fechaInicio, string $fechaFin): array
+    {
+        $sql = "
+            SELECT 
+                DATE_FORMAT(fecha, '%Y-%m') AS mes_key,
+                DATE_FORMAT(fecha, '%Y') AS anio,
+                DATE_FORMAT(fecha, '%m') AS mes_num,
+                SUM(valoalim) AS sum_valoalim,
+                SUM(pesoalim) AS sum_pesoalim,
+                (SUM(valoalim) / NULLIF(SUM(pesoalim), 0)) AS pu
+            FROM costomenali
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+            GROUP BY mes_key, anio, mes_num
+            ORDER BY mes_key ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':fecha_ini' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el detalle de costos de insumos por Item y Mes desde costomenalidet (CP07)
+     */
+    public function getCostoInsumosDetalle(string $fechaInicio, string $fechaFin, array $items = []): array
+    {
+        $params = [
+            ':fecha_ini' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ];
+
+        $whereItems = "";
+        // Filtrar solo si se pasaron items y no es un comodín de todos
+        $filteredItems = array_filter($items, function($item) {
+            $val = strtoupper(trim((string)$item));
+            return !empty($val) && $val !== 'TODOS' && $val !== '(TODO)' && $val !== 'ALL';
+        });
+
+        if (!empty($filteredItems)) {
+            $placeholdersCod = [];
+            $placeholdersNom = [];
+            foreach (array_values($filteredItems) as $idx => $code) {
+                $pCod = ":itcod_" . $idx;
+                $pNom = ":itnom_" . $idx;
+                $placeholdersCod[] = $pCod;
+                $placeholdersNom[] = $pNom;
+                $params[$pCod] = trim($code);
+                $params[$pNom] = trim($code);
+            }
+            $whereItems = " AND (codigo IN (" . implode(',', $placeholdersCod) . ") OR nomcodigo IN (" . implode(',', $placeholdersNom) . ")) ";
+        }
+
+        $sql = "
+            SELECT 
+                codigo,
+                nomcodigo,
+                CONCAT(codigo, ' ', nomcodigo) AS item_label,
+                DATE_FORMAT(fecha, '%Y-%m') AS mes_key,
+                DATE_FORMAT(fecha, '%Y') AS anio,
+                DATE_FORMAT(fecha, '%m') AS mes_num,
+                SUM(valor) AS sum_valor,
+                SUM(peso) AS sum_peso,
+                (SUM(valor) / NULLIF(SUM(peso), 0)) AS costo_unitario
+            FROM costomenalidet
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+              {$whereItems}
+            GROUP BY codigo, nomcodigo, mes_key, anio, mes_num
+            ORDER BY codigo ASC, mes_key ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el catálogo de insumos disponibles en el rango de fechas seleccionado (CP07)
+     */
+    public function getInsumosDisponibles(string $fechaInicio, string $fechaFin): array
+    {
+        $sql = "
+            SELECT DISTINCT 
+                codigo,
+                nomcodigo,
+                CONCAT(codigo, ' ', nomcodigo) AS item_label
+            FROM costomenalidet
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+            ORDER BY codigo ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':fecha_ini' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

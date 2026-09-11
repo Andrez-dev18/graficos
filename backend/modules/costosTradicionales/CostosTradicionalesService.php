@@ -36,6 +36,11 @@ class CostosTradicionalesService
         $tipoGrafico = !empty($filtros['tipo_grafico']) ? trim($filtros['tipo_grafico']) : 'CPO1CostoProduccion';
         $zonaFiltro  = !empty($filtros['zona']) ? trim($filtros['zona']) : null;
 
+        // Despacho con Responsabilidad Única para CP07 InsumosAABB
+        if ($tipoGrafico === 'CP07 InsumosAABB' || $tipoGrafico === 'CP07' || $tipoGrafico === 'CP07InsumosAABB') {
+            return $this->obtenerDatosCP07InsumosAABB($filtros);
+        }
+
         // 2. Obtener datos generales de costomen (para CP01 y CP02)
         $registros = $this->repo->getCostosPorPeriodo($fechaInicio, $fechaFin);
 
@@ -399,6 +404,96 @@ class CostosTradicionalesService
             'detalleMesesCP05MortVsPeso' => $detalleMesesCP05MortVsPeso,
             'zonasDisponibles'           => $zonasDisponibles,
             'tablaMetricas'              => $tablaMetricas
+        ];
+    }
+
+    /**
+     * Procesa y estructura exclusivamente los datos para CP07 (Insumos y Alimento Balanceado)
+     * Respetando el Principio de Responsabilidad Única (SRP)
+     */
+    public function obtenerDatosCP07InsumosAABB(array $filtros): array
+    {
+        // 1. Normalizar filtros de fechas
+        $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : '2026-01-01';
+        $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2026-08-31';
+
+        // 2. Normalizar filtro de items (si viene como array, string separado por comas o JSON)
+        $itemsFiltro = [];
+        if (!empty($filtros['items'])) {
+            if (is_array($filtros['items'])) {
+                $itemsFiltro = $filtros['items'];
+            } elseif (is_string($filtros['items'])) {
+                $decoded = json_decode($filtros['items'], true);
+                if (is_array($decoded)) {
+                    $itemsFiltro = $decoded;
+                } else {
+                    $itemsFiltro = array_map('trim', explode(',', $filtros['items']));
+                }
+            }
+        }
+
+        // 3. Obtener datos de la gráfica superior: PU Alimento Balanceado (costomenali)
+        $registrosAlimento = $this->repo->getCostosProduccionAlimentoBalanceado($fechaInicio, $fechaFin);
+
+        $periodos = [];
+        $graficaCP07 = [];
+
+        foreach ($registrosAlimento as $row) {
+            $key = $row['mes_key'];
+            $mesNum = $row['mes_num'];
+            $anio = $row['anio'];
+            $mesLarga = (self::$mesesLargo[$mesNum] ?? '') . ' de ' . $anio;
+            $mesCorta = (self::$mesesCorto[$mesNum] ?? $mesNum) . ' ' . substr($anio, -2);
+            $pu = round((float)($row['pu'] ?? 0), 4);
+
+            $metaPeriodo = [
+                'key'       => $key,
+                'anio'      => $anio,
+                'mes_num'   => $mesNum,
+                'mes_corta' => $mesCorta,
+                'mes_larga' => $mesLarga
+            ];
+
+            $periodos[] = $metaPeriodo;
+
+            $graficaCP07[] = array_merge($metaPeriodo, [
+                'sum_valoalim' => (float)($row['sum_valoalim'] ?? 0),
+                'sum_pesoalim' => (float)($row['sum_pesoalim'] ?? 0),
+                'pu'           => $pu
+            ]);
+        }
+
+        // 4. Obtener detalle matricial de insumos (costomenalidet)
+        $registrosInsumos = $this->repo->getCostoInsumosDetalle($fechaInicio, $fechaFin, $itemsFiltro);
+
+        $matrixInsumosMap = [];
+        foreach ($registrosInsumos as $row) {
+            $codigo = $row['codigo'];
+            if (!isset($matrixInsumosMap[$codigo])) {
+                $matrixInsumosMap[$codigo] = [
+                    'codigo'     => $codigo,
+                    'nomcodigo'  => $row['nomcodigo'],
+                    'item_label' => $row['item_label'],
+                    'valores'    => []
+                ];
+            }
+            $matrixInsumosMap[$codigo]['valores'][$row['mes_key']] = round((float)($row['costo_unitario'] ?? 0), 3);
+        }
+
+        $tablaInsumos = array_values($matrixInsumosMap);
+
+        // 5. Obtener catálogo completo de insumos en el rango para el filtro multi-select
+        $catalogoInsumos = $this->repo->getInsumosDisponibles($fechaInicio, $fechaFin);
+
+        return [
+            'tipo_grafico'    => 'CP07 InsumosAABB',
+            'fecha_inicio'    => $fechaInicio,
+            'fecha_fin'       => $fechaFin,
+            'periodos'        => $periodos,
+            'graficaCP07'     => $graficaCP07,
+            'tablaInsumos'    => $tablaInsumos,
+            'catalogoInsumos' => $catalogoInsumos,
+            'total_items'     => count($tablaInsumos)
         ];
     }
 }
