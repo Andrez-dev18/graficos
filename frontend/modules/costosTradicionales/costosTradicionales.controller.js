@@ -9,6 +9,7 @@ class CostosTradicionalesController {
         this.chartTipoActual = null;
         this.datosDashboard = null;
         this.mesSeleccionadoCP04 = null;
+        this.mesSeleccionadoCP05 = null;
 
         this.init();
     }
@@ -52,14 +53,14 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05)
+        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05 vs CP05 MortVsPeso)
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
                 const tipo = selTipoGrafico.value;
                 if (contFiltroZona) {
-                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona' || tipo === 'CP05 CPPVvsCAZonaBarra') {
+                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona' || tipo === 'CP05 CPPVvsCAZonaBarra' || tipo === 'CP05 MortVsPeso') {
                         contFiltroZona.classList.remove('hidden');
                     } else {
                         contFiltroZona.classList.add('hidden');
@@ -184,7 +185,9 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP05 CPPVvsCAZonaBarra' || tipoGrafico === 'CPPVvsCAZonaBarra') {
+                if (tipoGrafico === 'CP05 MortVsPeso' || tipoGrafico === 'CP06 MortVsPeso') {
+                    this.configurarVistaCP05MortVsPeso(data);
+                } else if (tipoGrafico === 'CP05 CPPVvsCAZonaBarra' || tipoGrafico === 'CPPVvsCAZonaBarra') {
                     this.configurarVistaCP05(data);
                 } else if (tipoGrafico === 'CP04 CPPVvsCAxZona') {
                     this.configurarVistaCP04(data);
@@ -404,6 +407,73 @@ class CostosTradicionalesController {
     }
 
     /**
+     * Configura y renderiza la vista para CP05 MortVsPeso (Mortalidad Vs Peso Promedio - Gráfica 2 Líneas + Detalle Cencos)
+     */
+    configurarVistaCP05MortVsPeso(data) {
+        this.chartTipoActual = 'CP05MortVsPeso';
+
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Mortalidad Vs Peso Promedio';
+
+        // Mostrar selector de ZONA para CP05 MortVsPeso
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.remove('hidden');
+
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[440px] h-[calc(100vh-340px)] max-h-[580px] p-4";
+        }
+
+        // Mostrar card de tabla de detalle
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.remove('hidden');
+
+        const titTabla = document.getElementById('titulo-tabla-detalle');
+        if (titTabla) titTabla.textContent = 'Mortalidad Vs Peso Promedio Detalle';
+
+        this.renderizarGraficaCP05MortVsPeso(data);
+        this.actualizarFiltroCruzadoCP05(this.mesSeleccionadoCP05, false);
+    }
+
+    /**
+     * Actualiza el estado reactivo del filtro cruzado en CP05 MortVsPeso sin destruir la gráfica
+     */
+    actualizarFiltroCruzadoCP05(mesKey, triggerChartUpdate = true) {
+        this.mesSeleccionadoCP05 = mesKey;
+        const data = this.datosDashboard || {};
+
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = '';
+        }
+
+        const subTabla = document.getElementById('subtitulo-tabla-detalle');
+        if (subTabla) {
+            if (this.mesSeleccionadoCP05) {
+                const mesObj = (data.graficaCP05MortVsPeso || []).find(m => m.key === this.mesSeleccionadoCP05);
+                const nombreMes = mesObj ? mesObj.mes_larga : this.mesSeleccionadoCP05;
+                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para el mes de <strong class="capitalize">${nombreMes}</strong></span>`;
+            } else {
+                subTabla.textContent = 'Histórico detallado por centro de costo (cencos) y mes de fecha';
+            }
+        }
+
+        const detalleAMostrar = this.mesSeleccionadoCP05
+            ? (data.detalleMesesCP05MortVsPeso || []).filter(m => m.key === this.mesSeleccionadoCP05)
+            : (data.detalleMesesCP05MortVsPeso || []);
+
+        this.renderizarTablaCP05MortVsPeso({ detalleMeses: detalleAMostrar });
+
+        if (triggerChartUpdate && this.chartInstance && this.chartTipoActual === 'CP05MortVsPeso') {
+            try {
+                this.chartInstance.update('none');
+            } catch (e) {
+                console.warn('Error al actualizar gráfica CP05 MortVsPeso:', e);
+            }
+        }
+    }
+
+    /**
      * Actualiza el estado reactivo del filtro cruzado en CP04 sin destruir la gráfica
      */
     actualizarFiltroCruzadoCP04(mesKey, triggerChartUpdate = true) {
@@ -412,30 +482,7 @@ class CostosTradicionalesController {
 
         const contenedorBadges = document.getElementById('contenedor-badges-grafica');
         if (contenedorBadges) {
-            if (this.mesSeleccionadoCP04) {
-                const mesObj = (data.graficaCP04 || []).find(m => m.key === this.mesSeleccionadoCP04);
-                const nombreMes = mesObj ? mesObj.mes_larga : this.mesSeleccionadoCP04;
-                contenedorBadges.innerHTML = `
-                    <div class="flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg text-xs font-semibold shadow-xs">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                        <span>Filtro cruzado activo: <strong class="capitalize text-slate-900">${nombreMes}</strong></span>
-                        <button type="button" id="btn-reset-filtro-cp04" class="ml-1.5 px-2 py-0.5 bg-amber-200/90 hover:bg-amber-300 text-amber-950 text-[10px] font-bold rounded cursor-pointer transition-colors" title="Restablecer todos los meses">
-                            ✕ Quitar filtro
-                        </button>
-                    </div>
-                `;
-                document.getElementById('btn-reset-filtro-cp04')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.actualizarFiltroCruzadoCP04(null, true);
-                });
-            } else {
-                contenedorBadges.innerHTML = `
-                    <span class="text-xs text-slate-500 font-medium hidden sm:inline-flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
-                        Haz clic en una barra o punto para filtrar el detalle
-                    </span>
-                `;
-            }
+            contenedorBadges.innerHTML = '';
         }
 
         const subTabla = document.getElementById('subtitulo-tabla-detalle');
@@ -1384,35 +1431,7 @@ class CostosTradicionalesController {
             }
         };
 
-        const xLabelHighlightPlugin = {
-            id: 'xLabelHighlight',
-            beforeDraw: (chart) => {
-                if (!this.mesSeleccionadoCP04) return;
-                const xAxis = chart.scales.x;
-                if (!xAxis) return;
-                const selIdx = periodosGrafica.findIndex(p => p.key === this.mesSeleccionadoCP04);
-                if (selIdx === -1) return;
-
-                const xPos = xAxis.getPixelForTick(selIdx);
-                const ctx = chart.ctx;
-                const boxWidth = 92;
-                const boxHeight = 24;
-                const yPos = xAxis.top + 2;
-
-                ctx.save();
-                ctx.fillStyle = '#f59e0b'; // Fondo ámbar Tableau
-                ctx.beginPath();
-                if (typeof ctx.roundRect === 'function') {
-                    ctx.roundRect(xPos - boxWidth / 2, yPos, boxWidth, boxHeight, 4);
-                } else {
-                    ctx.rect(xPos - boxWidth / 2, yPos, boxWidth, boxHeight);
-                }
-                ctx.fill();
-                ctx.restore();
-            }
-        };
-
-        const pluginsConfig = [xLabelHighlightPlugin];
+        const pluginsConfig = [];
         if (typeof ChartDataLabels !== 'undefined') {
             pluginsConfig.push(ChartDataLabels);
         }
@@ -1915,6 +1934,447 @@ class CostosTradicionalesController {
             { id: 'val_avi', nombre: 'Valor Avicul..', formato: 'entero' },
             { id: 'peso_avi', nombre: 'Peso Avicul..', formato: 'entero' },
             { id: 'costo_kg', nombre: 'CostoxKg', formato: 'decimal3' }
+        ];
+
+        let tbodyHtml = '';
+
+        metricasConfig.forEach((metrica, idx) => {
+            const isEven = (idx % 2 === 1);
+            const rowBg = isEven ? 'bg-slate-50/60' : 'bg-white';
+            const stickyBg = isEven ? 'bg-slate-50' : 'bg-white';
+
+            tbodyHtml += `
+                <tr class="${rowBg} hover:bg-blue-50/40 transition-colors border-b border-slate-200">
+                    <td class="py-2 px-3 font-semibold text-slate-800 text-[11px] border-r border-slate-200 sticky left-0 z-20 ${stickyBg} shadow-xs truncate">
+                        ${metrica.nombre}
+                    </td>
+            `;
+
+            detalleMeses.forEach(m => {
+                m.cencosList.forEach(cencos => {
+                    const celdaData = m.columnas && m.columnas[cencos] ? m.columnas[cencos] : null;
+                    const rawVal = celdaData ? celdaData[metrica.id] : null;
+                    const valFormateado = this.formatearNumero(rawVal, metrica.formato);
+
+                    const isTotal = (cencos === 'Total');
+                    const cellStyle = isTotal ? 'bg-slate-100/70 font-bold text-slate-900' : 'text-slate-700';
+
+                    tbodyHtml += `
+                        <td class="py-1.5 px-2.5 text-right font-mono text-[11px] border-r border-slate-200/70 whitespace-nowrap cursor-pointer hover:bg-blue-100/60 transition-colors ${cellStyle}"
+                            data-tooltip-metrica="true"
+                            data-tt-indicador="${metrica.nombre} (${cencos})"
+                            data-tt-mes="${m.mes}"
+                            data-tt-valor="${valFormateado}">
+                            ${valFormateado}
+                        </td>
+                    `;
+                });
+            });
+
+            tbodyHtml += `</tr>`;
+        });
+
+        tbody.innerHTML = tbodyHtml;
+    }
+
+    /**
+     * 8. Renderizado de Gráfica CP05 MortVsPeso (Mortalidad vs Peso Promedio - 2 Líneas con Doble Eje Y)
+     */
+    renderizarGraficaCP05MortVsPeso(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        this.destruirGraficaActual();
+
+        const periodosGrafica = data.graficaCP05MortVsPeso || [];
+        if (periodosGrafica.length === 0) return;
+
+        const labels = periodosGrafica.map(d => d.mes_larga || d.key);
+        const valoresMortalidad = periodosGrafica.map(d => Number(d.mortalidad_porc || 0));
+        const valoresPesoProm = periodosGrafica.map(d => Number(d.peso_promedio || 0));
+
+        let minMort = 3.0, maxMort = 7.0;
+        if (valoresMortalidad.length > 0) {
+            const minV = Math.min(...valoresMortalidad);
+            const maxV = Math.max(...valoresMortalidad);
+            minMort = Math.min(3.0, Math.floor((minV - 0.5) * 2) / 2);
+            maxMort = Math.max(7.0, Math.ceil((maxV + 0.5) * 2) / 2);
+        }
+
+        let minPeso = 2.50, maxPeso = 2.95;
+        if (valoresPesoProm.length > 0) {
+            const minV = Math.min(...valoresPesoProm);
+            const maxV = Math.max(...valoresPesoProm);
+            minPeso = Math.min(2.50, Math.floor((minV - 0.05) * 20) / 20);
+            maxPeso = Math.max(2.95, Math.ceil((maxV + 0.05) * 20) / 20);
+        }
+
+        const datasetMortalidad = {
+            type: 'line',
+            label: '%Mortalidad',
+            data: valoresMortalidad,
+            yAxisID: 'y',
+            borderColor: '#e15759', // Rojo Tableau
+            backgroundColor: '#e15759',
+            borderWidth: 2.2,
+            tension: 0.05,
+            pointRadius: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05) return 4.5;
+                return (item && item.key === this.mesSeleccionadoCP05) ? 7 : 2.5;
+            },
+            pointHoverRadius: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05) return 7;
+                return (item && item.key === this.mesSeleccionadoCP05) ? 9 : 4.5;
+            },
+            pointBackgroundColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05) return '#e15759';
+                return (item && item.key === this.mesSeleccionadoCP05) ? '#b91c1c' : 'rgba(225, 87, 89, 0.25)';
+            },
+            pointBorderColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#ffffff';
+                return 'transparent';
+            },
+            pointBorderWidth: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                return (item && item.key === this.mesSeleccionadoCP05) ? 2.5 : 1.5;
+            },
+            order: 1,
+            datalabels: {
+                anchor: 'center',
+                align: 'top',
+                offset: 7,
+                color: (context) => {
+                    const item = periodosGrafica[context.dataIndex];
+                    if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#b91c1c';
+                    return '#cbd5e1';
+                },
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 11,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const datasetPesoProm = {
+            type: 'line',
+            label: 'PesoProm',
+            data: valoresPesoProm,
+            yAxisID: 'y1',
+            borderColor: '#595959', // Gris oscuro / marrón Tableau
+            backgroundColor: '#595959',
+            borderWidth: 2.2,
+            tension: 0.05,
+            pointRadius: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05) return 4.5;
+                return (item && item.key === this.mesSeleccionadoCP05) ? 7 : 2.5;
+            },
+            pointHoverRadius: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05) return 7;
+                return (item && item.key === this.mesSeleccionadoCP05) ? 9 : 4.5;
+            },
+            pointBackgroundColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05) return '#595959';
+                return (item && item.key === this.mesSeleccionadoCP05) ? '#1e293b' : 'rgba(89, 89, 89, 0.25)';
+            },
+            pointBorderColor: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#ffffff';
+                return 'transparent';
+            },
+            pointBorderWidth: (context) => {
+                const item = periodosGrafica[context.dataIndex];
+                return (item && item.key === this.mesSeleccionadoCP05) ? 2.5 : 1.5;
+            },
+            order: 2,
+            datalabels: {
+                anchor: 'center',
+                align: (context) => {
+                    const val = valoresPesoProm[context.dataIndex];
+                    const prev = valoresPesoProm[context.dataIndex - 1];
+                    const next = valoresPesoProm[context.dataIndex + 1];
+                    if (prev !== undefined && next !== undefined && val < prev && val < next) return 'bottom';
+                    return 'top';
+                },
+                offset: 7,
+                color: (context) => {
+                    const item = periodosGrafica[context.dataIndex];
+                    if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#334155';
+                    return '#cbd5e1';
+                },
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 11,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'line',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: [datasetMortalidad, datasetPesoProm]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 32, bottom: 8, left: 10, right: 10 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                onClick: (event, elements, chart) => {
+                    const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+                    if (points && points.length > 0) {
+                        const dataIndex = points[0].index;
+                        const clickedItem = periodosGrafica[dataIndex];
+                        if (clickedItem) {
+                            const newKey = (this.mesSeleccionadoCP05 === clickedItem.key) ? null : clickedItem.key;
+                            this.actualizarFiltroCruzadoCP05(newKey, true);
+                        }
+                    } else {
+                        if (this.mesSeleccionadoCP05 !== null) {
+                            this.actualizarFiltroCruzadoCP05(null, true);
+                        }
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: minMort,
+                        max: maxMort,
+                        title: {
+                            display: true,
+                            text: 'CA',
+                            color: '#475569',
+                            font: { size: 11.5, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.5,
+                            color: '#64748b',
+                            font: { size: 10.5, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: minPeso,
+                        max: maxPeso,
+                        title: {
+                            display: true,
+                            text: 'CostoxKg',
+                            color: '#475569',
+                            font: { size: 11.5, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.05,
+                            color: '#64748b',
+                            font: { size: 10.5, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(2).replace('.', ',')
+                        },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mes de fecha',
+                            color: '#64748b',
+                            font: { size: 11, weight: '600' },
+                            padding: { top: 6 }
+                        },
+                        ticks: {
+                            color: (ctx) => {
+                                const item = periodosGrafica[ctx.index];
+                                if (item && item.key === this.mesSeleccionadoCP05) return '#000000';
+                                if (this.mesSeleccionadoCP05) return '#94a3b8';
+                                return '#475569';
+                            },
+                            font: (ctx) => {
+                                const item = periodosGrafica[ctx.index];
+                                const isSel = (item && item.key === this.mesSeleccionadoCP05);
+                                return {
+                                    size: 10.5,
+                                    weight: isSel ? 'bold' : '600'
+                                };
+                            },
+                            maxRotation: 45,
+                            minRotation: 30,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rect',
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            padding: 16,
+                            font: {
+                                family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                                size: 11.5,
+                                weight: 'bold'
+                            },
+                            color: '#475569',
+                            cursor: 'pointer'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataIndex = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+                            if (dataIndex === null || !periodosGrafica[dataIndex]) return;
+
+                            const item = periodosGrafica[dataIndex];
+
+                            tooltipEl.innerHTML = `
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
+                                    <span class="text-slate-500 font-normal">Mes de fecha:</span>
+                                    <span class="text-slate-900 font-semibold text-left capitalize">${item.mes_larga}</span>
+                                    <span class="text-[#b91c1c] font-semibold">%Mortalidad:</span>
+                                    <span class="text-[#b91c1c] font-bold text-left font-mono text-xs">${this.formatearNumero(item.mortalidad_porc, 'decimal3')} %</span>
+                                    <span class="text-[#334155] font-semibold">PesoProm:</span>
+                                    <span class="text-[#334155] font-bold text-left font-mono text-xs">${this.formatearNumero(item.peso_promedio, 'decimal3')} kg</span>
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 250;
+                            const tooltipHeight = tooltipEl.offsetHeight || 100;
+
+                            let x = canvasRect.left + tooltip.caretX + 12;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 12;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 9. Renderizado de la Tabla de Detalle CP05 MortVsPeso (Mortalidad Vs Peso Promedio Detalle)
+     */
+    renderizarTablaCP05MortVsPeso(data = {}) {
+        const thead = document.getElementById('thead-detalle-metricas');
+        const tbody = document.getElementById('tbody-detalle-metricas');
+
+        if (!thead || !tbody) return;
+
+        const detalleMeses = data.detalleMeses || [];
+        if (detalleMeses.length === 0) {
+            thead.innerHTML = '';
+            tbody.innerHTML = `<tr><td colspan="24" class="text-center py-10 text-slate-400">No hay detalle disponible.</td></tr>`;
+            return;
+        }
+
+        // Fila 1 de encabezado: Mes de fecha / cencos + Nombres de meses agrupados
+        let theadRow1 = `
+            <tr class="bg-blue-600 text-white font-bold text-xs border-b border-blue-500">
+                <th rowspan="2" class="py-2.5 px-3 text-left border-r border-b border-blue-500 sticky left-0 z-30 bg-blue-600 min-w-[130px] max-w-[160px] text-white font-bold text-xs shadow-sm">
+                    Mes de fecha / cencos
+                </th>
+        `;
+
+        // Fila 2 de encabezado: Códigos de CENCOS + Total
+        let theadRow2 = `
+            <tr class="bg-blue-600 text-white font-semibold text-[11px] border-b border-blue-500">
+        `;
+
+        detalleMeses.forEach(m => {
+            theadRow1 += `
+                <th colspan="${m.cencosList.length}" class="py-2 px-3 text-center border-b border-r border-blue-500 bg-blue-600 text-white font-bold text-xs">
+                    ${m.mes}
+                </th>
+            `;
+
+            m.cencosList.forEach(cencos => {
+                const isTotal = (cencos === 'Total');
+                const thClass = isTotal 
+                    ? 'bg-blue-800/90 text-white font-bold border-r border-blue-500' 
+                    : 'bg-blue-600 text-blue-50 font-semibold border-r border-blue-500';
+
+                theadRow2 += `
+                    <th class="py-1.5 px-2.5 text-center whitespace-nowrap border-b ${thClass} min-w-[74px]">
+                        ${cencos}
+                    </th>
+                `;
+            });
+        });
+
+        theadRow1 += `</tr>`;
+        theadRow2 += `</tr>`;
+        thead.innerHTML = theadRow1 + theadRow2;
+
+        // Definición de las 6 filas métricas en el orden exacto de Tableau
+        const metricasConfig = [
+            { id: 'pollos_muertos', nombre: 'Pollos Muer..', formato: 'entero' },
+            { id: 'pollos_inicial', nombre: 'Pollos Inicial', formato: 'entero' },
+            { id: 'mortalidad_porc', nombre: '%Mortalidad', formato: 'decimal3' },
+            { id: 'peso_avicola', nombre: 'Peso Avicul..', formato: 'entero' },
+            { id: 'cantidad_avicola', nombre: 'Cantidad A..', formato: 'entero' },
+            { id: 'peso_promedio', nombre: 'PesoProm', formato: 'decimal3' }
         ];
 
         let tbodyHtml = '';

@@ -249,7 +249,97 @@ class CostosTradicionalesService
 
         $detalleMesesCP04 = array_values($mesesDetalleMap);
 
-        // 7. Filas de métricas para CP01
+        // 7. Obtener datos para CP05 MortVsPeso (Mortalidad vs Peso Promedio + Detalle Cencos)
+        $registrosCP05Grafica = $this->repo->getCostosCP05MortVsPesoGrafica($fechaInicio, $fechaFin, $zonaFiltro);
+        $registrosCP05Detalle = $this->repo->getCostosCP05MortVsPesoDetalle($fechaInicio, $fechaFin, $zonaFiltro);
+
+        $graficaCP05MortVsPeso = [];
+        foreach ($registrosCP05Grafica as $rg) {
+            $key = $rg['mes_key'];
+            $anio = $rg['anio'];
+            $mesNum = $rg['mes_num'];
+            $mesNomLargo = self::$mesesLargo[$mesNum] ?? "mes $mesNum";
+            $mesLarga = "$mesNomLargo de $anio";
+
+            $graficaCP05MortVsPeso[] = [
+                'key'             => $key,
+                'mes_larga'       => $mesLarga,
+                'mortalidad_porc' => round((float)($rg['mortalidad_porc'] ?? 0), 3),
+                'peso_promedio'   => round((float)($rg['peso_promedio'] ?? 0), 3)
+            ];
+        }
+
+        // Estructurar Detalle por Cencos y Mes para CP05 MortVsPeso
+        $mesesDetalleMapCP05 = [];
+        $mesesTotalesMapCP05 = [];
+
+        foreach ($registrosCP05Detalle as $rd) {
+            $key = $rd['mes_key'];
+            $anio = $rd['anio'];
+            $mesNum = $rd['mes_num'];
+            $mesNomLargo = self::$mesesLargo[$mesNum] ?? "mes $mesNum";
+            $mesLarga = "$mesNomLargo de $anio";
+
+            if (!isset($mesesDetalleMapCP05[$key])) {
+                $mesesDetalleMapCP05[$key] = [
+                    'key'        => $key,
+                    'mes'        => $mesLarga,
+                    'cencosList' => [],
+                    'columnas'   => []
+                ];
+                $mesesTotalesMapCP05[$key] = [
+                    'pollos_muertos'   => 0.0,
+                    'pollos_inicial'   => 0.0,
+                    'peso_avicola'     => 0.0,
+                    'cantidad_avicola' => 0.0
+                ];
+            }
+
+            $cencos = trim($rd['cencos']);
+            $pollosMuertos = (float)($rd['pollos_muertos'] ?? 0);
+            $pollosInicial = (float)($rd['pollos_inicial'] ?? 0);
+            $mortalidadPorc = round((float)($rd['mortalidad_porc'] ?? 0), 3);
+            $pesoAvicola = (float)($rd['peso_avicola'] ?? 0);
+            $cantidadAvicola = (float)($rd['cantidad_avicola'] ?? 0);
+            $pesoPromedio = round((float)($rd['peso_promedio'] ?? 0), 3);
+
+            $mesesDetalleMapCP05[$key]['cencosList'][] = $cencos;
+            $mesesDetalleMapCP05[$key]['columnas'][$cencos] = [
+                'pollos_muertos'   => $pollosMuertos,
+                'pollos_inicial'   => $pollosInicial,
+                'mortalidad_porc'  => $mortalidadPorc,
+                'peso_avicola'     => $pesoAvicola,
+                'cantidad_avicola' => $cantidadAvicola,
+                'peso_promedio'    => $pesoPromedio
+            ];
+
+            $mesesTotalesMapCP05[$key]['pollos_muertos']   += $pollosMuertos;
+            $mesesTotalesMapCP05[$key]['pollos_inicial']   += $pollosInicial;
+            $mesesTotalesMapCP05[$key]['peso_avicola']     += $pesoAvicola;
+            $mesesTotalesMapCP05[$key]['cantidad_avicola'] += $cantidadAvicola;
+        }
+
+        // Agregar la columna 'Total' a cada mes en CP05
+        foreach ($mesesDetalleMapCP05 as $key => &$mObj) {
+            $tot = $mesesTotalesMapCP05[$key];
+            $mortTotalPorc = ($tot['pollos_inicial'] > 0) ? round(($tot['pollos_muertos'] / $tot['pollos_inicial']) * 100, 3) : 0;
+            $pesoPromTotal = ($tot['cantidad_avicola'] > 0) ? round($tot['peso_avicola'] / $tot['cantidad_avicola'], 3) : 0;
+
+            $mObj['cencosList'][] = 'Total';
+            $mObj['columnas']['Total'] = [
+                'pollos_muertos'   => $tot['pollos_muertos'],
+                'pollos_inicial'   => $tot['pollos_inicial'],
+                'mortalidad_porc'  => $mortTotalPorc,
+                'peso_avicola'     => $tot['peso_avicola'],
+                'cantidad_avicola' => $tot['cantidad_avicola'],
+                'peso_promedio'    => $pesoPromTotal
+            ];
+        }
+        unset($mObj);
+
+        $detalleMesesCP05MortVsPeso = array_values($mesesDetalleMapCP05);
+
+        // 8. Filas de métricas para CP01
         $tablaMetricas = [
             [
                 'id'      => 'saca_pollo_und',
@@ -296,17 +386,19 @@ class CostosTradicionalesService
         ];
 
         return [
-            'tipo_grafico'     => $tipoGrafico,
-            'zona'             => $zonaFiltro,
-            'benchmark'        => self::BENCHMARK,
-            'periodos'         => $periodos,
-            'graficaCosto'     => $graficaCosto,
-            'graficaCP02'      => $graficaCP02,
-            'graficaCP03'      => $graficaCP03,
-            'graficaCP04'      => $graficaCP04,
-            'detalleMesesCP04' => $detalleMesesCP04,
-            'zonasDisponibles' => $zonasDisponibles,
-            'tablaMetricas'    => $tablaMetricas
+            'tipo_grafico'               => $tipoGrafico,
+            'zona'                       => $zonaFiltro,
+            'benchmark'                  => self::BENCHMARK,
+            'periodos'                   => $periodos,
+            'graficaCosto'               => $graficaCosto,
+            'graficaCP02'                => $graficaCP02,
+            'graficaCP03'                => $graficaCP03,
+            'graficaCP04'                => $graficaCP04,
+            'detalleMesesCP04'           => $detalleMesesCP04,
+            'graficaCP05MortVsPeso'      => $graficaCP05MortVsPeso,
+            'detalleMesesCP05MortVsPeso' => $detalleMesesCP05MortVsPeso,
+            'zonasDisponibles'           => $zonasDisponibles,
+            'tablaMetricas'              => $tablaMetricas
         ];
     }
 }

@@ -182,4 +182,88 @@ class CostosTradicionalesRepo
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
+
+    /**
+     * Obtiene los datos consolidados por Mes para la gráfica de CP05 MortVsPeso (%Mortalidad vs PesoProm)
+     */
+    public function getCostosCP05MortVsPesoGrafica(string $fechaInicio, string $fechaFin, ?string $zona = null): array
+    {
+        $params = [
+            ':fecha_ini' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ];
+
+        $whereZona = "";
+        if (!empty($zona) && strtoupper($zona) !== 'TODOS' && strtoupper($zona) !== '(TODO)') {
+            $whereZona = " AND zona = :zona ";
+            $params[':zona'] = $zona;
+        }
+
+        $sql = "
+            SELECT 
+                DATE_FORMAT(fecha, '%Y-%m') AS mes_key,
+                DATE_FORMAT(fecha, '%Y') AS anio,
+                DATE_FORMAT(fecha, '%m') AS mes_num,
+                SUM(mortalidad) AS sum_mortalidad,
+                SUM(pollo_ini) AS sum_pollo_ini,
+                SUM(pesoavi) AS sum_pesoavi,
+                SUM(cantavi) AS sum_cantavi,
+                ((SUM(mortalidad) / NULLIF(SUM(pollo_ini), 0)) * 100) AS mortalidad_porc,
+                (SUM(pesoavi) / NULLIF(SUM(cantavi), 0)) AS peso_promedio
+            FROM costomenzona
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+              {$whereZona}
+            GROUP BY mes_key, anio, mes_num
+            ORDER BY mes_key ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el detalle por Centro de Costo (cencos) y Mes para la tabla de CP05 MortVsPeso
+     */
+    public function getCostosCP05MortVsPesoDetalle(string $fechaInicio, string $fechaFin, ?string $zona = null): array
+    {
+        $params = [
+            ':fecha_ini' => $fechaInicio,
+            ':fecha_fin' => $fechaFin
+        ];
+
+        $whereZona = "";
+        if (!empty($zona) && strtoupper($zona) !== 'TODOS' && strtoupper($zona) !== '(TODO)') {
+            $whereZona = " AND zona = :zona ";
+            $params[':zona'] = $zona;
+        }
+
+        $sql = "
+            SELECT 
+                DATE_FORMAT(fecha, '%Y-%m') AS mes_key,
+                DATE_FORMAT(fecha, '%Y') AS anio,
+                DATE_FORMAT(fecha, '%m') AS mes_num,
+                cencos,
+                nomcencos,
+                SUM(mortalidad) AS pollos_muertos,
+                SUM(pollo_ini) AS pollos_inicial,
+                ((SUM(mortalidad) / NULLIF(SUM(pollo_ini), 0)) * 100) AS mortalidad_porc,
+                SUM(pesoavi) AS peso_avicola,
+                SUM(cantavi) AS cantidad_avicola,
+                (SUM(pesoavi) / NULLIF(SUM(cantavi), 0)) AS peso_promedio
+            FROM costomenzona
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+              {$whereZona}
+            GROUP BY mes_key, anio, mes_num, cencos, nomcencos
+            ORDER BY mes_key ASC, cencos ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
