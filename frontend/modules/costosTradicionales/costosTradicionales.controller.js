@@ -52,14 +52,14 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04)
+        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05)
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
                 const tipo = selTipoGrafico.value;
                 if (contFiltroZona) {
-                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona') {
+                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona' || tipo === 'CP05 CPPVvsCAZonaBarra') {
                         contFiltroZona.classList.remove('hidden');
                     } else {
                         contFiltroZona.classList.add('hidden');
@@ -69,7 +69,7 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de zona (CP03)
+        // Selector de zona (CP03, CP04, CP05)
         const selZona = document.getElementById('select-zona');
         if (selZona) {
             selZona.addEventListener('change', async () => {
@@ -184,7 +184,9 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP04 CPPVvsCAxZona') {
+                if (tipoGrafico === 'CP05 CPPVvsCAZonaBarra' || tipoGrafico === 'CPPVvsCAZonaBarra') {
+                    this.configurarVistaCP05(data);
+                } else if (tipoGrafico === 'CP04 CPPVvsCAxZona') {
                     this.configurarVistaCP04(data);
                 } else if (tipoGrafico === 'CP03 CPPVxZona') {
                     this.configurarVistaCP03(data);
@@ -369,6 +371,36 @@ class CostosTradicionalesController {
 
         this.renderizarGraficaCP04(data);
         this.actualizarFiltroCruzadoCP04(this.mesSeleccionadoCP04, false);
+    }
+
+    /**
+     * Configura y renderiza la vista para CP05 (CPPVvsCAZonaBarra - Gráfica amplia sin tabla)
+     */
+    configurarVistaCP05(data) {
+        this.chartTipoActual = 'CP05';
+        this.mesSeleccionadoCP04 = null;
+
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion';
+
+        // Mostrar selector de ZONA para CP05
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.remove('hidden');
+
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[520px] h-[calc(100vh-250px)] max-h-[750px] p-4";
+        }
+
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = '';
+        }
+
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.add('hidden');
+
+        this.renderizarGraficaCP05(data);
     }
 
     /**
@@ -1545,6 +1577,254 @@ class CostosTradicionalesController {
                                     <span class="text-[#c2410c] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_alimentacion, 'decimal3')} S//Kg</span>
                                     <span class="text-[#1e40af] font-semibold">CostoxKg:</span>
                                     <span class="text-[#1e40af] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_produccion, 'decimal3')} S//Kg</span>
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 250;
+                            const tooltipHeight = tooltipEl.offsetHeight || 100;
+
+                            let x = canvasRect.left + tooltip.caretX + 12;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 12;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 7. Renderizado de Gráfica CP05 (CPPVvsCAZonaBarra - Costo por Kg. Pollo Vivo vs Costo de Alimentación en modo completo)
+     */
+    renderizarGraficaCP05(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        this.destruirGraficaActual();
+
+        const periodosGrafica = data.graficaCP04 || data.periodosGrafica || [];
+        if (periodosGrafica.length === 0) return;
+
+        const labels = periodosGrafica.map(d => d.mes_larga || d.key);
+        const valoresCostoxKg = periodosGrafica.map(d => Number(d.costo_produccion || 0));
+        const valoresCostoAlim = periodosGrafica.map(d => Number(d.costo_alimentacion || 0));
+
+        let minProd = 2.2, maxProd = 5.0;
+        if (valoresCostoxKg.length > 0) {
+            const minV = Math.min(...valoresCostoxKg);
+            const maxV = Math.max(...valoresCostoxKg);
+            minProd = Math.min(2.2, Math.floor((minV - 0.2) * 10) / 10);
+            maxProd = Math.max(5.0, Math.ceil((maxV + 0.2) * 10) / 10);
+        }
+
+        let minAlim = 2.30, maxAlim = 2.90;
+        if (valoresCostoAlim.length > 0) {
+            const minV = Math.min(...valoresCostoAlim);
+            const maxV = Math.max(...valoresCostoAlim);
+            minAlim = Math.min(2.30, Math.floor((minV - 0.05) * 100) / 100);
+            maxAlim = Math.max(2.90, Math.ceil((maxV + 0.05) * 100) / 100);
+        }
+
+        const datasetAlimentacion = {
+            type: 'bar',
+            label: 'CostoAlimentacion',
+            data: valoresCostoAlim,
+            yAxisID: 'y1',
+            backgroundColor: '#f28e2b',
+            hoverBackgroundColor: '#e07d1b',
+            borderRadius: 1,
+            barPercentage: 0.52,
+            categoryPercentage: 0.8,
+            order: 2,
+            datalabels: {
+                anchor: 'end',
+                align: 'top',
+                offset: 4,
+                color: '#d97706',
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 11.5,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const datasetCostoxKg = {
+            type: 'line',
+            label: 'CostoxKg',
+            data: valoresCostoxKg,
+            yAxisID: 'y',
+            borderColor: '#4e79a7',
+            backgroundColor: '#4e79a7',
+            borderWidth: 2.2,
+            tension: 0.05,
+            pointRadius: 4.5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#4e79a7',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1.5,
+            order: 1,
+            datalabels: {
+                anchor: 'center',
+                align: 'top',
+                offset: 8,
+                color: '#4e79a7',
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 12,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'bar',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: [datasetAlimentacion, datasetCostoxKg]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 32, bottom: 12, left: 12, right: 12 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: minProd,
+                        max: maxProd,
+                        title: {
+                            display: true,
+                            text: 'CPV',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.2,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: minAlim,
+                        max: maxAlim,
+                        title: {
+                            display: true,
+                            text: 'CA',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.05,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(2).replace('.', ',')
+                        },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mes de fecha',
+                            color: '#64748b',
+                            font: { size: 11.5, weight: '600' },
+                            padding: { top: 8 }
+                        },
+                        ticks: {
+                            color: '#475569',
+                            font: { size: 11, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 30,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rect',
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            padding: 16,
+                            font: {
+                                family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            color: '#475569',
+                            cursor: 'pointer'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataIndex = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+                            if (dataIndex === null || !periodosGrafica[dataIndex]) return;
+
+                            const item = periodosGrafica[dataIndex];
+
+                            tooltipEl.innerHTML = `
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
+                                    <span class="text-slate-500 font-normal">Mes de fecha:</span>
+                                    <span class="text-slate-900 font-semibold text-left capitalize">${item.mes_larga}</span>
+                                    <span class="text-[#f28e2b] font-semibold">CostoAlimentacion:</span>
+                                    <span class="text-[#f28e2b] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_alimentacion, 'decimal3')} S//Kg</span>
+                                    <span class="text-[#4e79a7] font-semibold">CostoxKg:</span>
+                                    <span class="text-[#4e79a7] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_produccion, 'decimal3')} S//Kg</span>
                                 </div>
                             `;
 
