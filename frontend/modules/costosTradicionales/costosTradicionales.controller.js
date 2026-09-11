@@ -56,7 +56,7 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05 vs CP05 MortVsPeso vs CP07 InsumosAABB)
+        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04 vs CP05 vs CP05 MortVsPeso vs CP07 InsumosAABB vs CP08 TendenciaInsumos)
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         const contFiltroItem = document.getElementById('contenedor-filtro-item');
@@ -71,7 +71,7 @@ class CostosTradicionalesController {
                     }
                 }
                 if (contFiltroItem) {
-                    if (tipo === 'CP07 InsumosAABB' || tipo === 'CP07') {
+                    if (tipo === 'CP07 InsumosAABB' || tipo === 'CP07' || tipo === 'CP08 TendenciaInsumos' || tipo === 'CP08') {
                         contFiltroItem.classList.remove('hidden');
                     } else {
                         contFiltroItem.classList.add('hidden');
@@ -129,31 +129,36 @@ class CostosTradicionalesController {
                     <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
                         <span class="text-slate-500 font-normal">Indicador:</span>
                         <span class="text-slate-900 font-semibold text-left uppercase">${indicador}</span>
-                        <span class="text-slate-500 font-normal">Mes de fecha:</span>
-                        <span class="text-slate-900 font-semibold text-left">${mes}</span>
-                        <span class="text-slate-500 font-normal">Valor:</span>
-                        <span class="text-slate-900 font-bold text-left font-mono">${valor}</span>
+                        <span class="text-slate-500 font-normal">Mes:</span>
+                        <span class="text-slate-900 font-semibold text-left capitalize">${mes}</span>
+                        <span class="text-blue-600 font-normal">Valor:</span>
+                        <span class="text-blue-700 font-bold text-left font-mono">${valor}</span>
                     </div>
                 `;
 
                 tooltip.classList.remove('hidden');
-                const tooltipWidth = tooltip.offsetWidth || 240;
-                const tooltipHeight = tooltip.offsetHeight || 90;
+
                 let x = e.clientX + 14;
-                let y = e.clientY + 14;
+                let y = e.clientY - 20;
+
+                const tooltipWidth = tooltip.offsetWidth || 220;
+                const tooltipHeight = tooltip.offsetHeight || 80;
 
                 if (x + tooltipWidth > window.innerWidth - 12) {
                     x = e.clientX - tooltipWidth - 14;
                 }
                 if (y + tooltipHeight > window.innerHeight - 12) {
-                    y = e.clientY - tooltipHeight - 12;
+                    y = window.innerHeight - tooltipHeight - 12;
                 }
 
                 tooltip.style.left = `${Math.max(10, x)}px`;
                 tooltip.style.top = `${Math.max(10, y)}px`;
             } else {
-                if (!e.target.closest('#contenedor-grafica-costo') && !e.target.closest('#chart-costo-produccion')) {
-                    tooltip.classList.add('hidden');
+                // Solo ocultar si NO estamos sobre el canvas o el contenedor del gráfico
+                if (!e.target.closest('#chart-costo-produccion') && !e.target.closest('#contenedor-grafica-costo')) {
+                    if (!tooltip.classList.contains('hidden')) {
+                        tooltip.classList.add('hidden');
+                    }
                 }
             }
         });
@@ -190,7 +195,7 @@ class CostosTradicionalesController {
                 zona: zonaSeleccionada
             };
 
-            if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07') {
+            if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07' || tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
                 payloadFiltros.items = this.itemsSeleccionadosCP07;
             }
 
@@ -200,7 +205,9 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07') {
+                if (tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
+                    this.configurarVistaCP08(data);
+                } else if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07') {
                     this.configurarVistaCP07(data);
                 } else if (tipoGrafico === 'CP05 MortVsPeso' || tipoGrafico === 'CP06 MortVsPeso') {
                     this.configurarVistaCP05MortVsPeso(data);
@@ -491,7 +498,49 @@ class CostosTradicionalesController {
         this.poblarDropdownItems(data.catalogoInsumos || []);
 
         this.renderizarGraficaCP07(data);
-        this.renderizarTablaCP07(data);
+        this.filtrarTablaCP07Localmente();
+    }
+
+    /**
+     * Configura y renderiza la vista para CP08 (Tendencia de CU de Insumos por Código - Multilínea)
+     */
+    configurarVistaCP08(data) {
+        this.chartTipoActual = 'CP08';
+
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Tendencia de CU de Insumos por Codigo';
+
+        // Ocultar selector de Zona y mostrar selector de Item
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.add('hidden');
+
+        const contFiltroItem = document.getElementById('contenedor-filtro-item');
+        if (contFiltroItem) contFiltroItem.classList.remove('hidden');
+
+        // Gráfica amplia completa
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[520px] h-[calc(100vh-250px)] max-h-[750px] p-4";
+        }
+
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = '';
+        }
+
+        // Ocultar card de tabla de detalle (en CP08 solo es gráfica de líneas)
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.add('hidden');
+
+        // Si el backend preseleccionó los 5 insumos principales por defecto inicial
+        if (data.esSeleccionPorDefecto && data.itemsPreseleccionados && data.itemsPreseleccionados.length > 0) {
+            this.itemsSeleccionadosCP07 = data.itemsPreseleccionados;
+        }
+
+        // Poblar catálogo de insumos en el dropdown
+        this.poblarDropdownItems(data.catalogoInsumos || []);
+
+        this.renderizarGraficaCP08(data);
     }
 
     /**
@@ -550,11 +599,12 @@ class CostosTradicionalesController {
                 checkboxes.forEach(chk => {
                     chk.checked = isChecked;
                 });
-                this.itemsSeleccionadosCP07 = isChecked ? [] : ['__NONE__'];
-                this.actualizarLabelItems();
-                if (this.chartTipoActual === 'CP07') {
-                    this.filtrarTablaCP07Localmente();
+                if (isChecked) {
+                    this.itemsSeleccionadosCP07 = this.catalogoInsumosCP07.map(c => c.codigo);
+                } else {
+                    this.itemsSeleccionadosCP07 = ['__NONE__'];
                 }
+                this.actualizarLabelItems();
             });
         }
     }
@@ -565,16 +615,35 @@ class CostosTradicionalesController {
     poblarDropdownItems(catalogo = []) {
         this.catalogoInsumosCP07 = catalogo;
         const listaContenedor = document.getElementById('lista-checkboxes-items');
+        const chkTodo = document.getElementById('chk-item-todo');
         if (!listaContenedor) return;
 
         if (catalogo.length === 0) {
             listaContenedor.innerHTML = '<div class="text-[11px] text-slate-400 text-center py-4">No hay insumos disponibles</div>';
+            if (chkTodo) chkTodo.checked = false;
             return;
+        }
+
+        const totalItems = catalogo.length;
+
+        // Si aún no hay selección establecida (carga inicial), por defecto seleccionar los 4 primeros
+        if (!this.itemsSeleccionadosCP07 || this.itemsSeleccionadosCP07.length === 0) {
+            this.itemsSeleccionadosCP07 = catalogo.slice(0, 4).map(c => c.codigo);
+        }
+
+        // El check "(Todo)" solo está activo si explícitamente se seleccionaron todos o '(TODO)'
+        const isAllExplicitlySelected = this.itemsSeleccionadosCP07.includes('(TODO)') || 
+            (this.itemsSeleccionadosCP07.length === totalItems && !this.itemsSeleccionadosCP07.includes('__NONE__'));
+
+        if (chkTodo) {
+            chkTodo.checked = isAllExplicitlySelected;
         }
 
         let html = '';
         catalogo.forEach(item => {
-            const isChecked = this.itemsSeleccionadosCP07.length === 0 || this.itemsSeleccionadosCP07.includes(item.codigo);
+            const isChecked = isAllExplicitlySelected 
+                ? true 
+                : this.itemsSeleccionadosCP07.includes(item.codigo);
             const searchText = `${item.codigo} ${item.nomcodigo}`.toLowerCase();
             html += `
                 <label class="item-checkbox-row flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded cursor-pointer text-[11px] text-slate-700 select-none transition-colors"
@@ -594,22 +663,19 @@ class CostosTradicionalesController {
                 const total = checkboxes.length;
                 const marcados = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
                 
-                const chkTodo = document.getElementById('chk-item-todo');
+                const chkTodoDom = document.getElementById('chk-item-todo');
                 if (marcados.length === total) {
-                    if (chkTodo) chkTodo.checked = true;
-                    this.itemsSeleccionadosCP07 = []; // todos
+                    if (chkTodoDom) chkTodoDom.checked = true;
+                    this.itemsSeleccionadosCP07 = this.catalogoInsumosCP07.map(c => c.codigo);
                 } else if (marcados.length === 0) {
-                    if (chkTodo) chkTodo.checked = false;
+                    if (chkTodoDom) chkTodoDom.checked = false;
                     this.itemsSeleccionadosCP07 = ['__NONE__'];
                 } else {
-                    if (chkTodo) chkTodo.checked = false;
+                    if (chkTodoDom) chkTodoDom.checked = false;
                     this.itemsSeleccionadosCP07 = marcados;
                 }
 
                 this.actualizarLabelItems();
-                if (this.chartTipoActual === 'CP07') {
-                    this.filtrarTablaCP07Localmente();
-                }
             });
         });
 
@@ -624,19 +690,23 @@ class CostosTradicionalesController {
         const badge = document.getElementById('badge-contador-items');
         if (!label) return;
 
-        if (this.itemsSeleccionadosCP07.length === 0) {
+        const totalCatalogo = (this.catalogoInsumosCP07 || []).length;
+        const count = (this.itemsSeleccionadosCP07 || []).filter(c => c !== '__NONE__' && c !== '(TODO)').length;
+
+        if (this.itemsSeleccionadosCP07.includes('(TODO)') || (totalCatalogo > 0 && count === totalCatalogo)) {
             label.textContent = '(Todo)';
             if (badge) badge.textContent = 'Todos';
-        } else if (this.itemsSeleccionadosCP07.includes('__NONE__')) {
+        } else if (this.itemsSeleccionadosCP07.includes('__NONE__') || count === 0) {
             label.textContent = 'Ninguno';
             if (badge) badge.textContent = '0 selecc.';
-        } else if (this.itemsSeleccionadosCP07.length === 1) {
-            const found = this.catalogoInsumosCP07.find(c => c.codigo === this.itemsSeleccionadosCP07[0]);
-            label.textContent = found ? found.item_label : this.itemsSeleccionadosCP07[0];
+        } else if (count === 1) {
+            const codigo = this.itemsSeleccionadosCP07[0];
+            const found = this.catalogoInsumosCP07.find(c => c.codigo === codigo);
+            label.textContent = found ? found.item_label : codigo;
             if (badge) badge.textContent = '1 selecc.';
         } else {
-            label.textContent = `${this.itemsSeleccionadosCP07.length} items seleccionados`;
-            if (badge) badge.textContent = `${this.itemsSeleccionadosCP07.length} selecc.`;
+            label.textContent = `${count} items seleccionados`;
+            if (badge) badge.textContent = `${count} selecc.`;
         }
     }
 
@@ -650,6 +720,8 @@ class CostosTradicionalesController {
         let filtrados = todosInsumos;
         if (this.itemsSeleccionadosCP07.includes('__NONE__')) {
             filtrados = [];
+        } else if (this.itemsSeleccionadosCP07.includes('(TODO)')) {
+            filtrados = todosInsumos;
         } else if (this.itemsSeleccionadosCP07.length > 0) {
             filtrados = todosInsumos.filter(item => this.itemsSeleccionadosCP07.includes(item.codigo));
         }
@@ -2939,6 +3011,239 @@ class CostosTradicionalesController {
         });
 
         tbody.innerHTML = tbodyHtml;
+    }
+
+    /**
+     * 12. Renderizado de Gráfica CP08 (Tendencia de CU de Insumos por Código - Multilínea Tableau)
+     */
+    renderizarGraficaCP08(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        this.destruirGraficaActual();
+
+        const series = data.seriesInsumos || [];
+        const periodos = data.periodos || [];
+        if (periodos.length === 0 || series.length === 0) return;
+
+        // Si se seleccionan todos los items o la cantidad de items supera a los periodos/días, ocultar leyendas para optimizar espacio
+        const mostrarLeyenda = series.length <= periodos.length && series.length <= 8;
+
+        const labels = periodos.map(d => d.mes_larga || d.key);
+
+        const paletaTableau = [
+            '#4e79a7', // Azul Tableau
+            '#e15759', // Rojo Tableau
+            '#f28e2b', // Naranja / Ámbar
+            '#76b7b2', // Verde azulado / Gris azulado
+            '#59a14f', // Verde Tableau
+            '#edc948', // Oro / Amarillo
+            '#b07aa1', // Púrpura
+            '#ff9da7', // Salmón / Rosa
+            '#9c755f', // Marrón
+            '#bab0ac'  // Gris
+        ];
+
+        const datasets = series.map((serie, idx) => {
+            const color = paletaTableau[idx % paletaTableau.length];
+            return {
+                type: 'line',
+                label: serie.item_label,
+                data: serie.puntos,
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 2.2,
+                tension: 0.08,
+                spanGaps: false,
+                pointRadius: 4.5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: color,
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 1.5,
+                datalabels: {
+                    display: (context) => {
+                        const val = context.dataset.data[context.dataIndex];
+                        return val !== null && val !== undefined;
+                    },
+                    anchor: 'center',
+                    align: 'top',
+                    offset: 6,
+                    color: color,
+                    font: {
+                        family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                        size: 11,
+                        weight: 'bold'
+                    },
+                    formatter: (value) => (value !== null && value !== undefined) ? this.formatearNumero(value, 'decimal3') : ''
+                }
+            };
+        });
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'line',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 32, bottom: 8, left: 10, right: 10 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'PU',
+                            color: '#475569',
+                            font: { size: 12, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.5,
+                            color: '#64748b',
+                            font: { size: 11, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mes de fecha',
+                            color: '#64748b',
+                            font: { size: 11, weight: '600' },
+                            padding: { top: 6 }
+                        },
+                        ticks: {
+                            color: '#475569',
+                            font: { size: 10.5, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 30,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: mostrarLeyenda,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 14,
+                            font: {
+                                family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                                size: 11.5,
+                                weight: 'bold'
+                            },
+                            color: '#475569',
+                            cursor: 'pointer'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+                            if (!chart || !chart.canvas || !chart.canvas.isConnected) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataPoints = tooltip.dataPoints || [];
+                            if (dataPoints.length === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const mesLabel = dataPoints[0].label || '';
+                            const puntosValidos = dataPoints.filter(dp => dp.raw !== null && dp.raw !== undefined);
+                            if (puntosValidos.length === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            let itemsHtml = '';
+                            puntosValidos.forEach(dp => {
+                                const color = dp.dataset.borderColor || '#3b82f6';
+                                const label = dp.dataset.label || '';
+                                const val = dp.raw;
+                                itemsHtml += `
+                                    <div class="flex items-center justify-between gap-3 text-[11px] font-sans py-0.5 border-b border-slate-100 last:border-0">
+                                        <div class="flex items-center gap-1.5 min-w-0 max-w-[220px]">
+                                            <span class="inline-block w-2.5 h-2.5 rounded-xs flex-shrink-0" style="background-color: ${color};"></span>
+                                            <span class="text-slate-700 font-medium truncate" title="${label}">${label}</span>
+                                        </div>
+                                        <span class="text-slate-900 font-bold font-mono text-[11px] whitespace-nowrap">${this.formatearNumero(val, 'decimal3')} S//Kg</span>
+                                    </div>
+                                `;
+                            });
+
+                            tooltipEl.innerHTML = `
+                                <div class="space-y-1.5 font-sans">
+                                    <div class="flex items-center justify-between gap-2 border-b border-slate-200 pb-1 text-[11px]">
+                                        <span class="text-slate-500 font-medium">Mes de fecha:</span>
+                                        <span class="text-slate-900 font-bold capitalize">${mesLabel}</span>
+                                    </div>
+                                    <div class="space-y-0.5 max-h-[260px] overflow-y-auto pr-1">
+                                        ${itemsHtml}
+                                    </div>
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 260;
+                            const tooltipHeight = tooltipEl.offsetHeight || 120;
+
+                            let x = canvasRect.left + tooltip.caretX + 14;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 14;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 

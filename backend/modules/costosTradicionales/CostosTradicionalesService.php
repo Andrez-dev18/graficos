@@ -41,6 +41,11 @@ class CostosTradicionalesService
             return $this->obtenerDatosCP07InsumosAABB($filtros);
         }
 
+        // Despacho con Responsabilidad Única para CP08 TendenciaInsumos
+        if ($tipoGrafico === 'CP08 TendenciaInsumos' || $tipoGrafico === 'CP08' || $tipoGrafico === 'CP08TendenciaInsumos') {
+            return $this->obtenerDatosCP08TendenciaInsumos($filtros);
+        }
+
         // 2. Obtener datos generales de costomen (para CP01 y CP02)
         $registros = $this->repo->getCostosPorPeriodo($fechaInicio, $fechaFin);
 
@@ -494,6 +499,134 @@ class CostosTradicionalesService
             'tablaInsumos'    => $tablaInsumos,
             'catalogoInsumos' => $catalogoInsumos,
             'total_items'     => count($tablaInsumos)
+        ];
+    }
+
+    /**
+     * Procesa y estructura exclusivamente los datos para CP08 (Tendencia de CU de Insumos por Código)
+     * Respetando el Principio de Responsabilidad Única (SRP)
+     */
+    public function obtenerDatosCP08TendenciaInsumos(array $filtros): array
+    {
+        // 1. Normalizar filtros de fechas
+        $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : '2024-01-01';
+        $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2025-10-31';
+
+        // 2. Normalizar filtro de items
+        $itemsFiltro = [];
+        $esSeleccionPorDefecto = false;
+        $itemsPreseleccionados = [];
+
+        $rawItems = $filtros['items'] ?? null;
+
+        if ($rawItems === null || $rawItems === '' || $rawItems === [] || (is_string($rawItems) && trim($rawItems) === '')) {
+            // Carga inicial o sin filtro explícito: seleccionar los 4 principales por consumo
+            $topInsumos = $this->repo->getTopInsumosPorConsumo($fechaInicio, $fechaFin, 4);
+            $itemsFiltro = array_column($topInsumos, 'codigo');
+            $itemsPreseleccionados = $itemsFiltro;
+            $esSeleccionPorDefecto = true;
+        } else {
+            if (is_array($rawItems)) {
+                $itemsFiltro = $rawItems;
+            } elseif (is_string($rawItems)) {
+                $decoded = json_decode($rawItems, true);
+                if (is_array($decoded)) {
+                    $itemsFiltro = $decoded;
+                } else {
+                    $itemsFiltro = array_map('trim', explode(',', $rawItems));
+                }
+            }
+
+            // Verificar si contiene (TODO) o TODOS
+            $hasTodo = false;
+            foreach ($itemsFiltro as $it) {
+                $u = strtoupper(trim((string)$it));
+                if ($u === '(TODO)' || $u === 'TODOS' || $u === 'ALL') {
+                    $hasTodo = true;
+                    break;
+                }
+            }
+
+            if ($hasTodo) {
+                $itemsFiltro = []; // Trae todos los insumos
+            } elseif (in_array('__NONE__', $itemsFiltro)) {
+                $itemsFiltro = ['__NONE_MATCH__']; // No traer ningún insumo
+            }
+        }
+
+        // 3. Obtener los datos agrupados por item y mes
+        $registrosInsumos = $this->repo->getCostoInsumosDetalle($fechaInicio, $fechaFin, $itemsFiltro);
+
+        // 4. Construir la lista ordenada de meses (períodos) continuos
+        $periodosMap = [];
+        $dtInicio = new DateTime($fechaInicio);
+        $dtFin    = new DateTime($fechaFin);
+        $dtFin->modify('first day of next month');
+
+        $interval = new DateInterval('P1M');
+        $periodRange = new DatePeriod($dtInicio, $interval, $dtFin);
+
+        foreach ($periodRange as $dt) {
+            $k = $dt->format('Y-m');
+            $mNum = $dt->format('m');
+            $anio = $dt->format('Y');
+            $periodosMap[$k] = [
+                'key'       => $k,
+                'anio'      => $anio,
+                'mes_num'   => $mNum,
+                'mes_corta' => (self::$mesesCorto[$mNum] ?? $mNum) . ' ' . substr($anio, -2),
+                'mes_larga' => (self::$mesesLargo[$mNum] ?? '') . ' de ' . $anio
+            ];
+        }
+
+        $periodos = array_values($periodosMap);
+
+        // 5. Estructurar las series multilínea para Chart.js
+        $seriesMap = [];
+        foreach ($registrosInsumos as $row) {
+            $codigo = $row['codigo'];
+            if (!isset($seriesMap[$codigo])) {
+                $seriesMap[$codigo] = [
+                    'codigo'        => $codigo,
+                    'nomcodigo'     => $row['nomcodigo'],
+                    'item_label'    => $row['item_label'],
+                    'valoresPorMes' => []
+                ];
+            }
+            $seriesMap[$codigo]['valoresPorMes'][$row['mes_key']] = round((float)($row['costo_unitario'] ?? 0), 3);
+        }
+
+        // Para cada serie, construir el array secuencial alineado a los periodos
+        $seriesFinales = [];
+        foreach ($seriesMap as $codigo => $serie) {
+            $dataPuntos = [];
+            foreach ($periodos as $p) {
+                $k = $p['key'];
+                $val = isset($serie['valoresPorMes'][$k]) ? $serie['valoresPorMes'][$k] : null;
+                $dataPuntos[] = $val;
+            }
+            $seriesFinales[] = [
+                'codigo'        => $codigo,
+                'nomcodigo'     => $serie['nomcodigo'],
+                'item_label'    => $serie['item_label'],
+                'valoresPorMes' => $serie['valoresPorMes'],
+                'puntos'        => $dataPuntos
+            ];
+        }
+
+        // 6. Obtener catálogo completo de insumos disponibles en el rango para el dropdown
+        $catalogoInsumos = $this->repo->getInsumosDisponibles($fechaInicio, $fechaFin);
+
+        return [
+            'tipo_grafico'          => 'CP08 TendenciaInsumos',
+            'fecha_inicio'          => $fechaInicio,
+            'fecha_fin'             => $fechaFin,
+            'periodos'              => $periodos,
+            'seriesInsumos'         => $seriesFinales,
+            'catalogoInsumos'       => $catalogoInsumos,
+            'itemsPreseleccionados' => $itemsPreseleccionados,
+            'esSeleccionPorDefecto' => $esSeleccionPorDefecto,
+            'total_series'          => count($seriesFinales)
         ];
     }
 }

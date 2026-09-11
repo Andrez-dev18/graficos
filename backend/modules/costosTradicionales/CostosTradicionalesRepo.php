@@ -376,4 +376,32 @@ class CostosTradicionalesRepo
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Obtiene los insumos principales de mayor consumo (peso total) en el rango (CP08)
+     */
+    public function getTopInsumosPorConsumo(string $fechaInicio, string $fechaFin, int $limit = 5): array
+    {
+        $sql = "
+            SELECT 
+                codigo,
+                nomcodigo,
+                CONCAT(codigo, ' ', nomcodigo) AS item_label,
+                SUM(peso) AS total_peso
+            FROM costomenalidet
+            WHERE fecha >= :fecha_ini 
+              AND fecha <= LAST_DAY(:fecha_fin)
+            GROUP BY codigo, nomcodigo
+            ORDER BY total_peso DESC
+            LIMIT :lim
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':fecha_ini', $fechaInicio, PDO::PARAM_STR);
+        $stmt->bindValue(':fecha_fin', $fechaFin, PDO::PARAM_STR);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
