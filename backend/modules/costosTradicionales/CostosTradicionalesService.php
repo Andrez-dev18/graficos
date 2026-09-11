@@ -159,7 +159,97 @@ class CostosTradicionalesService
             'series'   => $seriesPorZona
         ];
 
-        // 6. Filas de métricas para CP01
+        // 6. Obtener datos para CP04 (Costo por Kg Pollo Vivo vs Costo Alimentación + Detalle Cencos)
+        $registrosCP04Grafica = $this->repo->getCostosCP04Grafica($fechaInicio, $fechaFin, $zonaFiltro);
+        $registrosCP04Detalle = $this->repo->getCostosCP04Detalle($fechaInicio, $fechaFin, $zonaFiltro);
+
+        $graficaCP04 = [];
+        foreach ($registrosCP04Grafica as $rg) {
+            $key = $rg['mes_key'];
+            $anio = $rg['anio'];
+            $mesNum = $rg['mes_num'];
+            $mesNomLargo = self::$mesesLargo[$mesNum] ?? "mes $mesNum";
+            $mesLarga = "$mesNomLargo de $anio";
+
+            $graficaCP04[] = [
+                'key'                => $key,
+                'mes_larga'          => $mesLarga,
+                'costo_produccion'   => round((float)($rg['costo_produccion'] ?? 0), 3),
+                'costo_alimentacion' => round((float)($rg['costo_alimentacion'] ?? 0), 3)
+            ];
+        }
+
+        // Estructurar Detalle por Cencos y Mes para CP04
+        $mesesDetalleMap = [];
+        $mesesTotalesMap = [];
+
+        foreach ($registrosCP04Detalle as $rd) {
+            $key = $rd['mes_key'];
+            $anio = $rd['anio'];
+            $mesNum = $rd['mes_num'];
+            $mesNomLargo = self::$mesesLargo[$mesNum] ?? "mes $mesNum";
+            $mesLarga = "$mesNomLargo de $anio";
+
+            if (!isset($mesesDetalleMap[$key])) {
+                $mesesDetalleMap[$key] = [
+                    'key'        => $key,
+                    'mes'        => $mesLarga,
+                    'cencosList' => [],
+                    'columnas'   => []
+                ];
+                $mesesTotalesMap[$key] = [
+                    'val_alim' => 0.0,
+                    'saca_kg'  => 0.0,
+                    'val_avi'  => 0.0,
+                    'peso_avi' => 0.0
+                ];
+            }
+
+            $cencos = trim($rd['cencos']);
+            $valAlim = (float)($rd['val_alim'] ?? 0);
+            $sacaKg  = (float)($rd['saca_kg'] ?? 0);
+            $costoAlim = round((float)($rd['costo_alim'] ?? 0), 3);
+            $valAvi  = (float)($rd['val_avi'] ?? 0);
+            $pesoAvi = (float)($rd['peso_avi'] ?? 0);
+            $costoKg = round((float)($rd['costo_kg'] ?? 0), 3);
+
+            $mesesDetalleMap[$key]['cencosList'][] = $cencos;
+            $mesesDetalleMap[$key]['columnas'][$cencos] = [
+                'val_alim'   => $valAlim,
+                'saca_kg'    => $sacaKg,
+                'costo_alim' => $costoAlim,
+                'val_avi'    => $valAvi,
+                'peso_avi'   => $pesoAvi,
+                'costo_kg'   => $costoKg
+            ];
+
+            $mesesTotalesMap[$key]['val_alim'] += $valAlim;
+            $mesesTotalesMap[$key]['saca_kg']  += $sacaKg;
+            $mesesTotalesMap[$key]['val_avi']  += $valAvi;
+            $mesesTotalesMap[$key]['peso_avi'] += $pesoAvi;
+        }
+
+        // Agregar la columna 'Total' a cada mes
+        foreach ($mesesDetalleMap as $key => &$mObj) {
+            $tot = $mesesTotalesMap[$key];
+            $costoAlimTotal = ($tot['saca_kg'] > 0) ? round($tot['val_alim'] / $tot['saca_kg'], 3) : 0;
+            $costoKgTotal   = ($tot['peso_avi'] > 0) ? round($tot['val_avi'] / $tot['peso_avi'], 3) : 0;
+
+            $mObj['cencosList'][] = 'Total';
+            $mObj['columnas']['Total'] = [
+                'val_alim'   => $tot['val_alim'],
+                'saca_kg'    => $tot['saca_kg'],
+                'costo_alim' => $costoAlimTotal,
+                'val_avi'    => $tot['val_avi'],
+                'peso_avi'   => $tot['peso_avi'],
+                'costo_kg'   => $costoKgTotal
+            ];
+        }
+        unset($mObj);
+
+        $detalleMesesCP04 = array_values($mesesDetalleMap);
+
+        // 7. Filas de métricas para CP01
         $tablaMetricas = [
             [
                 'id'      => 'saca_pollo_und',
@@ -213,6 +303,8 @@ class CostosTradicionalesService
             'graficaCosto'     => $graficaCosto,
             'graficaCP02'      => $graficaCP02,
             'graficaCP03'      => $graficaCP03,
+            'graficaCP04'      => $graficaCP04,
+            'detalleMesesCP04' => $detalleMesesCP04,
             'zonasDisponibles' => $zonasDisponibles,
             'tablaMetricas'    => $tablaMetricas
         ];

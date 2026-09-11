@@ -25,14 +25,6 @@ class CostosTradicionalesController {
                 selPeriodo.value = 'entre_meses';
             }
             PeriodoHelper.renderizarInputs();
-
-            // Configurar por defecto el rango inicial (2024-01 a 2025-10)
-            const inputMesIni = document.getElementById('input-mes-inicio');
-            const inputMesFin = document.getElementById('input-mes-fin');
-            if (inputMesIni && inputMesFin) {
-                inputMesIni.value = '2024-01';
-                inputMesFin.value = '2025-10';
-            }
         }
     }
 
@@ -47,14 +39,14 @@ class CostosTradicionalesController {
             });
         }
 
-        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03)
+        // Selector de tipo de gráfico (CP01 vs CP02 vs CP03 vs CP04)
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
                 const tipo = selTipoGrafico.value;
                 if (contFiltroZona) {
-                    if (tipo === 'CP03 CPPVxZona') {
+                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona') {
                         contFiltroZona.classList.remove('hidden');
                     } else {
                         contFiltroZona.classList.add('hidden');
@@ -179,7 +171,9 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP03 CPPVxZona') {
+                if (tipoGrafico === 'CP04 CPPVvsCAxZona') {
+                    this.configurarVistaCP04(data);
+                } else if (tipoGrafico === 'CP03 CPPVxZona') {
                     this.configurarVistaCP03(data);
                 } else if (tipoGrafico === 'CP02 CPVvsCA') {
                     this.configurarVistaCP02(data);
@@ -264,6 +258,11 @@ class CostosTradicionalesController {
         const cardTabla = document.getElementById('card-tabla-metricas');
         if (cardTabla) cardTabla.classList.remove('hidden');
 
+        const titTabla = document.getElementById('titulo-tabla-detalle');
+        const subTabla = document.getElementById('subtitulo-tabla-detalle');
+        if (titTabla) titTabla.textContent = 'Detalle Costo de Producción Pollo Vivo - MES';
+        if (subTabla) subTabla.textContent = 'Histórico de indicadores productivos y de rendimiento por mes';
+
         this.renderizarGraficaCP01(data);
         this.renderizarTablaMetricas(data);
     }
@@ -319,6 +318,40 @@ class CostosTradicionalesController {
         if (cardTabla) cardTabla.classList.add('hidden');
 
         this.renderizarGraficaCP03(data);
+    }
+
+    /**
+     * Configura y renderiza la vista para CP04 (Costo por Kg. Pollo Vivo vs Costo de Alimentación - Barras + Línea + Detalle Cencos)
+     */
+    configurarVistaCP04(data) {
+        const titulo = document.getElementById('titulo-grafica-principal');
+        if (titulo) titulo.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion';
+
+        // Mostrar selector de ZONA para CP04
+        const contFiltroZona = document.getElementById('contenedor-filtro-zona');
+        if (contFiltroZona) contFiltroZona.classList.remove('hidden');
+
+        const contenedorGrafica = document.getElementById('contenedor-grafica-costo');
+        if (contenedorGrafica) {
+            contenedorGrafica.className = "relative w-full min-h-[440px] h-[calc(100vh-340px)] max-h-[580px] p-4";
+        }
+
+        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
+        if (contenedorBadges) {
+            contenedorBadges.innerHTML = '';
+        }
+
+        // Mostrar card de tabla de detalle
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.remove('hidden');
+
+        const titTabla = document.getElementById('titulo-tabla-detalle');
+        const subTabla = document.getElementById('subtitulo-tabla-detalle');
+        if (titTabla) titTabla.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion Detalle';
+        if (subTabla) subTabla.textContent = 'Histórico detallado por centro de costo (cencos) y mes de fecha';
+
+        this.renderizarGraficaCP04({ periodosGrafica: data.graficaCP04 || [] });
+        this.renderizarTablaCP04({ detalleMeses: data.detalleMesesCP04 || [] });
     }
 
     /**
@@ -1095,9 +1128,364 @@ class CostosTradicionalesController {
 
         tbody.innerHTML = tbodyHtml;
     }
+
+    /**
+     * 5. Renderizado de Gráfica CP04 (Costo por Kg. Pollo Vivo vs Costo de Alimentación - Barras + Línea Doble Eje)
+     */
+    renderizarGraficaCP04(data = {}) {
+        const canvas = document.getElementById('chart-costo-produccion');
+        if (!canvas) return;
+
+        if (this.chartInstance && typeof this.chartInstance.destroy === 'function') {
+            this.chartInstance.destroy();
+            this.chartInstance = null;
+        }
+
+        const periodosGrafica = data.periodosGrafica || [];
+        if (periodosGrafica.length === 0) return;
+
+        const labels = periodosGrafica.map(d => d.mes_larga || d.key);
+        const valoresCostoxKg = periodosGrafica.map(d => Number(d.costo_produccion || 0));
+        const valoresCostoAlim = periodosGrafica.map(d => Number(d.costo_alimentacion || 0));
+
+        let minProd = 2.5, maxProd = 4.8;
+        if (valoresCostoxKg.length > 0) {
+            const minV = Math.min(...valoresCostoxKg);
+            const maxV = Math.max(...valoresCostoxKg);
+            minProd = Math.min(2.5, Math.floor((minV - 0.2) * 10) / 10);
+            maxProd = Math.max(4.8, Math.ceil((maxV + 0.1) * 10) / 10);
+        }
+
+        let minAlim = 2.38, maxAlim = 2.85;
+        if (valoresCostoAlim.length > 0) {
+            const minV = Math.min(...valoresCostoAlim);
+            const maxV = Math.max(...valoresCostoAlim);
+            minAlim = Math.min(2.38, Math.floor((minV - 0.05) * 100) / 100);
+            maxAlim = Math.max(2.85, Math.ceil((maxV + 0.05) * 100) / 100);
+        }
+
+        const datasetAlimentacion = {
+            type: 'bar',
+            label: 'CostoAlimentacion',
+            data: valoresCostoAlim,
+            yAxisID: 'y1',
+            backgroundColor: '#f28e2b',
+            hoverBackgroundColor: '#e07d1b',
+            borderColor: '#f28e2b',
+            borderWidth: 0,
+            borderRadius: 1,
+            barPercentage: 0.54,
+            categoryPercentage: 0.82,
+            order: 2,
+            datalabels: {
+                anchor: 'end',
+                align: 'top',
+                offset: 3,
+                color: '#c2410c',
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 10.5,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const datasetCostoxKg = {
+            type: 'line',
+            label: 'CostoxKg',
+            data: valoresCostoxKg,
+            yAxisID: 'y',
+            borderColor: '#4e79a7',
+            backgroundColor: '#4e79a7',
+            borderWidth: 2.2,
+            tension: 0.05,
+            pointRadius: 4,
+            pointHoverRadius: 6.5,
+            pointBackgroundColor: '#4e79a7',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1.5,
+            order: 1,
+            datalabels: {
+                anchor: 'center',
+                align: 'top',
+                offset: 7,
+                color: '#1e40af',
+                font: {
+                    family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                    size: 10.5,
+                    weight: 'bold'
+                },
+                formatter: (value) => this.formatearNumero(value, 'decimal3')
+            }
+        };
+
+        const pluginsConfig = [];
+        if (typeof ChartDataLabels !== 'undefined') {
+            pluginsConfig.push(ChartDataLabels);
+        }
+
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+
+        this.chartInstance = new Chart(canvas, {
+            type: 'bar',
+            plugins: pluginsConfig,
+            data: {
+                labels: labels,
+                datasets: [datasetAlimentacion, datasetCostoxKg]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                layout: {
+                    padding: { top: 32, bottom: 8, left: 10, right: 10 }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: minProd,
+                        max: maxProd,
+                        title: {
+                            display: true,
+                            text: 'CPV',
+                            color: '#475569',
+                            font: { size: 11.5, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.5,
+                            color: '#64748b',
+                            font: { size: 10.5, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        min: minAlim,
+                        max: maxAlim,
+                        title: {
+                            display: true,
+                            text: 'CA',
+                            color: '#475569',
+                            font: { size: 11.5, weight: 'bold' },
+                            padding: { bottom: 8 }
+                        },
+                        ticks: {
+                            stepSize: 0.1,
+                            color: '#64748b',
+                            font: { size: 10.5, weight: '500' },
+                            formatter: (val) => Number(val).toFixed(1).replace('.', ',')
+                        },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mes de fecha',
+                            color: '#64748b',
+                            font: { size: 11, weight: '600' },
+                            padding: { top: 6 }
+                        },
+                        ticks: {
+                            color: '#475569',
+                            font: { size: 10.5, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 30,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 16,
+                            font: {
+                                family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+                                size: 11.5,
+                                weight: 'bold'
+                            },
+                            color: '#475569',
+                            cursor: 'pointer'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => {
+                            if (!tooltipEl) return;
+                            const { chart, tooltip } = context;
+
+                            if (tooltip.opacity === 0) {
+                                tooltipEl.classList.add('hidden');
+                                return;
+                            }
+
+                            const dataIndex = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+                            if (dataIndex === null || !periodosGrafica[dataIndex]) return;
+
+                            const item = periodosGrafica[dataIndex];
+
+                            tooltipEl.innerHTML = `
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] font-sans">
+                                    <span class="text-slate-500 font-normal">Mes de fecha:</span>
+                                    <span class="text-slate-900 font-semibold text-left capitalize">${item.mes_larga}</span>
+                                    <span class="text-[#c2410c] font-semibold">CostoAlimentacion:</span>
+                                    <span class="text-[#c2410c] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_alimentacion, 'decimal3')} S//Kg</span>
+                                    <span class="text-[#1e40af] font-semibold">CostoxKg:</span>
+                                    <span class="text-[#1e40af] font-bold text-left font-mono text-xs">${this.formatearNumero(item.costo_produccion, 'decimal3')} S//Kg</span>
+                                </div>
+                            `;
+
+                            tooltipEl.classList.remove('hidden');
+
+                            const canvasRect = chart.canvas.getBoundingClientRect();
+                            const tooltipWidth = tooltipEl.offsetWidth || 250;
+                            const tooltipHeight = tooltipEl.offsetHeight || 100;
+
+                            let x = canvasRect.left + tooltip.caretX + 12;
+                            let y = canvasRect.top + tooltip.caretY - 20;
+
+                            if (x + tooltipWidth > window.innerWidth - 12) {
+                                x = canvasRect.left + tooltip.caretX - tooltipWidth - 12;
+                            }
+                            if (y + tooltipHeight > window.innerHeight - 12) {
+                                y = window.innerHeight - tooltipHeight - 12;
+                            }
+
+                            tooltipEl.style.left = `${Math.max(10, x)}px`;
+                            tooltipEl.style.top = `${Math.max(10, y)}px`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 6. Renderizado de la Tabla de Detalle CP04 (Costo por Kg. Pollo Vivo vs Costo de Alimentación Detalle)
+     */
+    renderizarTablaCP04(data = {}) {
+        const thead = document.getElementById('thead-detalle-metricas');
+        const tbody = document.getElementById('tbody-detalle-metricas');
+
+        if (!thead || !tbody) return;
+
+        const detalleMeses = data.detalleMeses || [];
+        if (detalleMeses.length === 0) {
+            thead.innerHTML = '';
+            tbody.innerHTML = `<tr><td colspan="24" class="text-center py-10 text-slate-400">No hay detalle disponible.</td></tr>`;
+            return;
+        }
+
+        // Fila 1 de encabezado: Mes de fecha / cencos + Nombres de meses agrupados
+        let theadRow1 = `
+            <tr class="bg-blue-600 text-white font-bold text-xs border-b border-blue-500">
+                <th rowspan="2" class="py-2.5 px-3 text-left border-r border-b border-blue-500 sticky left-0 z-30 bg-blue-600 min-w-[130px] max-w-[160px] text-white font-bold text-xs shadow-sm">
+                    Mes de fecha / cencos
+                </th>
+        `;
+
+        // Fila 2 de encabezado: Códigos de CENCOS + Total
+        let theadRow2 = `
+            <tr class="bg-blue-600 text-white font-semibold text-[11px] border-b border-blue-500">
+        `;
+
+        detalleMeses.forEach(m => {
+            theadRow1 += `
+                <th colspan="${m.cencosList.length}" class="py-2 px-3 text-center border-b border-r border-blue-500 bg-blue-600 text-white font-bold text-xs">
+                    ${m.mes}
+                </th>
+            `;
+
+            m.cencosList.forEach(cencos => {
+                const isTotal = (cencos === 'Total');
+                const thClass = isTotal 
+                    ? 'bg-blue-800/90 text-white font-bold border-r border-blue-500' 
+                    : 'bg-blue-600 text-blue-50 font-semibold border-r border-blue-500';
+
+                theadRow2 += `
+                    <th class="py-1.5 px-2.5 text-center whitespace-nowrap border-b ${thClass} min-w-[74px]">
+                        ${cencos}
+                    </th>
+                `;
+            });
+        });
+
+        theadRow1 += `</tr>`;
+        theadRow2 += `</tr>`;
+        thead.innerHTML = theadRow1 + theadRow2;
+
+        // Definición de las 6 filas métricas en el orden exacto de Tableau
+        const metricasConfig = [
+            { id: 'val_alim', nombre: 'Valor Alime..', formato: 'entero' },
+            { id: 'saca_kg', nombre: 'SACA Kg', formato: 'entero' },
+            { id: 'costo_alim', nombre: 'CostoAlime..', formato: 'decimal3' },
+            { id: 'val_avi', nombre: 'Valor Avicul..', formato: 'entero' },
+            { id: 'peso_avi', nombre: 'Peso Avicul..', formato: 'entero' },
+            { id: 'costo_kg', nombre: 'CostoxKg', formato: 'decimal3' }
+        ];
+
+        let tbodyHtml = '';
+
+        metricasConfig.forEach((metrica, idx) => {
+            const isEven = (idx % 2 === 1);
+            const rowBg = isEven ? 'bg-slate-50/60' : 'bg-white';
+            const stickyBg = isEven ? 'bg-slate-50' : 'bg-white';
+
+            tbodyHtml += `
+                <tr class="${rowBg} hover:bg-blue-50/40 transition-colors border-b border-slate-200">
+                    <td class="py-2 px-3 font-semibold text-slate-800 text-[11px] border-r border-slate-200 sticky left-0 z-20 ${stickyBg} shadow-xs truncate">
+                        ${metrica.nombre}
+                    </td>
+            `;
+
+            detalleMeses.forEach(m => {
+                m.cencosList.forEach(cencos => {
+                    const celdaData = m.columnas && m.columnas[cencos] ? m.columnas[cencos] : null;
+                    const rawVal = celdaData ? celdaData[metrica.id] : null;
+                    const valFormateado = this.formatearNumero(rawVal, metrica.formato);
+
+                    const isTotal = (cencos === 'Total');
+                    const cellStyle = isTotal ? 'bg-slate-100/70 font-bold text-slate-900' : 'text-slate-700';
+
+                    tbodyHtml += `
+                        <td class="py-1.5 px-2.5 text-right font-mono text-[11px] border-r border-slate-200/70 whitespace-nowrap cursor-pointer hover:bg-blue-100/60 transition-colors ${cellStyle}"
+                            data-tooltip-metrica="true"
+                            data-tt-indicador="${metrica.nombre} (${cencos})"
+                            data-tt-mes="${m.mes}"
+                            data-tt-valor="${valFormateado}">
+                            ${valFormateado}
+                        </td>
+                    `;
+                });
+            });
+
+            tbodyHtml += `</tr>`;
+        });
+
+        tbody.innerHTML = tbodyHtml;
+    }
 }
 
 // Inicialización global cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.costosTradicionalesController = new CostosTradicionalesController();
 });
+
+

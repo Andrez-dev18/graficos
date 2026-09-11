@@ -103,10 +103,11 @@
                             <option value="CPO1CostoProduccion" selected>CP01 Costo Produccion</option>
                             <option value="CP02 CPVvsCA">CP02 CPVvsCA</option>
                             <option value="CP03 CPPVxZona">CP03 CPPVxZona</option>
+                            <option value="CP04 CPPVvsCAxZona">CP04 CPPVvsCAxZona</option>
                         </select>
                     </div>
 
-                    <!-- SELECT ZONA (FILTRO PARA CP03) -->
+                    <!-- SELECT ZONA (FILTRO PARA CP03 y CP04) -->
                     <div id="contenedor-filtro-zona" class="flex flex-col hidden transition-all">
                         <label for="select-zona"
                             class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ZONA</label>
@@ -144,7 +145,7 @@
     <!-- CONTENEDOR PRINCIPAL DE PANELES 1X1 (STACK VERTICAL) -->
     <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-12">
 
-        <!-- 1. GRAFICA PRINCIPAL (CP01 O CP02 SEGÚN SELECT) -->
+        <!-- 1. GRAFICA PRINCIPAL (CP01, CP02, CP03 O CP04 SEGÚN SELECT) -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
             <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div class="flex items-center gap-2.5">
@@ -153,7 +154,7 @@
                     </h2>
                 </div>
                 <div id="contenedor-badges-grafica" class="flex items-center gap-3 text-xs font-medium">
-                    <!-- Inyectado dinámicamente según CP01 o CP02 -->
+                    <!-- Inyectado dinámicamente según CP01, CP02, CP03, CP04 -->
                 </div>
             </div>
 
@@ -162,12 +163,12 @@
             </div>
         </div>
 
-        <!-- 2. DETALLE COSTO DE PRODUCCIÓN POLLO VIVO - MES (TABLA DE INDICADORES MATRICIAL PARA CP01) -->
+        <!-- 2. DETALLE COSTO DE PRODUCCIÓN (TABLA DE INDICADORES MATRICIAL PARA CP01 / DETALLE CENCOS PARA CP04) -->
         <div id="card-tabla-metricas" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all">
             <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div>
-                    <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Detalle Costo de Producción Pollo Vivo - MES</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Histórico de indicadores productivos y de rendimiento por mes</p>
+                    <h2 id="titulo-tabla-detalle" class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Detalle Costo de Producción Pollo Vivo - MES</h2>
+                    <p id="subtitulo-tabla-detalle" class="text-xs text-slate-500 mt-0.5">Histórico de indicadores productivos y de rendimiento por mes</p>
                 </div>
             </div>
 
@@ -191,8 +192,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
-    <script src="costosTradicionales.service.js?v=20260910_2"></script>
-    <script src="costosTradicionales.controller.js?v=20260910_2"></script>
+    <script src="costosTradicionales.service.js?v=20260911_2"></script>
+    <script src="costosTradicionales.controller.js?v=20260911_2"></script>
 </body>
 
 </html>
