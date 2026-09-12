@@ -4,6 +4,7 @@ require_once __DIR__ . '/CostosTradicionalesRepo.php';
 
 class CostosTradicionalesService
 {
+    private $db;
     private $repo;
 
     const BENCHMARK = 4.538;
@@ -22,6 +23,7 @@ class CostosTradicionalesService
 
     public function __construct(PDO $db)
     {
+        $this->db = $db;
         $this->repo = new CostosTradicionalesRepo($db);
     }
 
@@ -35,6 +37,18 @@ class CostosTradicionalesService
         $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2025-10-31';
         $tipoGrafico = !empty($filtros['tipo_grafico']) ? trim($filtros['tipo_grafico']) : 'CPO1CostoProduccion';
         $zonaFiltro  = !empty($filtros['zona']) ? trim($filtros['zona']) : null;
+
+        // Despacho Modular para CP05 CAABBvsICA
+        if ($tipoGrafico === 'CP05 CAABBvsICA' || $tipoGrafico === 'CP05CAABBvsICA' || $tipoGrafico === 'CAABBvsICA') {
+            require_once __DIR__ . '/handlers/CP05CAABBvsICAHandler.php';
+            return CP05CAABBvsICAHandler::handle($this->db, $filtros);
+        }
+
+        // Despacho Modular para CP06 CAABB
+        if ($tipoGrafico === 'CP06 CAABB' || $tipoGrafico === 'CP06CAABB' || $tipoGrafico === 'CP06') {
+            require_once __DIR__ . '/handlers/CP06CAABBHandler.php';
+            return CP06CAABBHandler::handle($this->db, $filtros);
+        }
 
         // Despacho con Responsabilidad Única para CP07 InsumosAABB
         if ($tipoGrafico === 'CP07 InsumosAABB' || $tipoGrafico === 'CP07' || $tipoGrafico === 'CP07InsumosAABB') {

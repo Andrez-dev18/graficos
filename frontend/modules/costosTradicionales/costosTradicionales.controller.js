@@ -64,7 +64,7 @@ class CostosTradicionalesController {
             selTipoGrafico.addEventListener('change', async () => {
                 const tipo = selTipoGrafico.value;
                 if (contFiltroZona) {
-                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona' || tipo === 'CP05 CPPVvsCAZonaBarra' || tipo === 'CP05 MortVsPeso') {
+                    if (tipo === 'CP03 CPPVxZona' || tipo === 'CP04 CPPVvsCAxZona' || tipo === 'CP05 CPPVvsCAZonaBarra' || tipo === 'CP05 MortVsPeso' || tipo === 'CP05 CAABBvsICA') {
                         contFiltroZona.classList.remove('hidden');
                     } else {
                         contFiltroZona.classList.add('hidden');
@@ -205,7 +205,12 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
-                if (tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
+                // Despacho Modular automático mediante ChartRegistry para gráficos nuevos
+                if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
+                    this.chartTipoActual = tipoGrafico;
+                    this.destruirGraficaActual();
+                    window.ChartRegistry[tipoGrafico].render(this, data);
+                } else if (tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
                     this.configurarVistaCP08(data);
                 } else if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07') {
                     this.configurarVistaCP07(data);
