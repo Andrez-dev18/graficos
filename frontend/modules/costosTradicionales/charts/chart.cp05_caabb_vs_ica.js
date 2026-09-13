@@ -75,6 +75,14 @@ window.ChartRegistry['CP05 CAABBvsICA'] = {
             pluginsConfig.push(ChartDataLabels);
         }
 
+        if (controller.chartInstance && typeof controller.chartInstance.destroy === 'function') {
+            controller.chartInstance.destroy();
+            controller.chartInstance = null;
+        }
+        if (typeof controller.destruirGraficaActual === 'function') {
+            controller.destruirGraficaActual();
+        }
+
         controller.chartInstance = new Chart(canvas, {
             type: 'line',
             plugins: pluginsConfig,

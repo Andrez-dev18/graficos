@@ -79,7 +79,13 @@ window.ChartRegistry['CP06 CAABB'] = {
         const canvas = document.getElementById('chart-costo-produccion');
         if (!canvas) return;
 
-        controller.destruirGraficaActual();
+        if (controller.chartInstance && typeof controller.chartInstance.destroy === 'function') {
+            controller.chartInstance.destroy();
+            controller.chartInstance = null;
+        }
+        if (typeof controller.destruirGraficaActual === 'function') {
+            controller.destruirGraficaActual();
+        }
 
         const puntos = data.grafica || [];
         if (puntos.length === 0) {

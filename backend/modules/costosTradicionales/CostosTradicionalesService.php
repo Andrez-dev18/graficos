@@ -50,6 +50,12 @@ class CostosTradicionalesService
             return CP06CAABBHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP09 CZonaGranja
+        if ($tipoGrafico === 'CP09 CZonaGranja' || $tipoGrafico === 'CP09CZonaGranja' || $tipoGrafico === 'CP09' || $tipoGrafico === 'CZonaGranja') {
+            require_once __DIR__ . '/handlers/CP09CZonaGranjaHandler.php';
+            return CP09CZonaGranjaHandler::handle($this->db, $filtros);
+        }
+
         // Despacho con Responsabilidad Única para CP07 InsumosAABB
         if ($tipoGrafico === 'CP07 InsumosAABB' || $tipoGrafico === 'CP07' || $tipoGrafico === 'CP07InsumosAABB') {
             return $this->obtenerDatosCP07InsumosAABB($filtros);
