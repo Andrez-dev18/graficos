@@ -85,6 +85,10 @@ class CostosTradicionalesController {
                 const contFiltroClasifCP12 = document.getElementById('contenedor-filtro-clasificacion-cp12');
                 if (contFiltroClasifCP12) contFiltroClasifCP12.classList.toggle('hidden', !esCP12);
 
+                const esCP13 = (tipo === 'CP13 EvolucionCosto' || tipo === 'CP13');
+                const contFiltroClasifCP13 = document.getElementById('contenedor-filtro-clasificacion-cp13');
+                if (contFiltroClasifCP13) contFiltroClasifCP13.classList.toggle('hidden', !esCP13);
+
                 const esCP14 = (tipo === 'CP14 AnalisisCompleto' || tipo === 'CP14');
                 if (contFiltroGranjaCP14) contFiltroGranjaCP14.classList.toggle('hidden', !esCP14);
                 if (contFiltroGalponCP14) contFiltroGalponCP14.classList.toggle('hidden', !esCP14);
@@ -208,6 +212,13 @@ class CostosTradicionalesController {
                 const cp12Module = window.ChartRegistry && window.ChartRegistry['CP12 ParetoCP'];
                 if (cp12Module && typeof cp12Module.getSelectedFilters === 'function') {
                     payloadFiltros.clasificacion = cp12Module.getSelectedFilters();
+                }
+            }
+
+            if (tipoGrafico === 'CP13 EvolucionCosto' || tipoGrafico === 'CP13') {
+                const cp13Module = window.ChartRegistry && window.ChartRegistry['CP13 EvolucionCosto'];
+                if (cp13Module && typeof cp13Module.getSelectedFilters === 'function') {
+                    payloadFiltros.clasificacion = cp13Module.getSelectedFilters();
                 }
             }
 
