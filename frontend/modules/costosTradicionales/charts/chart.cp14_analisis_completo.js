@@ -138,7 +138,7 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
             return;
         }
 
-        // 1. Construir Encabezados Multi-nivel con estilo estándar web (bg-blue-600 / bg-blue-700 text-white)
+        // 1. Construir Encabezados Multi-nivel Compactos (Opción 1: 2 Columnas Maestras)
         let fila1MesesHtml = '';
         let fila2SubcolsHtml = '';
 
@@ -162,28 +162,16 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
             `;
         });
 
-        const totalCols = 6 + (periodos.length * 3);
+        const totalCols = 2 + (periodos.length * 3);
 
         const theadHtml = `
             <thead class="sticky top-0 z-40 shadow-xs">
                 <tr class="text-[11px] border-b border-blue-700">
-                    <th rowspan="2" class="px-3 py-2 text-left font-bold text-white bg-blue-700 sticky left-0 z-50 border-r border-b border-blue-600 min-w-[150px] max-w-[150px]">
-                        Clasificación
+                    <th rowspan="2" class="px-3 py-2 text-left font-bold text-white bg-blue-700 sticky left-0 z-50 border-r border-b border-blue-600 min-w-[210px] max-w-[210px]">
+                        Granja / Galpón / Clasif.
                     </th>
-                    <th rowspan="2" class="px-2 py-2 text-left font-bold text-white bg-blue-700 sticky left-[150px] z-50 border-r border-b border-blue-600 min-w-[65px] max-w-[65px]">
-                        cencos
-                    </th>
-                    <th rowspan="2" class="px-3 py-2 text-left font-bold text-white bg-blue-700 sticky left-[215px] z-50 border-r border-b border-blue-600 min-w-[120px] max-w-[120px]">
-                        nomcencos
-                    </th>
-                    <th rowspan="2" class="px-2 py-2 text-center font-bold text-white bg-blue-700 sticky left-[335px] z-50 border-r border-b border-blue-600 min-w-[50px] max-w-[50px]">
-                        gal..
-                    </th>
-                    <th rowspan="2" class="px-2 py-2 text-left font-bold text-white bg-blue-700 sticky left-[385px] z-50 border-r border-b border-blue-600 min-w-[65px] max-w-[65px]">
-                        tcodigo
-                    </th>
-                    <th rowspan="2" class="px-3 py-2 text-left font-bold text-white bg-blue-700 sticky left-[450px] z-50 border-r-2 border-blue-900 border-b border-blue-600 min-w-[160px] max-w-[160px]">
-                        nomcodigo
+                    <th rowspan="2" class="px-3 py-2 text-left font-bold text-white bg-blue-700 sticky left-[210px] z-50 border-r-2 border-blue-900 border-b border-blue-600 min-w-[200px] max-w-[200px]">
+                        Artículo (Código / Nombre)
                     </th>
                     ${fila1MesesHtml}
                 </tr>
@@ -223,10 +211,10 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
                     // Subtotal Galpón
                     flatRows.push({
                         type: 'total_galpon',
-                        clasif: '',
-                        cencos: '',
-                        nomcencos: '',
-                        galpon: 'Total',
+                        clasif: clasifLabel,
+                        cencos: cencosVal,
+                        nomcencos: nomcencosVal,
+                        galpon: galponVal,
                         tcodigo: '',
                         nomcodigo: '',
                         meses: galponItem.totales_mes
@@ -236,9 +224,9 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
                 // Subtotal Cencos
                 flatRows.push({
                     type: 'total_cencos',
-                    clasif: '',
-                    cencos: '',
-                    nomcencos: 'Total',
+                    clasif: clasifLabel,
+                    cencos: cencosVal,
+                    nomcencos: nomcencosVal,
                     galpon: '',
                     tcodigo: '',
                     nomcodigo: '',
@@ -284,11 +272,7 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
                     <td class="px-3 py-2 text-left font-bold text-xs text-slate-900 bg-slate-200 border-r border-slate-300 border-t-2 border-b-2 border-slate-400 sticky left-0 z-40">
                         Total general
                     </td>
-                    <td class="px-2 py-2 bg-slate-200 border-r border-slate-300 border-t-2 border-b-2 border-slate-400 sticky left-[150px] z-40"></td>
-                    <td class="px-3 py-2 bg-slate-200 border-r border-slate-300 border-t-2 border-b-2 border-slate-400 sticky left-[215px] z-40"></td>
-                    <td class="px-2 py-2 bg-slate-200 border-r border-slate-300 border-t-2 border-b-2 border-slate-400 sticky left-[335px] z-40"></td>
-                    <td class="px-2 py-2 bg-slate-200 border-r border-slate-300 border-t-2 border-b-2 border-slate-400 sticky left-[385px] z-40"></td>
-                    <td class="px-3 py-2 bg-slate-200 border-r-2 border-slate-400 border-t-2 border-b-2 border-slate-400 sticky left-[450px] z-40"></td>
+                    <td class="px-2 py-2 bg-slate-200 border-r-2 border-slate-400 border-t-2 border-b-2 border-slate-400 sticky left-[210px] z-40"></td>
                     ${celdasTotalGeneral}
                 </tr>
             </tfoot>
@@ -310,9 +294,9 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
         const virtualTbody = document.getElementById('virtual-tbody-cp14');
         if (!scrollContainer || !virtualTbody) return;
 
-        // 5. Motor de Virtualización DOM (Solo pinta las ~40 filas visibles en pantalla)
-        const ROW_HEIGHT = 28; // Altura en px por fila
-        const OVERSCAN = 15;   // Filas de margen superior/inferior para scroll suave
+        // 5. Motor de Virtualización DOM Compacta (Altura optimizada de 36px por fila)
+        const ROW_HEIGHT = 36; // Altura en px por fila para diseño de 2 líneas apiladas
+        const OVERSCAN = 12;   // Filas de margen superior/inferior para scroll fluido
 
         const renderSingleRow = (item) => {
             if (item.type === 'item') {
@@ -325,44 +309,43 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
                         const cuStr = Number(pData.cu).toFixed(3).replace('.', ',');
 
                         celdasMeses += `
-                            <td class="px-2 py-1 text-right font-mono text-[10.5px] text-slate-700 border-r border-slate-100 border-b border-slate-100 whitespace-nowrap">
+                            <td class="px-2 py-1 text-right font-mono text-[10.5px] text-slate-700 border-r border-slate-100 border-b border-slate-100 whitespace-nowrap align-middle">
                                 ${valorStr}
                             </td>
-                            <td class="px-2 py-1 text-right font-mono text-[10.5px] text-slate-600 border-r border-slate-100 border-b border-slate-100 whitespace-nowrap">
+                            <td class="px-2 py-1 text-right font-mono text-[10.5px] text-slate-600 border-r border-slate-100 border-b border-slate-100 whitespace-nowrap align-middle">
                                 ${kgStr}
                             </td>
-                            <td class="px-2 py-1 text-right font-mono text-[10.5px] font-semibold text-slate-900 border-r-2 border-slate-300 border-b border-slate-100 whitespace-nowrap">
+                            <td class="px-2 py-1 text-right font-mono text-[10.5px] font-semibold text-slate-900 border-r-2 border-slate-300 border-b border-slate-100 whitespace-nowrap align-middle">
                                 ${cuStr}
                             </td>
                         `;
                     } else {
                         celdasMeses += `
-                            <td class="px-2 py-1 text-right font-mono text-[10px] text-slate-200 border-r border-slate-100 border-b border-slate-100"></td>
-                            <td class="px-2 py-1 text-right font-mono text-[10px] text-slate-200 border-r border-slate-100 border-b border-slate-100"></td>
-                            <td class="px-2 py-1 text-right font-mono text-[10px] text-slate-200 border-r-2 border-slate-300 border-b border-slate-100"></td>
+                            <td class="px-2 py-1 text-right font-mono text-[10px] text-slate-200 border-r border-slate-100 border-b border-slate-100 align-middle"></td>
+                            <td class="px-2 py-1 text-right font-mono text-[10px] text-slate-200 border-r border-slate-100 border-b border-slate-100 align-middle"></td>
+                            <td class="px-2 py-1 text-right font-mono text-[10px] text-slate-200 border-r-2 border-slate-300 border-b border-slate-100 align-middle"></td>
                         `;
                     }
                 });
 
                 return `
                     <tr class="hover:bg-blue-50/30 transition-colors" style="height: ${ROW_HEIGHT}px;">
-                        <td class="px-3 py-1 font-semibold text-[10.5px] text-slate-800 bg-white border-r border-b border-slate-100 sticky left-0 z-20 truncate max-w-[150px]" title="${item.clasif}">
-                            ${item.clasif}
+                        <td class="px-2.5 py-1 text-left bg-white border-r border-b border-slate-100 sticky left-0 z-20 truncate max-w-[210px] align-middle">
+                            <div class="font-bold text-[11px] text-slate-800 leading-tight truncate" title="${item.nomcencos} (${item.cencos})">
+                                ${item.nomcencos} <span class="text-[9.5px] font-mono font-normal text-slate-400">(${item.cencos})</span>
+                            </div>
+                            <div class="text-[9.5px] text-slate-500 leading-tight truncate flex items-center gap-1 mt-0.5">
+                                <span class="font-semibold text-blue-700 bg-blue-50 px-1 py-0.2 rounded text-[9px]">G.${item.galpon}</span>
+                                <span class="truncate text-slate-500" title="${item.clasif}">${item.clasif}</span>
+                            </div>
                         </td>
-                        <td class="px-2 py-1 font-mono text-[10.5px] text-slate-700 bg-white border-r border-b border-slate-100 sticky left-[150px] z-20">
-                            ${item.cencos}
-                        </td>
-                        <td class="px-3 py-1 text-[10.5px] text-slate-700 bg-white border-r border-b border-slate-100 sticky left-[215px] z-20 truncate max-w-[120px]" title="${item.nomcencos}">
-                            ${item.nomcencos}
-                        </td>
-                        <td class="px-2 py-1 text-center font-mono text-[10.5px] text-slate-600 bg-white border-r border-b border-slate-100 sticky left-[335px] z-20">
-                            ${item.galpon}
-                        </td>
-                        <td class="px-2 py-1 font-mono text-[10.5px] text-slate-500 bg-white border-r border-b border-slate-100 sticky left-[385px] z-20">
-                            ${item.tcodigo}
-                        </td>
-                        <td class="px-3 py-1 text-[10.5px] text-slate-600 bg-white border-r-2 border-slate-300 border-b border-slate-100 text-left sticky left-[450px] z-20 truncate max-w-[160px]" title="${item.nomcodigo}">
-                            ${item.nomcodigo}
+                        <td class="px-2.5 py-1 text-left bg-white border-r-2 border-slate-300 border-b border-slate-100 sticky left-[210px] z-20 truncate max-w-[200px] align-middle">
+                            <div class="font-mono text-[9.5px] text-slate-400 leading-tight">
+                                ${item.tcodigo}
+                            </div>
+                            <div class="font-medium text-[10.5px] text-slate-700 leading-tight truncate" title="${item.nomcodigo}">
+                                ${item.nomcodigo}
+                            </div>
                         </td>
                         ${celdasMeses}
                     </tr>
@@ -377,35 +360,33 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
                         const cuStr = Number(totG.cu).toFixed(3).replace('.', ',');
 
                         celdasTotGalpon += `
-                            <td class="px-2 py-1 text-right font-mono font-bold text-[10.5px] text-slate-800 bg-slate-50 border-r border-slate-200 border-b border-slate-200 whitespace-nowrap">
+                            <td class="px-2 py-1 text-right font-mono font-bold text-[10.5px] text-slate-800 bg-slate-50 border-r border-slate-200 border-b border-slate-200 whitespace-nowrap align-middle">
                                 ${valorStr}
                             </td>
-                            <td class="px-2 py-1 text-right font-mono font-semibold text-[10.5px] text-slate-700 bg-slate-50 border-r border-slate-200 border-b border-slate-200 whitespace-nowrap">
+                            <td class="px-2 py-1 text-right font-mono font-semibold text-[10.5px] text-slate-700 bg-slate-50 border-r border-slate-200 border-b border-slate-200 whitespace-nowrap align-middle">
                                 ${kgStr}
                             </td>
-                            <td class="px-2 py-1 text-right font-mono font-bold text-[10.5px] text-blue-900 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200 whitespace-nowrap">
+                            <td class="px-2 py-1 text-right font-mono font-bold text-[10.5px] text-blue-900 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200 whitespace-nowrap align-middle">
                                 ${cuStr}
                             </td>
                         `;
                     } else {
                         celdasTotGalpon += `
-                            <td class="px-2 py-1 bg-slate-50 border-r border-slate-200 border-b border-slate-200"></td>
-                            <td class="px-2 py-1 bg-slate-50 border-r border-slate-200 border-b border-slate-200"></td>
-                            <td class="px-2 py-1 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200"></td>
+                            <td class="px-2 py-1 bg-slate-50 border-r border-slate-200 border-b border-slate-200 align-middle"></td>
+                            <td class="px-2 py-1 bg-slate-50 border-r border-slate-200 border-b border-slate-200 align-middle"></td>
+                            <td class="px-2 py-1 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200 align-middle"></td>
                         `;
                     }
                 });
 
                 return `
                     <tr class="bg-slate-50 font-bold" style="height: ${ROW_HEIGHT}px;">
-                        <td class="px-3 py-1 bg-slate-50 border-r border-b border-slate-200 sticky left-0 z-20"></td>
-                        <td class="px-2 py-1 bg-slate-50 border-r border-b border-slate-200 sticky left-[150px] z-20"></td>
-                        <td class="px-3 py-1 bg-slate-50 border-r border-b border-slate-200 sticky left-[215px] z-20"></td>
-                        <td class="px-2 py-1 text-center font-bold text-[10.5px] text-slate-700 bg-slate-50 border-r border-b border-slate-200 sticky left-[335px] z-20">
-                            Total
+                        <td class="px-2.5 py-1 text-left bg-slate-50 border-r border-b border-slate-200 sticky left-0 z-20 align-middle">
+                            <span class="inline-flex items-center gap-1 font-bold text-[10.5px] text-slate-700">
+                                <span class="text-blue-600 font-bold">↳</span> Total Galpón ${item.galpon}
+                            </span>
                         </td>
-                        <td class="px-2 py-1 bg-slate-50 border-r border-b border-slate-200 sticky left-[385px] z-20"></td>
-                        <td class="px-3 py-1 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200 sticky left-[450px] z-20"></td>
+                        <td class="px-2.5 py-1 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200 sticky left-[210px] z-20 align-middle"></td>
                         ${celdasTotGalpon}
                     </tr>
                 `;
@@ -419,35 +400,33 @@ window.ChartRegistry['CP14 AnalisisCompleto'] = {
                         const cuStr = Number(totC.cu).toFixed(3).replace('.', ',');
 
                         celdasTotCencos += `
-                            <td class="px-2 py-1.5 text-right font-mono font-bold text-[11px] text-slate-900 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300 whitespace-nowrap">
+                            <td class="px-2 py-1.5 text-right font-mono font-bold text-[11px] text-slate-900 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300 whitespace-nowrap align-middle">
                                 ${valorStr}
                             </td>
-                            <td class="px-2 py-1.5 text-right font-mono font-bold text-[11px] text-slate-800 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300 whitespace-nowrap">
+                            <td class="px-2 py-1.5 text-right font-mono font-bold text-[11px] text-slate-800 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300 whitespace-nowrap align-middle">
                                 ${kgStr}
                             </td>
-                            <td class="px-2 py-1.5 text-right font-mono font-bold text-[11px] text-blue-950 bg-slate-100 border-r-2 border-slate-300 border-b-2 border-slate-300 whitespace-nowrap">
+                            <td class="px-2 py-1.5 text-right font-mono font-bold text-[11px] text-blue-950 bg-slate-100 border-r-2 border-slate-300 border-b-2 border-slate-300 whitespace-nowrap align-middle">
                                 ${cuStr}
                             </td>
                         `;
                     } else {
                         celdasTotCencos += `
-                            <td class="px-2 py-1.5 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300"></td>
-                            <td class="px-2 py-1.5 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300"></td>
-                            <td class="px-2 py-1.5 bg-slate-100 border-r-2 border-slate-300 border-b-2 border-slate-300"></td>
+                            <td class="px-2 py-1.5 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300 align-middle"></td>
+                            <td class="px-2 py-1.5 bg-slate-100 border-r border-slate-200 border-b-2 border-slate-300 align-middle"></td>
+                            <td class="px-2 py-1.5 bg-slate-100 border-r-2 border-slate-300 border-b-2 border-slate-300 align-middle"></td>
                         `;
                     }
                 });
 
                 return `
                     <tr class="bg-slate-100 font-bold" style="height: ${ROW_HEIGHT}px;">
-                        <td class="px-3 py-1.5 bg-slate-100 border-r border-b-2 border-slate-300 sticky left-0 z-20"></td>
-                        <td class="px-2 py-1.5 bg-slate-100 border-r border-b-2 border-slate-300 sticky left-[150px] z-20"></td>
-                        <td class="px-3 py-1.5 text-left font-bold text-[11px] text-slate-900 bg-slate-100 border-r border-b-2 border-slate-300 sticky left-[215px] z-20">
-                            Total
+                        <td class="px-2.5 py-1.5 text-left bg-slate-100 border-r border-b-2 border-slate-300 sticky left-0 z-20 align-middle">
+                            <span class="font-bold text-[11px] text-slate-900">
+                                Total ${item.nomcencos}
+                            </span>
                         </td>
-                        <td class="px-2 py-1.5 bg-slate-100 border-r border-b-2 border-slate-300 sticky left-[335px] z-20"></td>
-                        <td class="px-2 py-1.5 bg-slate-100 border-r border-b-2 border-slate-300 sticky left-[385px] z-20"></td>
-                        <td class="px-3 py-1.5 bg-slate-100 border-r-2 border-slate-300 border-b-2 border-slate-300 sticky left-[450px] z-20"></td>
+                        <td class="px-2.5 py-1.5 bg-slate-100 border-r-2 border-slate-300 border-b-2 border-slate-300 sticky left-[210px] z-20 align-middle"></td>
                         ${celdasTotCencos}
                     </tr>
                 `;
