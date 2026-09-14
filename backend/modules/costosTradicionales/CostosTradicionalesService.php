@@ -62,6 +62,12 @@ class CostosTradicionalesService
             return CP10CZonaProHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP12 ParetoCP
+        if ($tipoGrafico === 'CP12 ParetoCP' || $tipoGrafico === 'CP12ParetoCP' || $tipoGrafico === 'CP12' || $tipoGrafico === 'ParetoCP') {
+            require_once __DIR__ . '/handlers/CP12ParetoCPHandler.php';
+            return CP12ParetoCPHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para CP14 AnalisisCompleto
         if ($tipoGrafico === 'CP14 AnalisisCompleto' || $tipoGrafico === 'CP14AnalisisCompleto' || $tipoGrafico === 'CP14' || $tipoGrafico === 'AnalisisCompleto') {
             require_once __DIR__ . '/handlers/CP14AnalisisCompletoHandler.php';

@@ -81,6 +81,10 @@ class CostosTradicionalesController {
                         contFiltroItem.classList.add('hidden');
                     }
                 }
+                const esCP12 = (tipo === 'CP12 ParetoCP' || tipo === 'CP12');
+                const contFiltroClasifCP12 = document.getElementById('contenedor-filtro-clasificacion-cp12');
+                if (contFiltroClasifCP12) contFiltroClasifCP12.classList.toggle('hidden', !esCP12);
+
                 const esCP14 = (tipo === 'CP14 AnalisisCompleto' || tipo === 'CP14');
                 if (contFiltroGranjaCP14) contFiltroGranjaCP14.classList.toggle('hidden', !esCP14);
                 if (contFiltroGalponCP14) contFiltroGalponCP14.classList.toggle('hidden', !esCP14);
@@ -198,6 +202,13 @@ class CostosTradicionalesController {
 
             if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07' || tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
                 payloadFiltros.items = this.itemsSeleccionadosCP07;
+            }
+
+            if (tipoGrafico === 'CP12 ParetoCP' || tipoGrafico === 'CP12') {
+                const cp12Module = window.ChartRegistry && window.ChartRegistry['CP12 ParetoCP'];
+                if (cp12Module && typeof cp12Module.getSelectedFilters === 'function') {
+                    payloadFiltros.clasificacion = cp12Module.getSelectedFilters();
+                }
             }
 
             if (tipoGrafico === 'CP14 AnalisisCompleto' || tipoGrafico === 'CP14') {
