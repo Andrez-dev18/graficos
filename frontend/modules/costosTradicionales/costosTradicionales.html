@@ -111,6 +111,7 @@
                             <option value="CP07 InsumosAABB">CP07 InsumosAABB</option>
                             <option value="CP08 TendenciaInsumos">CP08 TendenciaInsumos</option>
                             <option value="CP09 CZonaGranja">CP09 CZonaGranja</option>
+                            <option value="CP14 AnalisisCompleto">CP14 AnalisisCompleto</option>
                         </select>
                     </div>
 
@@ -124,6 +125,67 @@
                             <option value="JOYA">JOYA</option>
                             <option value="MOLLENDO">MOLLENDO</option>
                         </select>
+                    </div>
+
+                    <!-- FILTROS EXCLUSIVOS PARA CP14 ANALISIS COMPLETO (CUSTOM-MULTISELECT) -->
+                    <!-- 1. FILTRO CLASIFICACIÓN CP14 -->
+                    <div id="contenedor-filtro-clasificacion-cp14" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CLASIFICACIÓN</label>
+                        <div class="relative">
+                            <button id="btn-dropdown-clasificacion-cp14" type="button"
+                                class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer flex items-center justify-between gap-2 min-w-[200px] max-w-[260px]">
+                                <span id="label-clasificacion-cp14" class="truncate text-xs font-semibold text-slate-700">Ninguno seleccionado</span>
+                                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="dropdown-clasificacion-cp14"
+                                class="custom-multiselect-dropdown hidden absolute left-0 top-full mt-1.5 w-[300px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 p-2.5 flex flex-col gap-2">
+                                <input type="text" id="search-clasificacion-cp14" placeholder="Buscar clasificación..."
+                                    class="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 font-medium">
+                                <div id="container-options-clasificacion-cp14" class="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. FILTRO GRANJA CP14 -->
+                    <div id="contenedor-filtro-granja-cp14" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
+                        <div class="relative">
+                            <button id="btn-dropdown-granja-cp14" type="button"
+                                class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer flex items-center justify-between gap-2 min-w-[170px] max-w-[220px]">
+                                <span id="label-granja-cp14" class="truncate text-xs font-semibold text-slate-700">Ninguno seleccionado</span>
+                                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="dropdown-granja-cp14"
+                                class="custom-multiselect-dropdown hidden absolute left-0 top-full mt-1.5 w-[260px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 p-2.5 flex flex-col gap-2">
+                                <input type="text" id="search-granja-cp14" placeholder="Buscar granja..."
+                                    class="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 font-medium">
+                                <div id="container-options-granja-cp14" class="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. FILTRO GALPÓN CP14 -->
+                    <div id="contenedor-filtro-galpon-cp14" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GALPÓN</label>
+                        <div class="relative">
+                            <button id="btn-dropdown-galpon-cp14" type="button"
+                                class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer flex items-center justify-between gap-2 min-w-[140px] max-w-[180px]">
+                                <span id="label-galpon-cp14" class="truncate text-xs font-semibold text-slate-700">Ninguno seleccionado</span>
+                                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="dropdown-galpon-cp14"
+                                class="custom-multiselect-dropdown hidden absolute left-0 top-full mt-1.5 w-[190px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 p-2.5 flex flex-col gap-2">
+                                <input type="text" id="search-galpon-cp14" placeholder="Buscar galpón..."
+                                    class="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 font-medium">
+                                <div id="container-options-galpon-cp14" class="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- SELECT MULTI-CHECKBOX ITEM / INSUMOS (FILTRO PARA CP07) -->
@@ -245,11 +307,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
+    <script src="../../assets/utils-graficos/custom-multiselect.js"></script>
     <script src="charts/chart.cp05_caabb_vs_ica.js?v=20260913_2"></script>
     <script src="charts/chart.cp06_caabb.js?v=20260913_2"></script>
-    <script src="charts/chart.cp09_c_zona_granja.js?v=20260913_4"></script>
-    <script src="costosTradicionales.service.js?v=20260913_2"></script>
-    <script src="costosTradicionales.controller.js?v=20260913_2"></script>
+    <script src="charts/chart.cp09_c_zona_granja.js?v=20260913_5"></script>
+    <script src="charts/chart.cp14_analisis_completo.js?v=20260914_1"></script>
+    <script src="costosTradicionales.service.js?v=20260914_1"></script>
+    <script src="costosTradicionales.controller.js?v=20260914_1"></script>
 </body>
 
 </html>

@@ -60,6 +60,10 @@ class CostosTradicionalesController {
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contFiltroZona = document.getElementById('contenedor-filtro-zona');
         const contFiltroItem = document.getElementById('contenedor-filtro-item');
+        const contFiltroGranjaCP14 = document.getElementById('contenedor-filtro-granja-cp14');
+        const contFiltroGalponCP14 = document.getElementById('contenedor-filtro-galpon-cp14');
+        const contFiltroClasifCP14 = document.getElementById('contenedor-filtro-clasificacion-cp14');
+
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
                 const tipo = selTipoGrafico.value;
@@ -77,14 +81,11 @@ class CostosTradicionalesController {
                         contFiltroItem.classList.add('hidden');
                     }
                 }
-                await this.onCargarClick();
-            });
-        }
+                const esCP14 = (tipo === 'CP14 AnalisisCompleto' || tipo === 'CP14');
+                if (contFiltroGranjaCP14) contFiltroGranjaCP14.classList.toggle('hidden', !esCP14);
+                if (contFiltroGalponCP14) contFiltroGalponCP14.classList.toggle('hidden', !esCP14);
+                if (contFiltroClasifCP14) contFiltroClasifCP14.classList.toggle('hidden', !esCP14);
 
-        // Selector de zona (CP03, CP04, CP05)
-        const selZona = document.getElementById('select-zona');
-        if (selZona) {
-            selZona.addEventListener('change', async () => {
                 await this.onCargarClick();
             });
         }
@@ -197,6 +198,16 @@ class CostosTradicionalesController {
 
             if (tipoGrafico === 'CP07 InsumosAABB' || tipoGrafico === 'CP07' || tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
                 payloadFiltros.items = this.itemsSeleccionadosCP07;
+            }
+
+            if (tipoGrafico === 'CP14 AnalisisCompleto' || tipoGrafico === 'CP14') {
+                const cp14Module = window.ChartRegistry && window.ChartRegistry['CP14 AnalisisCompleto'];
+                if (cp14Module && typeof cp14Module.getSelectedFilters === 'function') {
+                    const cp14Filters = cp14Module.getSelectedFilters();
+                    payloadFiltros.nomcencos = cp14Filters.nomcencos;
+                    payloadFiltros.galpon = cp14Filters.galpon;
+                    payloadFiltros.clasificacion = cp14Filters.clasificacion;
+                }
             }
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
