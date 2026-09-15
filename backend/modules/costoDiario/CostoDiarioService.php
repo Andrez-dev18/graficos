@@ -28,6 +28,15 @@ class CostoDiarioService
             return CP02EvolucionDatosProductivosHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CA03 RevisionInsumos
+        if (
+            $tipoGrafico === 'CA03 RevisionInsumos' || $tipoGrafico === 'CA03RevisionInsumos' || $tipoGrafico === 'CA03' ||
+            $tipoGrafico === 'CP03 RevisionInsumos' || $tipoGrafico === 'CP03RevisionInsumos' || $tipoGrafico === 'CP03'
+        ) {
+            require_once __DIR__ . '/handlers/CA03RevisionInsumosHandler.php';
+            return CA03RevisionInsumosHandler::handle($this->db, $filtros);
+        }
+
         // Fallback por defecto a CP01
         require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
         return CP01CostosGeneralesPorDiaHandler::handle($this->db, $filtros);

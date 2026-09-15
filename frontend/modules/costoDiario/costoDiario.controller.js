@@ -109,16 +109,23 @@ class CostoDiarioController {
 
             const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'CP01 CostosGeneralesPorDia';
 
-            let clasificacion = null;
+            let extraFilters = {};
             if (window.ChartRegistry && window.ChartRegistry[tipoGrafico] && typeof window.ChartRegistry[tipoGrafico].getSelectedFilters === 'function') {
-                clasificacion = window.ChartRegistry[tipoGrafico].getSelectedFilters();
+                const selected = window.ChartRegistry[tipoGrafico].getSelectedFilters();
+                if (selected) {
+                    if (Array.isArray(selected)) {
+                        extraFilters.clasificacion = selected;
+                    } else if (typeof selected === 'object') {
+                        extraFilters = { ...extraFilters, ...selected };
+                    }
+                }
             }
 
             const payloadFiltros = {
-                fecha_inicio: rango.fechaInicio || rango.inicio || '2026-09-01',
-                fecha_fin: rango.fechaFin || rango.fin || '2026-09-14',
+                fecha_inicio: rango.fechaInicio || rango.inicio || '2024-02-01',
+                fecha_fin: rango.fechaFin || rango.fin || '2024-02-18',
                 tipo_grafico: tipoGrafico,
-                clasificacion: clasificacion
+                ...extraFilters
             };
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
@@ -131,11 +138,14 @@ class CostoDiarioController {
                 if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
                     this.chartTipoActual = tipoGrafico;
                     this.destruirGraficaActual();
+                    this.ocultarTodosLosFiltrosModulares();
                     window.ChartRegistry[tipoGrafico].render(this, data);
                 } else {
+                    this.ocultarTodosLosFiltrosModulares();
                     this.renderEstadoInicial(tipoGrafico, payloadFiltros);
                 }
             } else {
+                this.ocultarTodosLosFiltrosModulares();
                 this.renderEstadoInicial(tipoGrafico, payloadFiltros);
             }
         } catch (err) {
@@ -147,6 +157,13 @@ class CostoDiarioController {
                 btnCargar.innerHTML = originalBtnHtml;
             }
         }
+    }
+
+    ocultarTodosLosFiltrosModulares() {
+        document.getElementById('contenedor-filtro-clasificacion-cp01')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-tipo-ca03')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-transaccion-ca03')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-item-ca03')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {
@@ -178,8 +195,12 @@ class CostoDiarioController {
         this.setupPeriodo();
 
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'CP01 CostosGeneralesPorDia';
-        if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]?.multiClasif) {
-            window.ChartRegistry[tipoGrafico].multiClasif.selectAll(false);
+        if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
+            const mod = window.ChartRegistry[tipoGrafico];
+            if (mod.multiClasif) mod.multiClasif.selectAll(true);
+            if (mod.multiTipo) mod.multiTipo.selectAll(true);
+            if (mod.multiTrans) mod.multiTrans.selectAll(true);
+            if (mod.multiItem) mod.multiItem.selectAll(true);
         }
 
         await this.onCargarClick();
