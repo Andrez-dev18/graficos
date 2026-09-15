@@ -22,6 +22,12 @@ class CostoDiarioService
             return CP01CostosGeneralesPorDiaHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP02 EvolucionDatosProductivos
+        if ($tipoGrafico === 'CP02 EvolucionDatosProductivos' || $tipoGrafico === 'CP02EvolucionDatosProductivos' || $tipoGrafico === 'CP02') {
+            require_once __DIR__ . '/handlers/CP02EvolucionDatosProductivosHandler.php';
+            return CP02EvolucionDatosProductivosHandler::handle($this->db, $filtros);
+        }
+
         // Fallback por defecto a CP01
         require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
         return CP01CostosGeneralesPorDiaHandler::handle($this->db, $filtros);

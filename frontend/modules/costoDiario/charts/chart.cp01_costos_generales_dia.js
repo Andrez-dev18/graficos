@@ -212,6 +212,7 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
                     padding: { top: 22, right: 15, left: 5, bottom: 5 }
                 },
@@ -233,7 +234,7 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
                         align: 'top',
                         offset: 4,
                         clip: false,
-                        font: { size: 9.5, weight: 'bold', family: 'monospace' },
+                        font: { size: 9.5, weight: 'bold', family: 'system-ui, -apple-system, sans-serif' },
                         color(context) {
                             return context.dataIndex === 0 ? '#16a34a' : '#e15759';
                         },
@@ -258,7 +259,7 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
                         },
                         grid: { color: '#f1f5f9' },
                         ticks: {
-                            font: { size: 9.5, family: 'monospace' },
+                            font: { size: 9.5, family: 'system-ui, -apple-system, sans-serif' },
                             callback: (v) => Number(v).toFixed(1).replace('.', ',')
                         }
                     }
@@ -313,7 +314,7 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
                         align: 'top',
                         offset: 4,
                         clip: false,
-                        font: { size: 9.5, weight: 'bold', family: 'monospace' },
+                        font: { size: 9.5, weight: 'bold', family: 'system-ui, -apple-system, sans-serif' },
                         color(context) {
                             return context.dataIndex === 0 ? '#16a34a' : '#e15759';
                         },
@@ -327,7 +328,7 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
                         grid: { display: true, color: '#f8fafc' },
                         ticks: {
                             display: true,
-                            font: { size: 9.5, family: 'monospace' },
+                            font: { size: 9.5, family: 'system-ui, -apple-system, sans-serif' },
                             maxRotation: 90,
                             minRotation: 90,
                             color: '#475569'
@@ -344,7 +345,7 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
                         },
                         grid: { color: '#f1f5f9' },
                         ticks: {
-                            font: { size: 9.5, family: 'monospace' },
+                            font: { size: 9.5, family: 'system-ui, -apple-system, sans-serif' },
                             callback: (v) => Number(v).toFixed(1).replace('.', ',')
                         }
                     }
