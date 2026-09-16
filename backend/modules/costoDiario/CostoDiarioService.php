@@ -26,6 +26,16 @@ class CostoDiarioService
             return CA01CostoFormulaPorTipoHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CA02 CostoFormula-Insumos
+        if (
+            $tipoGrafico === 'CA02 CostoFormula-Insumos' || $tipoGrafico === 'CA02CostoFormula-Insumos' ||
+            $tipoGrafico === 'CA02 CostoFormulaInsumos' || $tipoGrafico === 'CA02CostoFormulaInsumos' ||
+            $tipoGrafico === 'CA02' || $tipoGrafico === 'CP02 CostoFormula-Insumos'
+        ) {
+            require_once __DIR__ . '/handlers/CA02CostoFormulaInsumosHandler.php';
+            return CA02CostoFormulaInsumosHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para CP01 CostosGeneralesPorDia
         if ($tipoGrafico === 'CP01 CostosGeneralesPorDia' || $tipoGrafico === 'CP01CostosGeneralesPorDia' || $tipoGrafico === 'CP01') {
             require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
