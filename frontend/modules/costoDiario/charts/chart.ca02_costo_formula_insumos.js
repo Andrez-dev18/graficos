@@ -60,9 +60,9 @@ const CA02_DEFINITION = {
         this.controller = controller;
         this.datosDashboard = data || {};
 
-        // 1. Título de cabecera principal
-        const tituloGrafica = document.getElementById('titulo-grafica-principal');
-        if (tituloGrafica) tituloGrafica.textContent = 'CA02 Costo Formula - Insumos';
+        // 1. Ocultar cabecera externa redundante
+        const headerPrincipal = document.getElementById('card-header-grafica-principal');
+        if (headerPrincipal) headerPrincipal.classList.add('hidden');
 
         // 2. Ocultar tabla estándar
         const cardTabla = document.getElementById('card-tabla-metricas');

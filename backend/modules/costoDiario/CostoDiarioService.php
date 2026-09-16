@@ -75,6 +75,16 @@ class CostoDiarioService
             return CA05AnalisisFormulasHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)
+        if (
+            $tipoGrafico === 'GraficaASO' || $tipoGrafico === 'Grafica ASO' ||
+            $tipoGrafico === 'CP06 GraficaASO' || $tipoGrafico === 'CP06GraficaASO' ||
+            $tipoGrafico === 'CP06' || $tipoGrafico === 'Tendencia Costo Pollo Vivo'
+        ) {
+            require_once __DIR__ . '/handlers/GraficaASOHandler.php';
+            return GraficaASOHandler::handle($this->db, $filtros);
+        }
+
         // Fallback por defecto a CP01
         require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
         return CP01CostosGeneralesPorDiaHandler::handle($this->db, $filtros);

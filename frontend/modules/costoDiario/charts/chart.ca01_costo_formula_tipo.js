@@ -63,9 +63,9 @@ const CA01_DEFINITION = {
     render(controller, data) {
         this.controller = controller;
 
-        // 1. Título principal
-        const tituloGrafica = document.getElementById('titulo-grafica-principal');
-        if (tituloGrafica) tituloGrafica.textContent = 'CA01 Costo Formula Por Tipo Alimento';
+        // 1. Ocultar cabecera externa redundante
+        const headerPrincipal = document.getElementById('card-header-grafica-principal');
+        if (headerPrincipal) headerPrincipal.classList.add('hidden');
 
         // 2. Ocultar tarjeta de tabla estándar
         const cardTabla = document.getElementById('card-tabla-metricas');
