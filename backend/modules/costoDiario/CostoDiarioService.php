@@ -16,6 +16,16 @@ class CostoDiarioService
     {
         $tipoGrafico = !empty($filtros['tipo_grafico']) ? trim($filtros['tipo_grafico']) : 'CP01 CostosGeneralesPorDia';
 
+        // Despacho Modular para CA01 CostoFormulaPorTipoAlimento
+        if (
+            $tipoGrafico === 'CA01 CostoFormulaPorTipoAlimento' || $tipoGrafico === 'CA01CostoFormulaPorTipoAlimento' ||
+            $tipoGrafico === 'CA01 CostoFormulaPorTipoAA' || $tipoGrafico === 'CA01CostoFormulaPorTipoAA' ||
+            $tipoGrafico === 'CA01' || $tipoGrafico === 'CP01 CostoFormulaPorTipoAlimento'
+        ) {
+            require_once __DIR__ . '/handlers/CA01CostoFormulaPorTipoHandler.php';
+            return CA01CostoFormulaPorTipoHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para CP01 CostosGeneralesPorDia
         if ($tipoGrafico === 'CP01 CostosGeneralesPorDia' || $tipoGrafico === 'CP01CostosGeneralesPorDia' || $tipoGrafico === 'CP01') {
             require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
