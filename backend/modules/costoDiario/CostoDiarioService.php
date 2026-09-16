@@ -46,6 +46,15 @@ class CostoDiarioService
             return CA04RevisionAlimentoHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CA05 AnalisisFormulas
+        if (
+            $tipoGrafico === 'CA05 AnalisisFormulas' || $tipoGrafico === 'CA05AnalisisFormulas' || $tipoGrafico === 'CA05' ||
+            $tipoGrafico === 'CP05 AnalisisFormulas' || $tipoGrafico === 'CP05AnalisisFormulas' || $tipoGrafico === 'CP05'
+        ) {
+            require_once __DIR__ . '/handlers/CA05AnalisisFormulasHandler.php';
+            return CA05AnalisisFormulasHandler::handle($this->db, $filtros);
+        }
+
         // Fallback por defecto a CP01
         require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
         return CP01CostosGeneralesPorDiaHandler::handle($this->db, $filtros);

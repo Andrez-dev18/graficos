@@ -158,6 +158,8 @@ class CostoDiarioController {
         document.getElementById('contenedor-filtro-tipo-ca03')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-transaccion-ca03')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-item-ca03')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-insumo-ca05')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-codalim-ca05')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {
@@ -195,6 +197,8 @@ class CostoDiarioController {
             if (mod.multiTipo) mod.multiTipo.selectAll(true);
             if (mod.multiTrans) mod.multiTrans.selectAll(true);
             if (mod.multiItem) mod.multiItem.selectAll(true);
+            if (mod.multiInsumo) mod.multiInsumo.selectAll(true);
+            if (mod.multiCodalim) mod.multiCodalim.selectAll(true);
         }
 
         await this.onCargarClick();

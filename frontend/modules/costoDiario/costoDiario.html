@@ -104,6 +104,7 @@
                             <option value="CP02 EvolucionDatosProductivos">CP02 EvolucionDatosProductivos</option>
                             <option value="CA03 RevisionInsumos">CA03 RevisionInsumos</option>
                             <option value="CA04 RevisionAlimento">CA04 RevisionAlimento</option>
+                            <option value="CA05 AnalisisFormulas">CA05 AnalisisFormulas</option>
                         </select>
                     </div>
 
@@ -182,6 +183,46 @@
                             <input id="search-item-ca03" type="text" placeholder="Buscar insumo o código..."
                                 class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
                             <div id="container-options-item-ca03" class="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MULTISELECT INSUMO (CA05) -->
+                    <div id="contenedor-filtro-insumo-ca05" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">INSUMO</label>
+                        <button id="btn-dropdown-insumo-ca05" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[220px]">
+                            <span id="label-insumo-ca05" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-insumo-ca05"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-insumo-ca05" type="text" placeholder="Buscar insumo..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-insumo-ca05" class="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MULTISELECT ALIMENTO / CODALIM (CA05) -->
+                    <div id="contenedor-filtro-codalim-ca05" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ALIMENTO</label>
+                        <button id="btn-dropdown-codalim-ca05" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[220px]">
+                            <span id="label-codalim-ca05" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-codalim-ca05"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-codalim-ca05" type="text" placeholder="Buscar alimento..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-codalim-ca05" class="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
                                 <!-- Renderizado dinámico -->
                             </div>
                         </div>
@@ -265,6 +306,7 @@
     <script src="charts/chart.cp02_evolucion_datos_productivos.js?v=20260915_7"></script>
     <script src="charts/chart.ca03_revision_insumos.js?v=20260915_3"></script>
     <script src="charts/chart.ca04_revision_alimento.js?v=20260915_2"></script>
+    <script src="charts/chart.ca05_analisis_formulas.js?v=20260916_8"></script>
     <script src="costoDiario.service.js?v=20260915_1"></script>
     <script src="costoDiario.controller.js?v=20260915_3"></script>
 </body>
