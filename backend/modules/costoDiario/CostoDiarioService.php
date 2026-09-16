@@ -37,8 +37,26 @@ class CostoDiarioService
             return CA03RevisionInsumosHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CA04 RevisionAlimento
+        if (
+            $tipoGrafico === 'CA04 RevisionAlimento' || $tipoGrafico === 'CA04RevisionAlimento' || $tipoGrafico === 'CA04' ||
+            $tipoGrafico === 'CP04 RevisionAlimento' || $tipoGrafico === 'CP04RevisionAlimento' || $tipoGrafico === 'CP04'
+        ) {
+            require_once __DIR__ . '/handlers/CA04RevisionAlimentoHandler.php';
+            return CA04RevisionAlimentoHandler::handle($this->db, $filtros);
+        }
+
         // Fallback por defecto a CP01
         require_once __DIR__ . '/handlers/CP01CostosGeneralesPorDiaHandler.php';
         return CP01CostosGeneralesPorDiaHandler::handle($this->db, $filtros);
+    }
+
+    /**
+     * Guarda o actualiza el factor CF para un periodo específico
+     */
+    public function guardarFactorAlimento(array $data): array
+    {
+        require_once __DIR__ . '/handlers/CA04RevisionAlimentoHandler.php';
+        return CA04RevisionAlimentoHandler::guardarFactorCF($this->db, $data);
     }
 }

@@ -7,6 +7,12 @@ class CA03RevisionInsumosHandler
         $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : '2024-02-01';
         $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2024-02-18';
 
+        // Si se envía fecha_inicio igual a fecha_fin (ej. '2024-02-18'),
+        // se ajusta fechaInicio al 1er día del mes (ej. '2024-02-01') actuando fechaFin como fecha de corte
+        if ($fechaInicio === $fechaFin && !empty($fechaFin)) {
+            $fechaInicio = date('Y-m-01', strtotime($fechaFin));
+        }
+
         // 1. Determinar el fechahisto adecuado
         $sqlFecha = "SELECT fechahisto 
                      FROM histcostdiaalim 

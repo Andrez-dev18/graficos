@@ -42,4 +42,33 @@ class CostoDiarioService {
             };
         }
     }
+
+    /**
+     * Guarda la configuración del factor CF para un período en la BD
+     * @param {Object} datos { periodo: 'YYYY-MM', factor_cf: 0.127 }
+     */
+    async guardarFactorAlimento(datos = {}) {
+        try {
+            const url = `${this.baseUrl}/costoDiario/guardar-factor-alimento`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(datos)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en CostoDiarioService.guardarFactorAlimento:', error);
+            return {
+                success: false,
+                message: error.message || 'Error al guardar factor en el servidor'
+            };
+        }
+    }
 }

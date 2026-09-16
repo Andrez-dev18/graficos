@@ -130,20 +130,14 @@ class CostoDiarioController {
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
 
-            if (res && (res.success || res.status === 'success')) {
-                const data = res.payload || res.data || res;
+            // Despacho Modular automático mediante ChartRegistry si existe
+            if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
+                const data = (res && (res.payload || res.data)) || res || {};
                 this.datosDashboard = data;
-
-                // Despacho Modular automático mediante ChartRegistry si existe
-                if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
-                    this.chartTipoActual = tipoGrafico;
-                    this.destruirGraficaActual();
-                    this.ocultarTodosLosFiltrosModulares();
-                    window.ChartRegistry[tipoGrafico].render(this, data);
-                } else {
-                    this.ocultarTodosLosFiltrosModulares();
-                    this.renderEstadoInicial(tipoGrafico, payloadFiltros);
-                }
+                this.chartTipoActual = tipoGrafico;
+                this.destruirGraficaActual();
+                this.ocultarTodosLosFiltrosModulares();
+                window.ChartRegistry[tipoGrafico].render(this, data);
             } else {
                 this.ocultarTodosLosFiltrosModulares();
                 this.renderEstadoInicial(tipoGrafico, payloadFiltros);

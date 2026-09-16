@@ -169,7 +169,9 @@ const PeriodoHelper = {
         switch (tipo) {
             case 'por_fecha': {
                 const f = document.getElementById('input-fecha-unica')?.value || '';
-                return { fechaInicio: f, fechaFin: f };
+                if (!f) return { fechaInicio: '', fechaFin: '' };
+                const primerDia = `${f.substring(0, 7)}-01`;
+                return { fechaInicio: primerDia, fechaFin: f };
             }
             case 'entre_fechas': {
                 return {
