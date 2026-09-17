@@ -108,6 +108,7 @@
                             <option value="CP04 CostosGeneralesDetalleAlDia">CP04 CostosGeneralesDetalleAlDia</option>
                             <option value="CP05 AnalisisContableCostosDiarios">CP05 AnalisisContableCostosDiarios</option>
                             <option value="CP06 AnalisisContablePorGalpon">CP06 AnalisisContablePorGalpon</option>
+                            <option value="CP07 AnalisisContableDataDetalle">CP07 AnalisisContableDataDetalle</option>
                             <option value="CA03 RevisionInsumos">CA03 RevisionInsumos</option>
                             <option value="CA04 RevisionAlimento">CA04 RevisionAlimento</option>
                             <option value="CA05 AnalisisFormulas">CA05 AnalisisFormulas</option>
@@ -314,6 +315,66 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- MULTISELECT CLASIFICACIÓN (CP07) -->
+                    <div id="contenedor-filtro-clasificacion-cp07" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CLASIFICACIÓN</label>
+                        <button id="btn-dropdown-clasificacion-cp07" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[220px]">
+                            <span id="label-clasificacion-cp07" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-clasificacion-cp07"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-clasificacion-cp07" type="text" placeholder="Buscar clasificación..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-clasificacion-cp07" class="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MULTISELECT GRANJA / NOMCENCOS (CP07) -->
+                    <div id="contenedor-filtro-granja-cp07" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
+                        <button id="btn-dropdown-granja-cp07" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[220px]">
+                            <span id="label-granja-cp07" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-granja-cp07"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-granja-cp07" type="text" placeholder="Buscar granja o cencos..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-granja-cp07" class="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MULTISELECT GALPÓN (CP07) -->
+                    <div id="contenedor-filtro-galpon-cp07" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GALPÓN</label>
+                        <button id="btn-dropdown-galpon-cp07" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[160px]">
+                            <span id="label-galpon-cp07" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-galpon-cp07"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-galpon-cp07" type="text" placeholder="Buscar galpón..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-galpon-cp07" class="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- BOTONES DE ACCIÓN -->
@@ -397,12 +458,13 @@
     <script src="charts/chart.cp04_costos_generales_detalle.js?v=20260917_4"></script>
     <script src="charts/chart.cp05_analisis_contable_costos.js?v=20260917_4"></script>
     <script src="charts/chart.cp06_analisis_contable_galpon.js?v=20260917_1"></script>
+    <script src="charts/chart.cp07_analisis_contable_data_detalle.js?v=20260917_1"></script>
     <script src="charts/chart.ca03_revision_insumos.js?v=20260915_3"></script>
     <script src="charts/chart.ca04_revision_alimento.js?v=20260915_2"></script>
     <script src="charts/chart.ca05_analisis_formulas.js?v=20260916_8"></script>
     <script src="charts/chart.grafica_aso.js?v=20260916_2"></script>
     <script src="costoDiario.service.js?v=20260915_1"></script>
-    <script src="costoDiario.controller.js?v=20260917_6"></script>
+    <script src="costoDiario.controller.js?v=20260917_7"></script>
 </body>
 
 </html>

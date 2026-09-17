@@ -164,6 +164,9 @@ class CostoDiarioController {
         document.getElementById('contenedor-filtro-clasificacion-cp04')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-clasificacion-cp05')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-clasificacion-cp06')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-clasificacion-cp07')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-granja-cp07')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-galpon-cp07')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {

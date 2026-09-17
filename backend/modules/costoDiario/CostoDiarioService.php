@@ -113,6 +113,15 @@ class CostoDiarioService
             return CP06AnalisisContablePorGalponHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP07 AnalisisContableDataDetalle
+        if (
+            $tipoGrafico === 'CP07 AnalisisContableDataDetalle' || $tipoGrafico === 'CP07AnalisisContableDataDetalle' ||
+            $tipoGrafico === 'CP07 Analisis Contable Data Detalle' || $tipoGrafico === 'CP07'
+        ) {
+            require_once __DIR__ . '/handlers/CP07AnalisisContableDataDetalleHandler.php';
+            return CP07AnalisisContableDataDetalleHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)
         if (
             $tipoGrafico === 'GraficaASO' || $tipoGrafico === 'Grafica ASO' ||
