@@ -138,6 +138,10 @@ class CustomMultiSelect {
         return this.options.filter(o => o.selected).map(o => o.id);
     }
 
+    getSelected() {
+        return this.getSelectedValues();
+    }
+
     selectAll(triggerChange = true) {
         this.options.forEach(o => o.selected = true);
         this.updateLabel();

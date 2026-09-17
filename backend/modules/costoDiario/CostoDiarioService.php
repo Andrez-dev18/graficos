@@ -48,10 +48,19 @@ class CostoDiarioService
             return CP02EvolucionDatosProductivosHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP03 ComparativoDatosProductivos
+        if (
+            $tipoGrafico === 'CP03 ComparativoDatosProductivos' || $tipoGrafico === 'CP03ComparativoDatosProductivos' ||
+            $tipoGrafico === 'CP03' || $tipoGrafico === 'Comparativo Datos Productivos' ||
+            $tipoGrafico === 'CP03 Comparativo Datos Productivos'
+        ) {
+            require_once __DIR__ . '/handlers/CP03ComparativoDatosProductivosHandler.php';
+            return CP03ComparativoDatosProductivosHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para CA03 RevisionInsumos
         if (
-            $tipoGrafico === 'CA03 RevisionInsumos' || $tipoGrafico === 'CA03RevisionInsumos' || $tipoGrafico === 'CA03' ||
-            $tipoGrafico === 'CP03 RevisionInsumos' || $tipoGrafico === 'CP03RevisionInsumos' || $tipoGrafico === 'CP03'
+            $tipoGrafico === 'CA03 RevisionInsumos' || $tipoGrafico === 'CA03RevisionInsumos' || $tipoGrafico === 'CA03'
         ) {
             require_once __DIR__ . '/handlers/CA03RevisionInsumosHandler.php';
             return CA03RevisionInsumosHandler::handle($this->db, $filtros);
