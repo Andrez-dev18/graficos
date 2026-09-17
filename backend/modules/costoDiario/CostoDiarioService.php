@@ -66,10 +66,20 @@ class CostoDiarioService
             return CA03RevisionInsumosHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP04 CostosGeneralesDetalleAlDia
+        if (
+            $tipoGrafico === 'CP04 CostosGeneralesDetalleAlDia' || $tipoGrafico === 'CP04CostosGeneralesDetalleAlDia' ||
+            $tipoGrafico === 'CP04 CostosGeneralesDetalle' || $tipoGrafico === 'CP04CostosGeneralesDetalle' ||
+            $tipoGrafico === 'CP04 Costos Generales Detalle Al Dia' || $tipoGrafico === 'CP04'
+        ) {
+            require_once __DIR__ . '/handlers/CP04CostosGeneralesDetalleAlDiaHandler.php';
+            return CP04CostosGeneralesDetalleAlDiaHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para CA04 RevisionAlimento
         if (
             $tipoGrafico === 'CA04 RevisionAlimento' || $tipoGrafico === 'CA04RevisionAlimento' || $tipoGrafico === 'CA04' ||
-            $tipoGrafico === 'CP04 RevisionAlimento' || $tipoGrafico === 'CP04RevisionAlimento' || $tipoGrafico === 'CP04'
+            $tipoGrafico === 'CP04 RevisionAlimento' || $tipoGrafico === 'CP04RevisionAlimento'
         ) {
             require_once __DIR__ . '/handlers/CA04RevisionAlimentoHandler.php';
             return CA04RevisionAlimentoHandler::handle($this->db, $filtros);

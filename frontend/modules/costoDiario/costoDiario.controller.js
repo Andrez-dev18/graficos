@@ -161,6 +161,7 @@ class CostoDiarioController {
         document.getElementById('contenedor-filtro-insumo-ca05')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-codalim-ca05')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-granja-cp03')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-clasificacion-cp04')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {

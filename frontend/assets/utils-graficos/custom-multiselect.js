@@ -65,7 +65,7 @@ class CustomMultiSelect {
             this.label.textContent = 'Ninguno seleccionado';
             this.label.className = 'truncate text-slate-400 font-normal';
         } else if (seleccionados.length === total && total > 1) {
-            this.label.textContent = 'Todos seleccionados';
+            this.label.textContent = '(Todo)';
             this.label.className = 'truncate text-slate-800 font-semibold';
         } else if (seleccionados.length === 1) {
             this.label.textContent = seleccionados[0].label;
