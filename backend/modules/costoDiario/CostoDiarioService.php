@@ -88,10 +88,20 @@ class CostoDiarioService
         // Despacho Modular para CA05 AnalisisFormulas
         if (
             $tipoGrafico === 'CA05 AnalisisFormulas' || $tipoGrafico === 'CA05AnalisisFormulas' || $tipoGrafico === 'CA05' ||
-            $tipoGrafico === 'CP05 AnalisisFormulas' || $tipoGrafico === 'CP05AnalisisFormulas' || $tipoGrafico === 'CP05'
+            $tipoGrafico === 'CP05 AnalisisFormulas' || $tipoGrafico === 'CP05AnalisisFormulas'
         ) {
             require_once __DIR__ . '/handlers/CA05AnalisisFormulasHandler.php';
             return CA05AnalisisFormulasHandler::handle($this->db, $filtros);
+        }
+
+        // Despacho Modular para CP05 AnalisisContableCostosDiarios
+        if (
+            $tipoGrafico === 'CP05 AnalisisContableCostosDiarios' || $tipoGrafico === 'CP05AnalisisContableCostosDiarios' ||
+            $tipoGrafico === 'CP05 Analisis Contable Costos Diarios' || $tipoGrafico === 'CP05 Analisis Contable' ||
+            $tipoGrafico === 'CP05'
+        ) {
+            require_once __DIR__ . '/handlers/CP05AnalisisContableCostosDiariosHandler.php';
+            return CP05AnalisisContableCostosDiariosHandler::handle($this->db, $filtros);
         }
 
         // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)

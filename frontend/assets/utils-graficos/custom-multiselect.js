@@ -27,24 +27,31 @@ class CustomMultiSelect {
     }
 
     init() {
-        this.btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            document.querySelectorAll('.custom-multiselect-dropdown').forEach(d => {
-                if (d !== this.dropdown) d.classList.add('hidden');
+        if (!this.btn._hasMsClick) {
+            this.btn._hasMsClick = true;
+            this.btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-multiselect-dropdown').forEach(d => {
+                    if (d !== this.dropdown) d.classList.add('hidden');
+                });
+
+                const isHidden = this.dropdown.classList.contains('hidden');
+                if (isHidden) {
+                    this.dropdown.classList.remove('hidden');
+                    if (this.search) this.search.focus();
+                } else {
+                    this.dropdown.classList.add('hidden');
+                }
             });
+        }
 
-            const isHidden = this.dropdown.classList.contains('hidden');
-            if (isHidden) {
-                this.dropdown.classList.remove('hidden');
-                if (this.search) this.search.focus();
-            } else {
-                this.dropdown.classList.add('hidden');
-            }
-        });
+        if (!this.dropdown._hasMsClick) {
+            this.dropdown._hasMsClick = true;
+            this.dropdown.addEventListener('click', (e) => e.stopPropagation());
+        }
 
-        this.dropdown.addEventListener('click', (e) => e.stopPropagation());
-
-        if (this.search) {
+        if (this.search && !this.search._hasMsInput) {
+            this.search._hasMsInput = true;
             this.search.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value;
                 this.render();

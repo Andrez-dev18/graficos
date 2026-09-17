@@ -24,7 +24,6 @@ const CP04_DEFINITION = {
         this.hideTooltip();
         this.lineaSeleccionada = null;
         this.terminoBusquedaDetalle = '';
-        this.multiClasif = null;
     },
 
     formatNum(val, decimals = 0) {
@@ -238,7 +237,6 @@ const CP04_DEFINITION = {
             } else {
                 this.multiClasif.setOptions(optClasif);
             }
-            this.multiClasif.selectAll(false);
         }
     },
 
