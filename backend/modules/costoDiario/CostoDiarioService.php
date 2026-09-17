@@ -104,11 +104,20 @@ class CostoDiarioService
             return CP05AnalisisContableCostosDiariosHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP06 AnalisisContablePorGalpon
+        if (
+            $tipoGrafico === 'CP06 AnalisisContablePorGalpon' || $tipoGrafico === 'CP06AnalisisContablePorGalpon' ||
+            $tipoGrafico === 'CP06 Analisis Contable Por Galpon' || $tipoGrafico === 'CP06 Analisis Contable Galpon'
+        ) {
+            require_once __DIR__ . '/handlers/CP06AnalisisContablePorGalponHandler.php';
+            return CP06AnalisisContablePorGalponHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)
         if (
             $tipoGrafico === 'GraficaASO' || $tipoGrafico === 'Grafica ASO' ||
             $tipoGrafico === 'CP06 GraficaASO' || $tipoGrafico === 'CP06GraficaASO' ||
-            $tipoGrafico === 'CP06' || $tipoGrafico === 'Tendencia Costo Pollo Vivo'
+            $tipoGrafico === 'Tendencia Costo Pollo Vivo'
         ) {
             require_once __DIR__ . '/handlers/GraficaASOHandler.php';
             return GraficaASOHandler::handle($this->db, $filtros);
