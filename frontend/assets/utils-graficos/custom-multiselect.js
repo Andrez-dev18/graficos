@@ -157,14 +157,18 @@ class CustomMultiSelect {
     }
 
     setOptions(newOptions, defaultSelectFirst = false) {
+        const wasAllSelected = this.options.length === 0 || this.options.every(o => o.selected);
+        const newOptsExplicitAll = newOptions.length > 0 && newOptions.every(o => typeof o === 'object' && o.selected === true);
         const previousSelected = this.getSelectedValues();
 
         this.options = newOptions.map((item, idx) => {
             const id = typeof item === 'object' ? String(item.id) : String(item);
             const label = typeof item === 'object' ? String(item.label || item.id) : String(item);
 
-            let isSelected = false;
-            if (previousSelected.length > 0) {
+            let isSelected = true;
+            if (wasAllSelected || newOptsExplicitAll) {
+                isSelected = true;
+            } else if (previousSelected.length > 0) {
                 isSelected = previousSelected.includes(id);
             } else if (typeof item === 'object' && item.selected !== undefined) {
                 isSelected = Boolean(item.selected);
