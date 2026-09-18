@@ -63,7 +63,7 @@ class CustomMultiSelect {
         this.initialized = true;
     }
 
-    updateLabel() {
+    updateLabel(triggerChange = false) {
         if (!this.label) return;
         const seleccionados = this.options.filter(o => o.selected);
         const total = this.options.length;
@@ -82,7 +82,7 @@ class CustomMultiSelect {
             this.label.className = 'truncate text-slate-800 font-semibold';
         }
 
-        if (this.initialized && typeof this.onChange === 'function') {
+        if (triggerChange && this.initialized && typeof this.onChange === 'function') {
             this.onChange();
         }
     }
@@ -124,7 +124,7 @@ class CustomMultiSelect {
             chkTodos.addEventListener('change', (e) => {
                 const isChecked = e.target.checked;
                 this.options.forEach(o => o.selected = isChecked);
-                this.updateLabel();
+                this.updateLabel(true);
                 this.render();
             });
         }
@@ -135,7 +135,7 @@ class CustomMultiSelect {
                 const id = e.target.getAttribute('data-id');
                 const opcion = this.options.find(o => o.id === id);
                 if (opcion) opcion.selected = e.target.checked;
-                this.updateLabel();
+                this.updateLabel(true);
                 this.render();
             });
         });
@@ -151,9 +151,8 @@ class CustomMultiSelect {
 
     selectAll(triggerChange = true) {
         this.options.forEach(o => o.selected = true);
-        this.updateLabel();
+        this.updateLabel(triggerChange);
         this.render();
-        if (triggerChange && typeof this.onChange === 'function') this.onChange();
     }
 
     setOptions(newOptions, defaultSelectFirst = false) {
@@ -179,13 +178,13 @@ class CustomMultiSelect {
             return { id, label, selected: isSelected };
         });
 
-        this.updateLabel();
+        this.updateLabel(false);
         this.render();
     }
 
-    clearSelection() {
+    clearSelection(triggerChange = true) {
         this.options.forEach(o => o.selected = false);
-        this.updateLabel();
+        this.updateLabel(triggerChange);
         this.render();
     }
 }
