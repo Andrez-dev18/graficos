@@ -122,6 +122,16 @@ class CostoDiarioService
             return CP07AnalisisContableDataDetalleHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP08 ComparativoGranjaGalpon
+        if (
+            $tipoGrafico === 'CP08 ComparativoGranjaGalpon' || $tipoGrafico === 'CP08ComparativoGranjaGalpon' ||
+            $tipoGrafico === 'CP08 Comparativo Granja Galpon' || $tipoGrafico === 'CP08' ||
+            $tipoGrafico === 'CP08 ComparativoGranjaGalpón' || $tipoGrafico === 'CP08 Comparativo Granja Galpón'
+        ) {
+            require_once __DIR__ . '/handlers/CP08ComparativoGranjaGalponHandler.php';
+            return CP08ComparativoGranjaGalponHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)
         if (
             $tipoGrafico === 'GraficaASO' || $tipoGrafico === 'Grafica ASO' ||
