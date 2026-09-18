@@ -141,6 +141,16 @@ class CostoDiarioService
             return CP09SanidadHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP10 CostoDiario
+        if (
+            $tipoGrafico === 'CP10 CostoDiario' || $tipoGrafico === 'CP10CostoDiario' ||
+            $tipoGrafico === 'CP10' || $tipoGrafico === 'CostoDiario' ||
+            $tipoGrafico === 'CP10 Costo Diario'
+        ) {
+            require_once __DIR__ . '/handlers/CP10CostoDiarioHandler.php';
+            return CP10CostoDiarioHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)
         if (
             $tipoGrafico === 'GraficaASO' || $tipoGrafico === 'Grafica ASO' ||

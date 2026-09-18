@@ -114,6 +114,7 @@
                             <option value="CP07 AnalisisContableDataDetalle">CP07 AnalisisContableDataDetalle</option>
                             <option value="CP08 ComparativoGranjaGalpon">CP08 ComparativoGranjaGalpon</option>
                             <option value="CP09 Sanidad">CP09 Sanidad</option>
+                            <option value="CP10 CostoDiario">CP10 CostoDiario</option>
                             <option value="GraficaASO">GraficaASO (Tendencia Costo Pollo Vivo)</option>
                         </select>
                     </div>
@@ -477,6 +478,14 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- FILTRO MES (CP10) -->
+                    <div id="contenedor-filtro-mes-cp10" class="relative flex flex-col hidden transition-all">
+                        <label for="select-mes-cp10" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">MES</label>
+                        <select id="select-mes-cp10"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[180px]">
+                        </select>
+                    </div>
                 </div>
 
                 <!-- BOTONES DE ACCIÓN -->
@@ -563,6 +572,7 @@
     <script src="charts/chart.cp07_analisis_contable_data_detalle.js?v=20260917_3"></script>
     <script src="charts/chart.cp08_comparativo_granja_galpon.js?v=20260918_5"></script>
     <script src="charts/chart.cp09_sanidad.js?v=20260918_5"></script>
+    <script src="charts/chart.cp10_costo_diario.js?v=20260918_1"></script>
     <script src="charts/chart.ca03_revision_insumos.js?v=20260915_3"></script>
     <script src="charts/chart.ca04_revision_alimento.js?v=20260915_2"></script>
     <script src="charts/chart.ca05_analisis_formulas.js?v=20260916_8"></script>

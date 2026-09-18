@@ -172,6 +172,7 @@ class CostoDiarioController {
         document.getElementById('contenedor-filtro-granja-cp09')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-galpon-cp09')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-clasificacion-cp09')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-mes-cp10')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {
