@@ -43,7 +43,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
     destruirMiniCharts() {
         if (this.miniCharts && this.miniCharts.length > 0) {
             this.miniCharts.forEach(c => {
-                try { c.destroy(); } catch (e) {}
+                try { c.destroy(); } catch (e) { }
             });
             this.miniCharts = [];
         }
@@ -320,22 +320,34 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
         contenedorGrafica.innerHTML = `
             <!-- 1. SECCIÓN SUPERIOR: TABLA MATRICIAL "DATOS PRODUCTIVOS" -->
             <div class="w-full bg-white border border-slate-300 rounded-lg shadow-2xs overflow-hidden flex flex-col">
-                <div class="flex items-center justify-between px-4 py-2 bg-slate-100/90 border-b border-slate-300">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-slate-100/90 border-b border-slate-300">
                     <div>
                         <h2 class="text-sm font-bold text-slate-900 tracking-tight">Datos Productivos</h2>
                         <span class="text-[11px] text-slate-500 font-medium">Día de fecha / cencos / galpon (Haz clic en una celda para filtro cruzado)</span>
                     </div>
 
-                    <!-- LEYENDA FLOTANTE DE MEDIDAS -->
-                    <div class="flex flex-wrap items-center gap-2 text-[10px] bg-white px-2.5 py-1 rounded-md border border-slate-200">
-                        <span class="font-bold text-slate-600 mr-1">Nombres de medidas:</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #1f4e79;"></span> Pollos Vendidos</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #4fa8d1;"></span> Kilos Vendidos</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #7f7f7f;"></span> Peso Prome Venta</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #f28e2b;"></span> ICA</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #59a14f;"></span> Prom Edad Venta</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #8c8c00;"></span> % Mort</span>
-                        <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #b58900;"></span> PGD</span>
+                    <div class="flex items-center gap-2">
+                        <!-- LEYENDA FLOTANTE DE MEDIDAS (ÚNICA) -->
+                        <div class="hidden sm:flex flex-wrap items-center gap-2 text-[10px] bg-white px-2.5 py-1 rounded-md border border-slate-200">
+                            <span class="font-bold text-slate-600 mr-1">Nombres de medidas:</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #1f4e79;"></span> Pollos Vendidos</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #4fa8d1;"></span> Kilos Vendidos</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #7f7f7f;"></span> Peso Prome Venta</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #f28e2b;"></span> ICA</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #59a14f;"></span> Prom Edad Venta</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #8c8c00;"></span> % Mort</span>
+                            <span class="flex items-center gap-1 font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-xs" style="background-color: #b58900;"></span> PGD</span>
+                        </div>
+
+                        <!-- BOTÓN EXPORTAR EXCEL -->
+                        <button id="cp02-btn-export-excel" type="button"
+                            class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                            </svg>
+                            <span>Excel</span>
+                        </button>
                     </div>
                 </div>
 
@@ -399,6 +411,16 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
 
         // Renderizar mini-charts de tendencia después de inyectar el HTML
         this.renderMiniChartsTendencia(dataSrc.datosTendencia);
+        // Configurar exportación a Excel para la tabla CP02
+
+        const btnExport = document.getElementById('cp02-btn-export-excel');
+        if (btnExport) {
+            btnExport.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('tabla-datos-productivos-cp02', 'CP02_Datos_Productivos');
+                }
+            };
+        }
     },
 
     renderHeaderDias(columnas) {
@@ -588,7 +610,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                                     const fecha = datosTendencia.fechas[idx];
                                     const val = dataPoint.raw;
                                     const valStr = cfg.isK ? Number(val).toLocaleString('es-PE') : Number(val).toFixed(cfg.decimals).replace('.', ',');
-                                    
+
                                     const pos = context.chart.canvas.getBoundingClientRect();
                                     const fakeEvent = {
                                         clientX: pos.left + tooltipModel.caretX,
@@ -636,7 +658,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                             grid: { color: '#f1f5f9' },
                             ticks: {
                                 font: { size: 8.5, family: 'system-ui, -apple-system, sans-serif' },
-                                callback: (v) => cfg.isK ? `${(v/1000).toFixed(0)}K` : Number(v).toFixed(1).replace('.', ',')
+                                callback: (v) => cfg.isK ? `${(v / 1000).toFixed(0)}K` : Number(v).toFixed(1).replace('.', ',')
                             }
                         }
                     }
@@ -684,9 +706,9 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                         <span class="block text-[8px] text-slate-400 font-normal">Valor</span>
                     </td>
                     ${columnas.map(col => {
-                        const rawVal = parseFloat(col[r.key].replace(/\./g, '').replace(',', '.'));
-                        const pct = Math.min(100, Math.max(10, (rawVal / r.max) * 100));
-                        return `
+                const rawVal = parseFloat(col[r.key].replace(/\./g, '').replace(',', '.'));
+                const pct = Math.min(100, Math.max(10, (rawVal / r.max) * 100));
+                return `
                             <td class="px-0.5 py-1 text-center border-r border-slate-100 align-bottom h-[60px] cursor-pointer hover:bg-blue-50/50 transition-colors"
                                 data-dia="${col.dia}"
                                 data-cencos="${col.cencos}"
@@ -703,7 +725,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                                 </div>
                             </td>
                         `;
-                    }).join('')}
+            }).join('')}
                 </tr>
             `;
         });

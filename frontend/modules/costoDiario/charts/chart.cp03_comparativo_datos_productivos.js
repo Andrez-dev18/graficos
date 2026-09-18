@@ -291,13 +291,23 @@ const CP03_DEFINITION = {
                             <div class="flex items-center gap-2">
                                 <h3 class="text-sm font-bold text-slate-800">Datos Productivos por Granja Galpon</h3>
                             </div>
-                            <span id="cp03-badge-total-granjas" class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                ${allGranjas.length} ${allGranjas.length === 1 ? 'Granja' : 'Granjas'}
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span id="cp03-badge-total-granjas" class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                    ${allGranjas.length} ${allGranjas.length === 1 ? 'Granja' : 'Granjas'}
+                                </span>
+                                <button id="cp03-btn-export-granjas" type="button"
+                                    class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="w-full overflow-x-auto max-h-[460px] custom-scrollbar">
-                            <table class="w-full text-xs border-collapse text-right select-none">
+                            <table id="tabla-cp03-granja-galpon" class="w-full text-xs border-collapse text-right select-none">
                                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold shadow-xs">
                                     <tr>
                                         <th class="px-2.5 py-2 text-left border-r border-slate-200">cencos</th>
@@ -322,13 +332,22 @@ const CP03_DEFINITION = {
                     <div class="w-full flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                
                                 <h3 class="text-sm font-bold text-slate-800">Diferencias de Datos Productivos</h3>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="cp03-btn-export-diferencias" type="button"
+                                    class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
                             </div>
                         </div>
 
                         <div class="w-full overflow-x-auto max-h-[480px] custom-scrollbar">
-                            <table class="w-full text-xs border-collapse select-none">
+                            <table id="tabla-cp03-diferencias" class="w-full text-xs border-collapse select-none">
                                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                                     <tr id="cp03-dif-thead-row1"></tr>
                                     <tr id="cp03-dif-thead-row2"></tr>
@@ -385,6 +404,26 @@ const CP03_DEFINITION = {
         `;
 
         this.filtrarLocalmente();
+
+        // Configurar exportación a Excel para las tablas de CP03
+        const btnExportGranjas = document.getElementById('cp03-btn-export-granjas');
+        if (btnExportGranjas) {
+            btnExportGranjas.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('tabla-cp03-granja-galpon', 'CP03_Datos_Productivos_Granja_Galpon');
+                }
+            };
+        }
+
+        const btnExportDiferencias = document.getElementById('cp03-btn-export-diferencias');
+        if (btnExportDiferencias) {
+            btnExportDiferencias.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('tabla-cp03-diferencias', 'CP03_Diferencias_Datos_Productivos');
+                }
+            };
+        }
+
     },
 
     /**

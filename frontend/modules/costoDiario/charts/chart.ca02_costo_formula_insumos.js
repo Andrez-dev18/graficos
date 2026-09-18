@@ -134,11 +134,20 @@ const CA02_DEFINITION = {
                     <div class="lg:col-span-6 flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
                             <div class="flex items-center gap-2">
-                                
                                 <h3 class="text-sm font-bold text-slate-800">Detalle de Insumos</h3>
                                 <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
                                     ${detalleInsumos.items ? detalleInsumos.items.length : 0} insumos
                                 </span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="ca02-btn-export-insumos" type="button"
+                                    class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
                             </div>
                         </div>
 
@@ -211,6 +220,16 @@ const CA02_DEFINITION = {
     },
 
     setupEventosLocales() {
+        // Botón Exportar a Excel Detalle de Insumos
+        const btnExport = document.getElementById('ca02-btn-export-insumos');
+        if (btnExport) {
+            btnExport.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('ca02-tabla-matriz-insumos', 'CA02_Detalle_Insumos');
+                }
+            };
+        }
+
         // Botón Aplicar rango de fechas para Tendencia
         const btnFiltrarTend = document.getElementById('ca02-btn-filtrar-tendencia');
         if (btnFiltrarTend) {

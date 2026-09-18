@@ -131,11 +131,21 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
                                 Fecha: <strong class="text-blue-700 font-mono">${this.fechaSeleccionada || '-'}</strong>
                             </p>
                         </div>
+                        <div class="flex items-center gap-2">
+                            <button id="cp01-btn-export-excel" type="button"
+                                class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                </svg>
+                                <span>Excel</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Contenedor Scrollable Tabla -->
                     <div class="flex-1 overflow-x-auto overflow-y-auto max-h-[590px] custom-scrollbar">
-                        <table class="w-full text-[11px] border-collapse font-sans">
+                        <table id="tabla-cp01-costo-produccion" class="w-full text-[11px] border-collapse font-sans">
                             <thead class="sticky top-0 z-20 bg-blue-600 text-white font-bold border-b border-blue-700 shadow-2xs">
                                 <tr>
                                     <th class="px-2 py-2 text-left border-r border-blue-500/60 font-mono font-semibold tracking-wide min-w-[45px]">linea</th>
@@ -161,6 +171,16 @@ window.ChartRegistry['CP01 CostosGeneralesPorDia'] = {
         // Renderizar Gráficas y Tabla
         this.renderCharts();
         this.renderTabla();
+        // Configurar exportación a Excel para CP01
+        const btnExport = document.getElementById('cp01-btn-export-excel');
+        if (btnExport) {
+            btnExport.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    const fechaNom = (this.fechaSeleccionada || 'general').replace(/[^a-zA-Z0-9]/g, '_');
+                    ExcelExportHelper.exportarTabla('tabla-cp01-costo-produccion', `CP01_Costo_Produccion_${fechaNom}`);
+                }
+            };
+        }
     },
 
     renderCharts() {

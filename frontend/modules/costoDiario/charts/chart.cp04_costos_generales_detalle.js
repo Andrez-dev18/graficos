@@ -175,8 +175,8 @@ const CP04_DEFINITION = {
 
     getSelectedFilters() {
         if (this.multiClasif) {
-            const selected = typeof this.multiClasif.getSelectedValues === 'function' 
-                ? this.multiClasif.getSelectedValues() 
+            const selected = typeof this.multiClasif.getSelectedValues === 'function'
+                ? this.multiClasif.getSelectedValues()
                 : (this.multiClasif.options ? this.multiClasif.options.filter(o => o.selected).map(o => o.id) : []);
             if (selected && selected.length > 0 && selected.length < this.multiClasif.options.length) {
                 return { clasificacion: selected };
@@ -243,10 +243,10 @@ const CP04_DEFINITION = {
     filtrarLocalmente() {
         if (!this.datosBackend) return;
 
-        const selectedClasif = this.multiClasif 
-            ? (typeof this.multiClasif.getSelectedValues === 'function' 
-                ? this.multiClasif.getSelectedValues() 
-                : (this.multiClasif.options ? this.multiClasif.options.filter(o => o.selected).map(o => o.id) : [])) 
+        const selectedClasif = this.multiClasif
+            ? (typeof this.multiClasif.getSelectedValues === 'function'
+                ? this.multiClasif.getSelectedValues()
+                : (this.multiClasif.options ? this.multiClasif.options.filter(o => o.selected).map(o => o.id) : []))
             : [];
         const isAll = !selectedClasif || selectedClasif.length === 0 || (this.multiClasif && this.multiClasif.options && selectedClasif.length === this.multiClasif.options.length);
 
@@ -277,10 +277,10 @@ const CP04_DEFINITION = {
             const term = this.terminoBusquedaDetalle.trim().toLowerCase();
             detalleFiltrado = detalleFiltrado.filter(d => {
                 return (d.cencos && String(d.cencos).toLowerCase().includes(term)) ||
-                       (d.codigo && String(d.codigo).toLowerCase().includes(term)) ||
-                       (d.nomcodigo && String(d.nomcodigo).toLowerCase().includes(term)) ||
-                       (d.linea && String(d.linea).toLowerCase().includes(term)) ||
-                       (d.nomlinea && String(d.nomlinea).toLowerCase().includes(term));
+                    (d.codigo && String(d.codigo).toLowerCase().includes(term)) ||
+                    (d.nomcodigo && String(d.nomcodigo).toLowerCase().includes(term)) ||
+                    (d.linea && String(d.linea).toLowerCase().includes(term)) ||
+                    (d.nomlinea && String(d.nomlinea).toLowerCase().includes(term));
             });
         }
 
@@ -317,17 +317,27 @@ const CP04_DEFINITION = {
                 <!-- COLUMNA IZQUIERDA: TABLA 1 RESUMEN -->
                 <!-- ========================================== -->
                 <div class="xl:col-span-5 flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
-                    <div class="px-4 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <h3 class="text-sm font-bold text-slate-800">Costo Produccion por Kg de Pollo Vivo</h3>
                         </div>
-                        <span id="cp04-badge-total-lineas" class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                            ${allResumen.length} Líneas
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <span id="cp04-badge-total-lineas" class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                ${allResumen.length} Líneas
+                            </span>
+                            <button id="cp04-btn-export-resumen" type="button"
+                                class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                </svg>
+                                <span>Excel</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="w-full overflow-x-auto max-h-[720px] custom-scrollbar">
-                        <table class="w-full text-xs border-collapse select-none">
+                        <table id="tabla-cp04-resumen" class="w-full text-xs border-collapse select-none">
                             <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold shadow-xs">
                                 <tr>
                                     <th class="px-2.5 py-2 text-left border-r border-slate-200 w-12">linea</th>
@@ -359,11 +369,11 @@ const CP04_DEFINITION = {
                             </span>
                         </div>
 
-                        <!-- Buscador rápido para la tabla detalle -->
+                        <!-- Buscador rápido y botón exportar detalle -->
                         <div class="flex items-center gap-2">
                             <div class="relative">
                                 <input id="cp04-input-buscar-detalle" type="text" placeholder="Buscar código, insumo..."
-                                    class="w-48 sm:w-56 text-xs px-2.5 py-1.5 pl-7 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-normal">
+                                    class="w-40 sm:w-48 text-xs px-2.5 py-1.5 pl-7 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-normal">
                                 <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
@@ -371,11 +381,19 @@ const CP04_DEFINITION = {
                             <span id="cp04-badge-total-detalles" class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 whitespace-nowrap">
                                 0 Registros
                             </span>
+                            <button id="cp04-btn-export-detalle" type="button"
+                                class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                </svg>
+                                <span>Excel</span>
+                            </button>
                         </div>
                     </div>
 
                     <div class="w-full overflow-x-auto max-h-[720px] custom-scrollbar">
-                        <table class="w-full text-xs border-collapse select-none">
+                        <table id="tabla-cp04-detalle" class="w-full text-xs border-collapse select-none">
                             <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                                 <tr>
                                     <th class="px-2 py-2 border-r border-slate-200">cencos</th>
@@ -413,7 +431,30 @@ const CP04_DEFINITION = {
             });
         }
 
+        // Configurar exportación a Excel para las tablas de CP04
+        const btnExportResumen = document.getElementById('cp04-btn-export-resumen');
+        if (btnExportResumen) {
+            btnExportResumen.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    const fechaNom = (this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
+                    ExcelExportHelper.exportarTabla('tabla-cp04-resumen', `CP04_Costo_Produccion_Pollo_Vivo_${fechaNom}`);
+                }
+            };
+        }
+
+        const btnExportDetalle = document.getElementById('cp04-btn-export-detalle');
+        if (btnExportDetalle) {
+            btnExportDetalle.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    const fechaNom = (this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
+                    const sufijoLinea = this.lineaSeleccionada ? `_Linea_${this.lineaSeleccionada}` : '';
+                    ExcelExportHelper.exportarTabla('tabla-cp04-detalle', `CP04_Detalle_Costo_Unitario${sufijoLinea}_${fechaNom}`);
+                }
+            };
+        }
+
         this.filtrarLocalmente();
+
     },
 
     /**
@@ -443,8 +484,8 @@ const CP04_DEFINITION = {
             totalValor += val;
 
             const isSelected = this.lineaSeleccionada && String(this.lineaSeleccionada).trim() === String(r.linea).trim();
-            const rowClass = isSelected 
-                ? 'bg-blue-100/70 text-blue-900 font-bold ring-1 ring-blue-400' 
+            const rowClass = isSelected
+                ? 'bg-blue-100/70 text-blue-900 font-bold ring-1 ring-blue-400'
                 : 'hover:bg-blue-50/50 cursor-pointer transition-colors';
 
             html += `

@@ -282,8 +282,20 @@ window.ChartRegistry['CA03 RevisionInsumos'] = {
             <!-- 2. SECCIÓN INFERIOR: DETALLE DE INSUMOS QUE PERTENECEN A LA FORMULA (TABLA MATRIZ) -->
             <div class="w-full bg-white border border-slate-300 rounded-lg shadow-2xs overflow-hidden flex flex-col">
                 <div class="flex items-center justify-between px-4 py-2.5 bg-slate-100/90 border-b border-slate-300">
-                    <h2 class="text-sm font-bold text-slate-900 tracking-tight">Detalle de Insumos que Pertencen a la Formula</h2>
-                    <span class="text-[11px] text-slate-500 font-medium">Día de fecha (Orden descendente)</span>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-slate-900 tracking-tight">Detalle de Insumos que Pertencen a la Formula</h2>
+                        <span class="text-[11px] text-slate-500 font-medium">Día de fecha (Orden descendente)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="ca03-btn-export-insumos" type="button"
+                            class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                            </svg>
+                            <span>Excel</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto overflow-y-auto max-h-[480px] custom-scrollbar">
@@ -309,6 +321,16 @@ window.ChartRegistry['CA03 RevisionInsumos'] = {
                 </div>
             </div>
         `;
+
+        // Configurar exportación a Excel
+        const btnExport = document.getElementById('ca03-btn-export-insumos');
+        if (btnExport) {
+            btnExport.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('tabla-insumos-ca03', 'CA03_Detalle_Insumos_Formula');
+                }
+            };
+        }
 
         // Renderizar mini-charts de líneas
         this.renderLineCharts(seriesLineas);
