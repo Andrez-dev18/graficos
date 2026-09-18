@@ -132,6 +132,15 @@ class CostoDiarioService
             return CP08ComparativoGranjaGalponHandler::handle($this->db, $filtros);
         }
 
+        // Despacho Modular para CP09 Sanidad
+        if (
+            $tipoGrafico === 'CP09 Sanidad' || $tipoGrafico === 'CP09Sanidad' ||
+            $tipoGrafico === 'CP09' || $tipoGrafico === 'Sanidad'
+        ) {
+            require_once __DIR__ . '/handlers/CP09SanidadHandler.php';
+            return CP09SanidadHandler::handle($this->db, $filtros);
+        }
+
         // Despacho Modular para GraficaASO (Tendencia Costo por Kg de Pollo Vivo Sin Factor/ Con Factor)
         if (
             $tipoGrafico === 'GraficaASO' || $tipoGrafico === 'Grafica ASO' ||
