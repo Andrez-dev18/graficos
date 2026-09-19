@@ -96,8 +96,7 @@ window.MermasMesChart = {
                     labelId: 'label-placa-merma',
                     searchId: 'search-placa-merma',
                     title: 'Placa',
-                    options: optPlaca,
-                    onChange: () => this.controllerRef?.onCargarClick()
+                    options: optPlaca
                 });
             }
         }
@@ -121,8 +120,7 @@ window.MermasMesChart = {
                     labelId: 'label-cliente-merma',
                     searchId: 'search-cliente-merma',
                     title: 'Cliente',
-                    options: optCli,
-                    onChange: () => this.controllerRef?.onCargarClick()
+                    options: optCli
                 });
             }
         }
@@ -150,8 +148,7 @@ window.MermasMesChart = {
                     labelId: 'label-item-merma',
                     searchId: 'search-item-merma',
                     title: 'Item',
-                    options: optItem,
-                    onChange: () => this.controllerRef?.onCargarClick()
+                    options: optItem
                 });
             }
         }
@@ -168,9 +165,6 @@ window.MermasMesChart = {
                 <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden flex flex-col">
                     <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                         <div class="flex items-center gap-2.5">
-                            <div class="p-1.5 bg-blue-600 text-white rounded-lg shadow-2xs">
-                                <i class="fa-solid fa-scale-unbalanced text-sm"></i>
-                            </div>
                             <div>
                                 <h3 class="text-sm font-bold text-slate-900 tracking-tight">Mermas Mes</h3>
                                 <p class="text-[11px] text-slate-500">Resumen mensual de mermas en peso (kg) y valorización (S/) por código de item</p>
