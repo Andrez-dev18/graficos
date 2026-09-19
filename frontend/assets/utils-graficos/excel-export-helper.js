@@ -75,7 +75,7 @@ window.ExcelExportHelper = {
     },
 
     /**
-     * Exporta una tabla HTML a un archivo Excel (.xlsx) con estilos completos
+     * Exporta una tabla HTML a un archivo Excel (.xlsx) con estilos completos y formatos numéricos nativos
      * @param {string|HTMLTableElement} tableIdOrElement - ID o elemento <table> del DOM
      * @param {string} nombreArchivo - Nombre base del archivo
      * @param {Object} options - Opciones opcionales
@@ -123,16 +123,9 @@ window.ExcelExportHelper = {
             const isPercent = txt.endsWith('%');
             let clean = txt.replace(/S\/\s?/g, '').replace(/%/g, '').replace(/\s+/g, '');
 
-            // Formato estándar peruano: 1.234,56 o 0,270
-            if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean)) {
+            // Formato estándar peruano: 1.234,56 o 0,270 o 1234.56
+            if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean) || /^-?\d+(,\d+)?$/.test(clean) || /^-?\d+(\.\d+)?$/.test(clean)) {
                 clean = clean.replace(/\./g, '').replace(',', '.');
-                const num = parseFloat(clean);
-                if (!isNaN(num)) {
-                    cell.innerText = isPercent ? (num / 100).toString() : num.toString();
-                    cell.setAttribute('data-t', 'n');
-                }
-            } else if (/^-?\d+(,\d+)?$/.test(clean)) {
-                clean = clean.replace(',', '.');
                 const num = parseFloat(clean);
                 if (!isNaN(num)) {
                     cell.innerText = isPercent ? (num / 100).toString() : num.toString();
@@ -154,7 +147,28 @@ window.ExcelExportHelper = {
         const totalRows = range.e.r - range.s.r + 1;
         const tfootStartRow = totalRows - tfootRowsCount;
 
-        // Aplicar Estilos Celda por Celda
+        // Detectar tipo de formato por columna según encabezados
+        const colFormatType = {}; // C -> 'percent' | 'currency' | 'number'
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            let headerText = '';
+            for (let R = 0; R < theadRowsCount; ++R) {
+                const hAddr = XLSX.utils.encode_cell({ r: R, c: C });
+                const hCell = ws[hAddr];
+                if (hCell && hCell.v) {
+                    headerText += ' ' + hCell.v.toString().toLowerCase();
+                }
+            }
+
+            if (headerText.includes('%') || headerText.includes('porc') || headerText.includes('merma') && headerText.includes('peso') && !headerText.includes('entrada')) {
+                colFormatType[C] = 'percent';
+            } else if (headerText.includes('val') || headerText.includes('s/') || headerText.includes('soles') || headerText.includes('costo') || headerText.includes('importe')) {
+                colFormatType[C] = 'currency';
+            } else {
+                colFormatType[C] = 'number';
+            }
+        }
+
+        // Aplicar Estilos y Formatos de Celda (z) Celda por Celda
         for (let R = range.s.r; R <= range.e.r; ++R) {
             const isTheadRow = (R < theadRowsCount);
             const isTfootRow = (tfootRowsCount > 0 && R >= tfootStartRow);
@@ -182,10 +196,31 @@ window.ExcelExportHelper = {
                     if (C === 0) {
                         cell.s.alignment = { vertical: "center", horizontal: "left" };
                     }
+                    if (cell.t === 'n') {
+                        const fmt = colFormatType[C];
+                        if (fmt === 'percent') {
+                            cell.z = '0.00%';
+                        } else if (fmt === 'currency') {
+                            cell.z = '"S/ "#,##0.00';
+                        } else {
+                            cell.z = '#,##0.00';
+                        }
+                    }
                 } else {
                     // Celdas de datos normales
                     const isNum = (cell.t === 'n');
                     cell.s = isNum ? { ...this.ESTILOS.dataCellRight } : { ...this.ESTILOS.dataCellLeft };
+
+                    if (isNum) {
+                        const fmt = colFormatType[C];
+                        if (fmt === 'percent') {
+                            cell.z = '0.00%';
+                        } else if (fmt === 'currency') {
+                            cell.z = '"S/ "#,##0.00';
+                        } else {
+                            cell.z = '#,##0.00';
+                        }
+                    }
                 }
             }
         }
@@ -194,11 +229,17 @@ window.ExcelExportHelper = {
         const colWidths = [];
         for (let C = range.s.c; C <= range.e.c; ++C) {
             let maxLen = 10;
+            const fmt = colFormatType[C];
+
             for (let R = range.s.r; R <= range.e.r; ++R) {
                 const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
                 const cell = ws[cellAddr];
-                if (cell && cell.v) {
-                    const strLen = cell.v.toString().length;
+                if (cell && cell.v !== undefined && cell.v !== null) {
+                    let strLen = cell.v.toString().length;
+                    if (cell.t === 'n') {
+                        if (fmt === 'percent') strLen = 7; // e.g. "100.00%"
+                        if (fmt === 'currency') strLen += 6; // e.g. "S/ 12,345.67"
+                    }
                     if (strLen > maxLen) maxLen = strLen;
                 }
             }

@@ -195,14 +195,13 @@ class MermaPlacaController {
         if (selPeriodo) selPeriodo.value = 'entre_fechas';
         this.setupPeriodo();
 
-        const selTipo = document.getElementById('select-tipo-grafico');
-        if (selTipo) selTipo.value = 'MermasMes';
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'MermasMes';
 
-        if (window.ChartRegistry && window.ChartRegistry[selTipo.value]) {
-            const mod = window.ChartRegistry[selTipo.value];
-            if (mod.multiPlaca) mod.multiPlaca.selectAll(true);
-            if (mod.multiCliente) mod.multiCliente.selectAll(true);
-            if (mod.multiItem) mod.multiItem.selectAll(true);
+        if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
+            const mod = window.ChartRegistry[tipoGrafico];
+            if (mod.multiPlaca) mod.multiPlaca.selectAll(false);
+            if (mod.multiCliente) mod.multiCliente.selectAll(false);
+            if (mod.multiItem) mod.multiItem.selectAll(false);
         }
 
         await this.onCargarClick();

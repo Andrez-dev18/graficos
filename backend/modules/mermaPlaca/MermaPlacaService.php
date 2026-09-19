@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/handlers/MermasMesHandler.php';
+require_once __DIR__ . '/handlers/MermasCamionDiaPesoHandler.php';
 
 class MermaPlacaService
 {
@@ -18,6 +19,9 @@ class MermaPlacaService
         switch ($tipoGrafico) {
             case 'MermasMes':
                 return MermasMesHandler::handle($this->db, $filtros);
+
+            case 'MermasCamionDiaPeso':
+                return MermasCamionDiaPesoHandler::handle($this->db, $filtros);
 
             default:
                 // Para otros gráficos del libro mientras se van implementando
