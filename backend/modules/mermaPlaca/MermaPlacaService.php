@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/handlers/MermasMesHandler.php';
 require_once __DIR__ . '/handlers/MermasCamionDiaPesoHandler.php';
+require_once __DIR__ . '/handlers/AnalisisMermasEscalable2Handler.php';
 
 class MermaPlacaService
 {
@@ -22,6 +23,9 @@ class MermaPlacaService
 
             case 'MermasCamionDiaPeso':
                 return MermasCamionDiaPesoHandler::handle($this->db, $filtros);
+
+            case 'AnalisisMermasEscalable2':
+                return AnalisisMermasEscalable2Handler::handle($this->db, $filtros);
 
             default:
                 // Para otros gráficos del libro mientras se van implementando

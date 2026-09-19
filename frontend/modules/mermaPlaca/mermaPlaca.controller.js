@@ -161,6 +161,7 @@ class MermaPlacaController {
         document.getElementById('contenedor-filtro-placa-merma')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-cliente-merma')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-item-merma')?.classList.add('hidden');
+        document.getElementById('contenedor-filtro-transaccion-merma')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {
@@ -202,6 +203,7 @@ class MermaPlacaController {
             if (mod.multiPlaca) mod.multiPlaca.selectAll(false);
             if (mod.multiCliente) mod.multiCliente.selectAll(false);
             if (mod.multiItem) mod.multiItem.selectAll(false);
+            if (mod.multiTrans) mod.multiTrans.selectAll(false);
         }
 
         await this.onCargarClick();
