@@ -6,6 +6,7 @@ require_once __DIR__ . '/handlers/AnalisisMermasEscalable2Handler.php';
 require_once __DIR__ . '/handlers/AnalisisMermasEscalable3Handler.php';
 require_once __DIR__ . '/handlers/DashAnalisisPlacasGralHandler.php';
 require_once __DIR__ . '/handlers/DashPlacaMermaHandler.php';
+require_once __DIR__ . '/handlers/DashAnalisisMermaEscalableHandler.php';
 
 class MermaPlacaService
 {
@@ -26,6 +27,9 @@ class MermaPlacaService
 
             case 'MermasCamionDiaPeso':
                 return MermasCamionDiaPesoHandler::handle($this->db, $filtros);
+
+            case 'DashAnalisisMermaEscalable':
+                return DashAnalisisMermaEscalableHandler::handle($this->db, $filtros);
 
             case 'AnalisisMermasEscalable2':
                 return AnalisisMermasEscalable2Handler::handle($this->db, $filtros);
