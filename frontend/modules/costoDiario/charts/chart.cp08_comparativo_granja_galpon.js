@@ -140,13 +140,23 @@ window.ChartCP08ComparativoGranjaGalpon = {
                     <div class="xl:col-span-5 flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">Datos Productivos</h3>
-                            <span id="cp08-badge-p1" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
-                                0 Granjas
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span id="cp08-badge-p1" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
+                                    0 Granjas
+                                </span>
+                                <button id="cp08-btn-export-p1" type="button"
+                                    class="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="w-full overflow-x-auto max-h-[460px] custom-scrollbar">
-                            <table class="w-full text-xs border-collapse select-none">
+                            <table id="cp08-tabla-p1" class="w-full text-xs border-collapse select-none">
                                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                                     <tr>
                                         <th class="px-2 py-2 border-r border-slate-200">cencos</th>
@@ -170,9 +180,19 @@ window.ChartCP08ComparativoGranjaGalpon = {
                     <div class="xl:col-span-7 flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">Comparacion Linea</h3>
-                            <span id="cp08-badge-p2" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
-                                0 Líneas
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span id="cp08-badge-p2" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
+                                    0 Líneas
+                                </span>
+                                <button id="cp08-btn-export-p2" type="button"
+                                    class="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="w-full overflow-x-auto max-h-[460px] custom-scrollbar" id="cp08-container-tabla-p2">
@@ -191,9 +211,19 @@ window.ChartCP08ComparativoGranjaGalpon = {
                                 Línea: - ✕
                             </span>
                         </div>
-                        <span id="cp08-badge-p3" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
-                            0 Productos
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <span id="cp08-badge-p3" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
+                                0 Productos
+                            </span>
+                            <button id="cp08-btn-export-p3" type="button"
+                                class="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                </svg>
+                                <span>Excel</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="w-full overflow-x-auto max-h-[500px] custom-scrollbar" id="cp08-container-tabla-p3">
@@ -209,6 +239,41 @@ window.ChartCP08ComparativoGranjaGalpon = {
             this.renderPanel2();
             this.renderPanel3();
         });
+
+        // Configuración de exportación a Excel para las 3 tablas de CP08
+        const fechaNom = (this.datosBackend.fecha_formateada || this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
+
+        const btnP1 = document.getElementById('cp08-btn-export-p1');
+        if (btnP1) {
+            btnP1.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('cp08-tabla-p1', `CP08_Datos_Productivos_${fechaNom}`);
+                }
+            };
+        }
+
+        const btnP2 = document.getElementById('cp08-btn-export-p2');
+        if (btnP2) {
+            btnP2.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    const sufijoCencos = this.cencosActivo ? `_${this.cencosActivo}` : '';
+                    const sufijoGalp = this.galponActivo ? `_G${this.galponActivo}` : '';
+                    ExcelExportHelper.exportarTabla('cp08-tabla-p2', `CP08_Comparacion_Linea${sufijoCencos}${sufijoGalp}_${fechaNom}`);
+                }
+            };
+        }
+
+        const btnP3 = document.getElementById('cp08-btn-export-p3');
+        if (btnP3) {
+            btnP3.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    const sufijoCencos = this.cencosActivo ? `_${this.cencosActivo}` : '';
+                    const sufijoGalp = this.galponActivo ? `_G${this.galponActivo}` : '';
+                    const sufijoLinea = this.lineaSeleccionada ? `_L${this.lineaSeleccionada}` : '';
+                    ExcelExportHelper.exportarTabla('cp08-tabla-p3', `CP08_Comparativo_Detalle_Productos${sufijoCencos}${sufijoGalp}${sufijoLinea}_${fechaNom}`);
+                }
+            };
+        }
 
         this.renderPanel1();
         this.renderPanel2();
@@ -562,7 +627,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         tfootHtml += `</tr>`;
 
         container.innerHTML = `
-            <table class="w-full text-xs border-collapse select-none">
+            <table id="cp08-tabla-p2" class="w-full text-xs border-collapse select-none">
                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                     ${headerRow1}
                     ${headerRow2}
@@ -774,7 +839,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         tfootHtml += `</tr>`;
 
         container.innerHTML = `
-            <table class="w-full text-xs border-collapse select-none">
+            <table id="cp08-tabla-p3" class="w-full text-xs border-collapse select-none">
                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                     ${headerRow0}
                     ${headerRow1}

@@ -47,6 +47,28 @@ window.CP10CostoDiarioChart = {
         // Configurar selector de fecha interno de la Tabla 2
         this.setupCardFechaSelector();
 
+        // Configuración de exportación a Excel para las 2 tablas de CP10
+        const mesNom = (this.datosBackend.mes_seleccionado || 'general').replace(/[^a-zA-Z0-9]/g, '_');
+
+        const btnT1 = document.getElementById('cp10-btn-export-t1');
+        if (btnT1) {
+            btnT1.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('tabla-cp10-costo-dia', `CP10_Costo_Produccion_Dia_a_Dia_${mesNom}`);
+                }
+            };
+        }
+
+        const btnT2 = document.getElementById('cp10-btn-export-t2');
+        if (btnT2) {
+            btnT2.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    const diaNom = (this.datosBackend.dia_seleccionado || 'dia').replace(/[^a-zA-Z0-9]/g, '_');
+                    ExcelExportHelper.exportarTabla('tabla-cp10-prod-dia', `CP10_Datos_Productivos_${diaNom}`);
+                }
+            };
+        }
+
         // Delegación de eventos para tooltips ultra rápidos
         this.bindEventsDelegation();
     },
@@ -184,6 +206,14 @@ window.CP10CostoDiarioChart = {
                                 <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                 Dif. Ant > 0 (Incremento)
                             </span>
+                            <button id="cp10-btn-export-t1" type="button"
+                                class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                </svg>
+                                <span>Excel</span>
+                            </button>
                         </div>
                     </div>
                     
@@ -209,26 +239,37 @@ window.CP10CostoDiarioChart = {
                             </div>
                         </div>
 
-                        <!-- FILTRO INTERNO DE FECHAHISTO (TABLEAU STYLE) -->
-                        <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Día de corte:</span>
-                            
-                            <button id="cp10-btn-prev-dia" type="button" title="Día anterior"
-                                class="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path>
-                                </svg>
-                            </button>
+                        <div class="flex items-center gap-3">
+                            <!-- FILTRO INTERNO DE FECHAHISTO (TABLEAU STYLE) -->
+                            <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Día de corte:</span>
+                                
+                                <button id="cp10-btn-prev-dia" type="button" title="Día anterior"
+                                    class="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path>
+                                    </svg>
+                                </button>
 
-                            <select id="cp10-card-select-dia"
-                                class="bg-transparent text-xs font-bold text-blue-700 focus:outline-none cursor-pointer border-none py-0.5 pr-6">
-                            </select>
+                                <select id="cp10-card-select-dia"
+                                    class="bg-transparent text-xs font-bold text-blue-700 focus:outline-none cursor-pointer border-none py-0.5 pr-6">
+                                </select>
 
-                            <button id="cp10-btn-next-dia" type="button" title="Día siguiente"
-                                class="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path>
+                                <button id="cp10-btn-next-dia" type="button" title="Día siguiente"
+                                    class="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <button id="cp10-btn-export-t2" type="button"
+                                class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
                                 </svg>
+                                <span>Excel</span>
                             </button>
                         </div>
                     </div>

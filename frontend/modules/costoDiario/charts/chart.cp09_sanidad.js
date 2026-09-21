@@ -45,6 +45,36 @@ window.CP09SanidadChart = {
 
         // Delegación de eventos de alto rendimiento
         this.bindEventsDelegation();
+
+        // Configuración de exportación a Excel para las 3 tablas de CP09
+        const fechaNom = (this.datosBackend.fecha_formateada || this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
+
+        const btnP1 = document.getElementById('cp09-btn-export-p1');
+        if (btnP1) {
+            btnP1.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('cp09-tabla-p1', `CP09_Datos_Productivos_${fechaNom}`);
+                }
+            };
+        }
+
+        const btnP2 = document.getElementById('cp09-btn-export-p2');
+        if (btnP2) {
+            btnP2.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('cp09-tabla-p2', `CP09_Detalle_Venta_Productiva_${fechaNom}`);
+                }
+            };
+        }
+
+        const btnP3 = document.getElementById('cp09-btn-export-p3');
+        if (btnP3) {
+            btnP3.onclick = () => {
+                if (typeof ExcelExportHelper !== 'undefined') {
+                    ExcelExportHelper.exportarTabla('cp09-tabla-p3', `CP09_Datos_Costo_${fechaNom}`);
+                }
+            };
+        }
     },
 
     getSelectedFilters() {
@@ -182,9 +212,19 @@ window.CP09SanidadChart = {
                     <div class="xl:col-span-6 flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">Datos Productivos</h3>
-                            <span id="cp09-badge-p1" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
-                                0 Granjas
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span id="cp09-badge-p1" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
+                                    0 Granjas
+                                </span>
+                                <button id="cp09-btn-export-p1" type="button"
+                                    class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="w-full overflow-x-auto max-h-[480px] custom-scrollbar" id="cp09-container-p1"></div>
@@ -194,9 +234,19 @@ window.CP09SanidadChart = {
                     <div class="xl:col-span-6 flex flex-col bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">Detalle Venta Productiva</h3>
-                            <span id="cp09-badge-p2" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
-                                0 Registros
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span id="cp09-badge-p2" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
+                                    0 Registros
+                                </span>
+                                <button id="cp09-btn-export-p2" type="button"
+                                    class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                        <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="w-full overflow-x-auto max-h-[480px] custom-scrollbar" id="cp09-container-p2"></div>
@@ -218,9 +268,19 @@ window.CP09SanidadChart = {
                                 </span>
                             </div>
                         </div>
-                        <span id="cp09-badge-p3" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
-                            0 Líneas
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <span id="cp09-badge-p3" class="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 whitespace-nowrap">
+                                0 Líneas
+                            </span>
+                            <button id="cp09-btn-export-p3" type="button"
+                                class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                    <path d="M8.5 17.5l2.25-3.5L8.5 10.5h1.75l1.375 2.25 1.375-2.25h1.75l-2.25 3.5 2.25 3.5h-1.75L11.625 15.25 10.25 17.5z"/>
+                                </svg>
+                                <span>Excel</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="w-full overflow-x-auto max-h-[580px] custom-scrollbar" id="cp09-container-p3"></div>
@@ -315,7 +375,7 @@ window.CP09SanidadChart = {
         });
 
         container.innerHTML = `
-            <table class="w-full text-xs border-collapse select-none">
+            <table id="cp09-tabla-p1" class="w-full text-xs border-collapse select-none">
                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                     ${headerRow1}
                     ${headerRow2}
@@ -434,7 +494,7 @@ window.CP09SanidadChart = {
         });
 
         container.innerHTML = `
-            <table class="w-full text-xs border-collapse select-none">
+            <table id="cp09-tabla-p2" class="w-full text-xs border-collapse select-none">
                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                     ${headerRow1}
                     ${headerRow2}
@@ -610,7 +670,7 @@ window.CP09SanidadChart = {
         }
 
         container.innerHTML = `
-            <table class="w-full text-xs border-collapse select-none">
+            <table id="cp09-tabla-p3" class="w-full text-xs border-collapse select-none">
                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                     ${headerRow0}
                     ${headerRow1}
