@@ -13,6 +13,12 @@ class MermaPlacaController {
     }
 
     destruirGraficaActual() {
+        const tt = document.getElementById('tooltip-tableau-costos');
+        if (tt) {
+            tt.classList.add('hidden');
+            tt.style.display = 'none';
+            tt.innerHTML = '';
+        }
         if (this.chartTipoActual && window.ChartRegistry && window.ChartRegistry[this.chartTipoActual] && typeof window.ChartRegistry[this.chartTipoActual].destroy === 'function') {
             window.ChartRegistry[this.chartTipoActual].destroy();
         }
