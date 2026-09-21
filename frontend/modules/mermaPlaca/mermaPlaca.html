@@ -111,7 +111,28 @@
                             <option value="DashAnalisisPlacasGral">DashAnalisisPlacasGral</option>
                             <option value="DashAnalisisPlacas">DashAnalisisPlacas</option>
                             <option value="Dash Tendencias">Dash Tendencias</option>
+                            <option value="DashPlacaMerma">DashPlacaMerma</option>
                         </select>
+                    </div>
+
+                    <!-- MULTISELECT CORPORATIVO -->
+                    <div id="contenedor-filtro-corporativo-merma" class="relative flex flex-col hidden transition-all">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CORPORATIVO</label>
+                        <button id="btn-dropdown-corporativo-merma" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[190px]">
+                            <span id="label-corporativo-merma" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-corporativo-merma"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-corporativo-merma" type="text" placeholder="Buscar corporativo..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-corporativo-merma" class="max-h-52 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Renderizado dinámico -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- MULTISELECT PLACA -->
@@ -275,8 +296,9 @@
     <script src="charts/chart.analisis_mermas_escalable2.js?v=20260919_2"></script>
     <script src="charts/chart.analisis_mermas_escalable3.js?v=20260919_2"></script>
     <script src="charts/chart.dash_analisis_placas_gral.js?v=20260921_6"></script>
+    <script src="charts/chart.dash_placa_merma.js?v=20260921_7"></script>
     <script src="mermaPlaca.service.js?v=20260921_6"></script>
-    <script src="mermaPlaca.controller.js?v=20260921_6"></script>
+    <script src="mermaPlaca.controller.js?v=20260921_12"></script>
 </body>
 
 </html>

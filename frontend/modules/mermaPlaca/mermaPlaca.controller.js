@@ -117,6 +117,15 @@ class MermaPlacaController {
                 rango = PeriodoHelper.obtenerRangoFechas();
             }
 
+            const tipoPeriodo = document.getElementById('select-tipo-periodo')?.value;
+            if (tipoPeriodo === 'por_fecha') {
+                const fUnica = document.getElementById('input-fecha-unica')?.value;
+                if (fUnica) {
+                    rango.fechaInicio = fUnica;
+                    rango.fechaFin = fUnica;
+                }
+            }
+
             const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'MermasMes';
 
             let extraFilters = {};
@@ -164,6 +173,7 @@ class MermaPlacaController {
     }
 
     ocultarTodosLosFiltrosModulares() {
+        document.getElementById('contenedor-filtro-corporativo-merma')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-placa-merma')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-cliente-merma')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-item-merma')?.classList.add('hidden');
@@ -206,10 +216,15 @@ class MermaPlacaController {
 
         if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
             const mod = window.ChartRegistry[tipoGrafico];
-            if (mod.multiPlaca) mod.multiPlaca.selectAll(false);
-            if (mod.multiCliente) mod.multiCliente.selectAll(false);
-            if (mod.multiItem) mod.multiItem.selectAll(false);
-            if (mod.multiTrans) mod.multiTrans.selectAll(false);
+            if (typeof mod.resetFilters === 'function') {
+                mod.resetFilters();
+            } else {
+                if (mod.multiCorp) mod.multiCorp.selectAll(false);
+                if (mod.multiPlaca) mod.multiPlaca.selectAll(false);
+                if (mod.multiCliente) mod.multiCliente.selectAll(false);
+                if (mod.multiItem) mod.multiItem.selectAll(false);
+                if (mod.multiTrans) mod.multiTrans.selectAll(false);
+            }
         }
 
         await this.onCargarClick();
