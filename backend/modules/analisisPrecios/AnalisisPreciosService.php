@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/handlers/DashAnalisiPreciosHandler.php';
 require_once __DIR__ . '/handlers/DashAnalisisPreciosELSHandler.php';
+require_once __DIR__ . '/handlers/DashRegaloELSHandler.php';
 
 class AnalisisPreciosService
 {
@@ -25,6 +26,10 @@ class AnalisisPreciosService
             case 'AnalisisPreciosELS':
             case 'DashAnalisisPreciosELS':
                 return DashAnalisisPreciosELSHandler::handle($this->db, $filtros);
+
+            case 'DashRegaloELS':
+            case 'RegaloELS':
+                return DashRegaloELSHandler::handle($this->db, $filtros);
 
             default:
                 return [
