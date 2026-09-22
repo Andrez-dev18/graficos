@@ -67,6 +67,12 @@ class MermaPlacaController {
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
+                if (selTipoGrafico.value === 'DashAnalisisPlacas') {
+                    const inputIni = document.getElementById('input-fecha-inicio');
+                    const inputFin = document.getElementById('input-fecha-fin');
+                    if (inputIni) inputIni.value = '2026-03-30';
+                    if (inputFin) inputFin.value = '2026-03-31';
+                }
                 await this.onCargarClick();
             });
         }
