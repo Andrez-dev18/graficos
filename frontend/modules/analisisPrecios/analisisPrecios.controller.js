@@ -144,7 +144,7 @@ class AnalisisPreciosController {
             if (!window.ChartRegistry?.[tipoGrafico]?.multiProvincia && !extraFilters.provincia) {
                 extraFilters.provincia = ['AREQUIPA'];
             }
-            if (!window.ChartRegistry?.[tipoGrafico]?.multiZona && !extraFilters.zona) {
+            if (tipoGrafico === 'DashAnalisiPrecios' && !window.ChartRegistry?.[tipoGrafico]?.multiZona && !extraFilters.zona) {
                 extraFilters.zona = ['ZONA CONO NORTE'];
             }
 

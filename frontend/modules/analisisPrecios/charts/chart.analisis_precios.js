@@ -144,6 +144,14 @@ window.AnalisisPreciosChart = {
     setupFilters(opciones = {}) {
         if (typeof CustomMultiSelect === 'undefined') return;
 
+        // Visibilidad de filtros para DashAnalisiPrecios
+        document.getElementById('contenedor-filtro-tdoc-precios')?.classList.remove('hidden');
+        document.getElementById('contenedor-filtro-linea-precios')?.classList.remove('hidden');
+        document.getElementById('contenedor-filtro-corporativo-precios')?.classList.remove('hidden');
+        document.getElementById('contenedor-filtro-cliente-precios')?.classList.remove('hidden');
+        document.getElementById('contenedor-filtro-provincia-precios')?.classList.remove('hidden');
+        document.getElementById('contenedor-filtro-zona-precios')?.classList.remove('hidden');
+
         // 1. TDOC (01, 03, 07, 08)
         const tdocsDisp = opciones.tdocs || ['01', '03', '07', '08'];
         if (!this.multiTdoc) {
