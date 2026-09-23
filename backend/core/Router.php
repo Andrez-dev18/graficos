@@ -80,6 +80,19 @@ class Router
                 }
             }
 
+            // Fallback recursivo: buscar el controlador en cualquier subdirectorio de modules/
+            if (!file_exists($controllerPath)) {
+                $iterator = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($baseModulesPath, RecursiveDirectoryIterator::SKIP_DOTS)
+                );
+                foreach ($iterator as $file) {
+                    if ($file->isFile() && $file->getFilename() === $controllerName . '.php') {
+                        $controllerPath = $file->getPathname();
+                        break;
+                    }
+                }
+            }
+
             if (file_exists($controllerPath)) {
                 require_once $controllerPath;
                 $controller = new $controllerName();
