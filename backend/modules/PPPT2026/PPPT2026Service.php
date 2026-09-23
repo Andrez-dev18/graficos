@@ -3,6 +3,7 @@
 require_once __DIR__ . '/handlers/DashPTHandler.php';
 require_once __DIR__ . '/handlers/DashPPHandler.php';
 require_once __DIR__ . '/handlers/DashPPResuHandler.php';
+require_once __DIR__ . '/handlers/DashPTResuHandler.php';
 
 class PPPT2026Service
 {
@@ -29,6 +30,10 @@ class PPPT2026Service
             case 'PPResu':
             case 'DashPPResu':
                 return DashPPResuHandler::handle($this->db, $filtros);
+
+            case 'PTResu':
+            case 'DashPTResu':
+                return DashPTResuHandler::handle($this->db, $filtros);
 
             default:
                 return DashPTHandler::handle($this->db, $filtros);
