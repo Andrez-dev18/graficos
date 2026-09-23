@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/handlers/DashPTHandler.php';
+require_once __DIR__ . '/handlers/DashPPHandler.php';
 
 class PPPT2026Service
 {
@@ -20,8 +21,11 @@ class PPPT2026Service
             case 'DashPT':
                 return DashPTHandler::handle($this->db, $filtros);
 
+            case 'PP':
+            case 'DashPP':
+                return DashPPHandler::handle($this->db, $filtros);
+
             default:
-                // Si aún no está implementado otro gráfico, por defecto devolvemos PT
                 return DashPTHandler::handle($this->db, $filtros);
         }
     }
