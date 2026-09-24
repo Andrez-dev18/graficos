@@ -112,6 +112,29 @@ window.ChartPresupuesto202404 = {
         const n1Keys = Object.keys(gruposN1);
         let esPrimeraFilaGlobal = true;
 
+        const getSaldoClass = (val, isBold = false) => {
+            const b = isBold ? 'font-bold' : 'font-semibold';
+            if (val < -0.001) return `text-red-600 ${b}`;
+            if (val > 0.001) return `text-emerald-700 ${b}`;
+            return `text-slate-500 font-normal`;
+        };
+
+        const getEjecutadoClass = (val, isTotal = false) => {
+            if (val > 0) {
+                return isTotal 
+                    ? 'text-blue-700 font-bold' 
+                    : 'text-blue-700 font-medium underline decoration-blue-300 cursor-pointer';
+            }
+            return isTotal ? 'text-slate-400 font-bold' : 'text-slate-400 font-normal';
+        };
+
+        const getEjecutadoDolarClass = (val, isTotal = false) => {
+            if (val > 0) {
+                return isTotal ? 'text-blue-700 font-bold' : 'text-blue-700 font-medium';
+            }
+            return isTotal ? 'text-slate-400 font-bold' : 'text-slate-400 font-normal';
+        };
+
         n1Keys.forEach((n1Key) => {
             const gN1 = gruposN1[n1Key];
             const n2Keys = Object.keys(gN1.gruposN2);
@@ -121,8 +144,10 @@ window.ChartPresupuesto202404 = {
 
                 // Filas de partidas individuales
                 gN2.items.forEach((it) => {
-                    const saldoClass = it.saldo < 0 ? 'text-red-600 font-semibold' : (it.saldo > 0 ? 'text-slate-700' : 'text-slate-500');
-                    const difClass = it.diferenciad < 0 ? 'text-red-600 font-semibold' : (it.diferenciad > 0 ? 'text-slate-700' : 'text-slate-500');
+                    const ejecClass = getEjecutadoClass(it.ejecutado, false);
+                    const saldoClass = getSaldoClass(it.saldo, false);
+                    const ejecDolarClass = getEjecutadoDolarClass(it.valord_regcompras, false);
+                    const difClass = getSaldoClass(it.diferenciad, false);
 
                     rowsHtml.push(`
                         <tr class="hover:bg-blue-50/30 transition-colors border-b border-slate-200 text-[11px] text-slate-700">
@@ -133,10 +158,10 @@ window.ChartPresupuesto202404 = {
                             <td class="px-2 py-1.5 font-mono text-center text-slate-600 border-r border-slate-200">${it.amarre}</td>
                             <td class="px-2.5 py-1.5 font-normal text-slate-700 border-r border-slate-200 max-w-[240px] truncate" title="${it.nompartida}">${it.nompartida}</td>
                             <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatSoles(it.presupuestado)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right text-blue-600 font-medium underline decoration-blue-300 border-r border-slate-200 cursor-pointer">${this.formatSoles(it.ejecutado)}</td>
+                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecClass}">${this.formatSoles(it.ejecutado)}</td>
                             <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoClass}">${this.formatSoles(it.saldo)}</td>
                             <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(it.valord_presupuesto)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(it.valord_regcompras)}</td>
+                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarClass}">${this.formatDolares(it.valord_regcompras)}</td>
                             <td class="px-2.5 py-1.5 font-mono text-right ${difClass}">${this.formatDolares(it.diferenciad)}</td>
                         </tr>
                     `);
@@ -144,8 +169,10 @@ window.ChartPresupuesto202404 = {
                 });
 
                 // Fila de Total N2 (Subtotal de la partida N2)
-                const saldoN2Class = gN2.total.saldo < 0 ? 'text-red-600 font-semibold' : 'text-slate-800 font-semibold';
-                const difN2Class = gN2.total.diferenciad < 0 ? 'text-red-600 font-semibold' : 'text-slate-800 font-semibold';
+                const ejecN2Class = getEjecutadoClass(gN2.total.ejecutado, true);
+                const saldoN2Class = getSaldoClass(gN2.total.saldo, true);
+                const ejecDolarN2Class = getEjecutadoDolarClass(gN2.total.valord_regcompras, true);
+                const difN2Class = getSaldoClass(gN2.total.diferenciad, true);
 
                 rowsHtml.push(`
                     <tr class="bg-slate-50/60 border-b border-slate-200 text-[11px] text-slate-800 font-semibold">
@@ -156,18 +183,20 @@ window.ChartPresupuesto202404 = {
                         <td class="px-2 py-1.5 border-r border-slate-200"></td>
                         <td class="px-2.5 py-1.5 border-r border-slate-200"></td>
                         <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatSoles(gN2.total.presupuestado)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right text-blue-700 underline decoration-blue-300 border-r border-slate-200">${this.formatSoles(gN2.total.ejecutado)}</td>
+                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecN2Class}">${this.formatSoles(gN2.total.ejecutado)}</td>
                         <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoN2Class}">${this.formatSoles(gN2.total.saldo)}</td>
                         <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(gN2.total.valord_presupuesto)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(gN2.total.valord_regcompras)}</td>
+                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarN2Class}">${this.formatDolares(gN2.total.valord_regcompras)}</td>
                         <td class="px-2.5 py-1.5 font-mono text-right ${difN2Class}">${this.formatDolares(gN2.total.diferenciad)}</td>
                     </tr>
                 `);
             });
 
             // Fila de Total N1 (Subtotal de la categoría N1)
-            const saldoN1Class = gN1.total.saldo < 0 ? 'text-red-600 font-bold' : 'text-slate-900 font-bold';
-            const difN1Class = gN1.total.diferenciad < 0 ? 'text-red-600 font-bold' : 'text-slate-900 font-bold';
+            const ejecN1Class = getEjecutadoClass(gN1.total.ejecutado, true);
+            const saldoN1Class = getSaldoClass(gN1.total.saldo, true);
+            const ejecDolarN1Class = getEjecutadoDolarClass(gN1.total.valord_regcompras, true);
+            const difN1Class = getSaldoClass(gN1.total.diferenciad, true);
 
             rowsHtml.push(`
                 <tr class="bg-slate-100/80 border-b-2 border-slate-300 text-[11px] text-slate-900 font-bold">
@@ -178,16 +207,21 @@ window.ChartPresupuesto202404 = {
                     <td class="px-2 py-1.5 border-r border-slate-200"></td>
                     <td class="px-2.5 py-1.5 border-r border-slate-200"></td>
                     <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatSoles(gN1.total.presupuestado)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right text-blue-700 underline decoration-blue-400 border-r border-slate-200">${this.formatSoles(gN1.total.ejecutado)}</td>
+                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecN1Class}">${this.formatSoles(gN1.total.ejecutado)}</td>
                     <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoN1Class}">${this.formatSoles(gN1.total.saldo)}</td>
                     <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(gN1.total.valord_presupuesto)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(gN1.total.valord_regcompras)}</td>
+                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarN1Class}">${this.formatDolares(gN1.total.valord_regcompras)}</td>
                     <td class="px-2.5 py-1.5 font-mono text-right ${difN1Class}">${this.formatDolares(gN1.total.diferenciad)}</td>
                 </tr>
             `);
         });
 
         // Estructura completa del card y tabla
+        const grandEjecClass = getEjecutadoClass(grandTotal.ejecutado, true);
+        const grandSaldoClass = getSaldoClass(grandTotal.saldo, true);
+        const grandEjecDolarClass = getEjecutadoDolarClass(grandTotal.valord_regcompras, true);
+        const grandDifClass = getSaldoClass(grandTotal.diferenciad, true);
+
         const tableHtml = `
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
                 <!-- ENCABEZADO DE TARJETA CON EXCEL -->
@@ -243,11 +277,11 @@ window.ChartPresupuesto202404 = {
                                 <td class="px-2 py-2 border-r border-slate-300"></td>
                                 <td class="px-2.5 py-2 border-r border-slate-300"></td>
                                 <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300">${this.formatSoles(grandTotal.presupuestado)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right text-blue-700 underline decoration-blue-400 border-r border-slate-300">${this.formatSoles(grandTotal.ejecutado)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandTotal.saldo < 0 ? 'text-red-600' : 'text-slate-900'}">${this.formatSoles(grandTotal.saldo)}</td>
+                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandEjecClass}">${this.formatSoles(grandTotal.ejecutado)}</td>
+                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandSaldoClass}">${this.formatSoles(grandTotal.saldo)}</td>
                                 <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300">${this.formatDolares(grandTotal.valord_presupuesto)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300">${this.formatDolares(grandTotal.valord_regcompras)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right ${grandTotal.diferenciad < 0 ? 'text-red-600' : 'text-slate-900'}">${this.formatDolares(grandTotal.diferenciad)}</td>
+                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandEjecDolarClass}">${this.formatDolares(grandTotal.valord_regcompras)}</td>
+                                <td class="px-2.5 py-2 font-mono text-right ${grandDifClass}">${this.formatDolares(grandTotal.diferenciad)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -305,6 +339,26 @@ window.ChartPresupuesto202404 = {
                 alignment: { vertical: "center", horizontal: "right" }
             };
 
+            const dataStyleCurrencyBlue = {
+                font: { name: "Segoe UI", sz: 9.5, color: { rgb: "1D4ED8" } },
+                alignment: { vertical: "center", horizontal: "right" }
+            };
+
+            const dataStyleCurrencyRed = {
+                font: { name: "Segoe UI", sz: 9.5, color: { rgb: "DC2626" } },
+                alignment: { vertical: "center", horizontal: "right" }
+            };
+
+            const dataStyleCurrencyGreen = {
+                font: { name: "Segoe UI", sz: 9.5, color: { rgb: "15803D" } },
+                alignment: { vertical: "center", horizontal: "right" }
+            };
+
+            const dataStyleCurrencyMuted = {
+                font: { name: "Segoe UI", sz: 9.5, color: { rgb: "94A3B8" } },
+                alignment: { vertical: "center", horizontal: "right" }
+            };
+
             const dataStyleCurrencyDolares = {
                 font: { name: "Segoe UI", sz: 9.5, color: { rgb: "1E293B" } },
                 alignment: { vertical: "center", horizontal: "right" }
@@ -325,20 +379,27 @@ window.ChartPresupuesto202404 = {
                 { t: 's', v: 'diferenciad', s: headerStyle }
             ];
 
-            const dataRows = items.map(it => [
-                { t: 's', v: data.presupuesto_nombre || '', s: dataStyleLeft },
-                { t: 's', v: it.n1 || '', s: dataStyleLeft },
-                { t: 's', v: it.n2 || '', s: dataStyleLeft },
-                { t: 's', v: it.nropartida || '', s: dataStyleCenter },
-                { t: 's', v: it.amarre || '', s: dataStyleCenter },
-                { t: 's', v: it.nompartida || '', s: dataStyleLeft },
-                { t: 'n', v: it.presupuestado, z: '"S/ "#,##0.00', s: dataStyleCurrencySoles },
-                { t: 'n', v: it.ejecutado, z: '"S/ "#,##0.00', s: dataStyleCurrencySoles },
-                { t: 'n', v: it.saldo, z: '"S/ "#,##0.00', s: dataStyleCurrencySoles },
-                { t: 'n', v: it.valord_presupuesto, z: '"US$ "#,##0.00', s: dataStyleCurrencyDolares },
-                { t: 'n', v: it.valord_regcompras, z: '"US$ "#,##0.00', s: dataStyleCurrencyDolares },
-                { t: 'n', v: it.diferenciad, z: '"US$ "#,##0.00', s: dataStyleCurrencyDolares }
-            ]);
+            const dataRows = items.map(it => {
+                const sEjec = it.ejecutado > 0 ? dataStyleCurrencyBlue : dataStyleCurrencyMuted;
+                const sSaldo = it.saldo < -0.001 ? dataStyleCurrencyRed : (it.saldo > 0.001 ? dataStyleCurrencyGreen : dataStyleCurrencyMuted);
+                const sEjecD = it.valord_regcompras > 0 ? dataStyleCurrencyBlue : dataStyleCurrencyMuted;
+                const sDifD = it.diferenciad < -0.001 ? dataStyleCurrencyRed : (it.diferenciad > 0.001 ? dataStyleCurrencyGreen : dataStyleCurrencyMuted);
+
+                return [
+                    { t: 's', v: data.presupuesto_nombre || '', s: dataStyleLeft },
+                    { t: 's', v: it.n1 || '', s: dataStyleLeft },
+                    { t: 's', v: it.n2 || '', s: dataStyleLeft },
+                    { t: 's', v: it.nropartida || '', s: dataStyleCenter },
+                    { t: 's', v: it.amarre || '', s: dataStyleCenter },
+                    { t: 's', v: it.nompartida || '', s: dataStyleLeft },
+                    { t: 'n', v: it.presupuestado, z: '"S/ "#,##0.00', s: dataStyleCurrencySoles },
+                    { t: 'n', v: it.ejecutado, z: '"S/ "#,##0.00', s: sEjec },
+                    { t: 'n', v: it.saldo, z: '"S/ "#,##0.00', s: sSaldo },
+                    { t: 'n', v: it.valord_presupuesto, z: '"US$ "#,##0.00', s: dataStyleCurrencyDolares },
+                    { t: 'n', v: it.valord_regcompras, z: '"US$ "#,##0.00', s: sEjecD },
+                    { t: 'n', v: it.diferenciad, z: '"US$ "#,##0.00', s: sDifD }
+                ];
+            });
 
             const ws = XLSX.utils.aoa_to_sheet([rowHead, ...dataRows]);
             const range = XLSX.utils.decode_range(ws['!ref']);
