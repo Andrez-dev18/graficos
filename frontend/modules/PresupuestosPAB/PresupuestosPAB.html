@@ -112,6 +112,16 @@
                             <option value="DashComparativoCronoRC">DashComparativoCronoRC</option>
                         </select>
                     </div>
+
+                    <!-- SELECT FILTRO PRESUPUESTO DINÁMICO (SOLO PARA ANALISIS PARTIDAS / DASHBOARDS APLICABLES) -->
+                    <div id="contenedor-filtro-presupuesto" class="flex flex-col hidden">
+                        <label for="select-filtro-presupuesto"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PRESUPUESTO</label>
+                        <select id="select-filtro-presupuesto"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="202410" selected>202410</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- BOTONES DE ACCIÓN -->
@@ -156,6 +166,7 @@
     <script src="charts/chart.presupuesto202410pct.js?v=20260924_1"></script>
     <script src="charts/chart.presupuesto202503.js?v=20260924_1"></script>
     <script src="charts/chart.presupuesto202503pct.js?v=20260924_1"></script>
+    <script src="charts/chart.analisispartidas.js?v=20260924_1"></script>
     <script src="PresupuestosPAB.service.js?v=20260924_1"></script>
     <script src="PresupuestosPAB.controller.js?v=20260924_1"></script>
 </body>

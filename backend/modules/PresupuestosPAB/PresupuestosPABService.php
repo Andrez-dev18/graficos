@@ -8,6 +8,7 @@ require_once __DIR__ . '/handlers/DashPresupuesto202410Handler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202410PctHandler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202503Handler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202503PctHandler.php';
+require_once __DIR__ . '/handlers/AnalisisPartidasHandler.php';
 
 class PresupuestosPABService
 {
@@ -23,6 +24,11 @@ class PresupuestosPABService
         $tipoGrafico = $filtros['tipo_grafico'] ?? 'DashPresupuesto202403';
 
         switch ($tipoGrafico) {
+            case 'AnalisisPartidas':
+            case 'ComprasPorPartida':
+            case 'RC':
+                return AnalisisPartidasHandler::handle($this->db, $filtros);
+
             case 'DashPresupuesto202503Pct':
             case 'DashPresupuesto202503%':
             case 'Presupuesto202503%':

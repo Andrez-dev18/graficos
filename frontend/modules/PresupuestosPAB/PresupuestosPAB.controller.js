@@ -41,6 +41,15 @@ class PresupuestosPABController {
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
+                this.actualizarVisibilidadFiltroPresupuesto();
+                await this.onCargarClick();
+            });
+        }
+
+        // Selector dinámico de presupuesto en la barra superior de filtros
+        const selFiltroPresu = document.getElementById('select-filtro-presupuesto');
+        if (selFiltroPresu) {
+            selFiltroPresu.addEventListener('change', async () => {
                 await this.onCargarClick();
             });
         }
@@ -71,7 +80,33 @@ class PresupuestosPABController {
         });
     }
 
+    actualizarVisibilidadFiltroPresupuesto() {
+        const selTipoGrafico = document.getElementById('select-tipo-grafico');
+        const contPresu = document.getElementById('contenedor-filtro-presupuesto');
+        if (!contPresu) return;
+
+        const tipo = selTipoGrafico ? selTipoGrafico.value : '';
+        if (tipo === 'AnalisisPartidas' || tipo === 'ComprasPorPartida' || tipo === 'RC') {
+            contPresu.classList.remove('hidden');
+        } else {
+            contPresu.classList.add('hidden');
+        }
+    }
+
+    actualizarOpcionesPresupuesto(lista = [], seleccionado = '202410') {
+        const selFiltroPresu = document.getElementById('select-filtro-presupuesto');
+        if (!selFiltroPresu || !lista.length) return;
+
+        const actualVal = selFiltroPresu.value || seleccionado;
+        selFiltroPresu.innerHTML = lista.map(p => {
+            const isSel = (p.codigo === actualVal) ? 'selected' : '';
+            return `<option value="${p.codigo}" ${isSel}>${p.nombre || p.codigo}</option>`;
+        }).join('');
+    }
+
     async onCargarClick() {
+        this.actualizarVisibilidadFiltroPresupuesto();
+
         const btnCargar = document.getElementById('btn-cargar');
         const originalBtnHtml = btnCargar ? btnCargar.innerHTML : '';
 
@@ -104,7 +139,12 @@ class PresupuestosPABController {
                 fecha_fin: rango.fechaFin || ''
             };
 
-            // Consultar datos al servicio (datos quemados/mock)
+            const selPresu = document.getElementById('select-filtro-presupuesto');
+            if (selPresu && selPresu.value) {
+                filtros.presupuesto = selPresu.value;
+            }
+
+            // Consultar datos al servicio
             const resp = await this.service.obtenerDashboard(filtros);
 
             if (!resp || resp.status !== 'success') {
@@ -114,6 +154,14 @@ class PresupuestosPABController {
             }
 
             this.datosDashboard = resp.data || resp.payload;
+
+            // Si devuelve lista de presupuestos disponibles, sincronizar el select
+            if (this.datosDashboard && this.datosDashboard.presupuestos_disponibles) {
+                this.actualizarOpcionesPresupuesto(
+                    this.datosDashboard.presupuestos_disponibles,
+                    this.datosDashboard.presupuesto_seleccionado || '202410'
+                );
+            }
 
             // Renderizar según componente registrado en ChartRegistry
             if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
