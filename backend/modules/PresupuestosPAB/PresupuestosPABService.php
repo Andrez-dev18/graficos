@@ -1,9 +1,13 @@
 <?php
 
 require_once __DIR__ . '/handlers/DashPresupuesto202403Handler.php';
+require_once __DIR__ . '/handlers/DashPresupuesto202403PctHandler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202404Handler.php';
+require_once __DIR__ . '/handlers/DashPresupuesto202404PctHandler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202410Handler.php';
+require_once __DIR__ . '/handlers/DashPresupuesto202410PctHandler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202503Handler.php';
+require_once __DIR__ . '/handlers/DashPresupuesto202503PctHandler.php';
 
 class PresupuestosPABService
 {
@@ -19,6 +23,26 @@ class PresupuestosPABService
         $tipoGrafico = $filtros['tipo_grafico'] ?? 'DashPresupuesto202403';
 
         switch ($tipoGrafico) {
+            case 'DashPresupuesto202503Pct':
+            case 'DashPresupuesto202503%':
+            case 'Presupuesto202503%':
+                return DashPresupuesto202503PctHandler::handle($this->db, $filtros);
+
+            case 'DashPresupuesto202410Pct':
+            case 'DashPresupuesto202410%':
+            case 'Presupuesto202410%':
+                return DashPresupuesto202410PctHandler::handle($this->db, $filtros);
+
+            case 'DashPresupuesto202404Pct':
+            case 'DashPresupuesto202404%':
+            case 'Presupuesto202404%':
+                return DashPresupuesto202404PctHandler::handle($this->db, $filtros);
+
+            case 'DashPresupuesto202403Pct':
+            case 'DashPresupuesto202403%':
+            case 'Presupuesto202403%':
+                return DashPresupuesto202403PctHandler::handle($this->db, $filtros);
+
             case 'DashPresupuesto202503':
             case 'Presupuesto202503':
                 return DashPresupuesto202503Handler::handle($this->db, $filtros);
