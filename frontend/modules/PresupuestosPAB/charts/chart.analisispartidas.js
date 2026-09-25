@@ -22,9 +22,10 @@ window.ChartAnalisisPartidas = {
     datosBackend: null,
     solesFormatter: new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
 
-    render(controller, data) {
+    render(controller, data, targetContainer = null) {
         this.controllerRef = controller;
         this.datosBackend = data || {};
+        this.containerRef = (typeof targetContainer === 'string' ? document.getElementById(targetContainer) : targetContainer) || document.getElementById('contenedor-graficos-lista');
 
         this.renderStructure();
         this.setupEventListeners();
@@ -73,7 +74,7 @@ window.ChartAnalisisPartidas = {
     },
 
     renderStructure() {
-        const contenedor = document.getElementById('contenedor-graficos-lista');
+        const contenedor = this.containerRef || document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
         const data = this.datosBackend || {};

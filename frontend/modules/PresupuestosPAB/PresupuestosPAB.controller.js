@@ -1,3 +1,14 @@
+const BUDGET_PAIRS = {
+    'DashPresupuesto202403': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
+    'DashPresupuesto202403Pct': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
+    'DashPresupuesto202404': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
+    'DashPresupuesto202404Pct': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
+    'DashPresupuesto202410': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
+    'DashPresupuesto202410Pct': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
+    'DashPresupuesto202503': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' },
+    'DashPresupuesto202503Pct': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' }
+};
+
 /**
  * Controlador para el Módulo Presupuestos PAB
  * Administra filtros de período (PeriodoHelper), tipo de gráfico y despacho al ChartRegistry.
@@ -13,6 +24,7 @@ class PresupuestosPABController {
     async init() {
         this.setupPeriodo();
         this.setupListeners();
+        this.actualizarVisibilidadControles();
         await this.onCargarClick();
     }
 
@@ -41,7 +53,15 @@ class PresupuestosPABController {
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         if (selTipoGrafico) {
             selTipoGrafico.addEventListener('change', async () => {
-                this.actualizarVisibilidadFiltroPresupuesto();
+                this.actualizarVisibilidadControles();
+                await this.onCargarClick();
+            });
+        }
+
+        // Checkbox para combinar resumen % y detalle
+        const chkMostrarAmbos = document.getElementById('check-mostrar-ambos');
+        if (chkMostrarAmbos) {
+            chkMostrarAmbos.addEventListener('change', async () => {
                 await this.onCargarClick();
             });
         }
@@ -80,17 +100,33 @@ class PresupuestosPABController {
         });
     }
 
-    actualizarVisibilidadFiltroPresupuesto() {
+    actualizarVisibilidadControles() {
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contPresu = document.getElementById('contenedor-filtro-presupuesto');
-        if (!contPresu) return;
+        const contCombinar = document.getElementById('contenedor-check-combinar');
 
         const tipo = selTipoGrafico ? selTipoGrafico.value : '';
-        if (tipo === 'AnalisisPartidas' || tipo === 'ComprasPorPartida' || tipo === 'RC' || tipo === 'DashComparativoCronoRC' || tipo === 'ComparativoCronoRC') {
-            contPresu.classList.remove('hidden');
-        } else {
-            contPresu.classList.add('hidden');
+        const esPresupuesto = Boolean(BUDGET_PAIRS[tipo]);
+
+        if (contCombinar) {
+            if (esPresupuesto) {
+                contCombinar.classList.remove('hidden');
+            } else {
+                contCombinar.classList.add('hidden');
+            }
         }
+
+        if (contPresu) {
+            if (tipo === 'AnalisisPartidas' || tipo === 'ComprasPorPartida' || tipo === 'RC' || tipo === 'DashComparativoCronoRC' || tipo === 'ComparativoCronoRC') {
+                contPresu.classList.remove('hidden');
+            } else {
+                contPresu.classList.add('hidden');
+            }
+        }
+    }
+
+    actualizarVisibilidadFiltroPresupuesto() {
+        this.actualizarVisibilidadControles();
     }
 
     actualizarOpcionesPresupuesto(lista = [], seleccionado = '202410') {
@@ -105,7 +141,7 @@ class PresupuestosPABController {
     }
 
     async onCargarClick() {
-        this.actualizarVisibilidadFiltroPresupuesto();
+        this.actualizarVisibilidadControles();
 
         const btnCargar = document.getElementById('btn-cargar');
         const originalBtnHtml = btnCargar ? btnCargar.innerHTML : '';
@@ -127,50 +163,104 @@ class PresupuestosPABController {
             const tipoGrafico = selTipoGrafico ? selTipoGrafico.value : 'DashPresupuesto202403';
             this.chartTipoActual = tipoGrafico;
 
+            const chkMostrarAmbos = document.getElementById('check-mostrar-ambos');
+            const mostrarAmbos = chkMostrarAmbos ? chkMostrarAmbos.checked : false;
+            const pair = BUDGET_PAIRS[tipoGrafico];
+
             // Extraer fechas del PeriodoHelper
             let rango = {};
             if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
                 rango = PeriodoHelper.obtenerRangoFechas();
             }
 
-            const filtros = {
-                tipo_grafico: tipoGrafico,
-                fecha_inicio: rango.fechaInicio || '',
-                fecha_fin: rango.fechaFin || ''
-            };
-
             const selPresu = document.getElementById('select-filtro-presupuesto');
-            if (selPresu && selPresu.value) {
-                filtros.presupuesto = selPresu.value;
-            }
+            const presuFiltro = (selPresu && selPresu.value) ? selPresu.value : '';
 
-            // Consultar datos al servicio
-            const resp = await this.service.obtenerDashboard(filtros);
+            const contGraficos = document.getElementById('contenedor-graficos-lista');
+            if (contGraficos) contGraficos.innerHTML = '';
 
-            if (!resp || resp.status !== 'success') {
-                console.error('Error al obtener datos:', resp);
-                alert('No se pudieron cargar los datos del presupuesto.');
-                return;
-            }
+            if (mostrarAmbos && pair) {
+                // Modo combinado: Cargar Resumen % (primero) y Detalle (segundo)
+                const [respPct, respDet] = await Promise.all([
+                    this.service.obtenerDashboard({
+                        tipo_grafico: pair.pct,
+                        fecha_inicio: rango.fechaInicio || '',
+                        fecha_fin: rango.fechaFin || '',
+                        presupuesto: presuFiltro
+                    }),
+                    this.service.obtenerDashboard({
+                        tipo_grafico: pair.det,
+                        fecha_inicio: rango.fechaInicio || '',
+                        fecha_fin: rango.fechaFin || '',
+                        presupuesto: presuFiltro
+                    })
+                ]);
 
-            this.datosDashboard = resp.data || resp.payload;
+                if (!respPct || respPct.status !== 'success' || !respDet || respDet.status !== 'success') {
+                    console.error('Error al obtener datos combinados:', { respPct, respDet });
+                    alert('No se pudieron cargar los datos combinados del presupuesto.');
+                    return;
+                }
 
-            // Si devuelve lista de presupuestos disponibles, sincronizar el select
-            if (this.datosDashboard && this.datosDashboard.presupuestos_disponibles) {
-                this.actualizarOpcionesPresupuesto(
-                    this.datosDashboard.presupuestos_disponibles,
-                    this.datosDashboard.presupuesto_seleccionado || '202410'
-                );
-            }
+                const dataPct = respPct.data || respPct.payload || {};
+                const dataDet = respDet.data || respDet.payload || {};
 
-            // Renderizar según componente registrado en ChartRegistry
-            if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
-                window.ChartRegistry[tipoGrafico].render(this, this.datosDashboard);
-            } else if (window.ChartRegistry && window.ChartRegistry['DashPresupuesto202403']) {
-                // Fallback por defecto al reporte 202403
-                window.ChartRegistry['DashPresupuesto202403'].render(this, this.datosDashboard);
+                if (contGraficos) {
+                    contGraficos.innerHTML = `
+                        <div id="contenedor-resumen-pct" class="w-full"></div>
+                        <div id="contenedor-detalle-presupuesto" class="w-full"></div>
+                    `;
+                }
+
+                // Renderizar primero el resumen (%)
+                if (window.ChartRegistry && window.ChartRegistry[pair.pct]) {
+                    window.ChartRegistry[pair.pct].render(this, dataPct, 'contenedor-resumen-pct');
+                }
+
+                // Renderizar segundo el detalle
+                if (window.ChartRegistry && window.ChartRegistry[pair.det]) {
+                    window.ChartRegistry[pair.det].render(this, dataDet, 'contenedor-detalle-presupuesto');
+                }
+
             } else {
-                console.warn(`No se encontró componente registrado para tipo_grafico="${tipoGrafico}".`);
+                // Modo individual normal
+                const filtros = {
+                    tipo_grafico: tipoGrafico,
+                    fecha_inicio: rango.fechaInicio || '',
+                    fecha_fin: rango.fechaFin || ''
+                };
+                if (presuFiltro) {
+                    filtros.presupuesto = presuFiltro;
+                }
+
+                // Consultar datos al servicio
+                const resp = await this.service.obtenerDashboard(filtros);
+
+                if (!resp || resp.status !== 'success') {
+                    console.error('Error al obtener datos:', resp);
+                    alert('No se pudieron cargar los datos del presupuesto.');
+                    return;
+                }
+
+                this.datosDashboard = resp.data || resp.payload;
+
+                // Si devuelve lista de presupuestos disponibles, sincronizar el select
+                if (this.datosDashboard && this.datosDashboard.presupuestos_disponibles) {
+                    this.actualizarOpcionesPresupuesto(
+                        this.datosDashboard.presupuestos_disponibles,
+                        this.datosDashboard.presupuesto_seleccionado || '202410'
+                    );
+                }
+
+                // Renderizar según componente registrado en ChartRegistry
+                if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
+                    window.ChartRegistry[tipoGrafico].render(this, this.datosDashboard, contGraficos);
+                } else if (window.ChartRegistry && window.ChartRegistry['DashPresupuesto202403']) {
+                    // Fallback por defecto al reporte 202403
+                    window.ChartRegistry['DashPresupuesto202403'].render(this, this.datosDashboard, contGraficos);
+                } else {
+                    console.warn(`No se encontró componente registrado para tipo_grafico="${tipoGrafico}".`);
+                }
             }
         } catch (error) {
             console.error('Error en onCargarClick:', error);

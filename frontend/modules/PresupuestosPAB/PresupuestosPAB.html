@@ -99,6 +99,17 @@
                         </select>
                     </div>
 
+                    <!-- CHECKBOX MOSTRAR AMBOS (RESUMEN + DETALLE) -->
+                    <div id="contenedor-check-combinar" class="flex items-center gap-2 pb-2 pl-1">
+                        <label class="relative flex items-center gap-2 cursor-pointer select-none group">
+                            <input type="checkbox" id="check-mostrar-ambos"
+                                class="w-4 h-4 text-blue-600 bg-white border-slate-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">
+                                Mostrar ambos (Resumen % + Detalle)
+                            </span>
+                        </label>
+                    </div>
+
                     <!-- SELECT FILTRO PRESUPUESTO DINÁMICO (SOLO PARA ANALISIS PARTIDAS / DASHBOARDS APLICABLES) -->
                     <div id="contenedor-filtro-presupuesto" class="flex flex-col hidden">
                         <label for="select-filtro-presupuesto"

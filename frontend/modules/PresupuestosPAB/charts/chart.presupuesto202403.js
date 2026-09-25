@@ -15,9 +15,10 @@ window.ChartPresupuesto202403 = {
     solesFormatter: new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     dolaresFormatter: new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
 
-    render(controller, data) {
+    render(controller, data, targetContainer = null) {
         this.controllerRef = controller;
         this.datosBackend = data || {};
+        this.containerRef = (typeof targetContainer === 'string' ? document.getElementById(targetContainer) : targetContainer) || document.getElementById('contenedor-graficos-lista');
 
         this.renderTableStructure();
         this.setupExportListeners();
@@ -50,7 +51,7 @@ window.ChartPresupuesto202403 = {
     },
 
     renderTableStructure() {
-        const contenedor = document.getElementById('contenedor-graficos-lista');
+        const contenedor = this.containerRef || document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
         const data = this.datosBackend || {};
@@ -338,7 +339,8 @@ window.ChartPresupuesto202403 = {
     },
 
     setupExportListeners() {
-        const btnExport = document.getElementById('btn-export-excel-pab');
+        const root = this.containerRef || document;
+        const btnExport = root.querySelector('#btn-export-excel-pab') || document.getElementById('btn-export-excel-pab');
         if (!btnExport) return;
 
         const newBtn = btnExport.cloneNode(true);
@@ -484,7 +486,8 @@ window.ChartPresupuesto202403 = {
     },
 
     setupTooltips() {
-        const tooltip = document.getElementById('tooltip-presupuesto-pab');
+        const root = this.containerRef || document;
+        const tooltip = root.querySelector('#tooltip-presupuesto-pab') || document.getElementById('tooltip-presupuesto-pab');
         if (!tooltip) return;
 
         const posicionarTooltip = (e) => {
@@ -508,7 +511,7 @@ window.ChartPresupuesto202403 = {
         };
 
         // 1. Tooltip para Celdas Regulares
-        document.querySelectorAll('.tooltip-cell').forEach(cell => {
+        root.querySelectorAll('.tooltip-cell').forEach(cell => {
             cell.addEventListener('mouseenter', () => {
                 const amarre = cell.getAttribute('data-amarre') || '';
                 const n1 = cell.getAttribute('data-n1') || '';
@@ -538,7 +541,7 @@ window.ChartPresupuesto202403 = {
         });
 
         // 2. Tooltip para Subtotales
-        document.querySelectorAll('.tooltip-subtotal-cell').forEach(cell => {
+        root.querySelectorAll('.tooltip-subtotal-cell').forEach(cell => {
             cell.addEventListener('mouseenter', () => {
                 const n1 = cell.getAttribute('data-n1') || '';
                 const n2 = cell.getAttribute('data-n2') || '';
@@ -562,7 +565,7 @@ window.ChartPresupuesto202403 = {
         });
 
         // 3. Tooltip para Total General
-        document.querySelectorAll('.tooltip-total-cell').forEach(cell => {
+        root.querySelectorAll('.tooltip-total-cell').forEach(cell => {
             cell.addEventListener('mouseenter', () => {
                 const presupuesto = cell.getAttribute('data-presupuesto') || '';
                 const colname = cell.getAttribute('data-colname') || '';
