@@ -41,4 +41,37 @@ class PresupuestosPABService {
             };
         }
     }
+
+    /**
+     * Consulta los presupuestos autorizados para el usuario logueado
+     * @returns {Promise<Object>}
+     */
+    async obtenerMisPresupuestos() {
+        try {
+            let codigoUsuario = '';
+            try {
+                const sessionRaw = sessionStorage.getItem('usuario');
+                if (sessionRaw) {
+                    const userObj = JSON.parse(sessionRaw);
+                    codigoUsuario = userObj?.codigo || userObj?.usuario || '';
+                }
+            } catch (e) {
+                console.warn('Error leyendo sessionStorage usuario:', e);
+            }
+
+            const queryParam = codigoUsuario ? `?codigo=${encodeURIComponent(codigoUsuario)}` : '';
+            const url = `${this.baseUrl}/PresupuestosPAB/acceso/misPresupuestos${queryParam}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                return { success: false, data: { presupuestos: [] } };
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error al consultar mis presupuestos:', error);
+            return { success: false, data: { presupuestos: [] } };
+        }
+    }
 }

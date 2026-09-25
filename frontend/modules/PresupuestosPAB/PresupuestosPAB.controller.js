@@ -49,14 +49,42 @@ class PresupuestosPABController {
         this.service = new PresupuestosPABService();
         this.chartTipoActual = 'DashPresupuesto';
         this.datosDashboard = null;
+        this.misPresupuestosAutorizados = [];
+        this.tieneRestriccionPresupuesto = false;
         this.init();
     }
 
     async init() {
         this.setupPeriodo();
         this.setupListeners();
+        await this.cargarPermisosUsuario();
         this.actualizarVisibilidadControles();
         await this.onCargarClick();
+    }
+
+    async cargarPermisosUsuario() {
+        try {
+            const resp = await this.service.obtenerMisPresupuestos();
+            if (resp && resp.success && resp.data && Array.isArray(resp.data.presupuestos)) {
+                this.misPresupuestosAutorizados = resp.data.presupuestos;
+            } else {
+                this.misPresupuestosAutorizados = [];
+            }
+        } catch (e) {
+            console.warn('No se pudieron obtener los permisos de presupuesto del usuario:', e);
+            this.misPresupuestosAutorizados = [];
+        }
+    }
+
+    obtenerPresupuestosDashPermitidos() {
+        // Si el usuario no tiene presupuestos asignados, la lista es vacía
+        if (!this.misPresupuestosAutorizados || this.misPresupuestosAutorizados.length === 0) {
+            return [];
+        }
+        return PRESUPUESTOS_DASH.filter(p => {
+            const codBase = p.codigo.replace('%', '');
+            return this.misPresupuestosAutorizados.includes(codBase);
+        });
     }
 
     setupPeriodo() {
@@ -155,13 +183,23 @@ class PresupuestosPABController {
         if (selFiltroPresu) {
             const actualVal = selFiltroPresu.value;
             if (esDashPresupuesto) {
-                const existe = PRESUPUESTOS_DASH.some(p => p.codigo === actualVal);
-                const seleccionado = existe ? actualVal : '202403';
-                selFiltroPresu.innerHTML = PRESUPUESTOS_DASH.map(p => {
-                    const isSel = (p.codigo === seleccionado) ? 'selected' : '';
-                    return `<option value="${p.codigo}" ${isSel}>${p.nombre}</option>`;
-                }).join('');
+                const listaPermitida = this.obtenerPresupuestosDashPermitidos();
+                if (listaPermitida.length > 0) {
+                    selFiltroPresu.disabled = false;
+                    const existe = listaPermitida.some(p => p.codigo === actualVal);
+                    const seleccionado = existe ? actualVal : listaPermitida[0].codigo;
+                    selFiltroPresu.innerHTML = listaPermitida.map(p => {
+                        const isSel = (p.codigo === seleccionado) ? 'selected' : '';
+                        return `<option value="${p.codigo}" ${isSel}>${p.nombre}</option>`;
+                    }).join('');
+                    if (contCombinar) contCombinar.classList.remove('hidden');
+                } else {
+                    selFiltroPresu.disabled = true;
+                    selFiltroPresu.innerHTML = `<option value="">-- Sin presupuestos asignados --</option>`;
+                    if (contCombinar) contCombinar.classList.add('hidden');
+                }
             } else {
+                selFiltroPresu.disabled = false;
                 const lista = (this.datosDashboard && this.datosDashboard.presupuestos_disponibles) ? this.datosDashboard.presupuestos_disponibles : PRESUPUESTOS_ANALISIS;
                 const existe = lista.some(p => p.codigo === actualVal);
                 const seleccionado = existe ? actualVal : '202410';
@@ -229,7 +267,23 @@ class PresupuestosPABController {
             if (contGraficos) contGraficos.innerHTML = '';
 
             if (tipoGrafico === 'DashPresupuesto') {
-                const pair = BUDGET_PAIRS[codigoPresu] || BUDGET_PAIRS['202403'];
+                const listaPermitida = this.obtenerPresupuestosDashPermitidos();
+                if (listaPermitida.length === 0) {
+                    if (contGraficos) {
+                        contGraficos.innerHTML = `
+                            <div class="bg-amber-50 border border-amber-200 text-amber-800 p-8 rounded-2xl text-center mx-auto max-w-lg my-8">
+                                <i class="fas fa-lock text-3xl text-amber-500 mb-3"></i>
+                                <h3 class="text-base font-bold">Sin acceso a presupuestos</h3>
+                                <p class="text-xs text-amber-600 mt-1">No tienes presupuestos asignados para visualizar en este módulo. Contacta a un administrador.</p>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                const existeVal = listaPermitida.some(p => p.codigo === codigoPresu);
+                const codFinal = existeVal ? codigoPresu : listaPermitida[0].codigo;
+                const pair = BUDGET_PAIRS[codFinal] || BUDGET_PAIRS['202403'];
 
                 if (mostrarAmbos) {
                     // Modo combinado: Cargar Resumen % (primero) y Detalle (segundo)
@@ -273,7 +327,7 @@ class PresupuestosPABController {
                     }
                 } else {
                     // Modo individual: determinar componente según código (con o sin %)
-                    const targetChart = CHART_MAP[codigoPresu] || 'DashPresupuesto202403';
+                    const targetChart = CHART_MAP[codFinal] || 'DashPresupuesto202403';
                     const resp = await this.service.obtenerDashboard({
                         tipo_grafico: targetChart,
                         fecha_inicio: rango.fechaInicio || '',
