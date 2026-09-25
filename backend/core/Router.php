@@ -40,7 +40,7 @@ class Router
         $method = $_SERVER['REQUEST_METHOD'];
 
         // 1. Limpiamos la ruta base
-        $basePath = '/graficos/backend';
+        $basePath = '/corebi/backend';
         $path = str_replace($basePath, '', $uri);
 
         if (isset($this->routes[$method][$path])) {

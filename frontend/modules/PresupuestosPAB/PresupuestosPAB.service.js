@@ -4,7 +4,7 @@
  */
 class PresupuestosPABService {
     constructor() {
-        this.baseUrl = window.AppConfig?.API?.BASE_URL || '/graficos/backend';
+        this.baseUrl = AppConfig.API.BASE_URL;
     }
 
     /**

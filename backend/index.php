@@ -1,7 +1,7 @@
 <?php
 
 // 1. Configuración de Sesión (Siempre al inicio)
-session_name('SESS_GRAFICOS'); // ponerle nombre a la sesión para evitar conflictos con otras aplicaciones
+session_name('SESS_COREBI'); // ponerle nombre a la sesión para evitar conflictos con otras aplicaciones
 session_start();
 
 // === CONTROL DE INACTIVIDAD (10 minutos = 600 segundos) ===

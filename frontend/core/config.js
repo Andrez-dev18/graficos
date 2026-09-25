@@ -48,7 +48,7 @@
 
 const AppConfig = {
     API: {
-        BASE_URL: 'http://localhost/graficos/backend',
+        BASE_URL: 'http://localhost/corebi/backend',
         ENDPOINTS: {
             AUTH: {
                 LOGIN: '/usuario/login',
