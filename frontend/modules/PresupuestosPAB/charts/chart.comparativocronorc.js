@@ -3,9 +3,9 @@
  * Módulo: Presupuestos PAB
  * 
  * Replicación exacta del dashboard "DashComparativoCronoRC" de Tableau según tableu.png, tableu1.png y tableu2.png:
- * 1. Tabla Superior: "PRESUPUESTO" (~55% ancho izquierdo, lista de partidas del presupuesto agrupadas por cencos y partida).
- * 2. Tabla Inferior Izquierda: "CRONOGRAMA" (Cuotas programadas, fechas de vencimiento y subtotales por (cencos, partida) + Total General idénticos a Tableau).
- * 3. Tabla Inferior Derecha: "REGISTRO COMPRAS" (Comprobantes de compra ejecutados con RUC, Proveedor, TipoDoc, NroDoc, Fechas, Montos y subtotales por (cencos, partida) + Total General idénticos a Tableau).
+ * 1. Tabla Superior: "PRESUPUESTO" (~65% ancho izquierdo, lista de partidas del presupuesto agrupadas por cencos y partida).
+ * 2. Tabla Inferior Izquierda: "CRONOGRAMA" (Cuotas programadas, fechas de vencimiento y subtotales por (cencos, partida) + Total General + Tooltips interactivos idénticos a Tableau al pasar el mouse por importe).
+ * 3. Tabla Inferior Derecha: "REGISTRO COMPRAS" (Comprobantes ejecutados con RUC, Proveedor, TipoDoc, NroDoc, Fechas, Montos y subtotales + Total General + Tooltips interactivos idénticos a Tableau al pasar el mouse por dimport).
  * 4. Acción Interactiva: Al hacer clic en cualquier partida de la tabla superior, sincroniza y filtra las tablas inferiores por cencos y partida.
  * 5. Exportación a Excel multi-hoja.
  */
@@ -41,6 +41,16 @@ window.ChartComparativoCronoRC = {
         const clean = String(str).trim().slice(0, 10);
         if (clean === '0000-00-00' || clean === '0000/00/00') return '0000/00/00';
         return clean.replace(/-/g, '/');
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     },
 
     renderStructure() {
@@ -116,7 +126,6 @@ window.ChartComparativoCronoRC = {
             cencosBlocks[ck].items.push(p);
         });
 
-        // Calcular total de filas abarcadas por el rowspan de presupuesto (partidas + subtotales de cencos)
         let totalDataRows = resumenPartidas.length + Object.keys(cencosBlocks).length;
         let rowsPresupuestoHtml = '';
         let presuNameRendered = false;
@@ -132,16 +141,16 @@ window.ChartComparativoCronoRC = {
                     : 'hover:bg-blue-50/40 transition-colors border-b border-slate-200';
 
                 rowsPresupuestoHtml += `
-                    <tr class="cursor-pointer text-xs text-slate-700 ${rowClass}" data-cencos="${p.cencos}" data-partida="${p.partida}">
+                    <tr class="cursor-pointer text-xs text-slate-700 ${rowClass}" data-cencos="${this.escapeHtml(p.cencos)}" data-partida="${this.escapeHtml(p.partida)}">
                         ${!presuNameRendered ? `
-                            <td class="px-3 py-2 font-medium text-slate-800 border-r border-slate-200 align-top max-w-[150px] leading-tight" rowspan="${totalDataRows}">${presuNombre}</td>
+                            <td class="px-3 py-2 font-medium text-slate-800 border-r border-slate-200 align-top max-w-[150px] leading-tight" rowspan="${totalDataRows}">${this.escapeHtml(presuNombre)}</td>
                         ` : ''}
                         ${idx === 0 ? `
-                            <td class="px-2.5 py-2 font-mono text-slate-600 border-r border-slate-200 align-top whitespace-nowrap" rowspan="${blockLen + 1}">${p.cencos}</td>
-                            <td class="px-3 py-2 text-slate-700 border-r border-slate-200 align-top max-w-[140px] leading-tight" rowspan="${blockLen + 1}">${p.nombre_ccos}</td>
+                            <td class="px-2.5 py-2 font-mono text-slate-600 border-r border-slate-200 align-top whitespace-nowrap" rowspan="${blockLen + 1}">${this.escapeHtml(p.cencos)}</td>
+                            <td class="px-3 py-2 text-slate-700 border-r border-slate-200 align-top max-w-[140px] leading-tight" rowspan="${blockLen + 1}">${this.escapeHtml(p.nombre_ccos)}</td>
                         ` : ''}
-                        <td class="px-2.5 py-2 font-bold text-slate-900 border-r border-slate-200 text-center whitespace-nowrap align-top">${p.partida}</td>
-                        <td class="px-3 py-2 text-slate-800 border-r border-slate-200 font-medium align-top max-w-[320px] truncate" title="${p.nompartida}">${p.nompartida}</td>
+                        <td class="px-2.5 py-2 font-bold text-slate-900 border-r border-slate-200 text-center whitespace-nowrap align-top">${this.escapeHtml(p.partida)}</td>
+                        <td class="px-3 py-2 text-slate-800 border-r border-slate-200 font-medium align-top max-w-[320px] truncate" title="${this.escapeHtml(p.nompartida)}">${this.escapeHtml(p.nompartida)}</td>
                         <td class="px-2.5 py-2 text-center text-blue-600 font-bold select-none text-base align-middle">
                             ●
                         </td>
@@ -150,7 +159,7 @@ window.ChartComparativoCronoRC = {
                 presuNameRendered = true;
             });
 
-            // Subtotal por cencos (3 celdas, pues cencos y nombre_ccos están en rowspan con la fila 1)
+            // Subtotal por cencos
             rowsPresupuestoHtml += `
                 <tr class="bg-slate-50/80 border-b border-slate-200 text-xs text-slate-700">
                     <td class="px-2.5 py-1.5 border-r border-slate-200 text-center font-semibold text-slate-800">Total</td>
@@ -160,7 +169,7 @@ window.ChartComparativoCronoRC = {
             `;
         });
 
-        // Fila Total al pie de la tabla PRESUPUESTO (6 columnas exactas)
+        // Fila Total al pie de la tabla PRESUPUESTO
         const rowTotalPresupuestoHtml = `
             <tr class="bg-slate-100 border-t-2 border-slate-300 text-xs font-bold text-slate-800">
                 <td class="px-3 py-2 border-r border-slate-300 text-left font-bold text-slate-900" colspan="3">Total</td>
@@ -189,13 +198,23 @@ window.ChartComparativoCronoRC = {
                 rowsCronoHtml += `
                     <tr class="hover:bg-blue-50/30 transition-colors border-b border-slate-100 text-xs text-slate-700">
                         ${!cronoPresuRendered ? `
-                            <td class="px-2.5 py-1.5 font-medium text-slate-800 border-r border-slate-200 align-top max-w-[130px] leading-tight" rowspan="${totalVisualRowsCrono}">${presuNombre}</td>
+                            <td class="px-2.5 py-1.5 font-medium text-slate-800 border-r border-slate-200 align-top max-w-[130px] leading-tight" rowspan="${totalVisualRowsCrono}">${this.escapeHtml(presuNombre)}</td>
                         ` : ''}
-                        <td class="px-2 py-1.5 font-bold text-slate-900 border-r border-slate-200 text-center whitespace-nowrap align-top">${idx === 0 ? grp.partida : ''}</td>
-                        <td class="px-2.5 py-1.5 text-slate-700 border-r border-slate-200 max-w-[200px] truncate align-top" title="${grp.nompartida}">${idx === 0 ? grp.nompartida : ''}</td>
-                        <td class="px-2 py-1.5 font-mono text-center text-slate-800 border-r border-slate-200 whitespace-nowrap align-top">${it.nrocuota}</td>
+                        <td class="px-2 py-1.5 font-bold text-slate-900 border-r border-slate-200 text-center whitespace-nowrap align-top">${idx === 0 ? this.escapeHtml(grp.partida) : ''}</td>
+                        <td class="px-2.5 py-1.5 text-slate-700 border-r border-slate-200 max-w-[200px] truncate align-top" title="${this.escapeHtml(grp.nompartida)}">${idx === 0 ? this.escapeHtml(grp.nompartida) : ''}</td>
+                        <td class="px-2 py-1.5 font-mono text-center text-slate-800 border-r border-slate-200 whitespace-nowrap align-top">${this.escapeHtml(it.nrocuota)}</td>
                         <td class="px-2 py-1.5 font-mono text-center text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${this.formatFecha(it.fechavenc)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right text-slate-800 whitespace-nowrap align-top">${this.formatSoles(parseFloat(it.importe))}</td>
+                        <td class="px-2.5 py-1.5 font-mono text-right text-slate-800 whitespace-nowrap align-top cursor-pointer hover:bg-blue-100/70 hover:text-blue-900 transition-colors tooltip-crono-cell"
+                            data-presupuesto="${this.escapeHtml(presuNombre)}"
+                            data-cencos="${this.escapeHtml(grp.cencos || '')}"
+                            data-ccos="${this.escapeHtml(grp.nombre_ccos || '')}"
+                            data-partida="${this.escapeHtml(grp.partida)}"
+                            data-nompartida="${this.escapeHtml(grp.nompartida)}"
+                            data-nrocuota="${this.escapeHtml(it.nrocuota)}"
+                            data-fechavenc="${this.escapeHtml(this.formatFecha(it.fechavenc))}"
+                            data-importe="${this.escapeHtml(this.formatSoles(parseFloat(it.importe)))}">
+                            ${this.formatSoles(parseFloat(it.importe))}
+                        </td>
                     </tr>
                 `;
                 cronoPresuRendered = true;
@@ -208,7 +227,15 @@ window.ChartComparativoCronoRC = {
                     <td class="px-2.5 py-1 text-left border-r border-slate-200 font-semibold text-slate-700">Total</td>
                     <td class="px-2 py-1 border-r border-slate-200"></td>
                     <td class="px-2 py-1 border-r border-slate-200"></td>
-                    <td class="px-2.5 py-1 font-mono text-right font-bold text-slate-900 whitespace-nowrap">${this.formatSoles(grp.subtotal)}</td>
+                    <td class="px-2.5 py-1 font-mono text-right font-bold text-slate-900 whitespace-nowrap cursor-pointer hover:bg-blue-100/70 transition-colors tooltip-crono-subtotal-cell"
+                        data-presupuesto="${this.escapeHtml(presuNombre)}"
+                        data-cencos="${this.escapeHtml(grp.cencos || '')}"
+                        data-ccos="${this.escapeHtml(grp.nombre_ccos || '')}"
+                        data-partida="${this.escapeHtml(grp.partida)}"
+                        data-nompartida="${this.escapeHtml(grp.nompartida)}"
+                        data-importe="${this.escapeHtml(this.formatSoles(grp.subtotal))}">
+                        ${this.formatSoles(grp.subtotal)}
+                    </td>
                 </tr>
             `;
         });
@@ -232,17 +259,31 @@ window.ChartComparativoCronoRC = {
                 rowsRCHtml += `
                     <tr class="hover:bg-blue-50/30 transition-colors border-b border-slate-100 text-xs text-slate-700">
                         ${!rcPresuRendered ? `
-                            <td class="px-2.5 py-1.5 font-medium text-slate-800 border-r border-slate-200 align-top max-w-[130px] leading-tight" rowspan="${totalVisualRowsRC}">${presuNombre}</td>
+                            <td class="px-2.5 py-1.5 font-medium text-slate-800 border-r border-slate-200 align-top max-w-[130px] leading-tight" rowspan="${totalVisualRowsRC}">${this.escapeHtml(presuNombre)}</td>
                         ` : ''}
-                        <td class="px-2 py-1.5 font-bold text-slate-900 border-r border-slate-200 text-center whitespace-nowrap align-top">${idx === 0 ? grp.partida : ''}</td>
-                        <td class="px-2.5 py-1.5 text-slate-700 border-r border-slate-200 max-w-[150px] truncate align-top" title="${grp.nompartida}">${idx === 0 ? grp.nompartida : ''}</td>
-                        <td class="px-2 py-1.5 font-mono text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${it.ruc}</td>
-                        <td class="px-2 py-1.5 text-slate-800 border-r border-slate-200 max-w-[130px] truncate align-top" title="${it.nombre_proveedor}">${it.nombre_proveedor}</td>
-                        <td class="px-1.5 py-1.5 font-mono text-center text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${it.tipodoc}</td>
-                        <td class="px-2 py-1.5 font-mono text-slate-800 border-r border-slate-200 whitespace-nowrap max-w-[85px] truncate align-top" title="${it.nrodoc}">${it.nrodoc}</td>
+                        <td class="px-2 py-1.5 font-bold text-slate-900 border-r border-slate-200 text-center whitespace-nowrap align-top">${idx === 0 ? this.escapeHtml(grp.partida) : ''}</td>
+                        <td class="px-2.5 py-1.5 text-slate-700 border-r border-slate-200 max-w-[150px] truncate align-top" title="${this.escapeHtml(grp.nompartida)}">${idx === 0 ? this.escapeHtml(grp.nompartida) : ''}</td>
+                        <td class="px-2 py-1.5 font-mono text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${this.escapeHtml(it.ruc)}</td>
+                        <td class="px-2 py-1.5 text-slate-800 border-r border-slate-200 max-w-[130px] truncate align-top" title="${this.escapeHtml(it.nombre_proveedor)}">${this.escapeHtml(it.nombre_proveedor)}</td>
+                        <td class="px-1.5 py-1.5 font-mono text-center text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${this.escapeHtml(it.tipodoc)}</td>
+                        <td class="px-2 py-1.5 font-mono text-slate-800 border-r border-slate-200 whitespace-nowrap max-w-[85px] truncate align-top" title="${this.escapeHtml(it.nrodoc)}">${this.escapeHtml(it.nrodoc)}</td>
                         <td class="px-2 py-1.5 font-mono text-center text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${this.formatFecha(it.dfectra)}</td>
                         <td class="px-2 py-1.5 font-mono text-center text-slate-700 border-r border-slate-200 whitespace-nowrap align-top">${this.formatFecha(it.dfecven)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right text-slate-800 whitespace-nowrap align-top">${this.formatSoles(parseFloat(it.valor))}</td>
+                        <td class="px-2.5 py-1.5 font-mono text-right text-slate-800 whitespace-nowrap align-top cursor-pointer hover:bg-blue-100/70 hover:text-blue-900 transition-colors tooltip-rc-cell"
+                            data-presupuesto="${this.escapeHtml(presuNombre)}"
+                            data-cencos="${this.escapeHtml(grp.cencos || '')}"
+                            data-ccos="${this.escapeHtml(grp.nombre_ccos || '')}"
+                            data-partida="${this.escapeHtml(grp.partida)}"
+                            data-nompartida="${this.escapeHtml(grp.nompartida)}"
+                            data-dprocli="${this.escapeHtml(it.ruc)}"
+                            data-nombreccte="${this.escapeHtml(it.nombre_proveedor)}"
+                            data-tdoc="${this.escapeHtml(it.tipodoc)}"
+                            data-dnumfac="${this.escapeHtml(it.nrodoc)}"
+                            data-dfectra="${this.escapeHtml(this.formatFecha(it.dfectra))}"
+                            data-dfecven="${this.escapeHtml(this.formatFecha(it.dfecven))}"
+                            data-dimport="${this.escapeHtml(this.formatSoles(parseFloat(it.valor)))}">
+                            ${this.formatSoles(parseFloat(it.valor))}
+                        </td>
                     </tr>
                 `;
                 rcPresuRendered = true;
@@ -259,7 +300,15 @@ window.ChartComparativoCronoRC = {
                     <td class="px-2 py-1 border-r border-slate-200"></td>
                     <td class="px-2 py-1 border-r border-slate-200"></td>
                     <td class="px-2 py-1 border-r border-slate-200"></td>
-                    <td class="px-2.5 py-1 font-mono text-right font-bold text-slate-900 whitespace-nowrap">${this.formatSoles(grp.subtotal)}</td>
+                    <td class="px-2.5 py-1 font-mono text-right font-bold text-slate-900 whitespace-nowrap cursor-pointer hover:bg-blue-100/70 transition-colors tooltip-rc-subtotal-cell"
+                        data-presupuesto="${this.escapeHtml(presuNombre)}"
+                        data-cencos="${this.escapeHtml(grp.cencos || '')}"
+                        data-ccos="${this.escapeHtml(grp.nombre_ccos || '')}"
+                        data-partida="${this.escapeHtml(grp.partida)}"
+                        data-nompartida="${this.escapeHtml(grp.nompartida)}"
+                        data-dimport="${this.escapeHtml(this.formatSoles(grp.subtotal))}">
+                        ${this.formatSoles(grp.subtotal)}
+                    </td>
                 </tr>
             `;
         });
@@ -279,7 +328,7 @@ window.ChartComparativoCronoRC = {
                         <div class="flex items-center gap-3">
                             <div>
                                 <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">DashComparativoCronoRC</h2>
-                                <p class="text-xs text-slate-500 font-medium">${presuNombre}</p>
+                                <p class="text-xs text-slate-500 font-medium">${this.escapeHtml(presuNombre)}</p>
                             </div>
                             <span class="text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md">
                                 ${resumenPartidas.length} partidas
@@ -372,7 +421,11 @@ window.ChartComparativoCronoRC = {
                                         <td class="px-2 py-2 border-r border-slate-300" colspan="2"></td>
                                         <td class="px-2.5 py-2 text-left border-r border-slate-300 font-bold">Total General</td>
                                         <td class="px-2 py-2 border-r border-slate-300" colspan="2"></td>
-                                        <td class="px-2.5 py-2 font-mono text-right font-bold text-slate-900 whitespace-nowrap">${this.formatSoles(totGeneralCronoFinal)}</td>
+                                        <td class="px-2.5 py-2 font-mono text-right font-bold text-slate-900 whitespace-nowrap cursor-pointer hover:bg-blue-200/80 transition-colors tooltip-crono-total-cell"
+                                            data-presupuesto="${this.escapeHtml(presuNombre)}"
+                                            data-importe="${this.escapeHtml(this.formatSoles(totGeneralCronoFinal))}">
+                                            ${this.formatSoles(totGeneralCronoFinal)}
+                                        </td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -411,7 +464,11 @@ window.ChartComparativoCronoRC = {
                                         <td class="px-2 py-2 border-r border-slate-300" colspan="2"></td>
                                         <td class="px-2.5 py-2 text-left border-r border-slate-300 font-bold" colspan="3">Total General</td>
                                         <td class="px-1.5 py-2 border-r border-slate-300" colspan="4"></td>
-                                        <td class="px-2.5 py-2 font-mono text-right font-bold text-slate-900 whitespace-nowrap">${this.formatSoles(totGeneralRCFinal)}</td>
+                                        <td class="px-2.5 py-2 font-mono text-right font-bold text-slate-900 whitespace-nowrap cursor-pointer hover:bg-blue-200/80 transition-colors tooltip-rc-total-cell"
+                                            data-presupuesto="${this.escapeHtml(presuNombre)}"
+                                            data-dimport="${this.escapeHtml(this.formatSoles(totGeneralRCFinal))}">
+                                            ${this.formatSoles(totGeneralRCFinal)}
+                                        </td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -419,6 +476,9 @@ window.ChartComparativoCronoRC = {
                     </div>
 
                 </div>
+
+                <!-- CONTENEDOR FLOTANTE PARA TOOLTIP TABLEAU -->
+                <div id="tooltip-comparativo-crono-rc" class="fixed z-50 pointer-events-none hidden bg-white/95 backdrop-blur-xs p-3 rounded-xl shadow-2xl border border-slate-200 text-xs transition-opacity duration-150 max-w-sm"></div>
 
             </div>
         `;
@@ -456,7 +516,10 @@ window.ChartComparativoCronoRC = {
             });
         }
 
-        // 3. Exportación a Excel Multi-Hoja
+        // 3. Eventos de Tooltip Flotante idénticos a Tableau
+        this.setupTooltips();
+
+        // 4. Exportación a Excel Multi-Hoja
         const btnExport = document.getElementById('btn-export-excel-pab');
         if (!btnExport) return;
 
@@ -589,6 +652,193 @@ window.ChartComparativoCronoRC = {
 
             const fechaStr = new Date().toISOString().slice(0, 10);
             XLSX.writeFile(wb, `Comparativo_Crono_RC_${data.presupuesto_seleccionado || '202403'}_${fechaStr}.xlsx`);
+        });
+    },
+
+    setupTooltips() {
+        const tooltip = document.getElementById('tooltip-comparativo-crono-rc');
+        if (!tooltip) return;
+
+        const posicionarTooltip = (e) => {
+            const offsetX = 16;
+            const offsetY = 16;
+            const tooltipWidth = tooltip.offsetWidth;
+            const tooltipHeight = tooltip.offsetHeight;
+
+            let posX = e.clientX + offsetX;
+            let posY = e.clientY + offsetY;
+
+            if (posX + tooltipWidth > window.innerWidth) {
+                posX = e.clientX - tooltipWidth - 10;
+            }
+            if (posY + tooltipHeight > window.innerHeight) {
+                posY = e.clientY - tooltipHeight - 10;
+            }
+
+            tooltip.style.left = `${posX}px`;
+            tooltip.style.top = `${posY}px`;
+        };
+
+        // 1. Tooltip para importe de Cronograma (Fila Regular)
+        document.querySelectorAll('.tooltip-crono-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presu = cell.getAttribute('data-presupuesto') || '';
+                const cencos = cell.getAttribute('data-cencos') || '';
+                const ccos = cell.getAttribute('data-ccos') || '';
+                const partida = cell.getAttribute('data-partida') || '';
+                const nompartida = cell.getAttribute('data-nompartida') || '';
+                const nrocuota = cell.getAttribute('data-nrocuota') || '';
+                const fechavenc = cell.getAttribute('data-fechavenc') || '';
+                const importe = cell.getAttribute('data-importe') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[240px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">presupuesto:</span><span class="col-span-7 font-bold text-slate-900">${presu}</span></div>
+                        ${cencos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">cencos:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${cencos}</span></div>` : ''}
+                        ${ccos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">nombre (ccos):</span><span class="col-span-7 font-bold text-slate-900">${ccos}</span></div>` : ''}
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${partida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida (presupartidas):</span><span class="col-span-7 font-bold text-slate-900">${nompartida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">nrocuota:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${nrocuota}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">fechavenc:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${fechavenc}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">importe:</span><span class="col-span-7 font-mono font-bold text-blue-700">${importe}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 2. Tooltip para Subtotal de Cronograma
+        document.querySelectorAll('.tooltip-crono-subtotal-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presu = cell.getAttribute('data-presupuesto') || '';
+                const cencos = cell.getAttribute('data-cencos') || '';
+                const ccos = cell.getAttribute('data-ccos') || '';
+                const partida = cell.getAttribute('data-partida') || '';
+                const nompartida = cell.getAttribute('data-nompartida') || '';
+                const importe = cell.getAttribute('data-importe') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[240px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">presupuesto:</span><span class="col-span-7 font-bold text-slate-900">${presu}</span></div>
+                        ${cencos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">cencos:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${cencos}</span></div>` : ''}
+                        ${ccos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">nombre (ccos):</span><span class="col-span-7 font-bold text-slate-900">${ccos}</span></div>` : ''}
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${partida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida (presupartidas):</span><span class="col-span-7 font-bold text-slate-900">${nompartida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">Total importe:</span><span class="col-span-7 font-mono font-bold text-blue-700">${importe}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 3. Tooltip para Total General Cronograma
+        document.querySelectorAll('.tooltip-crono-total-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presu = cell.getAttribute('data-presupuesto') || '';
+                const importe = cell.getAttribute('data-importe') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[220px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">presupuesto:</span><span class="col-span-7 font-bold text-slate-900">${presu}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">Total General:</span><span class="col-span-7 font-mono font-bold text-blue-800">${importe}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 4. Tooltip para dimport de Registro Compras (Fila Regular)
+        document.querySelectorAll('.tooltip-rc-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presu = cell.getAttribute('data-presupuesto') || '';
+                const cencos = cell.getAttribute('data-cencos') || '';
+                const ccos = cell.getAttribute('data-ccos') || '';
+                const partida = cell.getAttribute('data-partida') || '';
+                const nompartida = cell.getAttribute('data-nompartida') || '';
+                const dprocli = cell.getAttribute('data-dprocli') || '';
+                const nombreccte = cell.getAttribute('data-nombreccte') || '';
+                const tdoc = cell.getAttribute('data-tdoc') || '';
+                const dnumfac = cell.getAttribute('data-dnumfac') || '';
+                const dfectra = cell.getAttribute('data-dfectra') || '';
+                const dfecven = cell.getAttribute('data-dfecven') || '';
+                const dimport = cell.getAttribute('data-dimport') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[260px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">presupuesto:</span><span class="col-span-7 font-bold text-slate-900">${presu}</span></div>
+                        ${cencos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">cencos:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${cencos}</span></div>` : ''}
+                        ${ccos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">nombre (ccos):</span><span class="col-span-7 font-bold text-slate-900">${ccos}</span></div>` : ''}
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${partida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida (presupartidas):</span><span class="col-span-7 font-bold text-slate-900">${nompartida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">dprocli:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${dprocli}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">nombre (ccte):</span><span class="col-span-7 font-bold text-slate-900">${nombreccte}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">tdoc:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${tdoc}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">dnumfac:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${dnumfac}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">dfectra:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${dfectra}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">dfecven:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${dfecven}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">dimport:</span><span class="col-span-7 font-mono font-bold text-blue-700">${dimport}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 5. Tooltip para Subtotal de Registro Compras
+        document.querySelectorAll('.tooltip-rc-subtotal-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presu = cell.getAttribute('data-presupuesto') || '';
+                const cencos = cell.getAttribute('data-cencos') || '';
+                const ccos = cell.getAttribute('data-ccos') || '';
+                const partida = cell.getAttribute('data-partida') || '';
+                const nompartida = cell.getAttribute('data-nompartida') || '';
+                const dimport = cell.getAttribute('data-dimport') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[260px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">presupuesto:</span><span class="col-span-7 font-bold text-slate-900">${presu}</span></div>
+                        ${cencos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">cencos:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${cencos}</span></div>` : ''}
+                        ${ccos ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">nombre (ccos):</span><span class="col-span-7 font-bold text-slate-900">${ccos}</span></div>` : ''}
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida:</span><span class="col-span-7 font-bold text-slate-900 font-mono">${partida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">partida (presupartidas):</span><span class="col-span-7 font-bold text-slate-900">${nompartida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">Total dimport:</span><span class="col-span-7 font-mono font-bold text-blue-700">${dimport}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 6. Tooltip para Total General Registro Compras
+        document.querySelectorAll('.tooltip-rc-total-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presu = cell.getAttribute('data-presupuesto') || '';
+                const dimport = cell.getAttribute('data-dimport') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[220px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-500 font-normal">presupuesto:</span><span class="col-span-7 font-bold text-slate-900">${presu}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">Total General:</span><span class="col-span-7 font-mono font-bold text-blue-800">${dimport}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
         });
     }
 };

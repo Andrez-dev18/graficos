@@ -39,6 +39,16 @@ window.ChartPresupuesto202403 = {
         return isNeg ? `US$-${fmt}` : `US$${fmt}`;
     },
 
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     renderTableStructure() {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
@@ -148,6 +158,18 @@ window.ChartPresupuesto202403 = {
                     const ejecDolarClass = getEjecutadoDolarClass(it.valord_regcompras, false);
                     const difClass = getSaldoClass(it.diferenciad, false);
 
+                    // Helper para atributos de tooltip en celdas regulares
+                    const makeCellAttrs = (colName, colVal) => {
+                        return `data-amarre="${this.escapeHtml(it.amarre)}" ` +
+                               `data-n1="${this.escapeHtml(gN1.nombre)}" ` +
+                               `data-n2="${this.escapeHtml(gN2.nombre)}" ` +
+                               `data-nompartida="${this.escapeHtml(it.nompartida)}" ` +
+                               `data-nropartida="${this.escapeHtml(it.nropartida)}" ` +
+                               `data-presupuesto="${this.escapeHtml(presupuestoNombre)}" ` +
+                               `data-colname="${this.escapeHtml(colName)}" ` +
+                               `data-colval="${this.escapeHtml(colVal)}"`;
+                    };
+
                     rowsHtml.push(`
                         <tr class="hover:bg-blue-50/30 transition-colors border-b border-slate-200 text-[11px] text-slate-700">
                             <td class="px-2.5 py-1.5 font-medium text-slate-800 border-r border-slate-200 align-top">${esPrimeraFilaGlobal ? presupuestoNombre : ''}</td>
@@ -156,12 +178,12 @@ window.ChartPresupuesto202403 = {
                             <td class="px-2 py-1.5 font-mono text-center text-slate-600 border-r border-slate-200">${it.nropartida}</td>
                             <td class="px-2 py-1.5 font-mono text-center text-slate-600 border-r border-slate-200">${it.amarre}</td>
                             <td class="px-2.5 py-1.5 font-normal text-slate-700 border-r border-slate-200 max-w-[240px] truncate" title="${it.nompartida}">${it.nompartida}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatSoles(it.presupuestado)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecClass}">${this.formatSoles(it.ejecutado)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoClass}">${this.formatSoles(it.saldo)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(it.valord_presupuesto)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarClass}">${this.formatDolares(it.valord_regcompras)}</td>
-                            <td class="px-2.5 py-1.5 font-mono text-right ${difClass}">${this.formatDolares(it.diferenciad)}</td>
+                            <td class="tooltip-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 cursor-pointer hover:bg-blue-100/50" ${makeCellAttrs('Presupuestado', this.formatSoles(it.presupuestado))}>${this.formatSoles(it.presupuestado)}</td>
+                            <td class="tooltip-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecClass} cursor-pointer hover:bg-blue-100/50" ${makeCellAttrs('Ejecutado', this.formatSoles(it.ejecutado))}>${this.formatSoles(it.ejecutado)}</td>
+                            <td class="tooltip-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoClass} cursor-pointer hover:bg-blue-100/50" ${makeCellAttrs('Saldo', this.formatSoles(it.saldo))}>${this.formatSoles(it.saldo)}</td>
+                            <td class="tooltip-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 cursor-pointer hover:bg-blue-100/50" ${makeCellAttrs('valord_presupuesto', this.formatDolares(it.valord_presupuesto))}>${this.formatDolares(it.valord_presupuesto)}</td>
+                            <td class="tooltip-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarClass} cursor-pointer hover:bg-blue-100/50" ${makeCellAttrs('valord_regcompras', this.formatDolares(it.valord_regcompras))}>${this.formatDolares(it.valord_regcompras)}</td>
+                            <td class="tooltip-cell px-2.5 py-1.5 font-mono text-right ${difClass} cursor-pointer hover:bg-blue-100/50" ${makeCellAttrs('diferenciad', this.formatDolares(it.diferenciad))}>${this.formatDolares(it.diferenciad)}</td>
                         </tr>
                     `);
                     esPrimeraFilaGlobal = false;
@@ -173,6 +195,14 @@ window.ChartPresupuesto202403 = {
                 const ejecDolarN2Class = getEjecutadoDolarClass(gN2.total.valord_regcompras, true);
                 const difN2Class = getSaldoClass(gN2.total.diferenciad, true);
 
+                const makeSubtotalN2Attrs = (colName, colVal) => {
+                    return `data-n1="${this.escapeHtml(gN1.nombre)}" ` +
+                           `data-n2="${this.escapeHtml(gN2.nombre)}" ` +
+                           `data-presupuesto="${this.escapeHtml(presupuestoNombre)}" ` +
+                           `data-colname="Total ${this.escapeHtml(colName)}" ` +
+                           `data-colval="${this.escapeHtml(colVal)}"`;
+                };
+
                 rowsHtml.push(`
                     <tr class="bg-slate-50/60 border-b border-slate-200 text-[11px] text-slate-800 font-semibold">
                         <td class="px-2.5 py-1.5 border-r border-slate-200"></td>
@@ -181,12 +211,12 @@ window.ChartPresupuesto202403 = {
                         <td class="px-2 py-1.5 font-mono text-center text-slate-700 border-r border-slate-200">Total</td>
                         <td class="px-2 py-1.5 border-r border-slate-200"></td>
                         <td class="px-2.5 py-1.5 border-r border-slate-200"></td>
-                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatSoles(gN2.total.presupuestado)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecN2Class}">${this.formatSoles(gN2.total.ejecutado)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoN2Class}">${this.formatSoles(gN2.total.saldo)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(gN2.total.valord_presupuesto)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarN2Class}">${this.formatDolares(gN2.total.valord_regcompras)}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-right ${difN2Class}">${this.formatDolares(gN2.total.diferenciad)}</td>
+                        <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN2Attrs('Presupuestado', this.formatSoles(gN2.total.presupuestado))}>${this.formatSoles(gN2.total.presupuestado)}</td>
+                        <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecN2Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN2Attrs('Ejecutado', this.formatSoles(gN2.total.ejecutado))}>${this.formatSoles(gN2.total.ejecutado)}</td>
+                        <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoN2Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN2Attrs('Saldo', this.formatSoles(gN2.total.saldo))}>${this.formatSoles(gN2.total.saldo)}</td>
+                        <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN2Attrs('valord_presupuesto', this.formatDolares(gN2.total.valord_presupuesto))}>${this.formatDolares(gN2.total.valord_presupuesto)}</td>
+                        <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarN2Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN2Attrs('valord_regcompras', this.formatDolares(gN2.total.valord_regcompras))}>${this.formatDolares(gN2.total.valord_regcompras)}</td>
+                        <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right ${difN2Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN2Attrs('diferenciad', this.formatDolares(gN2.total.diferenciad))}>${this.formatDolares(gN2.total.diferenciad)}</td>
                     </tr>
                 `);
             });
@@ -197,6 +227,13 @@ window.ChartPresupuesto202403 = {
             const ejecDolarN1Class = getEjecutadoDolarClass(gN1.total.valord_regcompras, true);
             const difN1Class = getSaldoClass(gN1.total.diferenciad, true);
 
+            const makeSubtotalN1Attrs = (colName, colVal) => {
+                return `data-n1="${this.escapeHtml(gN1.nombre)}" ` +
+                       `data-presupuesto="${this.escapeHtml(presupuestoNombre)}" ` +
+                       `data-colname="Total ${this.escapeHtml(colName)}" ` +
+                       `data-colval="${this.escapeHtml(colVal)}"`;
+            };
+
             rowsHtml.push(`
                 <tr class="bg-slate-100/80 border-b-2 border-slate-300 text-[11px] text-slate-900 font-bold">
                     <td class="px-2.5 py-1.5 border-r border-slate-200"></td>
@@ -205,12 +242,12 @@ window.ChartPresupuesto202403 = {
                     <td class="px-2 py-1.5 border-r border-slate-200"></td>
                     <td class="px-2 py-1.5 border-r border-slate-200"></td>
                     <td class="px-2.5 py-1.5 border-r border-slate-200"></td>
-                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatSoles(gN1.total.presupuestado)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecN1Class}">${this.formatSoles(gN1.total.ejecutado)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoN1Class}">${this.formatSoles(gN1.total.saldo)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200">${this.formatDolares(gN1.total.valord_presupuesto)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarN1Class}">${this.formatDolares(gN1.total.valord_regcompras)}</td>
-                    <td class="px-2.5 py-1.5 font-mono text-right ${difN1Class}">${this.formatDolares(gN1.total.diferenciad)}</td>
+                    <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN1Attrs('Presupuestado', this.formatSoles(gN1.total.presupuestado))}>${this.formatSoles(gN1.total.presupuestado)}</td>
+                    <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecN1Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN1Attrs('Ejecutado', this.formatSoles(gN1.total.ejecutado))}>${this.formatSoles(gN1.total.ejecutado)}</td>
+                    <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${saldoN1Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN1Attrs('Saldo', this.formatSoles(gN1.total.saldo))}>${this.formatSoles(gN1.total.saldo)}</td>
+                    <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN1Attrs('valord_presupuesto', this.formatDolares(gN1.total.valord_presupuesto))}>${this.formatDolares(gN1.total.valord_presupuesto)}</td>
+                    <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right border-r border-slate-200 ${ejecDolarN1Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN1Attrs('valord_regcompras', this.formatDolares(gN1.total.valord_regcompras))}>${this.formatDolares(gN1.total.valord_regcompras)}</td>
+                    <td class="tooltip-subtotal-cell px-2.5 py-1.5 font-mono text-right ${difN1Class} cursor-pointer hover:bg-blue-100/50" ${makeSubtotalN1Attrs('diferenciad', this.formatDolares(gN1.total.diferenciad))}>${this.formatDolares(gN1.total.diferenciad)}</td>
                 </tr>
             `);
         });
@@ -220,6 +257,12 @@ window.ChartPresupuesto202403 = {
         const grandSaldoClass = getSaldoClass(grandTotal.saldo, true);
         const grandEjecDolarClass = getEjecutadoDolarClass(grandTotal.valord_regcompras, true);
         const grandDifClass = getSaldoClass(grandTotal.diferenciad, true);
+
+        const makeTotalGeneralAttrs = (colName, colVal) => {
+            return `data-presupuesto="${this.escapeHtml(presupuestoNombre)}" ` +
+                   `data-colname="Total General ${this.escapeHtml(colName)}" ` +
+                   `data-colval="${this.escapeHtml(colVal)}"`;
+        };
 
         const tableHtml = `
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
@@ -275,16 +318,19 @@ window.ChartPresupuesto202403 = {
                                 <td class="px-2 py-2 border-r border-slate-300"></td>
                                 <td class="px-2 py-2 border-r border-slate-300"></td>
                                 <td class="px-2.5 py-2 border-r border-slate-300"></td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300">${this.formatSoles(grandTotal.presupuestado)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandEjecClass}">${this.formatSoles(grandTotal.ejecutado)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandSaldoClass}">${this.formatSoles(grandTotal.saldo)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300">${this.formatDolares(grandTotal.valord_presupuesto)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandEjecDolarClass}">${this.formatDolares(grandTotal.valord_regcompras)}</td>
-                                <td class="px-2.5 py-2 font-mono text-right ${grandDifClass}">${this.formatDolares(grandTotal.diferenciad)}</td>
+                                <td class="tooltip-total-cell px-2.5 py-2 font-mono text-right border-r border-slate-300 cursor-pointer hover:bg-blue-100/50" ${makeTotalGeneralAttrs('Presupuestado', this.formatSoles(grandTotal.presupuestado))}>${this.formatSoles(grandTotal.presupuestado)}</td>
+                                <td class="tooltip-total-cell px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandEjecClass} cursor-pointer hover:bg-blue-100/50" ${makeTotalGeneralAttrs('Ejecutado', this.formatSoles(grandTotal.ejecutado))}>${this.formatSoles(grandTotal.ejecutado)}</td>
+                                <td class="tooltip-total-cell px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandSaldoClass} cursor-pointer hover:bg-blue-100/50" ${makeTotalGeneralAttrs('Saldo', this.formatSoles(grandTotal.saldo))}>${this.formatSoles(grandTotal.saldo)}</td>
+                                <td class="tooltip-total-cell px-2.5 py-2 font-mono text-right border-r border-slate-300 cursor-pointer hover:bg-blue-100/50" ${makeTotalGeneralAttrs('valord_presupuesto', this.formatDolares(grandTotal.valord_presupuesto))}>${this.formatDolares(grandTotal.valord_presupuesto)}</td>
+                                <td class="tooltip-total-cell px-2.5 py-2 font-mono text-right border-r border-slate-300 ${grandEjecDolarClass} cursor-pointer hover:bg-blue-100/50" ${makeTotalGeneralAttrs('valord_regcompras', this.formatDolares(grandTotal.valord_regcompras))}>${this.formatDolares(grandTotal.valord_regcompras)}</td>
+                                <td class="tooltip-total-cell px-2.5 py-2 font-mono text-right ${grandDifClass} cursor-pointer hover:bg-blue-100/50" ${makeTotalGeneralAttrs('diferenciad', this.formatDolares(grandTotal.diferenciad))}>${this.formatDolares(grandTotal.diferenciad)}</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+
+                <!-- TOOLTIP FLOTANTE TIPO TABLEAU -->
+                <div id="tooltip-presupuesto-pab" class="fixed z-50 pointer-events-none hidden bg-white/95 backdrop-blur-xs p-3 rounded-xl shadow-2xl border border-slate-200 text-xs transition-opacity duration-150"></div>
             </div>
         `;
 
@@ -432,6 +478,107 @@ window.ChartPresupuesto202403 = {
             XLSX.utils.book_append_sheet(wb, ws, 'Presupuesto202403');
             const fechaStr = new Date().toISOString().slice(0, 10);
             XLSX.writeFile(wb, `PresupuestosPAB_202403_${fechaStr}.xlsx`);
+        });
+
+        this.setupTooltips();
+    },
+
+    setupTooltips() {
+        const tooltip = document.getElementById('tooltip-presupuesto-pab');
+        if (!tooltip) return;
+
+        const posicionarTooltip = (e) => {
+            const offsetX = 16;
+            const offsetY = 16;
+            const tooltipWidth = tooltip.offsetWidth;
+            const tooltipHeight = tooltip.offsetHeight;
+
+            let posX = e.clientX + offsetX;
+            let posY = e.clientY + offsetY;
+
+            if (posX + tooltipWidth > window.innerWidth) {
+                posX = e.clientX - tooltipWidth - 10;
+            }
+            if (posY + tooltipHeight > window.innerHeight) {
+                posY = e.clientY - tooltipHeight - 10;
+            }
+
+            tooltip.style.left = `${posX}px`;
+            tooltip.style.top = `${posY}px`;
+        };
+
+        // 1. Tooltip para Celdas Regulares
+        document.querySelectorAll('.tooltip-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const amarre = cell.getAttribute('data-amarre') || '';
+                const n1 = cell.getAttribute('data-n1') || '';
+                const n2 = cell.getAttribute('data-n2') || '';
+                const nompartida = cell.getAttribute('data-nompartida') || '';
+                const nropartida = cell.getAttribute('data-nropartida') || '';
+                const presupuesto = cell.getAttribute('data-presupuesto') || '';
+                const colname = cell.getAttribute('data-colname') || '';
+                const colval = cell.getAttribute('data-colval') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[260px] max-w-[360px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">amarre:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${amarre}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">n1:</span><span class="col-span-8 font-bold text-slate-900">${n1}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">n2:</span><span class="col-span-8 font-bold text-slate-900">${n2}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">nompartida:</span><span class="col-span-8 font-bold text-slate-900">${nompartida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">nropartida:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${nropartida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">presupuesto:</span><span class="col-span-8 font-bold text-slate-900">${presupuesto}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">${colname}:</span><span class="col-span-7 font-mono font-bold text-blue-700">${colval}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 2. Tooltip para Subtotales
+        document.querySelectorAll('.tooltip-subtotal-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const n1 = cell.getAttribute('data-n1') || '';
+                const n2 = cell.getAttribute('data-n2') || '';
+                const presupuesto = cell.getAttribute('data-presupuesto') || '';
+                const colname = cell.getAttribute('data-colname') || '';
+                const colval = cell.getAttribute('data-colval') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[240px]">
+                        ${n1 ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">n1:</span><span class="col-span-8 font-bold text-slate-900">${n1}</span></div>` : ''}
+                        ${n2 ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">n2:</span><span class="col-span-8 font-bold text-slate-900">${n2}</span></div>` : ''}
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">presupuesto:</span><span class="col-span-8 font-bold text-slate-900">${presupuesto}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">${colname}:</span><span class="col-span-7 font-mono font-bold text-blue-700">${colval}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 3. Tooltip para Total General
+        document.querySelectorAll('.tooltip-total-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presupuesto = cell.getAttribute('data-presupuesto') || '';
+                const colname = cell.getAttribute('data-colname') || '';
+                const colval = cell.getAttribute('data-colval') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[220px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">presupuesto:</span><span class="col-span-8 font-bold text-slate-900">${presupuesto}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">${colname}:</span><span class="col-span-7 font-mono font-bold text-blue-800">${colval}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
         });
     }
 };

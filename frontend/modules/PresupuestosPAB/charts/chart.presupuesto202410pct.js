@@ -36,6 +36,16 @@ window.ChartPresupuesto202410Pct = {
         return `${this.pctFormatter.format(val)}%`;
     },
 
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     renderTableStructure() {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
@@ -62,6 +72,21 @@ window.ChartPresupuesto202410Pct = {
             return 'text-emerald-700 font-semibold';
         };
 
+        // Helper para armar los data-attributes del tooltip en celdas normales
+        const makeCellAttrs = (it, colName, colVal) => {
+            return `data-n1="${this.escapeHtml(it.n1 || '')}" ` +
+                   `data-presupuesto="${this.escapeHtml(presupuestoNombre)}" ` +
+                   `data-colname="${this.escapeHtml(colName)}" ` +
+                   `data-colval="${this.escapeHtml(colVal)}"`;
+        };
+
+        // Helper para armar los data-attributes del tooltip en celdas de totales
+        const makeTotalAttrs = (colName, colVal) => {
+            return `data-presupuesto="${this.escapeHtml(presupuestoNombre)}" ` +
+                   `data-colname="Total ${this.escapeHtml(colName)}" ` +
+                   `data-colval="${this.escapeHtml(colVal)}"`;
+        };
+
         // Generar filas HTML
         const rowsHtml = items.map((it, idx) => {
             const saldoClass = getSaldoClass(it.saldo);
@@ -71,10 +96,10 @@ window.ChartPresupuesto202410Pct = {
                 <tr class="hover:bg-blue-50/30 transition-colors border-b border-slate-200 text-xs text-slate-700">
                     <td class="px-3 py-2 font-medium text-slate-800 border-r border-slate-200 align-top">${idx === 0 ? presupuestoNombre : ''}</td>
                     <td class="px-3 py-2 font-medium text-slate-800 border-r border-slate-200 align-top">${it.n1}</td>
-                    <td class="px-3 py-2 font-mono text-right text-slate-800 border-r border-slate-200">${this.formatSoles(it.presupuestado)}</td>
-                    <td class="px-3 py-2 font-mono text-right ${it.ejecutado > 0 ? 'text-blue-700 font-medium underline decoration-blue-300 cursor-pointer' : 'text-slate-400'} border-r border-slate-200">${this.formatSoles(it.ejecutado)}</td>
-                    <td class="px-3 py-2 font-mono text-right border-r border-slate-200 ${saldoClass}">${this.formatSoles(it.saldo)}</td>
-                    <td class="px-3 py-2 font-mono text-right ${pctClass}">${this.formatPct(it.porcentaje_avance)}</td>
+                    <td class="tooltip-cell px-3 py-2 font-mono text-right text-slate-800 border-r border-slate-200 cursor-pointer hover:bg-blue-50/80" ${makeCellAttrs(it, 'Presupuestado', this.formatSoles(it.presupuestado))}>${this.formatSoles(it.presupuestado)}</td>
+                    <td class="tooltip-cell px-3 py-2 font-mono text-right ${it.ejecutado > 0 ? 'text-blue-700 font-medium underline decoration-blue-300' : 'text-slate-400'} border-r border-slate-200 cursor-pointer hover:bg-blue-50/80" ${makeCellAttrs(it, 'Ejecutado', this.formatSoles(it.ejecutado))}>${this.formatSoles(it.ejecutado)}</td>
+                    <td class="tooltip-cell px-3 py-2 font-mono text-right border-r border-slate-200 ${saldoClass} cursor-pointer hover:bg-blue-50/80" ${makeCellAttrs(it, 'Saldo', this.formatSoles(it.saldo))}>${this.formatSoles(it.saldo)}</td>
+                    <td class="tooltip-cell px-3 py-2 font-mono text-right ${pctClass} cursor-pointer hover:bg-blue-50/80" ${makeCellAttrs(it, '% Avance', this.formatPct(it.porcentaje_avance))}>${this.formatPct(it.porcentaje_avance)}</td>
                 </tr>
             `;
         });
@@ -126,14 +151,17 @@ window.ChartPresupuesto202410Pct = {
                             <tr>
                                 <td class="px-3 py-2.5 border-r border-slate-300"></td>
                                 <td class="px-3 py-2.5 text-left font-bold text-slate-900 border-r border-slate-300">Total</td>
-                                <td class="px-3 py-2.5 font-mono text-right text-slate-900 border-r border-slate-300">${this.formatSoles(totales.presupuestado)}</td>
-                                <td class="px-3 py-2.5 font-mono text-right text-slate-900 border-r border-slate-300">${this.formatSoles(totales.ejecutado)}</td>
-                                <td class="px-3 py-2.5 font-mono text-right text-slate-900 border-r border-slate-300">${this.formatSoles(totales.saldo)}</td>
-                                <td class="px-3 py-2.5 font-mono text-right font-bold text-slate-900">${this.formatPct(totales.porcentaje_avance)}</td>
+                                <td class="tooltip-total-cell px-3 py-2.5 font-mono text-right text-slate-900 border-r border-slate-300 cursor-pointer hover:bg-blue-100/50" ${makeTotalAttrs('Presupuestado', this.formatSoles(totales.presupuestado))}>${this.formatSoles(totales.presupuestado)}</td>
+                                <td class="tooltip-total-cell px-3 py-2.5 font-mono text-right text-slate-900 border-r border-slate-300 cursor-pointer hover:bg-blue-100/50" ${makeTotalAttrs('Ejecutado', this.formatSoles(totales.ejecutado))}>${this.formatSoles(totales.ejecutado)}</td>
+                                <td class="tooltip-total-cell px-3 py-2.5 font-mono text-right text-slate-900 border-r border-slate-300 cursor-pointer hover:bg-blue-100/50" ${makeTotalAttrs('Saldo', this.formatSoles(totales.saldo))}>${this.formatSoles(totales.saldo)}</td>
+                                <td class="tooltip-total-cell px-3 py-2.5 font-mono text-right font-bold text-slate-900 cursor-pointer hover:bg-blue-100/50" ${makeTotalAttrs('% Avance', this.formatPct(totales.porcentaje_avance))}>${this.formatPct(totales.porcentaje_avance)}</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+
+                <!-- TOOLTIP FLOTANTE TIPO TABLEAU -->
+                <div id="tooltip-presupuesto-pct-pab" class="fixed z-50 pointer-events-none hidden bg-white/95 backdrop-blur-xs p-3 rounded-xl shadow-2xl border border-slate-200 text-xs transition-opacity duration-150"></div>
             </div>
         `;
 
@@ -262,6 +290,75 @@ window.ChartPresupuesto202410Pct = {
             XLSX.utils.book_append_sheet(wb, ws, 'Presupuesto202410Pct');
             const fechaStr = new Date().toISOString().slice(0, 10);
             XLSX.writeFile(wb, `PresupuestosPAB_202410_Porcentaje_${fechaStr}.xlsx`);
+        });
+
+        this.setupTooltips();
+    },
+
+    setupTooltips() {
+        const tooltip = document.getElementById('tooltip-presupuesto-pct-pab');
+        if (!tooltip) return;
+
+        const posicionarTooltip = (e) => {
+            const offsetX = 16;
+            const offsetY = 16;
+            const tooltipWidth = tooltip.offsetWidth;
+            const tooltipHeight = tooltip.offsetHeight;
+
+            let posX = e.clientX + offsetX;
+            let posY = e.clientY + offsetY;
+
+            if (posX + tooltipWidth > window.innerWidth) {
+                posX = e.clientX - tooltipWidth - 10;
+            }
+            if (posY + tooltipHeight > window.innerHeight) {
+                posY = e.clientY - tooltipHeight - 10;
+            }
+
+            tooltip.style.left = `${posX}px`;
+            tooltip.style.top = `${posY}px`;
+        };
+
+        // 1. Tooltip para Celdas Regulares (N1)
+        document.querySelectorAll('.tooltip-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const n1 = cell.getAttribute('data-n1') || '';
+                const presupuesto = cell.getAttribute('data-presupuesto') || '';
+                const colname = cell.getAttribute('data-colname') || '';
+                const colval = cell.getAttribute('data-colval') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[240px] max-w-[340px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">n1:</span><span class="col-span-8 font-bold text-slate-900">${n1}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">presupuesto:</span><span class="col-span-8 font-bold text-slate-900">${presupuesto}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">${colname}:</span><span class="col-span-7 font-mono font-bold text-blue-700">${colval}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 2. Tooltip para Total General
+        document.querySelectorAll('.tooltip-total-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const presupuesto = cell.getAttribute('data-presupuesto') || '';
+                const colname = cell.getAttribute('data-colname') || '';
+                const colval = cell.getAttribute('data-colval') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[220px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">presupuesto:</span><span class="col-span-8 font-bold text-slate-900">${presupuesto}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-5 text-slate-700 font-semibold">${colname}:</span><span class="col-span-7 font-mono font-bold text-blue-800">${colval}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
         });
     }
 };

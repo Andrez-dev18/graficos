@@ -38,6 +38,16 @@ window.ChartAnalisisPartidas = {
         return isNeg ? `S/-${fmt}` : `S/${fmt}`;
     },
 
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     getBarColor(tipodoc) {
         const tipo = String(tipodoc || '').trim();
         switch (tipo) {
@@ -119,13 +129,23 @@ window.ChartAnalisisPartidas = {
                         <td class="px-2.5 py-1.5 text-slate-800 border-r border-slate-200 align-top max-w-[260px] truncate" title="${it.nombre}">${it.nombre}</td>
                         <td class="px-2 py-1.5 font-medium text-slate-600 border-r border-slate-200 align-top whitespace-nowrap">${it.cencos}</td>
                         
-                        <!-- COLUMNA GRÁFICA DE BARRA (VALOR) -->
-                        <td class="px-2 py-1 align-middle min-w-[380px] w-full">
+                        <!-- COLUMNA GRÁFICA DE BARRA (VALOR) CON TOOLTIP INTERACTIVO -->
+                        <td class="tooltip-valor-cell px-2 py-1 align-middle min-w-[380px] w-full cursor-pointer group"
+                            data-partida="${this.escapeHtml(p.partida)}"
+                            data-zona="${this.escapeHtml(it.zona)}"
+                            data-tipodoc="${this.escapeHtml(it.tipodoc)}"
+                            data-seriealfa="${this.escapeHtml(it.seriealfa)}"
+                            data-nrodoc="${this.escapeHtml(it.nrodoc)}"
+                            data-ruc="${this.escapeHtml(it.ruc)}"
+                            data-nombre="${this.escapeHtml(it.nombre)}"
+                            data-cencos="${this.escapeHtml(it.cencos)}"
+                            data-glosa="${this.escapeHtml(it.glosa || '')}"
+                            data-valor="${this.formatSoles(it.valor)}">
                             <div class="flex items-center gap-1.5 w-full h-5">
                                 ${it.valor > 0 ? `
-                                    <div class="h-4 rounded-none transition-all duration-300 shrink-0" style="width: ${barWidthPct}%; background-color: ${barColor}; min-width: 4px;"></div>
+                                    <div class="h-4 rounded-none transition-all duration-300 shrink-0 group-hover:brightness-90" style="width: ${barWidthPct}%; background-color: ${barColor}; min-width: 4px;"></div>
                                 ` : ''}
-                                <span class="text-[11px] font-mono text-slate-800 whitespace-nowrap select-none font-normal shrink-0">
+                                <span class="text-[11px] font-mono text-slate-800 whitespace-nowrap select-none font-normal shrink-0 group-hover:font-semibold">
                                     | ${this.formatSoles(it.valor)}
                                 </span>
                             </div>
@@ -151,13 +171,15 @@ window.ChartAnalisisPartidas = {
                     <td class="px-2 py-1.5 border-r border-slate-200"></td>
                     <td class="px-2 py-1.5 border-r border-slate-200"></td>
                     
-                    <!-- BARRA VERDE DE SUBTOTAL -->
-                    <td class="px-2 py-1 align-middle min-w-[380px] w-full">
+                    <!-- BARRA VERDE DE SUBTOTAL CON TOOLTIP INTERACTIVO -->
+                    <td class="tooltip-valor-subtotal-cell px-2 py-1 align-middle min-w-[380px] w-full cursor-pointer group"
+                        data-partida="${this.escapeHtml(p.partida)}"
+                        data-valor="${this.formatSoles(p.subtotal)}">
                         <div class="flex items-center gap-1.5 w-full h-5">
                             ${p.subtotal > 0 ? `
-                                <div class="h-4 rounded-none transition-all duration-300 shrink-0" style="width: ${subtotalWidthPct}%; background-color: ${subtotalColor}; min-width: 4px;"></div>
+                                <div class="h-4 rounded-none transition-all duration-300 shrink-0 group-hover:brightness-90" style="width: ${subtotalWidthPct}%; background-color: ${subtotalColor}; min-width: 4px;"></div>
                             ` : ''}
-                            <span class="text-[11px] font-mono text-slate-900 whitespace-nowrap select-none font-normal shrink-0">
+                            <span class="text-[11px] font-mono text-slate-900 whitespace-nowrap select-none font-bold shrink-0">
                                 | ${this.formatSoles(p.subtotal)}
                             </span>
                         </div>
@@ -267,7 +289,8 @@ window.ChartAnalisisPartidas = {
                                     <td class="px-2 py-2 text-left font-bold text-slate-900 border-r border-slate-300" colspan="7">
                                         Gran Total
                                     </td>
-                                    <td class="px-2.5 py-2 font-mono text-left font-bold text-slate-900">
+                                    <td class="tooltip-valor-total-cell px-2.5 py-2 font-mono text-left font-bold text-slate-900 cursor-pointer"
+                                        data-valor="${this.formatSoles(granTotal)}">
                                         | ${this.formatSoles(granTotal)}
                                     </td>
                                 </tr>
@@ -286,6 +309,9 @@ window.ChartAnalisisPartidas = {
                     </div>
 
                 </div>
+
+                <!-- TOOLTIP FLOTANTE TIPO TABLEAU -->
+                <div id="tooltip-analisis-partidas" class="fixed z-50 pointer-events-none hidden bg-white/95 backdrop-blur-xs p-3 rounded-xl shadow-2xl border border-slate-200 text-xs transition-opacity duration-150"></div>
             </div>
         `;
 
@@ -439,6 +465,105 @@ window.ChartAnalisisPartidas = {
             XLSX.utils.book_append_sheet(wb, ws, 'ComprasPorPartida');
             const fechaStr = new Date().toISOString().slice(0, 10);
             XLSX.writeFile(wb, `Compras_Por_Partida_${data.presupuesto_seleccionado || '202410'}_${fechaStr}.xlsx`);
+        });
+
+        // Configurar tooltips interactivos tipo Tableau
+        this.setupTooltips();
+    },
+
+    setupTooltips() {
+        const tooltip = document.getElementById('tooltip-analisis-partidas');
+        if (!tooltip) return;
+
+        const posicionarTooltip = (e) => {
+            const offsetX = 16;
+            const offsetY = 16;
+            const tooltipWidth = tooltip.offsetWidth;
+            const tooltipHeight = tooltip.offsetHeight;
+
+            let posX = e.clientX + offsetX;
+            let posY = e.clientY + offsetY;
+
+            if (posX + tooltipWidth > window.innerWidth) {
+                posX = e.clientX - tooltipWidth - 10;
+            }
+            if (posY + tooltipHeight > window.innerHeight) {
+                posY = e.clientY - tooltipHeight - 10;
+            }
+
+            tooltip.style.left = `${posX}px`;
+            tooltip.style.top = `${posY}px`;
+        };
+
+        // 1. Tooltip para Valor de Compras por Partida (Fila Regular)
+        document.querySelectorAll('.tooltip-valor-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const partida = cell.getAttribute('data-partida') || '';
+                const zona = cell.getAttribute('data-zona') || '';
+                const tipodoc = cell.getAttribute('data-tipodoc') || '';
+                const seriealfa = cell.getAttribute('data-seriealfa') || '';
+                const nrodoc = cell.getAttribute('data-nrodoc') || '';
+                const ruc = cell.getAttribute('data-ruc') || '';
+                const nombre = cell.getAttribute('data-nombre') || '';
+                const cencos = cell.getAttribute('data-cencos') || '';
+                const glosa = cell.getAttribute('data-glosa') || '';
+                const valor = cell.getAttribute('data-valor') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[260px] max-w-[360px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">Partida:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${partida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">Zona:</span><span class="col-span-8 font-bold text-slate-900">${zona}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">TipoDoc:</span><span class="col-span-8 font-bold text-slate-900">${tipodoc}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">SerieAlfa:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${seriealfa}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">NroDoc:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${nrodoc}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">RUC:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${ruc}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">Nombre:</span><span class="col-span-8 font-bold text-slate-900">${nombre}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">Cencos:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${cencos}</span></div>
+                        ${glosa ? `<div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">Glosa:</span><span class="col-span-8 text-slate-700 italic truncate">${glosa}</span></div>` : ''}
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-4 text-slate-700 font-semibold">Valor:</span><span class="col-span-8 font-mono font-bold text-blue-700">${valor}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 2. Tooltip para Subtotal de Partida
+        document.querySelectorAll('.tooltip-valor-subtotal-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const partida = cell.getAttribute('data-partida') || '';
+                const valor = cell.getAttribute('data-valor') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[220px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-4 text-slate-500 font-normal">Partida:</span><span class="col-span-8 font-bold text-slate-900 font-mono">${partida}</span></div>
+                        <div class="grid grid-cols-12 gap-x-2 border-t border-slate-100 pt-1 mt-1"><span class="col-span-4 text-slate-700 font-semibold">Total Valor:</span><span class="col-span-8 font-mono font-bold text-emerald-700">${valor}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+        });
+
+        // 3. Tooltip para Gran Total
+        document.querySelectorAll('.tooltip-valor-total-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const valor = cell.getAttribute('data-valor') || '';
+
+                tooltip.innerHTML = `
+                    <div class="space-y-1 text-slate-700 select-none text-[11px] leading-snug min-w-[200px]">
+                        <div class="grid grid-cols-12 gap-x-2"><span class="col-span-5 text-slate-700 font-semibold">Gran Total:</span><span class="col-span-7 font-mono font-bold text-slate-900">${valor}</span></div>
+                    </div>
+                `;
+                tooltip.classList.remove('hidden');
+            });
+
+            cell.addEventListener('mousemove', posicionarTooltip);
+            cell.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
         });
     }
 };
