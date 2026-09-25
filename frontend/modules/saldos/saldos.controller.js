@@ -857,9 +857,10 @@ class SaldosController {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
-        this.limpiarGraficos();
-        this.aplicarLayoutGrid();
-        const { fechaInicio: fInicio, fechaFin: fFin } = PeriodoHelper.calcularRangoFechas();
+        const rango = (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas)
+            ? PeriodoHelper.obtenerRangoFechas()
+            : ((typeof PeriodoHelper !== 'undefined' && PeriodoHelper.calcularRangoFechas) ? PeriodoHelper.calcularRangoFechas() : { fechaInicio: '', fechaFin: '' });
+        const { fechaInicio: fInicio, fechaFin: fFin } = rango;
         this.currentPeriodo = { inicio: fInicio, fin: fFin };
 
         const selectedCuentas = this.msCuentaVenta.getSelectedValues();

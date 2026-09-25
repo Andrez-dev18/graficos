@@ -3,7 +3,7 @@
  */
 class TransportesService {
     constructor() {
-        this.baseUrl = window.AppConfig?.API?.BASE_URL || '/graficos/backend';
+        this.baseUrl = AppConfig.API.BASE_URL;
         this.ENDPOINTS = {
             DASHBOARD: '/transporte/dashboard',
             DETALLE_EVENTOS: '/transporte/detalle-eventos'

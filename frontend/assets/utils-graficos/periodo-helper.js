@@ -215,6 +215,10 @@ const PeriodoHelper = {
             default:
                 return { fechaInicio: '', fechaFin: '' };
         }
+    },
+
+    calcularRangoFechas() {
+        return this.obtenerRangoFechas();
     }
 };
 
