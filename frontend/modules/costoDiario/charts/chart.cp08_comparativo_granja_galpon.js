@@ -489,18 +489,29 @@ window.ChartCP08ComparativoGranjaGalpon = {
             }
         }
 
-        fetch('backend/costoDiario/dashboard', {
+        const baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.API && AppConfig.API.BASE_URL) 
+            ? AppConfig.API.BASE_URL 
+            : '../../backend';
+        const url = `${baseUrl}/costoDiario/dashboard`;
+
+        fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
-        .then(res => res.json())
         .then(res => {
-            if (res.status === 'success') {
-                this.datosBackend.tabla2_comparacion_linea = res.tabla2_comparacion_linea;
-                this.datosBackend.tabla3_comparativo_detalle = res.tabla3_comparativo_detalle;
-                this.datosBackend.cencos_activo = res.cencos_activo;
-                this.datosBackend.nomcencos_activo = res.nomcencos_activo;
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
+        .then(res => {
+            const data = res.payload || res.data || res;
+            if (res.success || data.status === 'success' || data.tabla2_comparacion_linea) {
+                if (data.tabla2_comparacion_linea) this.datosBackend.tabla2_comparacion_linea = data.tabla2_comparacion_linea;
+                if (data.tabla3_comparativo_detalle) this.datosBackend.tabla3_comparativo_detalle = data.tabla3_comparativo_detalle;
+                if (data.cencos_activo) this.datosBackend.cencos_activo = data.cencos_activo;
+                if (data.nomcencos_activo) this.datosBackend.nomcencos_activo = data.nomcencos_activo;
 
                 this.renderPanel1();
                 this.renderPanel2();
