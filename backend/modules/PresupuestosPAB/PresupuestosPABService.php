@@ -67,6 +67,33 @@ class PresupuestosPABService
             case 'Presupuesto202404':
                 return DashPresupuesto202404Handler::handle($this->db, $filtros);
 
+            case 'DashPresupuesto':
+            case 'Presupuesto':
+                $codigo = trim($filtros['presupuesto'] ?? $filtros['codigo_presupuesto'] ?? '202403');
+                switch ($codigo) {
+                    case '202503%':
+                    case '202503Pct':
+                        return DashPresupuesto202503PctHandler::handle($this->db, $filtros);
+                    case '202503':
+                        return DashPresupuesto202503Handler::handle($this->db, $filtros);
+                    case '202410%':
+                    case '202410Pct':
+                        return DashPresupuesto202410PctHandler::handle($this->db, $filtros);
+                    case '202410':
+                        return DashPresupuesto202410Handler::handle($this->db, $filtros);
+                    case '202404%':
+                    case '202404Pct':
+                        return DashPresupuesto202404PctHandler::handle($this->db, $filtros);
+                    case '202404':
+                        return DashPresupuesto202404Handler::handle($this->db, $filtros);
+                    case '202403%':
+                    case '202403Pct':
+                        return DashPresupuesto202403PctHandler::handle($this->db, $filtros);
+                    case '202403':
+                    default:
+                        return DashPresupuesto202403Handler::handle($this->db, $filtros);
+                }
+
             case 'DashPresupuesto202403':
             case 'Presupuesto202403':
             default:

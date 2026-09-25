@@ -1,12 +1,43 @@
+const PRESUPUESTOS_DASH = [
+    { codigo: '202403', nombre: '202403' },
+    { codigo: '202403%', nombre: '202403%' },
+    { codigo: '202404', nombre: '202404' },
+    { codigo: '202404%', nombre: '202404%' },
+    { codigo: '202410', nombre: '202410' },
+    { codigo: '202410%', nombre: '202410%' },
+    { codigo: '202503', nombre: '202503' },
+    { codigo: '202503%', nombre: '202503%' }
+];
+
+const PRESUPUESTOS_ANALISIS = [
+    { codigo: '202410', nombre: '202410' },
+    { codigo: '202404', nombre: '202404' },
+    { codigo: '202403', nombre: '202403' },
+    { codigo: '202405', nombre: '202405' },
+    { codigo: '202401', nombre: '202401' },
+    { codigo: '202503', nombre: '202503' }
+];
+
 const BUDGET_PAIRS = {
-    'DashPresupuesto202403': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
-    'DashPresupuesto202403Pct': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
-    'DashPresupuesto202404': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
-    'DashPresupuesto202404Pct': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
-    'DashPresupuesto202410': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
-    'DashPresupuesto202410Pct': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
-    'DashPresupuesto202503': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' },
-    'DashPresupuesto202503Pct': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' }
+    '202403': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
+    '202403%': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
+    '202404': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
+    '202404%': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
+    '202410': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
+    '202410%': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
+    '202503': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' },
+    '202503%': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' }
+};
+
+const CHART_MAP = {
+    '202403': 'DashPresupuesto202403',
+    '202403%': 'DashPresupuesto202403Pct',
+    '202404': 'DashPresupuesto202404',
+    '202404%': 'DashPresupuesto202404Pct',
+    '202410': 'DashPresupuesto202410',
+    '202410%': 'DashPresupuesto202410Pct',
+    '202503': 'DashPresupuesto202503',
+    '202503%': 'DashPresupuesto202503Pct'
 };
 
 /**
@@ -16,7 +47,7 @@ const BUDGET_PAIRS = {
 class PresupuestosPABController {
     constructor() {
         this.service = new PresupuestosPABService();
-        this.chartTipoActual = 'DashPresupuesto202403';
+        this.chartTipoActual = 'DashPresupuesto';
         this.datosDashboard = null;
         this.init();
     }
@@ -103,13 +134,14 @@ class PresupuestosPABController {
     actualizarVisibilidadControles() {
         const selTipoGrafico = document.getElementById('select-tipo-grafico');
         const contPresu = document.getElementById('contenedor-filtro-presupuesto');
+        const selFiltroPresu = document.getElementById('select-filtro-presupuesto');
         const contCombinar = document.getElementById('contenedor-check-combinar');
 
-        const tipo = selTipoGrafico ? selTipoGrafico.value : '';
-        const esPresupuesto = Boolean(BUDGET_PAIRS[tipo]);
+        const tipo = selTipoGrafico ? selTipoGrafico.value : 'DashPresupuesto';
+        const esDashPresupuesto = (tipo === 'DashPresupuesto');
 
         if (contCombinar) {
-            if (esPresupuesto) {
+            if (esDashPresupuesto) {
                 contCombinar.classList.remove('hidden');
             } else {
                 contCombinar.classList.add('hidden');
@@ -117,10 +149,26 @@ class PresupuestosPABController {
         }
 
         if (contPresu) {
-            if (tipo === 'AnalisisPartidas' || tipo === 'ComprasPorPartida' || tipo === 'RC' || tipo === 'DashComparativoCronoRC' || tipo === 'ComparativoCronoRC') {
-                contPresu.classList.remove('hidden');
+            contPresu.classList.remove('hidden');
+        }
+
+        if (selFiltroPresu) {
+            const actualVal = selFiltroPresu.value;
+            if (esDashPresupuesto) {
+                const existe = PRESUPUESTOS_DASH.some(p => p.codigo === actualVal);
+                const seleccionado = existe ? actualVal : '202403';
+                selFiltroPresu.innerHTML = PRESUPUESTOS_DASH.map(p => {
+                    const isSel = (p.codigo === seleccionado) ? 'selected' : '';
+                    return `<option value="${p.codigo}" ${isSel}>${p.nombre}</option>`;
+                }).join('');
             } else {
-                contPresu.classList.add('hidden');
+                const lista = (this.datosDashboard && this.datosDashboard.presupuestos_disponibles) ? this.datosDashboard.presupuestos_disponibles : PRESUPUESTOS_ANALISIS;
+                const existe = lista.some(p => p.codigo === actualVal);
+                const seleccionado = existe ? actualVal : '202410';
+                selFiltroPresu.innerHTML = lista.map(p => {
+                    const isSel = (p.codigo === seleccionado) ? 'selected' : '';
+                    return `<option value="${p.codigo}" ${isSel}>${p.nombre || p.codigo}</option>`;
+                }).join('');
             }
         }
     }
@@ -130,6 +178,10 @@ class PresupuestosPABController {
     }
 
     actualizarOpcionesPresupuesto(lista = [], seleccionado = '202410') {
+        const selTipoGrafico = document.getElementById('select-tipo-grafico');
+        const tipo = selTipoGrafico ? selTipoGrafico.value : '';
+        if (tipo === 'DashPresupuesto') return;
+
         const selFiltroPresu = document.getElementById('select-filtro-presupuesto');
         if (!selFiltroPresu || !lista.length) return;
 
@@ -141,8 +193,6 @@ class PresupuestosPABController {
     }
 
     async onCargarClick() {
-        this.actualizarVisibilidadControles();
-
         const btnCargar = document.getElementById('btn-cargar');
         const originalBtnHtml = btnCargar ? btnCargar.innerHTML : '';
 
@@ -160,85 +210,104 @@ class PresupuestosPABController {
 
         try {
             const selTipoGrafico = document.getElementById('select-tipo-grafico');
-            const tipoGrafico = selTipoGrafico ? selTipoGrafico.value : 'DashPresupuesto202403';
+            const tipoGrafico = selTipoGrafico ? selTipoGrafico.value : 'DashPresupuesto';
             this.chartTipoActual = tipoGrafico;
+
+            const selPresu = document.getElementById('select-filtro-presupuesto');
+            const codigoPresu = (selPresu && selPresu.value) ? selPresu.value : '202403';
 
             const chkMostrarAmbos = document.getElementById('check-mostrar-ambos');
             const mostrarAmbos = chkMostrarAmbos ? chkMostrarAmbos.checked : false;
-            const pair = BUDGET_PAIRS[tipoGrafico];
 
-            // Extraer fechas del PeriodoHelper
+            // Extraer fechas del PeriodoHelper si existen
             let rango = {};
             if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
                 rango = PeriodoHelper.obtenerRangoFechas();
             }
 
-            const selPresu = document.getElementById('select-filtro-presupuesto');
-            const presuFiltro = (selPresu && selPresu.value) ? selPresu.value : '';
-
             const contGraficos = document.getElementById('contenedor-graficos-lista');
             if (contGraficos) contGraficos.innerHTML = '';
 
-            if (mostrarAmbos && pair) {
-                // Modo combinado: Cargar Resumen % (primero) y Detalle (segundo)
-                const [respPct, respDet] = await Promise.all([
-                    this.service.obtenerDashboard({
-                        tipo_grafico: pair.pct,
+            if (tipoGrafico === 'DashPresupuesto') {
+                const pair = BUDGET_PAIRS[codigoPresu] || BUDGET_PAIRS['202403'];
+
+                if (mostrarAmbos) {
+                    // Modo combinado: Cargar Resumen % (primero) y Detalle (segundo)
+                    const [respPct, respDet] = await Promise.all([
+                        this.service.obtenerDashboard({
+                            tipo_grafico: pair.pct,
+                            fecha_inicio: rango.fechaInicio || '',
+                            fecha_fin: rango.fechaFin || ''
+                        }),
+                        this.service.obtenerDashboard({
+                            tipo_grafico: pair.det,
+                            fecha_inicio: rango.fechaInicio || '',
+                            fecha_fin: rango.fechaFin || ''
+                        })
+                    ]);
+
+                    if (!respPct || respPct.status !== 'success' || !respDet || respDet.status !== 'success') {
+                        console.error('Error al obtener datos combinados:', { respPct, respDet });
+                        alert('No se pudieron cargar los datos combinados del presupuesto.');
+                        return;
+                    }
+
+                    const dataPct = respPct.data || respPct.payload || {};
+                    const dataDet = respDet.data || respDet.payload || {};
+
+                    if (contGraficos) {
+                        contGraficos.innerHTML = `
+                            <div id="contenedor-resumen-pct" class="w-full"></div>
+                            <div id="contenedor-detalle-presupuesto" class="w-full"></div>
+                        `;
+                    }
+
+                    // Renderizar primero el resumen (%)
+                    if (window.ChartRegistry && window.ChartRegistry[pair.pct]) {
+                        window.ChartRegistry[pair.pct].render(this, dataPct, 'contenedor-resumen-pct');
+                    }
+
+                    // Renderizar segundo el detalle
+                    if (window.ChartRegistry && window.ChartRegistry[pair.det]) {
+                        window.ChartRegistry[pair.det].render(this, dataDet, 'contenedor-detalle-presupuesto');
+                    }
+                } else {
+                    // Modo individual: determinar componente según código (con o sin %)
+                    const targetChart = CHART_MAP[codigoPresu] || 'DashPresupuesto202403';
+                    const resp = await this.service.obtenerDashboard({
+                        tipo_grafico: targetChart,
                         fecha_inicio: rango.fechaInicio || '',
-                        fecha_fin: rango.fechaFin || '',
-                        presupuesto: presuFiltro
-                    }),
-                    this.service.obtenerDashboard({
-                        tipo_grafico: pair.det,
-                        fecha_inicio: rango.fechaInicio || '',
-                        fecha_fin: rango.fechaFin || '',
-                        presupuesto: presuFiltro
-                    })
-                ]);
+                        fecha_fin: rango.fechaFin || ''
+                    });
 
-                if (!respPct || respPct.status !== 'success' || !respDet || respDet.status !== 'success') {
-                    console.error('Error al obtener datos combinados:', { respPct, respDet });
-                    alert('No se pudieron cargar los datos combinados del presupuesto.');
-                    return;
+                    if (!resp || resp.status !== 'success') {
+                        console.error('Error al obtener datos:', resp);
+                        alert('No se pudieron cargar los datos del presupuesto.');
+                        return;
+                    }
+
+                    this.datosDashboard = resp.data || resp.payload;
+
+                    if (window.ChartRegistry && window.ChartRegistry[targetChart]) {
+                        window.ChartRegistry[targetChart].render(this, this.datosDashboard, contGraficos);
+                    } else if (window.ChartRegistry && window.ChartRegistry['DashPresupuesto202403']) {
+                        window.ChartRegistry['DashPresupuesto202403'].render(this, this.datosDashboard, contGraficos);
+                    }
                 }
-
-                const dataPct = respPct.data || respPct.payload || {};
-                const dataDet = respDet.data || respDet.payload || {};
-
-                if (contGraficos) {
-                    contGraficos.innerHTML = `
-                        <div id="contenedor-resumen-pct" class="w-full"></div>
-                        <div id="contenedor-detalle-presupuesto" class="w-full"></div>
-                    `;
-                }
-
-                // Renderizar primero el resumen (%)
-                if (window.ChartRegistry && window.ChartRegistry[pair.pct]) {
-                    window.ChartRegistry[pair.pct].render(this, dataPct, 'contenedor-resumen-pct');
-                }
-
-                // Renderizar segundo el detalle
-                if (window.ChartRegistry && window.ChartRegistry[pair.det]) {
-                    window.ChartRegistry[pair.det].render(this, dataDet, 'contenedor-detalle-presupuesto');
-                }
-
             } else {
-                // Modo individual normal
+                // Modo AnalisisPartidas o DashComparativoCronoRC
                 const filtros = {
                     tipo_grafico: tipoGrafico,
+                    presupuesto: codigoPresu,
                     fecha_inicio: rango.fechaInicio || '',
                     fecha_fin: rango.fechaFin || ''
                 };
-                if (presuFiltro) {
-                    filtros.presupuesto = presuFiltro;
-                }
 
-                // Consultar datos al servicio
                 const resp = await this.service.obtenerDashboard(filtros);
 
                 if (!resp || resp.status !== 'success') {
                     console.error('Error al obtener datos:', resp);
-                    alert('No se pudieron cargar los datos del presupuesto.');
+                    alert('No se pudieron cargar los datos del reporte.');
                     return;
                 }
 
@@ -248,16 +317,12 @@ class PresupuestosPABController {
                 if (this.datosDashboard && this.datosDashboard.presupuestos_disponibles) {
                     this.actualizarOpcionesPresupuesto(
                         this.datosDashboard.presupuestos_disponibles,
-                        this.datosDashboard.presupuesto_seleccionado || '202410'
+                        this.datosDashboard.presupuesto_seleccionado || codigoPresu
                     );
                 }
 
-                // Renderizar según componente registrado en ChartRegistry
                 if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
                     window.ChartRegistry[tipoGrafico].render(this, this.datosDashboard, contGraficos);
-                } else if (window.ChartRegistry && window.ChartRegistry['DashPresupuesto202403']) {
-                    // Fallback por defecto al reporte 202403
-                    window.ChartRegistry['DashPresupuesto202403'].render(this, this.datosDashboard, contGraficos);
                 } else {
                     console.warn(`No se encontró componente registrado para tipo_grafico="${tipoGrafico}".`);
                 }

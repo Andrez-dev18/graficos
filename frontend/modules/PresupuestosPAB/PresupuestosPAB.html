@@ -86,16 +86,26 @@
                             class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">REPORTE / HOJA</label>
                         <select id="select-tipo-grafico"
                             class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <option value="DashPresupuesto202403" selected>DashPresupuesto202403</option>
-                            <option value="DashPresupuesto202403Pct">DashPresupuesto202403%</option>
-                            <option value="DashPresupuesto202404">DashPresupuesto202404</option>
-                            <option value="DashPresupuesto202404Pct">DashPresupuesto202404%</option>
-                            <option value="DashPresupuesto202410">DashPresupuesto202410</option>
-                            <option value="DashPresupuesto202410Pct">DashPresupuesto202410%</option>
-                            <option value="DashPresupuesto202503">DashPresupuesto202503</option>
-                            <option value="DashPresupuesto202503Pct">DashPresupuesto202503%</option>
+                            <option value="DashPresupuesto" selected>DashPresupuesto</option>
                             <option value="AnalisisPartidas">AnalisisPartidas</option>
                             <option value="DashComparativoCronoRC">DashComparativoCronoRC</option>
+                        </select>
+                    </div>
+
+                    <!-- SELECT FILTRO PRESUPUESTO / CÓDIGO -->
+                    <div id="contenedor-filtro-presupuesto" class="flex flex-col">
+                        <label for="select-filtro-presupuesto"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PRESUPUESTO</label>
+                        <select id="select-filtro-presupuesto"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="202403" selected>202403</option>
+                            <option value="202403%">202403%</option>
+                            <option value="202404">202404</option>
+                            <option value="202404%">202404%</option>
+                            <option value="202410">202410</option>
+                            <option value="202410%">202410%</option>
+                            <option value="202503">202503</option>
+                            <option value="202503%">202503%</option>
                         </select>
                     </div>
 
@@ -108,16 +118,6 @@
                                 Mostrar ambos (Resumen % + Detalle)
                             </span>
                         </label>
-                    </div>
-
-                    <!-- SELECT FILTRO PRESUPUESTO DINÁMICO (SOLO PARA ANALISIS PARTIDAS / DASHBOARDS APLICABLES) -->
-                    <div id="contenedor-filtro-presupuesto" class="flex flex-col hidden">
-                        <label for="select-filtro-presupuesto"
-                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PRESUPUESTO</label>
-                        <select id="select-filtro-presupuesto"
-                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <option value="202410" selected>202410</option>
-                        </select>
                     </div>
                 </div>
 
