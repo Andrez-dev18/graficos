@@ -9,7 +9,7 @@ class Database {
     public function __construct() {
         
         // 1. Ruta del archivo en el servidor de producción (Granja Rinconada del Sur)
-        $prodConfigFile = $_SERVER['DOCUMENT_ROOT'] . '/conexion_grs/configuracion.ph';
+        $prodConfigFile = $_SERVER['DOCUMENT_ROOT'] . '/conexion_grs/configuracion.php';
         
         // 2. Ruta de tu archivo local (.env)
         $localEnvFile = __DIR__ . '/.env'; 
