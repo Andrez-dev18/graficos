@@ -86,7 +86,7 @@ class PresupuestosPABController {
         if (!contPresu) return;
 
         const tipo = selTipoGrafico ? selTipoGrafico.value : '';
-        if (tipo === 'AnalisisPartidas' || tipo === 'ComprasPorPartida' || tipo === 'RC') {
+        if (tipo === 'AnalisisPartidas' || tipo === 'ComprasPorPartida' || tipo === 'RC' || tipo === 'DashComparativoCronoRC' || tipo === 'ComparativoCronoRC') {
             contPresu.classList.remove('hidden');
         } else {
             contPresu.classList.add('hidden');

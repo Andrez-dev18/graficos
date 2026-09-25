@@ -68,6 +68,7 @@ class DashPresupuesto202403Handler
         unset($f);
 
         return [
+            'success'            => true,
             'status'             => 'success',
             'tipo_grafico'       => 'DashPresupuesto202403',
             'titulo'             => 'Presupuesto Planta de Alimento',
