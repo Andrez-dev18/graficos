@@ -219,13 +219,43 @@
                 line-height: 1.1 !important;
             }
 
-            /* Ocultar el texto del logo ("Sistema Gestión") arriba y centrar el ícono principal */
-            .sidebar.collapsed .sidebar-brand-text {
-                display: none !important;
+            /* Header / Logo en modo colapsado: Logo arriba y texto 'Core BI' centrado abajo */
+            .sidebar.collapsed .sidebar-header-container {
+                padding: 16px 8px 12px 8px !important;
             }
 
             .sidebar.collapsed .sidebar-brand-row {
-                justify-content: center;
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            .sidebar.collapsed .sidebar-brand-content {
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 6px !important;
+                width: 100%;
+            }
+
+            .sidebar.collapsed .sidebar-brand-text {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center !important;
+            }
+
+            .sidebar.collapsed .sidebar-brand-name {
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                color: #ffffff !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                letter-spacing: 0.025em;
+            }
+
+            .sidebar.collapsed .sidebar-brand-home,
+            .sidebar.collapsed .sidebar-brand-sub {
+                display: none !important;
             }
 
             /* Ocultar textos de usuario al colapsar y centrar el avatar */
@@ -389,12 +419,42 @@
                 width: 140px;
             }
 
-            .sidebar .sidebar-brand-text {
-                display: none !important;
+            .sidebar .sidebar-header-container {
+                padding: 16px 8px 12px 8px !important;
             }
 
             .sidebar .sidebar-brand-row {
-                justify-content: center;
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            .sidebar .sidebar-brand-content {
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 6px !important;
+                width: 100%;
+            }
+
+            .sidebar .sidebar-brand-text {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center !important;
+            }
+
+            .sidebar .sidebar-brand-name {
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                color: #ffffff !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                letter-spacing: 0.025em;
+            }
+
+            .sidebar .sidebar-brand-home,
+            .sidebar .sidebar-brand-sub {
+                display: none !important;
             }
 
             .sidebar .menu-item {
@@ -494,9 +554,9 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar rounded-r-2xl">
         <!-- Logo/Header -->
-        <div class="p-6 border-b border-blue-700">
+        <div class="p-6 border-b border-blue-700 sidebar-header-container">
             <div class="flex items-center justify-between sidebar-brand-row">
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 sidebar-brand-content">
                     <div class="w-12 h-15 bg-transparent rounded-lg flex items-center justify-center shrink-0">
                         <a href="index.html" onclick="volverAlInicio()">
                             <img src="assets/img/logografico.png" alt="logo_empresa">
@@ -504,14 +564,14 @@
                     </div>
                     <div class="sidebar-brand-text">
                         <div class="flex items-center gap-2">
-                            <h2 class="text-white font-bold text-lg leading-none">Sistema</h2>
+                            <h2 class="text-white font-bold text-lg leading-none sidebar-brand-name">Core BI</h2>
                             <a href="index.html" onclick="volverAlInicio()"
-                                class="w-7 h-7 flex items-center justify-center rounded-md transition duration-200"
+                                class="w-7 h-7 flex items-center justify-center rounded-md transition duration-200 sidebar-brand-home"
                                 title="Ir al inicio">
                                 <i class="fas fa-home text-white text-xs"></i>
                             </a>
                         </div>
-                        <p class="text-blue-300 text-xs">Análisis Graficos</p>
+                        <p class="text-blue-300 text-xs sidebar-brand-sub">Sistema</p>
                     </div>
                 </div>
 
@@ -625,11 +685,9 @@
                     </button>
 
                     <div class="flex flex-col justify-center">
-                        <h1
-                            class="text-sm sm:text-lg font-bold text-gray-800 leading-none tracking-tight truncate max-w-[180px] sm:max-w-none">
-                            Sistema de análisis y visualización de gráficos</h1>
-                        <p id="dashboardTitle"
-                            class="text-[10px] sm:text-sm text-blue-500 font-medium mt-0.5 sm:mt-1 empty:hidden"></p>
+                        
+                        <h1 id="dashboardTitle"
+                            class="text-sm sm:text-lg font-bold text-blue-500 font-medium mt-0.5 sm:mt-1 empty:hidden"></h1>
                     </div>
                 </div>
 
