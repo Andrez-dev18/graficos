@@ -2,11 +2,11 @@
  * Componente: Dash_EEGGyPP
  * Módulo: LIMA 1 EE_GGyPP
  * 
- * - Matriz Jerárquica: Producto (Primera, Segunda), Tipo (1 Pollo, 2 Menudencia), Código y Descripción.
+ * - Matriz Jerárquica: Producto -> Tipo -> Código y Descripción.
+ * - Subtotales por Tipo y Fila de Total General (% Util vacío y % Peso al 100.00%).
  * - 10 Métricas con formateo exacto de Tableau.
- * - Panel lateral: Solo "Nombres de medidas".
+ * - Panel lateral: "Nombres de medidas".
  * - Filtro Cruzado Interactivo: Al hacer clic en una medida, resalta/subraya y enfoca la columna correspondiente.
- * - Subtotales por Tipo/Producto y Fila de Total General.
  * - Exportación a Excel.
  */
 
@@ -95,17 +95,17 @@ window.ChartDashEEGGyPP = {
                         <div class="xl:col-span-10 bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                             <!-- TITULO CENTRADO BANNER TABLEAU -->
                             <div class="w-full py-2 text-center font-extrabold text-xs sm:text-sm tracking-wider text-slate-900 border-b border-slate-300 bg-slate-100 uppercase select-none">
-                                COSTO DE VENTA DEL POLLO BENEFICIADO
+                                ${data.titulo || 'COSTO DE VENTA DEL POLLO BENEFICIADO'}
                             </div>
                             <div class="w-full overflow-x-auto custom-scrollbar">
-                                <table id="tabla-dash-eeggypp" class="w-full text-[11px] border-collapse font-sans select-none min-w-[1100px]">
+                                <table id="tabla-dash-eeggypp" class="w-full text-[11px] border-collapse font-sans select-none min-w-[1150px]">
                             
                             <!-- CABECERA DE LA TABLA -->
                             <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-300 sticky top-0 z-20">
                                 <tr class="divide-x divide-slate-200 text-center">
-                                    <th class="px-2.5 py-2.5 text-left w-20 bg-[#dfedeb] text-slate-800">Producto</th>
-                                    <th class="px-2.5 py-2.5 text-left w-24 bg-slate-100">Tipo</th>
-                                    <th class="px-2 py-2.5 text-left w-16 bg-slate-100">Codigo</th>
+                                    <th class="px-2.5 py-2.5 text-left w-24 bg-[#dfedeb] text-slate-800">Producto</th>
+                                    <th class="px-2.5 py-2.5 text-left w-28 bg-slate-100">Tipo</th>
+                                    <th class="px-2 py-2.5 text-left w-20 bg-slate-100">Codigo</th>
                                     <th class="px-3 py-2.5 text-left bg-slate-100">Descripcion</th>
                                     <th data-col="peso_venta" class="celda-medida px-2.5 py-2.5 text-right text-blue-900 bg-blue-50/50 transition-all cursor-pointer hover:bg-blue-100/80">Peso Venta</th>
                                     <th data-col="importe_venta" class="celda-medida px-2.5 py-2.5 text-right text-blue-900 bg-blue-50/50 transition-all cursor-pointer hover:bg-blue-100/80">Importe Venta</th>
@@ -115,7 +115,7 @@ window.ChartDashEEGGyPP = {
                                     <th data-col="comercial" class="celda-medida px-2.5 py-2.5 text-right text-rose-900 bg-rose-50/50 transition-all cursor-pointer hover:bg-rose-100/80">Comercial</th>
                                     <th data-col="administrativo" class="celda-medida px-2.5 py-2.5 text-right text-rose-900 bg-rose-50/50 transition-all cursor-pointer hover:bg-rose-100/80">Administrativo</th>
                                     <th data-col="utilidad_operativa" class="celda-medida px-2.5 py-2.5 text-right text-slate-900 bg-slate-100/70 transition-all cursor-pointer hover:bg-slate-200">Utilidad Operativa</th>
-                                    <th data-col="pct_utilidad" class="celda-medida px-2.5 py-2.5 text-right text-slate-900 bg-slate-100/70 transition-all cursor-pointer hover:bg-slate-200">% Utilidad</th>
+                                    <th data-col="pct_utilidad" class="celda-medida px-2.5 py-2.5 text-right text-slate-900 bg-slate-100/70 transition-all cursor-pointer hover:bg-slate-200">% Util</th>
                                     <th data-col="pct_peso" class="celda-medida px-2.5 py-2.5 text-right text-purple-950 bg-purple-50/50 transition-all cursor-pointer hover:bg-purple-100/80">% Peso</th>
                                 </tr>
                             </thead>
@@ -128,10 +128,10 @@ window.ChartDashEEGGyPP = {
                             <!-- TOTAL GENERAL FOOTER -->
                             <tfoot class="border-t-2 border-slate-400 bg-slate-100 font-extrabold text-slate-900 sticky bottom-0 z-20 shadow-md">
                                 <tr class="divide-x divide-slate-300">
-                                    <td colspan="4" class="px-3 py-2 text-left uppercase tracking-wider text-xs font-black">
+                                    <td colspan="4" class="px-3 py-2 text-left tracking-wider text-xs font-black">
                                         Total general
                                     </td>
-                                    <td data-col="peso_venta" class="celda-medida px-2.5 py-2 text-right text-slate-900 transition-all">${this.formatNum(totalGeneral.peso_venta, 2)}</td>
+                                    <td data-col="peso_venta" class="celda-medida px-2.5 py-2 text-right text-blue-900 transition-all">${this.formatNum(totalGeneral.peso_venta, 2)}</td>
                                     <td data-col="importe_venta" class="celda-medida px-2.5 py-2 text-right text-blue-900 transition-all">${this.formatSoles(totalGeneral.importe_venta, 2)}</td>
                                     <td data-col="precio_venta" class="celda-medida px-2.5 py-2 text-right text-blue-900 transition-all">${this.formatSoles(totalGeneral.precio_venta, 3)}</td>
                                     <td data-col="costo_ventas_importe" class="celda-medida px-2.5 py-2 text-right text-red-600 transition-all">${this.formatSoles(totalGeneral.costo_ventas_importe, 2)}</td>
@@ -139,8 +139,8 @@ window.ChartDashEEGGyPP = {
                                     <td data-col="comercial" class="celda-medida px-2.5 py-2 text-right text-red-600 transition-all">${this.formatSoles(totalGeneral.comercial, 2)}</td>
                                     <td data-col="administrativo" class="celda-medida px-2.5 py-2 text-right text-red-600 transition-all">${this.formatSoles(totalGeneral.administrativo, 2)}</td>
                                     <td data-col="utilidad_operativa" class="celda-medida px-2.5 py-2 text-right ${totalGeneral.utilidad_operativa < 0 ? 'text-red-600' : 'text-slate-900'} transition-all">${this.formatSoles(totalGeneral.utilidad_operativa, 2)}</td>
-                                    <td data-col="pct_utilidad" class="celda-medida px-2.5 py-2 text-right text-slate-900 transition-all">${this.formatPct(totalGeneral.pct_utilidad, 2)}</td>
-                                    <td data-col="pct_peso" class="celda-medida px-2.5 py-2 text-right text-purple-900 transition-all">${this.formatPct(totalGeneral.pct_peso, 2)}</td>
+                                    <td data-col="pct_utilidad" class="celda-medida px-2.5 py-2 text-right text-slate-900 transition-all"></td>
+                                    <td data-col="pct_peso" class="celda-medida px-2.5 py-2 text-right text-purple-900 transition-all">${this.formatPct(totalGeneral.pct_peso || 100, 2)}</td>
                                 </tr>
                             </tfoot>
 
@@ -206,7 +206,7 @@ window.ChartDashEEGGyPP = {
 
                             <div data-medida="pct_utilidad" class="item-nombre-medida flex items-center gap-2 p-1.5 rounded-lg border border-transparent hover:bg-slate-100 transition-all cursor-pointer">
                                 <span class="w-3 h-3 rounded-xs bg-slate-500 shrink-0"></span>
-                                <span class="text-slate-800 text-[11px] font-medium">% Utilidad</span>
+                                <span class="text-slate-800 text-[11px] font-medium">% Util</span>
                             </div>
 
                             <div data-medida="pct_peso" class="item-nombre-medida flex items-center gap-2 p-1.5 rounded-lg border border-transparent hover:bg-slate-100 transition-all cursor-pointer">
@@ -229,6 +229,7 @@ window.ChartDashEEGGyPP = {
 
     /**
      * Renderiza dinámicamente las filas jerárquicas con rowspan
+     * Jerarquía: Producto -> Tipo -> Item
      */
     renderFilasMatriz(grupos) {
         if (!grupos || grupos.length === 0) {
@@ -240,11 +241,11 @@ window.ChartDashEEGGyPP = {
         grupos.forEach(prod => {
             const productoNombre = prod.producto;
             const tipos = prod.tipos || [];
-            
-            // Total de filas que ocupará el producto (items + fila de total por cada tipo)
+
+            // 1. Calcular total de filas ocupadas por el Producto (+1 por cada fila de subtotal de Tipo)
             let totalFilasProducto = 0;
             tipos.forEach(t => {
-                totalFilasProducto += (t.items ? t.items.length : 0) + 1;
+                totalFilasProducto += (t.items ? t.items.length : 0) + 1; // items + subtotal
             });
 
             let esPrimerRowProducto = true;
@@ -255,12 +256,13 @@ window.ChartDashEEGGyPP = {
                 const totalItemsTipo = items.length;
                 let esPrimerRowTipo = true;
 
+                // Render de cada fila de Item (Código / Descripción)
                 items.forEach(item => {
                     const isUtilNeg = (item.utilidad_operativa < 0);
                     html += `
                         <tr class="divide-x divide-slate-200 hover:bg-blue-50/40 transition-colors">
                             ${esPrimerRowProducto ? `<td rowspan="${totalFilasProducto}" class="px-2.5 py-2 font-bold text-slate-900 align-top bg-[#dfedeb] border-r border-slate-300 text-left">${productoNombre}</td>` : ''}
-                            ${esPrimerRowTipo ? `<td rowspan="${totalItemsTipo}" class="px-2.5 py-2 font-semibold text-slate-800 align-top bg-slate-50/50 border-r border-slate-200 text-left">${tipoNombre}</td>` : ''}
+                            ${esPrimerRowTipo ? `<td rowspan="${totalItemsTipo}" class="px-2.5 py-2 font-semibold text-slate-800 align-top bg-white border-r border-slate-200 text-left">${tipoNombre}</td>` : ''}
                             <td class="px-2 py-1.5 font-medium text-slate-700 text-left">${item.codigo}</td>
                             <td class="px-3 py-1.5 text-slate-800 text-left truncate max-w-[240px]" title="${item.descripcion}">${item.descripcion}</td>
                             <td data-col="peso_venta" class="celda-medida px-2.5 py-1.5 text-right font-medium text-slate-900 transition-all">${this.formatNum(item.peso_venta, 2)}</td>
@@ -284,9 +286,10 @@ window.ChartDashEEGGyPP = {
                 const isSubUtilNeg = (subTipo.utilidad_operativa < 0);
                 html += `
                     <tr class="divide-x divide-slate-200 bg-slate-50/90 font-bold text-slate-900 border-b border-slate-300">
+                        ${esPrimerRowProducto ? `<td rowspan="${totalFilasProducto}" class="px-2.5 py-2 font-bold text-slate-900 align-top bg-[#dfedeb] border-r border-slate-300 text-left">${productoNombre}</td>` : ''}
                         <td class="px-2.5 py-1.5 text-left font-bold text-slate-900 bg-slate-100">Total</td>
                         <td colspan="2" class="px-2 py-1.5 bg-slate-100"></td>
-                        <td data-col="peso_venta" class="celda-medida px-2.5 py-1.5 text-right font-bold text-slate-900 transition-all">${this.formatNum(subTipo.peso_venta, 2)}</td>
+                        <td data-col="peso_venta" class="celda-medida px-2.5 py-1.5 text-right font-bold text-blue-900 transition-all">${this.formatNum(subTipo.peso_venta, 2)}</td>
                         <td data-col="importe_venta" class="celda-medida px-2.5 py-1.5 text-right font-bold text-blue-900 transition-all">${this.formatSoles(subTipo.importe_venta, 2)}</td>
                         <td data-col="precio_venta" class="celda-medida px-2.5 py-2 text-right font-bold text-blue-900 transition-all">${this.formatSoles(subTipo.precio_venta, 3)}</td>
                         <td data-col="costo_ventas_importe" class="celda-medida px-2.5 py-1.5 text-right font-bold text-red-600 transition-all">${this.formatSoles(subTipo.costo_ventas_importe, 2)}</td>
@@ -298,6 +301,7 @@ window.ChartDashEEGGyPP = {
                         <td data-col="pct_peso" class="celda-medida px-2.5 py-1.5 text-right font-bold text-purple-900 transition-all">${this.formatPct(subTipo.pct_peso, 2)}</td>
                     </tr>
                 `;
+                esPrimerRowProducto = false;
             });
         });
 
@@ -310,7 +314,7 @@ window.ChartDashEEGGyPP = {
         if (btnExport) {
             btnExport.onclick = () => {
                 if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-dash-eeggypp', 'Dash_EEGGyPP_Costo_Venta_Pollo_Beneficiado');
+                    ExcelExportHelper.exportarTabla('tabla-dash-eeggypp', 'Dash_EEGGyPP_Costo_Venta_Pollo');
                 } else {
                     alert('Exportando tabla a Excel...');
                 }

@@ -38,7 +38,7 @@ class EEGGyPPController {
             title: 'PROCESO',
             options: [
                 { id: 'BENEFICIADO', label: 'BENEFICIADO', selected: true },
-                { id: 'TROZADO', label: 'TROZADO', selected: false }
+                { id: 'TROZADO', label: 'TROZADO', selected: true }
             ]
         });
 
@@ -51,8 +51,8 @@ class EEGGyPPController {
             title: 'PROVINCIA',
             options: [
                 { id: 'AREQUIPA', label: 'AREQUIPA', selected: true },
-                { id: 'JULIACA', label: 'JULIACA', selected: true },
-                { id: 'PUNO', label: 'PUNO', selected: true }
+                { id: 'JULIACA', label: 'JULIACA', selected: false },
+                { id: 'PUNO', label: 'PUNO', selected: false }
             ],
             onChange: () => {
                 this.onProvinciaChange();
@@ -68,9 +68,9 @@ class EEGGyPPController {
             title: 'ZONA',
             options: [
                 { id: 'PACHACUTEC-MERCADOS', label: 'PACHACUTEC-MERCADOS', selected: true },
-                { id: 'PACHACUTEC-PATEROS', label: 'PACHACUTEC-PATEROS', selected: false },
-                { id: 'PALOMAR-HORIZONTAL', label: 'PALOMAR-HORIZONTAL', selected: false },
-                { id: 'PALOMAR-TIENDA', label: 'PALOMAR-TIENDA', selected: false },
+                { id: 'PACHACUTEC-PATEROS', label: 'PACHACUTEC-PATEROS', selected: true },
+                { id: 'PALOMAR-HORIZONTAL', label: 'PALOMAR-HORIZONTAL', selected: true },
+                { id: 'PALOMAR-TIENDA', label: 'PALOMAR-TIENDA', selected: true },
                 { id: 'NO TIENE ZONA', label: 'NO TIENE ZONA', selected: false }
             ]
         });
@@ -84,7 +84,7 @@ class EEGGyPPController {
                     const procOpts = filtros.procesos.map(p => ({
                         id: p.id,
                         label: p.label || p.id,
-                        selected: p.id === 'BENEFICIADO'
+                        selected: true
                     }));
                     this.msProceso.setOptions(procOpts);
                 }
@@ -106,7 +106,7 @@ class EEGGyPPController {
                     this.provZonasMapa = filtros.prov_zonas;
                 }
 
-                // Filtrar zonas disponibles según la provincia seleccionada
+                // Filtrar zonas disponibles según la provincia seleccionada (todas seleccionadas por defecto)
                 this.onProvinciaChange(true);
             }
         } catch (e) {
@@ -123,8 +123,11 @@ class EEGGyPPController {
         const provinciasSel = this.msProvincia.getSelectedValues();
         let zonasDisponibles = [];
 
-        if (provinciasSel.length === 0 || provinciasSel.length === this.msProvincia.options.length) {
-            // Todas las zonas
+        if (provinciasSel.length === 0) {
+            // No hay provincias seleccionadas -> No hay zonas disponibles
+            zonasDisponibles = [];
+        } else if (provinciasSel.length === this.msProvincia.options.length) {
+            // Todas las provincias seleccionadas -> Todas las zonas disponibles
             zonasDisponibles = this.todasLasZonas.map(z => z.id);
         } else {
             // Solo zonas que pertenecen a las provincias seleccionadas
@@ -137,19 +140,19 @@ class EEGGyPPController {
         const currentZonaSelected = this.msZona.getSelectedValues();
         const newZonaOptions = zonasDisponibles.map(z => {
             let isSelected = false;
-            if (isInitial) {
-                isSelected = (z === 'PACHACUTEC-MERCADOS');
+            if (isInitial || currentZonaSelected.length === 0) {
+                isSelected = true; // Por defecto todas las zonas de la provincia seleccionadas (Todo)
             } else if (currentZonaSelected.includes(z)) {
                 isSelected = true;
-            } else if (currentZonaSelected.length === 0) {
-                isSelected = true;
+            } else {
+                isSelected = false;
             }
             return { id: z, label: z, selected: isSelected };
         });
 
-        // Si ninguna quedó seleccionada, seleccionar la primera por defecto
+        // Si había selección previa pero ninguna pertenece a la nueva provincia, seleccionar todas por defecto
         if (newZonaOptions.length > 0 && !newZonaOptions.some(o => o.selected)) {
-            newZonaOptions[0].selected = true;
+            newZonaOptions.forEach(o => o.selected = true);
         }
 
         this.msZona.setOptions(newZonaOptions);
@@ -212,7 +215,7 @@ class EEGGyPPController {
 
     limpiarFiltros() {
         if (this.msProceso) {
-            this.msProceso.options.forEach(o => o.selected = (o.id === 'BENEFICIADO'));
+            this.msProceso.options.forEach(o => o.selected = true);
             this.msProceso.updateLabel();
             this.msProceso.render();
         }
@@ -220,21 +223,16 @@ class EEGGyPPController {
             this.msProvincia.options.forEach(o => o.selected = (o.id === 'AREQUIPA'));
             this.msProvincia.updateLabel();
             this.msProvincia.render();
-            this.onProvinciaChange();
-        }
-        if (this.msZona) {
-            this.msZona.options.forEach(o => o.selected = (o.id === 'PACHACUTEC-MERCADOS'));
-            this.msZona.updateLabel();
-            this.msZona.render();
+            this.onProvinciaChange(true);
         }
 
         this.onCargarClick();
     }
 
     obtenerFiltrosSeleccionados() {
-        const procesos = this.msProceso ? this.msProceso.getSelectedValues() : ['BENEFICIADO'];
+        const procesos = this.msProceso ? this.msProceso.getSelectedValues() : ['BENEFICIADO', 'TROZADO'];
         const provincias = this.msProvincia ? this.msProvincia.getSelectedValues() : ['AREQUIPA'];
-        const zonas = this.msZona ? this.msZona.getSelectedValues() : ['PACHACUTEC-MERCADOS'];
+        const zonas = this.msZona ? this.msZona.getSelectedValues() : [];
 
         return {
             tipo_grafico: this.chartTipoActual,
