@@ -75,6 +75,8 @@ class EEGGyPPService {
             return this.getMockDashEEGGyPP_ASO(filtros);
         } else if (tipoGrafico === 'Dash_EEGGyPP_Res_ASO') {
             return this.getMockDashEEGGyPP_Res_ASO(filtros);
+        } else if (tipoGrafico === 'Dash_EEGGyPP_Huertas') {
+            return this.getMockDashEEGGyPP_Huertas(filtros);
         }
 
         return {
@@ -724,6 +726,115 @@ class EEGGyPPService {
                 utilidad_operativa: 382265.82,
                 pct_utilidad: 100.00,
                 pct_peso: 100.00
+            }
+        };
+    }
+
+    /**
+     * Datos quemados exactos de Tableau para Dash_EEGGyPP_Huertas
+     */
+    getMockDashEEGGyPP_Huertas(filtros) {
+        return {
+            status: 'success',
+            tipo_grafico: 'Dash_EEGGyPP_Huertas',
+            titulo: 'COSTO DE VENTA DEL POLLO BENEFICIADO y TROZADO',
+            proceso_label: filtros.proceso || '(Todo)',
+            provincia_label: filtros.provincia || 'AREQUIPA',
+            zona_label: filtros.zona || 'PALOMAR-HORIZONTAL',
+            provincias: [
+                {
+                    provincia: 'AREQUIPA',
+                    zonas: [
+                        {
+                            zona: 'PALOMAR-HORIZONTAL',
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        {
+                                            tipo: '1 Pollo',
+                                            items: [
+                                                { codigo: 'P112', descripcion: 'POLLO CARNE BENEF. CARCAZA', peso_venta: 1778.40, costo_ventas_importe: 11762.50, costo_ventas_precio: 6.614 },
+                                                { codigo: 'P112M', descripcion: 'POLLO CARNE BENEF. CARCAZA', peso_venta: 5400.70, costo_ventas_importe: 35064.90, costo_ventas_precio: 6.493 },
+                                                { codigo: 'P113', descripcion: 'POLLO CARNE BENEFICIADO', peso_venta: 50698.83, costo_ventas_importe: 348183.30, costo_ventas_precio: 6.868 },
+                                                { codigo: 'P114', descripcion: 'POLLADA BENEFICIADA', peso_venta: 207.50, costo_ventas_importe: 1349.97, costo_ventas_precio: 6.506 },
+                                                { codigo: 'P115', descripcion: 'POLLO BRASA BENEFICIADO', peso_venta: 2475.25, costo_ventas_importe: 20125.23, costo_ventas_precio: 8.131 },
+                                                { codigo: 'P116', descripcion: 'POLLO BRASA BENEF. MEJORADO', peso_venta: 12446.75, costo_ventas_importe: 70721.78, costo_ventas_precio: 5.682 },
+                                                { codigo: 'P120', descripcion: 'POLLO CARNE BENEF.MEJORADO', peso_venta: 19313.00, costo_ventas_importe: 111912.39, costo_ventas_precio: 5.795 }
+                                            ],
+                                            subtotal: {
+                                                peso_venta: 92320.43,
+                                                costo_ventas_importe: 599120.08,
+                                                costo_ventas_precio: 6.490
+                                            }
+                                        },
+                                        {
+                                            tipo: '2 Menudencia',
+                                            items: [
+                                                { codigo: 'P118M', descripcion: 'MENUDENCIA DE POLLO MEJORADO', peso_venta: 31.00, costo_ventas_importe: 429.32, costo_ventas_precio: 13.849 },
+                                                { codigo: 'P0002', descripcion: 'ALITAS DE POLLO', peso_venta: 1452.10, costo_ventas_importe: 9248.90, costo_ventas_precio: 6.369 },
+                                                { codigo: 'P0017', descripcion: 'CUELLO DE POLLO', peso_venta: 2544.55, costo_ventas_importe: 5796.88, costo_ventas_precio: 2.278 },
+                                                { codigo: 'P0017V', descripcion: 'CUELLOS DE POLLO BRASA', peso_venta: 431.80, costo_ventas_importe: 946.12, costo_ventas_precio: 2.191 },
+                                                { codigo: 'P0035', descripcion: 'CORAZON DE POLLO', peso_venta: 123.50, costo_ventas_importe: 284.37, costo_ventas_precio: 2.303 },
+                                                { codigo: 'P0040', descripcion: 'ESPINAZO DE POLLO', peso_venta: 2466.75, costo_ventas_importe: 8801.63, costo_ventas_precio: 3.568 },
+                                                { codigo: 'P0068', descripcion: 'HIGADO DE POLLO', peso_venta: 3912.05, costo_ventas_importe: 8726.81, costo_ventas_precio: 2.231 },
+                                                { codigo: 'P0086', descripcion: 'MOLLEJA DE POLLO', peso_venta: 3342.50, costo_ventas_importe: 7495.29, costo_ventas_precio: 2.242 },
+                                                { codigo: 'P0090', descripcion: 'MUSLITO DE POLLO', peso_venta: 2160.55, costo_ventas_importe: 19107.33, costo_ventas_precio: 8.844 },
+                                                { codigo: 'P0105', descripcion: 'CANGURO', peso_venta: 919.90, costo_ventas_importe: 6642.09, costo_ventas_precio: 7.220 },
+                                                { codigo: 'P0110', descripcion: 'PECHUGA ESPECIAL', peso_venta: 12796.60, costo_ventas_importe: 116980.13, costo_ventas_precio: 9.142 },
+                                                { codigo: 'P0134', descripcion: 'PIERNA C/ENCUENTRO DE POLLO', peso_venta: 710.65, costo_ventas_importe: 4943.27, costo_ventas_precio: 6.956 },
+                                                { codigo: 'P0136', descripcion: 'PIERNA ESPECIAL DE POLLO', peso_venta: 2004.65, costo_ventas_importe: 16876.22, costo_ventas_precio: 8.419 },
+                                                { codigo: 'P0136L', descripcion: 'PIERNA ESPECIAL GRANDE', peso_venta: 0.00, costo_ventas_importe: 0.00, costo_ventas_precio: 0.000 },
+                                                { codigo: 'P0141', descripcion: 'PIERNITA DE POLLO', peso_venta: 412.30, costo_ventas_importe: 3272.32, costo_ventas_precio: 7.937 },
+                                                { codigo: 'P0297', descripcion: 'RABADILLA DE POLLO', peso_venta: 20.40, costo_ventas_importe: 93.56, costo_ventas_precio: 4.586 },
+                                                { codigo: 'P00112', descripcion: 'PATA Y PESCUEZO DE POLLO', peso_venta: 26.90, costo_ventas_importe: 60.56, costo_ventas_precio: 2.251 },
+                                                { codigo: 'PM0113', descripcion: 'PATAS DE POLLO', peso_venta: 3241.60, costo_ventas_importe: 7257.96, costo_ventas_precio: 2.239 }
+                                            ],
+                                            subtotal: {
+                                                peso_venta: 36597.80,
+                                                costo_ventas_importe: 216962.76,
+                                                costo_ventas_precio: 5.928
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    producto: 'Segunda',
+                                    tipos: [
+                                        {
+                                            tipo: '1 Pollo',
+                                            items: [
+                                                { codigo: '122', descripcion: 'POLLO CARNE CARCASA BOY', peso_venta: 222.30, costo_ventas_importe: 1480.20, costo_ventas_precio: 6.659 },
+                                                { codigo: '122B', descripcion: 'POLLO CARNE CARCASA BOY B', peso_venta: 42.20, costo_ventas_importe: 281.96, costo_ventas_precio: 6.682 }
+                                            ],
+                                            subtotal: {
+                                                peso_venta: 264.50,
+                                                costo_ventas_importe: 1762.17,
+                                                costo_ventas_precio: 6.662
+                                            }
+                                        },
+                                        {
+                                            tipo: '2 Menudencia',
+                                            items: [
+                                                { codigo: 'P0110B', descripcion: 'PECHUGA ESPECIAL - B', peso_venta: 20.35, costo_ventas_importe: 185.73, costo_ventas_precio: 9.127 }
+                                            ],
+                                            subtotal: {
+                                                peso_venta: 20.35,
+                                                costo_ventas_importe: 185.73,
+                                                costo_ventas_precio: 9.127
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            total_general: {
+                peso_venta: 129203.08,
+                costo_ventas_importe: 818030.73,
+                costo_ventas_precio: 6.331
             }
         };
     }

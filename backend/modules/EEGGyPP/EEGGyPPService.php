@@ -3,6 +3,7 @@
 require_once __DIR__ . '/handlers/Dash_EEGGyPPHandler.php';
 require_once __DIR__ . '/handlers/Dash_EEGGyPP_ASOHandler.php';
 require_once __DIR__ . '/handlers/Dash_EEGGyPP_Res_ASOHandler.php';
+require_once __DIR__ . '/handlers/Dash_EEGGyPP_HuertasHandler.php';
 
 class EEGGyPPService
 {
@@ -84,8 +85,9 @@ class EEGGyPPService
                 return Dash_EEGGyPP_ASOHandler::handle($this->db, $filtros);
             case 'Dash_EEGGyPP_Res_ASO':
                 return Dash_EEGGyPP_Res_ASOHandler::handle($this->db, $filtros);
-            case 'Dash_EEGGyPP':
             case 'Dash_EEGGyPP_Huertas':
+                return Dash_EEGGyPP_HuertasHandler::handle($this->db, $filtros);
+            case 'Dash_EEGGyPP':
             default:
                 return Dash_EEGGyPPHandler::handle($this->db, $filtros);
         }
