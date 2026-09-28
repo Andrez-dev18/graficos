@@ -37,17 +37,36 @@
             background: #94a3b8;
         }
 
-        /* Efecto de foco para la columna seleccionada */
-        .col-highlight {
+        /* Efecto de foco para la cabecera seleccionada */
+        thead th.col-highlight {
+            background-color: #1d4ed8 !important;
+            color: #ffffff !important;
+            border-left: 2px solid #93c5fd !important;
+            border-right: 2px solid #93c5fd !important;
+            box-shadow: inset 0 -3px 0 #60a5fa !important;
+            position: relative;
+        }
+
+        /* Efecto de foco para las celdas del cuerpo y pie */
+        tbody td.col-highlight,
+        tfoot td.col-highlight {
             background-color: #e0f2fe !important;
+            color: #0f172a !important;
             border-left: 2px solid #0284c7 !important;
             border-right: 2px solid #0284c7 !important;
             font-weight: 700 !important;
             position: relative;
         }
 
-        .col-dimmed {
-            opacity: 0.45 !important;
+        /* Columnas atenuadas */
+        thead th.col-dimmed {
+            opacity: 0.6 !important;
+            transition: opacity 0.2s ease;
+        }
+
+        tbody td.col-dimmed,
+        tfoot td.col-dimmed {
+            opacity: 0.35 !important;
             filter: grayscale(30%);
             transition: opacity 0.2s ease;
         }
@@ -218,14 +237,14 @@
     <script src="../../assets/utils-graficos/custom-multiselect.js?v=20260926_1"></script>
 
     <!-- Componentes de Gráficos -->
-    <script src="charts/chart.dash_eeggypp.js?v=20260926_7"></script>
-    <script src="charts/chart.dash_eeggypp_aso.js?v=20260927_1"></script>
-    <script src="charts/chart.dash_eeggypp_res_aso.js?v=20260928_1"></script>
-    <script src="charts/chart.dash_eeggypp_huertas.js?v=20260928_1"></script>
+    <script src="charts/chart.dash_eeggypp.js?v=20260928_2"></script>
+    <script src="charts/chart.dash_eeggypp_aso.js?v=20260928_2"></script>
+    <script src="charts/chart.dash_eeggypp_res_aso.js?v=20260928_2"></script>
+    <script src="charts/chart.dash_eeggypp_huertas.js?v=20260928_2"></script>
 
     <!-- Servicio y Controlador -->
-    <script src="EEGGyPP.service.js?v=20260926_4"></script>
-    <script src="EEGGyPP.controller.js?v=20260926_5"></script>
+    <script src="EEGGyPP.service.js?v=20260928_2"></script>
+    <script src="EEGGyPP.controller.js?v=20260928_2"></script>
 </body>
 
 </html>

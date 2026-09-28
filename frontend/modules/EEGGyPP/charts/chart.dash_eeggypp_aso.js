@@ -101,24 +101,24 @@ window.ChartDashEEGGyPP_ASO = {
                                 <table id="tabla-dash-eeggypp-aso" class="w-full text-[11px] border-collapse font-sans select-none min-w-[1250px]">
                             
                             <!-- CABECERA DE LA TABLA -->
-                            <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-300 sticky top-0 z-20">
-                                <tr class="divide-x divide-slate-200 text-center">
-                                    <th class="px-2.5 py-2.5 text-left w-24 bg-slate-100 text-slate-800">Provincia</th>
-                                    <th class="px-2.5 py-2.5 text-left w-36 bg-slate-100 text-slate-800">Zona</th>
-                                    <th class="px-2.5 py-2.5 text-left w-20 bg-[#dfedeb] text-slate-800">Producto</th>
-                                    <th class="px-2.5 py-2.5 text-left w-24 bg-slate-100">Tipo</th>
-                                    <th class="px-2 py-2.5 text-left w-16 bg-slate-100">Codigo</th>
-                                    <th class="px-3 py-2.5 text-left bg-slate-100">Descripcion</th>
-                                    <th data-col="peso_venta" class="celda-medida px-2.5 py-2.5 text-right text-blue-900 bg-blue-50/50 transition-all cursor-pointer hover:bg-blue-100/80">Peso Venta</th>
-                                    <th data-col="importe_venta" class="celda-medida px-2.5 py-2.5 text-right text-blue-900 bg-blue-50/50 transition-all cursor-pointer hover:bg-blue-100/80">Importe Venta</th>
-                                    <th data-col="precio_venta" class="celda-medida px-2.5 py-2.5 text-right text-blue-900 bg-blue-50/50 transition-all cursor-pointer hover:bg-blue-100/80">Precio Venta</th>
-                                    <th data-col="costo_ventas_importe" class="celda-medida px-2.5 py-2.5 text-right text-rose-900 bg-rose-50/50 transition-all cursor-pointer hover:bg-rose-100/80">Costo Ventas<br>Importe</th>
-                                    <th data-col="costo_ventas_precio" class="celda-medida px-2.5 py-2.5 text-right text-rose-900 bg-rose-50/50 transition-all cursor-pointer hover:bg-rose-100/80">Costo Ventas<br>Precio</th>
-                                    <th data-col="comercial" class="celda-medida px-2.5 py-2.5 text-right text-rose-900 bg-rose-50/50 transition-all cursor-pointer hover:bg-rose-100/80">Comercial</th>
-                                    <th data-col="administrativo" class="celda-medida px-2.5 py-2.5 text-right text-rose-900 bg-rose-50/50 transition-all cursor-pointer hover:bg-rose-100/80">Administrativo</th>
-                                    <th data-col="utilidad_operativa" class="celda-medida px-2.5 py-2.5 text-right text-slate-900 bg-slate-100/70 transition-all cursor-pointer hover:bg-slate-200">Utilidad Operativa</th>
-                                    <th data-col="pct_utilidad" class="celda-medida px-2.5 py-2.5 text-right text-slate-900 bg-slate-100/70 transition-all cursor-pointer hover:bg-slate-200">% Util</th>
-                                    <th data-col="pct_peso" class="celda-medida px-2.5 py-2.5 text-right text-purple-950 bg-purple-50/50 transition-all cursor-pointer hover:bg-purple-100/80">% Peso</th>
+                            <thead class="bg-blue-600 text-white font-bold border-b border-blue-700 sticky top-0 z-20">
+                                <tr class="divide-x divide-blue-500/60 text-center">
+                                    <th class="px-2.5 py-2.5 text-left w-24">Provincia</th>
+                                    <th class="px-2.5 py-2.5 text-left w-36">Zona</th>
+                                    <th class="px-2.5 py-2.5 text-left w-20">Producto</th>
+                                    <th class="px-2.5 py-2.5 text-left w-24">Tipo</th>
+                                    <th class="px-2 py-2.5 text-left w-16">Codigo</th>
+                                    <th class="px-3 py-2.5 text-left">Descripcion</th>
+                                    <th data-col="peso_venta" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Peso Venta</th>
+                                    <th data-col="importe_venta" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Importe Venta</th>
+                                    <th data-col="precio_venta" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Precio Venta</th>
+                                    <th data-col="costo_ventas_importe" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Costo Ventas<br>Importe</th>
+                                    <th data-col="costo_ventas_precio" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Costo Ventas<br>Precio</th>
+                                    <th data-col="comercial" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Comercial</th>
+                                    <th data-col="administrativo" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Administrativo</th>
+                                    <th data-col="utilidad_operativa" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">Utilidad Operativa</th>
+                                    <th data-col="pct_utilidad" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">% Util</th>
+                                    <th data-col="pct_peso" class="celda-medida px-2.5 py-2.5 text-right transition-colors cursor-pointer hover:bg-blue-700">% Peso</th>
                                 </tr>
                             </thead>
 
