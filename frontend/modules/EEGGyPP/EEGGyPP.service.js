@@ -73,6 +73,8 @@ class EEGGyPPService {
             return this.getMockDashEEGGyPP(filtros);
         } else if (tipoGrafico === 'Dash_EEGGyPP_ASO') {
             return this.getMockDashEEGGyPP_ASO(filtros);
+        } else if (tipoGrafico === 'Dash_EEGGyPP_Res_ASO') {
+            return this.getMockDashEEGGyPP_Res_ASO(filtros);
         }
 
         return {
@@ -507,6 +509,219 @@ class EEGGyPPService {
                 comercial: -248.82,
                 administrativo: -257.79,
                 utilidad_operativa: -4585.93,
+                pct_utilidad: 100.00,
+                pct_peso: 100.00
+            }
+        };
+    }
+
+    /**
+     * Datos quemados exactos de Tableau para Dash_EEGGyPP_Res_ASO
+     */
+    getMockDashEEGGyPP_Res_ASO(filtros) {
+        return {
+            status: 'success',
+            tipo_grafico: 'Dash_EEGGyPP_Res_ASO',
+            titulo: 'COSTO DE VENTA DEL POLLO BENEFICIADO y TROZADO',
+            proceso_label: filtros.proceso || '(Todo)',
+            provincia_label: filtros.provincia || '(Todo)',
+            zona_label: filtros.zona || '(Todo)',
+            provincias: [
+                {
+                    provincia: 'AREQUIPA',
+                    zonas: [
+                        {
+                            zona: 'PACHACUTEC-MERCADOS',
+                            total_zona: {
+                                peso_venta: 68524.25,
+                                importe_venta: 362547.37,
+                                precio_venta: 5.291,
+                                costo_ventas_importe: 433675.83,
+                                costo_ventas_precio: 6.329,
+                                comercial: -7606.19,
+                                administrativo: -7880.29,
+                                utilidad_operativa: -86614.93,
+                                pct_utilidad: 100.00,
+                                pct_peso: 100.00
+                            },
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 19802.10, importe_venta: 135174.12, precio_venta: 6.826, costo_ventas_importe: 134317.57, costo_ventas_precio: 6.783, comercial: -2198.03, administrativo: -2277.24, utilidad_operativa: -3618.72, pct_utilidad: 4.18, pct_peso: 28.90 },
+                                        { tipo: '2 Menudencia', peso_venta: 24006.15, importe_venta: 156945.45, precio_venta: 6.538, costo_ventas_importe: 118410.66, costo_ventas_precio: 4.933, comercial: -2664.68, administrativo: -2760.71, utilidad_operativa: 33109.40, pct_utilidad: -38.23, pct_peso: 35.03 }
+                                    ]
+                                },
+                                {
+                                    producto: 'Segunda',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 21142.00, importe_venta: 44917.50, precio_venta: 2.125, costo_ventas_importe: 153845.28, costo_ventas_precio: 7.277, comercial: -2346.76, administrativo: -2431.33, utilidad_operativa: -113705.87, pct_utilidad: 131.28, pct_peso: 30.85 },
+                                        { tipo: '2 Menudencia', peso_venta: 3574.00, importe_venta: 25510.30, precio_venta: 7.138, costo_ventas_importe: 27102.31, costo_ventas_precio: 7.583, comercial: -396.71, administrativo: -411.01, utilidad_operativa: -2399.74, pct_utilidad: 2.77, pct_peso: 5.22 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            zona: 'PALOMAR-TIENDA',
+                            total_zona: {
+                                peso_venta: 13414.57,
+                                importe_venta: 127193.56,
+                                precio_venta: 9.482,
+                                costo_ventas_importe: 102161.69,
+                                costo_ventas_precio: 7.616,
+                                comercial: -1489.02,
+                                administrativo: -1542.68,
+                                utilidad_operativa: 22000.17,
+                                pct_utilidad: 100.00,
+                                pct_peso: 100.00
+                            },
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 1844.66, importe_venta: 14021.99, precio_venta: 7.601, costo_ventas_importe: 11707.01, costo_ventas_precio: 6.346, comercial: -204.76, administrativo: -212.14, utilidad_operativa: 1898.09, pct_utilidad: 8.63, pct_peso: 13.75 },
+                                        { tipo: '2 Menudencia', peso_venta: 11569.91, importe_venta: 113171.57, precio_venta: 9.782, costo_ventas_importe: 90454.69, costo_ventas_precio: 7.818, comercial: -1284.26, administrativo: -1330.54, utilidad_operativa: 20102.08, pct_utilidad: 91.37, pct_peso: 86.25 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            zona: 'PALOMAR-HORIZONTAL',
+                            total_zona: {
+                                peso_venta: 129203.08,
+                                importe_venta: 935745.76,
+                                precio_venta: 7.242,
+                                costo_ventas_importe: 818030.73,
+                                costo_ventas_precio: 6.331,
+                                comercial: -14341.54,
+                                administrativo: -14858.35,
+                                utilidad_operativa: 88515.14,
+                                pct_utilidad: 100.00,
+                                pct_peso: 100.00
+                            },
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 92320.43, importe_venta: 656696.92, precio_venta: 7.113, costo_ventas_importe: 599120.08, costo_ventas_precio: 6.490, comercial: -10247.57, administrativo: -10616.85, utilidad_operativa: 36712.43, pct_utilidad: 41.48, pct_peso: 71.45 },
+                                        { tipo: '2 Menudencia', peso_venta: 36597.80, importe_venta: 277872.61, precio_venta: 7.593, costo_ventas_importe: 216962.76, costo_ventas_precio: 5.928, comercial: -4062.36, administrativo: -4208.75, utilidad_operativa: 52638.75, pct_utilidad: 59.47, pct_peso: 28.33 }
+                                    ]
+                                },
+                                {
+                                    producto: 'Segunda',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 264.50, importe_venta: 1003.77, precio_venta: 3.795, costo_ventas_importe: 1762.17, costo_ventas_precio: 6.662, comercial: -29.36, administrativo: -30.42, utilidad_operativa: -818.17, pct_utilidad: -0.92, pct_peso: 0.20 },
+                                        { tipo: '2 Menudencia', peso_venta: 20.35, importe_venta: 172.46, precio_venta: 8.475, costo_ventas_importe: 185.73, costo_ventas_precio: 9.127, comercial: -2.26, administrativo: -2.34, utilidad_operativa: -17.87, pct_utilidad: -0.02, pct_peso: 0.02 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            zona: 'PACHACUTEC-PATEROS',
+                            total_zona: {
+                                peso_venta: 25912.10,
+                                importe_venta: 203775.49,
+                                precio_venta: 7.864,
+                                costo_ventas_importe: 147347.23,
+                                costo_ventas_precio: 5.686,
+                                comercial: -2876.24,
+                                administrativo: -2979.89,
+                                utilidad_operativa: 50572.12,
+                                pct_utilidad: 100.00,
+                                pct_peso: 100.00
+                            },
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 25897.80, importe_venta: 203727.01, precio_venta: 7.867, costo_ventas_importe: 147252.01, costo_ventas_precio: 5.686, comercial: -2874.66, administrativo: -2978.25, utilidad_operativa: 50622.10, pct_utilidad: 100.10, pct_peso: 99.94 }
+                                    ]
+                                },
+                                {
+                                    producto: 'Segunda',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 14.30, importe_venta: 48.47, precio_venta: 3.390, costo_ventas_importe: 95.22, costo_ventas_precio: 6.659, comercial: -1.59, administrativo: -1.64, utilidad_operativa: -49.97, pct_utilidad: -0.10, pct_peso: 0.06 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    provincia: 'JULIACA',
+                    zonas: [
+                        {
+                            zona: 'NO TIENE ZONA',
+                            total_zona: {
+                                peso_venta: 410111.65,
+                                importe_venta: 2869114.72,
+                                precio_venta: 6.996,
+                                costo_ventas_importe: 2547825.94,
+                                costo_ventas_precio: 6.213,
+                                comercial: -45522.39,
+                                administrativo: -47162.84,
+                                utilidad_operativa: 228603.54,
+                                pct_utilidad: 100.00,
+                                pct_peso: 100.00
+                            },
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 283700.47, importe_venta: 2078365.11, precio_venta: 7.326, costo_ventas_importe: 1746015.09, costo_ventas_precio: 6.154, comercial: -31490.75, administrativo: -32625.55, utilidad_operativa: 268233.72, pct_utilidad: 117.34, pct_peso: 69.18 },
+                                        { tipo: '2 Menudencia', peso_venta: 51973.30, importe_venta: 329875.89, precio_venta: 6.347, costo_ventas_importe: 285467.42, costo_ventas_precio: 5.493, comercial: -5769.04, administrativo: -5976.93, utilidad_operativa: 32662.50, pct_utilidad: 14.29, pct_peso: 12.67 }
+                                    ]
+                                },
+                                {
+                                    producto: 'Segunda',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 59747.08, importe_venta: 333003.93, precio_venta: 5.574, costo_ventas_importe: 400766.89, costo_ventas_precio: 6.708, comercial: -6631.93, administrativo: -6870.91, utilidad_operativa: -81265.79, pct_utilidad: -35.55, pct_peso: 14.57 },
+                                        { tipo: '2 Menudencia', peso_venta: 14690.80, importe_venta: 127869.79, precio_venta: 8.704, costo_ventas_importe: 115576.55, costo_ventas_precio: 7.867, comercial: -1630.68, administrativo: -1689.44, utilidad_operativa: 8973.12, pct_utilidad: 3.93, pct_peso: 3.58 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    provincia: 'PUNO',
+                    zonas: [
+                        {
+                            zona: 'NO TIENE ZONA',
+                            total_zona: {
+                                peso_venta: 59178.27,
+                                importe_venta: 465913.00,
+                                precio_venta: 7.873,
+                                costo_ventas_importe: 373348.93,
+                                costo_ventas_precio: 6.309,
+                                comercial: -6568.79,
+                                administrativo: -6805.50,
+                                utilidad_operativa: 79189.78,
+                                pct_utilidad: 100.00,
+                                pct_peso: 100.00
+                            },
+                            grupos: [
+                                {
+                                    producto: 'Primera',
+                                    tipos: [
+                                        { tipo: '1 Pollo', peso_venta: 44800.47, importe_venta: 351400.60, precio_venta: 7.844, costo_ventas_importe: 262471.16, costo_ventas_precio: 5.859, comercial: -4972.85, administrativo: -5152.05, utilidad_operativa: 78804.53, pct_utilidad: 99.51, pct_peso: 75.70 },
+                                        { tipo: '2 Menudencia', peso_venta: 14377.80, importe_venta: 114512.39, precio_venta: 7.965, costo_ventas_importe: 110877.76, costo_ventas_precio: 7.712, comercial: -1595.94, administrativo: -1653.45, utilidad_operativa: 385.25, pct_utilidad: 0.49, pct_peso: 24.30 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            total_general: {
+                peso_venta: 706343.92,
+                importe_venta: 4964289.90,
+                precio_venta: 7.028,
+                costo_ventas_importe: 4422390.35,
+                costo_ventas_precio: 6.261,
+                comercial: -78404.18,
+                administrativo: -81229.55,
+                utilidad_operativa: 382265.82,
                 pct_utilidad: 100.00,
                 pct_peso: 100.00
             }
