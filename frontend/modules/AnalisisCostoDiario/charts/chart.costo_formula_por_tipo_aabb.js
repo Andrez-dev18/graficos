@@ -205,7 +205,7 @@ window.ChartCostoFormulaPorTipoAABB = {
         const canvas = document.getElementById('canvas-alimento-general');
         if (!canvas || typeof Chart === 'undefined') return;
 
-        const labels = generalData.map(d => d.dia_mes);
+        const labels = generalData.map(d => d.ymd ? `${d.ymd}, ${d.dia_semana ? d.dia_semana.slice(0, 3) : ''}` : d.dia_mes);
         const dataValues = generalData.map(d => d.pu);
 
         // Calculate min/max for scale
@@ -214,9 +214,17 @@ window.ChartCostoFormulaPorTipoAABB = {
         const yMin = Math.floor((minVal - 0.005) * 100) / 100;
         const yMax = Math.ceil((maxVal + 0.005) * 100) / 100;
 
-        // Dynamic point colors (diverging from min to max)
-        const avgVal = (minVal + maxVal) / 2;
-        const pointColors = dataValues.map(v => (v <= avgVal ? '#499844' : '#db4343'));
+        // Function for continuous diverging color matching Tableau red_green_diverging palette
+        const getColorForRatio = (val) => {
+            const ratio = (maxVal > minVal) ? (val - minVal) / (maxVal - minVal) : 0.5;
+            if (ratio <= 0.20) return '#2d8e87'; // Dark green / teal
+            if (ratio <= 0.40) return '#499844'; // Green
+            if (ratio <= 0.65) return '#e88938'; // Orange / peach
+            if (ratio <= 0.85) return '#db4343'; // Red
+            return '#991b1b';                   // Dark red
+        };
+
+        const pointColors = dataValues.map(v => getColorForRatio(v));
 
         this.chartGeneralInstance = new Chart(canvas, {
             type: 'line',
@@ -225,9 +233,20 @@ window.ChartCostoFormulaPorTipoAABB = {
                 datasets: [{
                     label: 'PU',
                     data: dataValues,
-                    borderColor: '#c2584f',
+                    borderColor: (context) => {
+                        const chart = context.chart;
+                        const { ctx, chartArea } = chart;
+                        if (!chartArea) return '#c2584f';
+                        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                        gradient.addColorStop(0, '#2d8e87');    // Green at low PU
+                        gradient.addColorStop(0.35, '#499844'); // Light green
+                        gradient.addColorStop(0.60, '#e88938'); // Peach / orange
+                        gradient.addColorStop(0.85, '#db4343'); // Red
+                        gradient.addColorStop(1, '#991b1b');    // Dark red
+                        return gradient;
+                    },
                     borderWidth: 2.2,
-                    backgroundColor: 'rgba(194, 88, 79, 0.05)',
+                    backgroundColor: 'rgba(194, 88, 79, 0.03)',
                     fill: false,
                     tension: 0.1,
                     pointBackgroundColor: pointColors,

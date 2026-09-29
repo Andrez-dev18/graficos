@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/handlers/Dash_CostoFormulaPorTipoAABBHandler.php';
+require_once __DIR__ . '/handlers/Dash_CostoFormulaInsumosHandler.php';
 
 class AnalisisCostoDiarioService
 {
@@ -55,7 +56,8 @@ class AnalisisCostoDiarioService
                 'max'    => $fechasRango['max_fecha'] ?? '2026-12-31'
             ],
             'dashboards'    => [
-                ['id' => 'CostoFormulaPorTipoAABB', 'label' => 'Costo Formula Por Tipo AABB']
+                ['id' => 'CostoFormulaPorTipoAABB', 'label' => 'Costo Formula Por Tipo AABB'],
+                ['id' => 'CostoFormula-Insumos',    'label' => 'Costo Formula - Insumos']
             ]
         ];
     }
@@ -65,7 +67,12 @@ class AnalisisCostoDiarioService
         $tipoGrafico = $filtros['tipo_grafico'] ?? $filtros['dashboard'] ?? 'CostoFormulaPorTipoAABB';
 
         switch ($tipoGrafico) {
+            case 'CostoFormula-Insumos':
+            case 'Dash_CostoFormulaInsumos':
+                return Dash_CostoFormulaInsumosHandler::handle($this->db, $filtros);
+
             case 'CostoFormulaPorTipoAABB':
+            case 'Dash_CostoFormulaPorTipoAABB':
             default:
                 return Dash_CostoFormulaPorTipoAABBHandler::handle($this->db, $filtros);
         }

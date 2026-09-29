@@ -48,6 +48,15 @@ class AnalisisCostoDiarioController {
     }
 
     setupListeners() {
+        // Cambio de Dashboard
+        const selectDashboard = document.getElementById('select-dashboard');
+        if (selectDashboard) {
+            selectDashboard.addEventListener('change', async () => {
+                this.chartTipoActual = selectDashboard.value;
+                await this.onCargarClick();
+            });
+        }
+
         // Cambio de tipo de período
         const selectPeriodo = document.getElementById('select-tipo-periodo');
         if (selectPeriodo) {
@@ -97,6 +106,12 @@ class AnalisisCostoDiarioController {
     }
 
     limpiarFiltros() {
+        const selectDashboard = document.getElementById('select-dashboard');
+        if (selectDashboard) {
+            selectDashboard.value = 'CostoFormulaPorTipoAABB';
+            this.chartTipoActual = 'CostoFormulaPorTipoAABB';
+        }
+
         const selectPeriodo = document.getElementById('select-tipo-periodo');
         if (selectPeriodo) {
             selectPeriodo.value = 'entre_fechas';
@@ -120,8 +135,13 @@ class AnalisisCostoDiarioController {
             rango = PeriodoHelper.obtenerRangoFechas();
         }
 
+        const selectDashboard = document.getElementById('select-dashboard');
+        if (selectDashboard) {
+            this.chartTipoActual = selectDashboard.value;
+        }
+
         return {
-            tipo_grafico: 'CostoFormulaPorTipoAABB',
+            tipo_grafico: this.chartTipoActual || 'CostoFormulaPorTipoAABB',
             fecha_inicio: rango.fechaInicio || '2026-02-19',
             fecha_fin: rango.fechaFin || '2026-03-21'
         };
@@ -133,7 +153,7 @@ class AnalisisCostoDiarioController {
             contenedor.innerHTML = `
                 <div class="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-xs border border-slate-200/80">
                     <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-                    <p class="text-sm font-semibold text-slate-600">Cargando Análisis de Costo Diario...</p>
+                    <p class="text-sm font-semibold text-slate-600">Cargando Análisis de Costo Diario (${this.chartTipoActual})...</p>
                 </div>
             `;
         }
@@ -146,8 +166,8 @@ class AnalisisCostoDiarioController {
 
     renderGraficoActual() {
         const targetChart = window.ChartRegistry && (
-            window.ChartRegistry['CostoFormulaPorTipoAABB'] || 
-            window.ChartRegistry['Dash_CostoFormulaPorTipoAABB']
+            window.ChartRegistry[this.chartTipoActual] || 
+            window.ChartRegistry['Dash_' + this.chartTipoActual.replace(/-/g, '')]
         );
         const contenedor = document.getElementById('contenedor-graficos-lista');
 
@@ -159,7 +179,7 @@ class AnalisisCostoDiarioController {
                     <div class="p-8 text-center bg-white border border-slate-200 rounded-xl shadow-xs">
                         <i class="fas fa-exclamation-triangle text-amber-500 text-3xl mb-2"></i>
                         <h3 class="text-sm font-bold text-slate-700 uppercase">Error al renderizar</h3>
-                        <p class="text-xs text-slate-400 mt-1">No se encontró el componente de visualización para CostoFormulaPorTipoAABB.</p>
+                        <p class="text-xs text-slate-400 mt-1">No se encontró el componente de visualización para ${this.chartTipoActual}.</p>
                     </div>
                 `;
             }

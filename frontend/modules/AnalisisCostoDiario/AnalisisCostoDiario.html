@@ -95,6 +95,16 @@
                     </div>
                 </div>
 
+                <!-- 2. SELECT DE DASHBOARD -->
+                <div class="flex flex-col">
+                    <label for="select-dashboard" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DASHBOARD</label>
+                    <select id="select-dashboard"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <option value="CostoFormulaPorTipoAABB" selected>Costo Formula Por Tipo AABB</option>
+                        <option value="CostoFormula-Insumos">Costo Formula - Insumos</option>
+                    </select>
+                </div>
+
                 <!-- BOTONES DE ACCIÓN -->
                 <div class="flex items-center gap-2 ml-auto sm:ml-0">
                     <button id="btn-cargar" type="button"
@@ -119,7 +129,7 @@
 
     <!-- CONTENEDOR PRINCIPAL DE GRÁFICOS / DASHBOARD -->
     <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-12 w-full">
-        <!-- Renderizado dinámico por ChartRegistry['CostoFormulaPorTipoAABB'] -->
+        <!-- Renderizado dinámico por ChartRegistry -->
     </div>
 
     <!-- SCRIPTS Y DEPENDENCIAS -->
@@ -130,12 +140,13 @@
     <script src="../../assets/utils-graficos/periodo-helper.js?v=20260929_1"></script>
     <script src="../../assets/utils-graficos/excel-export-helper.js?v=20260929_1"></script>
 
-    <!-- Componente del Dashboard -->
-    <script src="charts/chart.costo_formula_por_tipo_aabb.js?v=20260929_1"></script>
+    <!-- Componentes de Dashboards -->
+    <script src="charts/chart.costo_formula_por_tipo_aabb.js?v=20260929_6"></script>
+    <script src="charts/chart.costo_formula_insumos.js?v=20260929_6"></script>
 
     <!-- Servicio y Controlador -->
-    <script src="AnalisisCostoDiario.service.js?v=20260929_1"></script>
-    <script src="AnalisisCostoDiario.controller.js?v=20260929_1"></script>
+    <script src="AnalisisCostoDiario.service.js?v=20260929_6"></script>
+    <script src="AnalisisCostoDiario.controller.js?v=20260929_6"></script>
 </body>
 
 </html>

@@ -42,7 +42,8 @@ class AnalisisCostoDiarioService {
                 max: '2026-12-31'
             },
             dashboards: [
-                { id: 'CostoFormulaPorTipoAABB', label: 'Costo Formula Por Tipo AABB' }
+                { id: 'CostoFormulaPorTipoAABB', label: 'Costo Formula Por Tipo AABB' },
+                { id: 'CostoFormula-Insumos',    label: 'Costo Formula - Insumos' }
             ]
         };
     }
