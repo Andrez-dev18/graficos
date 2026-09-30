@@ -146,14 +146,38 @@ class AnalisisCostoDiarioController {
 
     actualizarVisibilidadFiltros() {
         const contRevision = document.getElementById('contenedor-filtros-revision-insumos');
-        if (!contRevision) return;
+        if (contRevision) {
+            if (this.chartTipoActual === 'RevisionInsumos') {
+                contRevision.classList.remove('hidden');
+                contRevision.classList.add('flex');
+            } else {
+                contRevision.classList.add('hidden');
+                contRevision.classList.remove('flex');
+            }
+        }
 
-        if (this.chartTipoActual === 'RevisionInsumos') {
-            contRevision.classList.remove('hidden');
-            contRevision.classList.add('flex');
-        } else {
-            contRevision.classList.add('hidden');
-            contRevision.classList.remove('flex');
+        // Si es RevisionAlimento, cambiar periodo a 'por_fecha' automáticamente
+        const selectPeriodo = document.getElementById('select-tipo-periodo');
+        if (selectPeriodo && typeof PeriodoHelper !== 'undefined') {
+            if (this.chartTipoActual === 'RevisionAlimento') {
+                if (selectPeriodo.value !== 'por_fecha') {
+                    selectPeriodo.value = 'por_fecha';
+                    PeriodoHelper.renderizarInputs();
+                    const inputFecha = document.getElementById('input-fecha-unica');
+                    if (inputFecha) {
+                        const defHisto = this.filtrosIniciales?.revision_insumos_meta?.fechahisto_defecto || '2026-02-26';
+                        inputFecha.value = defHisto;
+                    }
+                }
+            } else if (this.chartTipoActual !== 'RevisionAlimento' && selectPeriodo.value === 'por_fecha') {
+                // Restaurar entre_fechas al volver a otros dashboards
+                selectPeriodo.value = 'entre_fechas';
+                PeriodoHelper.renderizarInputs();
+                const inputIni = document.getElementById('input-fecha-inicio');
+                const inputFin = document.getElementById('input-fecha-fin');
+                if (inputIni) inputIni.value = '2026-02-19';
+                if (inputFin) inputFin.value = '2026-03-21';
+            }
         }
     }
 
@@ -287,6 +311,15 @@ class AnalisisCostoDiarioController {
             fecha_inicio: rango.fechaInicio || '2026-02-19',
             fecha_fin: rango.fechaFin || '2026-03-21'
         };
+
+        // Filtros específicos para RevisionAlimento
+        if (this.chartTipoActual === 'RevisionAlimento') {
+            const inputFechaUnica = document.getElementById('input-fecha-unica');
+            const fHisto = (inputFechaUnica && inputFechaUnica.value) ? inputFechaUnica.value : (rango.fechaFin || '2026-02-26');
+            params.fechahisto = fHisto;
+            params.fecha_inicio = rango.fechaInicio || `${fHisto.substring(0, 7)}-01`;
+            params.fecha_fin = fHisto;
+        }
 
         // Filtros adicionales cuando el dashboard es RevisionInsumos
         if (this.chartTipoActual === 'RevisionInsumos') {

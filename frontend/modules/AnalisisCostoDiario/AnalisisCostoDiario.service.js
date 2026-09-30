@@ -44,7 +44,8 @@ class AnalisisCostoDiarioService {
             dashboards: [
                 { id: 'CostoFormulaPorTipoAABB', label: 'Costo Formula Por Tipo AABB' },
                 { id: 'CostoFormula-Insumos',    label: 'Costo Formula - Insumos' },
-                { id: 'RevisionInsumos',         label: 'Revisión Insumos' }
+                { id: 'RevisionInsumos',         label: 'Revisión Insumos' },
+                { id: 'RevisionAlimento',        label: 'Revisión Alimento' }
             ]
         };
     }

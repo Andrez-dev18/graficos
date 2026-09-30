@@ -3,6 +3,7 @@
 require_once __DIR__ . '/handlers/Dash_CostoFormulaPorTipoAABBHandler.php';
 require_once __DIR__ . '/handlers/Dash_CostoFormulaInsumosHandler.php';
 require_once __DIR__ . '/handlers/Dash_RevisionInsumosHandler.php';
+require_once __DIR__ . '/handlers/Dash_RevisionAlimentoHandler.php';
 
 class AnalisisCostoDiarioService
 {
@@ -112,7 +113,8 @@ class AnalisisCostoDiarioService
             'dashboards'              => [
                 ['id' => 'CostoFormulaPorTipoAABB', 'label' => 'Costo Formula Por Tipo AABB'],
                 ['id' => 'CostoFormula-Insumos',    'label' => 'Costo Formula - Insumos'],
-                ['id' => 'RevisionInsumos',         'label' => 'Revisión Insumos']
+                ['id' => 'RevisionInsumos',         'label' => 'Revisión Insumos'],
+                ['id' => 'RevisionAlimento',        'label' => 'Revisión Alimento']
             ],
             'revision_insumos_meta'   => [
                 'fechahisto_defecto'        => $defaultHisto,
@@ -130,6 +132,10 @@ class AnalisisCostoDiarioService
         $tipoGrafico = $filtros['tipo_grafico'] ?? $filtros['dashboard'] ?? 'CostoFormulaPorTipoAABB';
 
         switch ($tipoGrafico) {
+            case 'RevisionAlimento':
+            case 'Dash_RevisionAlimento':
+                return Dash_RevisionAlimentoHandler::handle($this->db, $filtros);
+
             case 'RevisionInsumos':
             case 'Dash_RevisionInsumos':
                 return Dash_RevisionInsumosHandler::handle($this->db, $filtros);
