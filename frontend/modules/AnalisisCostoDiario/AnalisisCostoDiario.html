@@ -56,7 +56,7 @@
                 </div>
                 <div>
                     <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">PLANTA ALIMENTO - Análisis Costo Diario</h1>
-                    <p class="text-xs text-slate-500">Costo Formula Por Tipo AABB / Alimento General</p>
+                    <p class="text-xs text-slate-500">Costo Formula Por Tipo AABB / Insumos / Revisión Insumos</p>
                 </div>
             </div>
 
@@ -100,8 +100,9 @@
                     <label for="select-dashboard" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DASHBOARD</label>
                     <select id="select-dashboard"
                         class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                        <option value="CostoFormulaPorTipoAABB" selected>Costo Formula Por Tipo AABB</option>
+                        <option value="CostoFormulaPorTipoAABB">Costo Formula Por Tipo AABB</option>
                         <option value="CostoFormula-Insumos">Costo Formula - Insumos</option>
+                        <option value="RevisionInsumos">Revisión Insumos</option>
                     </select>
                 </div>
 
@@ -123,6 +124,77 @@
                 </div>
 
             </div>
+
+            <!-- FILTROS ADICIONALES ESPECÍFICOS PARA REVISIÓN INSUMOS (CUSTOM-MULTISELECT) -->
+            <div id="contenedor-filtros-revision-insumos" class="hidden flex-wrap items-end gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-200/80">
+                <!-- 1. FECHA HISTÓRICA (fechahisto) - Input Libre de Fecha -->
+                <div class="flex flex-col">
+                    <label for="input-fechahisto" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA HISTÓRICA</label>
+                    <input type="date" id="input-fechahisto" value="2026-02-26"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                </div>
+
+                <!-- 2. MULTISELECT TIPO (INSUMO, FABRICACIO) -->
+                <div id="contenedor-filtro-tipo-revision" class="relative flex flex-col transition-all">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO</label>
+                    <button id="btn-dropdown-tipo-revision" type="button"
+                        class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[130px]">
+                        <span id="label-tipo-revision" class="truncate text-left select-none">INSUMO</span>
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="dropdown-tipo-revision"
+                        class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                        <input id="search-tipo-revision" type="text" placeholder="Buscar tipo..."
+                            class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                        <div id="container-options-tipo-revision" class="max-h-52 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                            <!-- Renderizado dinámico por CustomMultiSelect -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. MULTISELECT TRANSACCIÓN (S003, E003, S811) -->
+                <div id="contenedor-filtro-transaccion-revision" class="relative flex flex-col transition-all">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TRANSACCIÓN</label>
+                    <button id="btn-dropdown-transaccion-revision" type="button"
+                        class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[130px]">
+                        <span id="label-transaccion-revision" class="truncate text-left select-none">S003</span>
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="dropdown-transaccion-revision"
+                        class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                        <input id="search-transaccion-revision" type="text" placeholder="Buscar transacción..."
+                            class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                        <div id="container-options-transaccion-revision" class="max-h-52 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                            <!-- Renderizado dinámico por CustomMultiSelect -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. MULTISELECT ÍTEMS (Búsqueda y selección múltiple de insumos) -->
+                <div id="contenedor-filtro-items-revision" class="relative flex flex-col transition-all">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ITEMS</label>
+                    <button id="btn-dropdown-items-revision" type="button"
+                        class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[200px] max-w-[320px]">
+                        <span id="label-items-revision" class="truncate text-left select-none">9 seleccionados</span>
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="dropdown-items-revision"
+                        class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                        <input id="search-items-revision" type="text" placeholder="Buscar ítem por nombre o código..."
+                            class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                        <div id="container-options-items-revision" class="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                            <!-- Renderizado dinámico por CustomMultiSelect -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -137,16 +209,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-    <script src="../../assets/utils-graficos/periodo-helper.js?v=20260929_1"></script>
-    <script src="../../assets/utils-graficos/excel-export-helper.js?v=20260929_1"></script>
+    <script src="../../assets/utils-graficos/periodo-helper.js?v=20260930_1"></script>
+    <script src="../../assets/utils-graficos/custom-multiselect.js?v=20260930_1"></script>
+    <script src="../../assets/utils-graficos/excel-export-helper.js?v=20260930_1"></script>
 
     <!-- Componentes de Dashboards -->
-    <script src="charts/chart.costo_formula_por_tipo_aabb.js?v=20260929_6"></script>
-    <script src="charts/chart.costo_formula_insumos.js?v=20260929_6"></script>
+    <script src="charts/chart.costo_formula_por_tipo_aabb.js?v=20260930_3"></script>
+    <script src="charts/chart.costo_formula_insumos.js?v=20260930_3"></script>
+    <script src="charts/chart.revision_insumos.js?v=20260930_3"></script>
 
     <!-- Servicio y Controlador -->
-    <script src="AnalisisCostoDiario.service.js?v=20260929_6"></script>
-    <script src="AnalisisCostoDiario.controller.js?v=20260929_6"></script>
+    <script src="AnalisisCostoDiario.service.js?v=20260930_3"></script>
+    <script src="AnalisisCostoDiario.controller.js?v=20260930_3"></script>
 </body>
 
 </html>
