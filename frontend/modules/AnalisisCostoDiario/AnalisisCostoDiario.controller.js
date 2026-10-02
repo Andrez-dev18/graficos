@@ -21,11 +21,23 @@ class AnalisisCostoDiarioController {
     }
 
     async init() {
-        this.setupPeriodo();
-        this.setupListeners();
-        await this.cargarFiltrosIniciales();
-        this.actualizarVisibilidadFiltros();
-        await this.onCargarClick();
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Análisis Costo Diario',
+                subtitulo: 'Inicializando período y filtros...'
+            });
+        }
+        try {
+            this.setupPeriodo();
+            this.setupListeners();
+            await this.cargarFiltrosIniciales();
+            this.actualizarVisibilidadFiltros();
+            await this.onCargarClick();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
     }
 
     setupPeriodo() {
@@ -376,38 +388,53 @@ class AnalisisCostoDiarioController {
     }
 
     async onCargarClick() {
-        const contenedor = document.getElementById('contenedor-graficos-lista');
-        if (contenedor) {
-            contenedor.innerHTML = `
-                <div class="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-xs border border-slate-200/80">
-                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-                    <p class="text-sm font-semibold text-slate-600">Cargando Análisis de Costo Diario (${this.chartTipoActual})...</p>
-                </div>
-            `;
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
+            LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
+                titulo: `Consultando ${this.chartTipoActual}...`,
+                subtitulo: 'Cargando análisis de costo diario...'
+            });
         }
 
-        const filtros = this.obtenerFiltrosSeleccionados();
-        this.datosDashboard = await this.service.obtenerDashboard(filtros);
+        try {
+            const filtros = this.obtenerFiltrosSeleccionados();
+            this.datosDashboard = await this.service.obtenerDashboard(filtros);
 
-        // Si el dashboard es RevisionInsumos y se retornaron nuevos items_disponibles, actualizar CustomMultiSelect
-        if (this.chartTipoActual === 'RevisionInsumos' && this.multiItemsRevision && this.datosDashboard?.metadatos_filtros?.items_disponibles) {
-            const nuevosItems = this.datosDashboard.metadatos_filtros.items_disponibles;
-            if (nuevosItems.length > 0 && nuevosItems.length !== this.multiItemsRevision.options.length) {
-                const prevSel = this.multiItemsRevision.getSelectedValues();
-                const optItems = nuevosItems.map(it => {
-                    const label = it.label || `${it.coditem} ${it.nomitem}`.trim();
-                    const id = label;
-                    return {
-                        id: id,
-                        label: label,
-                        selected: prevSel.length > 0 ? prevSel.includes(id) : false
-                    };
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+            }
+
+            // Si el dashboard es RevisionInsumos y se retornaron nuevos items_disponibles, actualizar CustomMultiSelect
+            if (this.chartTipoActual === 'RevisionInsumos' && this.multiItemsRevision && this.datosDashboard?.metadatos_filtros?.items_disponibles) {
+                const nuevosItems = this.datosDashboard.metadatos_filtros.items_disponibles;
+                if (nuevosItems.length > 0 && nuevosItems.length !== this.multiItemsRevision.options.length) {
+                    const prevSel = this.multiItemsRevision.getSelectedValues();
+                    const optItems = nuevosItems.map(it => {
+                        const label = it.label || `${it.coditem} ${it.nomitem}`.trim();
+                        const id = label;
+                        return {
+                            id: id,
+                            label: label,
+                            selected: prevSel.length > 0 ? prevSel.includes(id) : false
+                        };
+                    });
+                    this.multiItemsRevision.setOptions(optItems);
+                }
+            }
+
+            this.renderGraficoActual();
+        } catch (error) {
+            console.error('Error al cargar análisis de costo diario:', error);
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.mostrarError('contenedor-graficos-lista', {
+                    mensaje: 'Ocurrió un error al obtener los datos de Análisis de Costo Diario.'
                 });
-                this.multiItemsRevision.setOptions(optItems);
+            }
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.restaurarBoton('btn-cargar');
             }
         }
-
-        this.renderGraficoActual();
     }
 
     renderGraficoActual() {

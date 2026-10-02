@@ -34,8 +34,22 @@ class AlmacenMermasVivoController {
         this.setupEventListeners();
         this.setupModales();
 
-        // Primera carga automática
-        await this.onCargarClick();
+        // Mostrar loading inicial de página
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Almacén Mermas',
+                subtitulo: 'Inicializando configuración y métricas...'
+            });
+        }
+
+        try {
+            // Primera carga automática
+            await this.onCargarClick();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
     }
 
     /**
@@ -154,16 +168,15 @@ class AlmacenMermasVivoController {
 
         this.destruirGraficos();
 
-        contenedor.innerHTML = `
-            <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
-                <h3 class="text-base font-bold text-slate-800">Consultando ${filtros.tipo_grafico}...</h3>
-                <p class="text-xs text-slate-500 mt-1">Cargando métricas de mermas para el período seleccionado</p>
-            </div>
-        `;
+        LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
+        LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
+            titulo: `Consultando ${filtros.tipo_grafico}...`,
+            subtitulo: 'Cargando métricas de mermas para el período seleccionado'
+        });
 
         try {
             const res = await this.service.consultarGrafico(filtros.tipo_grafico, filtros);
+            LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
 
             if (res && res.success && res.payload && res.payload.data && res.payload.data.length > 0) {
                 this.cacheData = res.payload.data;
@@ -171,21 +184,19 @@ class AlmacenMermasVivoController {
                 this.poblarSelectPlacas(this.cacheData);
             } else {
                 this.cacheData = null;
-                contenedor.innerHTML = `
-                    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                        <h3 class="text-sm font-bold text-slate-700">No se encontraron registros</h3>
-                        <p class="text-xs text-slate-500 mt-1">Intente cambiando el rango de fechas o el filtro de datos.</p>
-                    </div>
-                `;
+                LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                    mensaje: 'No se encontraron registros',
+                    subtitulo: 'Intente cambiando el rango de fechas o el filtro de datos.'
+                });
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
-            contenedor.innerHTML = `
-                <div class="w-full bg-white rounded-2xl shadow-sm border border-rose-200 p-8 flex flex-col items-center justify-center text-center text-rose-600">
-                    <h3 class="text-sm font-bold">Error de consulta</h3>
-                    <p class="text-xs text-rose-500 mt-1">${error.message || 'Error inesperado.'}</p>
-                </div>
-            `;
+            LoadingHelper.mostrarError('contenedor-graficos-lista', {
+                mensaje: 'Error de consulta',
+                detalle: error.message || 'Error inesperado.'
+            });
+        } finally {
+            LoadingHelper.restaurarBoton('btn-cargar');
         }
     }
 

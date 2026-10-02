@@ -35,7 +35,22 @@ class MermaPlacaController {
     async init() {
         this.setupPeriodo();
         this.setupListeners();
-        await this.onCargarClick();
+
+        // Loading inicial de página
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Análisis Mermas por Placa',
+                subtitulo: 'Inicializando gráficos y período...'
+            });
+        }
+
+        try {
+            await this.onCargarClick();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
     }
 
     setupPeriodo() {
@@ -103,19 +118,7 @@ class MermaPlacaController {
     }
 
     async onCargarClick() {
-        const btnCargar = document.getElementById('btn-cargar');
-        const originalBtnHtml = btnCargar ? btnCargar.innerHTML : '';
-        if (btnCargar) {
-            btnCargar.disabled = true;
-            btnCargar.classList.add('opacity-75', 'cursor-not-allowed');
-            btnCargar.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Cargando...</span>
-            `;
-        }
+        LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
 
         try {
             let rango = {};
@@ -169,12 +172,12 @@ class MermaPlacaController {
             }
         } catch (err) {
             console.error('Error al cargar dashboard de merma por placa:', err);
+            LoadingHelper.mostrarError('contenedor-grafica-costo', {
+                mensaje: 'Error de consulta',
+                detalle: err.message || 'Error inesperado al consultar datos.'
+            });
         } finally {
-            if (btnCargar) {
-                btnCargar.disabled = false;
-                btnCargar.classList.remove('opacity-75', 'cursor-not-allowed');
-                btnCargar.innerHTML = originalBtnHtml;
-            }
+            LoadingHelper.restaurarBoton('btn-cargar');
         }
     }
 

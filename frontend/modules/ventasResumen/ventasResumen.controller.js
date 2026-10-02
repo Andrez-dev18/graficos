@@ -52,7 +52,25 @@ class VentasResumenController {
         this.setupPeriodo();
         this.setupEventListeners();
         this.setupModales();
-        await this.cargarFiltrosServidor();
+
+        // Mostrar loading inicial mientras se cargan los filtros
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Ventas y Devoluciones',
+                subtitulo: 'Obteniendo filtros y configuración...'
+            });
+        }
+
+        try {
+            await this.cargarFiltrosServidor();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
+
+        // Carga inicial automática de gráficos
+        await this.onCargarClick();
     }
 
     /**
@@ -454,43 +472,42 @@ class VentasResumenController {
         // Limpiar gráficos y observadores previos
         this.destruirGraficos();
 
-        // Enrutar al nuevo gráfico principal 08DevolucionesSaca
-        if (filtros.tipo_grafico === '08DevolucionesSaca') {
-            await this.cargarMatrizDevoluciones(filtros);
-            return;
-        }
-
-        // Mostrar estado de carga para 07VentasSacCoor
-        contenedor.innerHTML = `
-            <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
-                <h3 class="text-base font-bold text-slate-800">Consultando datos de ventas y devoluciones...</h3>
-                <p class="text-xs text-slate-500 mt-1">Procesando registros de ventas y devoluciones secuenciales</p>
-            </div>
-        `;
+        LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
 
         try {
+            // Enrutar al gráfico principal 08DevolucionesSaca
+            if (filtros.tipo_grafico === '08DevolucionesSaca') {
+                await this.cargarMatrizDevoluciones(filtros);
+                return;
+            }
+
+            // Mostrar estado de carga para 07VentasSacCoor
+            LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
+                titulo: 'Consultando datos de ventas y devoluciones...',
+                subtitulo: 'Procesando registros de ventas y devoluciones secuenciales'
+            });
+
             const res = await this.service.consultarVentasSacCoor(filtros);
+            LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+
             if (res && res.success && res.payload && res.payload.fechas && res.payload.fechas.length > 0) {
                 this.cacheData = res.payload;
                 this.renderizarGraficoVentasSacCoor(this.cacheData);
             } else {
                 this.cacheData = null;
-                contenedor.innerHTML = `
-                    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                        <h3 class="text-sm font-bold text-slate-700">No se encontraron registros</h3>
-                        <p class="text-xs text-slate-500 mt-1">Intente cambiando el rango de fechas o los filtros seleccionados.</p>
-                    </div>
-                `;
+                LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                    mensaje: 'No se encontraron registros',
+                    subtitulo: 'Intente cambiando el rango de fechas o los filtros seleccionados.'
+                });
             }
         } catch (error) {
             console.error('Error al cargar datos del gráfico:', error);
-            contenedor.innerHTML = `
-                <div class="w-full bg-white rounded-2xl shadow-sm border border-rose-200 p-8 flex flex-col items-center justify-center text-center text-rose-600">
-                    <h3 class="text-sm font-bold">Error al procesar la solicitud</h3>
-                    <p class="text-xs text-rose-500 mt-1">${error.message || 'Error inesperado.'}</p>
-                </div>
-            `;
+            LoadingHelper.mostrarError('contenedor-graficos-lista', {
+                mensaje: 'Error al procesar la solicitud',
+                detalle: error.message || 'Error inesperado.'
+            });
+        } finally {
+            LoadingHelper.restaurarBoton('btn-cargar');
         }
     }
 
@@ -1937,34 +1954,29 @@ class VentasResumenController {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
-        contenedor.innerHTML = `
-            <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-rose-600 border-t-transparent mb-4"></div>
-                <h3 class="text-base font-bold text-slate-800">Cargando Mayores Devoluciones...</h3>
-                <p class="text-xs text-slate-500 mt-1">Analizando motivos por zona fiscal y producto</p>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
+            titulo: 'Cargando Mayores Devoluciones...',
+            subtitulo: 'Analizando motivos por zona fiscal y producto'
+        });
 
         try {
             const res = await this.service.consultarDevolucionesPorZonaMotivo(filtros);
+            LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+
             if (res && res.success && res.payload && res.payload.data && res.payload.data.length > 0) {
                 this.renderizarMatrizDevoluciones(res.payload.data);
             } else {
-                contenedor.innerHTML = `
-                    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-12 flex flex-col items-center justify-center text-center">
-                        <h3 class="text-sm font-bold text-slate-700">Sin devoluciones registradas</h3>
-                        <p class="text-xs text-slate-500 mt-1">No hay notas de crédito ni motivos para los filtros seleccionados.</p>
-                    </div>
-                `;
+                LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                    mensaje: 'Sin devoluciones registradas',
+                    subtitulo: 'No hay notas de crédito ni motivos para los filtros seleccionados.'
+                });
             }
         } catch (error) {
             console.error('Error al cargar matriz devoluciones:', error);
-            contenedor.innerHTML = `
-                <div class="w-full bg-white rounded-2xl shadow-sm border border-rose-200 p-8 flex flex-col items-center justify-center text-center text-rose-600">
-                    <h3 class="text-sm font-bold">Error de consulta</h3>
-                    <p class="text-xs text-rose-500 mt-1">${error.message}</p>
-                </div>
-            `;
+            LoadingHelper.mostrarError('contenedor-graficos-lista', {
+                mensaje: 'Error de consulta',
+                detalle: error.message
+            });
         }
     }
 

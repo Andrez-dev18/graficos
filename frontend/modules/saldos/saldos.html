@@ -45,6 +45,27 @@
 
 <body class="bg-gray-100 h-screen m-0 p-0">
 
+    <!-- LOADER INICIAL DE PÁGINA (CARGA DE FILTROS Y CONFIGURACIÓN) -->
+    <div id="loader-inicial-pagina"
+        class="fixed inset-0 z-50 bg-slate-50/90 backdrop-blur-xs flex flex-col items-center justify-center transition-opacity duration-300">
+        <div
+            class="flex flex-col items-center gap-4 bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200/90 text-center max-w-xs mx-4">
+            <div class="relative flex items-center justify-center">
+                <div class="w-12 h-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Cargando Saldos por Cobrar</h3>
+                <p class="text-xs text-slate-500 mt-1">Obteniendo filtros y configuración...</p>
+            </div>
+        </div>
+    </div>
 
     <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 relative">
 
@@ -591,6 +612,7 @@
 
     <script src="../../assets/utils-graficos/custom-multiselect.js"></script>
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
+    <script src="../../assets/utils-graficos/loading-helper.js"></script>
     <script src="../../assets/utils-graficos/modal-schemas.js"></script>
 
     <script src="saldos.service.js"></script>

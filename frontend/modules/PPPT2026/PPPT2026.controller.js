@@ -11,9 +11,21 @@ class PPPT2026Controller {
     }
 
     async init() {
-        this.setupPeriodo();
-        this.setupListeners();
-        await this.onCargarClick();
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando PPT 2026',
+                subtitulo: 'Inicializando gráficos y filtros...'
+            });
+        }
+        try {
+            this.setupPeriodo();
+            this.setupListeners();
+            await this.onCargarClick();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
     }
 
     setupPeriodo() {
@@ -82,25 +94,21 @@ class PPPT2026Controller {
     }
 
     async onCargarClick() {
-        const btnCargar = document.getElementById('btn-cargar');
-        const originalBtnHtml = btnCargar ? btnCargar.innerHTML : '';
-
-        if (btnCargar) {
-            btnCargar.disabled = true;
-            btnCargar.classList.add('opacity-75', 'cursor-not-allowed');
-            btnCargar.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Cargando...</span>
-            `;
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
         }
 
         try {
             const selTipoGrafico = document.getElementById('select-tipo-grafico');
             const tipoGrafico = selTipoGrafico ? selTipoGrafico.value : 'PT';
             this.chartTipoActual = tipoGrafico;
+
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.mostrarEnContenedor('contenedor-grafica-costo', {
+                    titulo: `Consultando ${tipoGrafico}...`,
+                    subtitulo: 'Cargando métricas del período...'
+                });
+            }
 
             // Extraer fechas / mes
             let rango = {};
@@ -143,11 +151,19 @@ class PPPT2026Controller {
 
             if (!resp || resp.status !== 'success') {
                 console.error('Error al obtener datos:', resp);
-                alert('No se pudieron cargar los datos del dashboard.');
+                if (typeof LoadingHelper !== 'undefined') {
+                    LoadingHelper.mostrarError('contenedor-grafica-costo', {
+                        mensaje: 'No se pudieron cargar los datos del dashboard.'
+                    });
+                }
                 return;
             }
 
             this.datosDashboard = resp.payload || resp.data;
+
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarEnContenedor('contenedor-grafica-costo');
+            }
 
             // Delegar renderizado al componente registrado en ChartRegistry
             if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
@@ -157,11 +173,14 @@ class PPPT2026Controller {
             }
         } catch (error) {
             console.error('Error en onCargarClick:', error);
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.mostrarError('contenedor-grafica-costo', {
+                    mensaje: 'Ocurrió un error al procesar el dashboard PPT 2026.'
+                });
+            }
         } finally {
-            if (btnCargar) {
-                btnCargar.disabled = false;
-                btnCargar.classList.remove('opacity-75', 'cursor-not-allowed');
-                btnCargar.innerHTML = originalBtnHtml;
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.restaurarBoton('btn-cargar');
             }
         }
     }

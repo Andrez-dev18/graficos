@@ -56,7 +56,22 @@ class SaldosController {
         this.setupModalEventListeners();
 
         PeriodoHelper.renderizarInputs();
-        await this.cargarFiltrosIniciales();
+
+        // Mostrar loading inicial mientras se cargan los filtros de la vista
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Saldos por Cobrar',
+                subtitulo: 'Obteniendo filtros y configuración...'
+            });
+        }
+
+        try {
+            await this.cargarFiltrosIniciales();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
 
         // Primera carga inicial al abrir la vista
         await this.cargarDatosDesdeServidor();
@@ -857,6 +872,8 @@ class SaldosController {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
 
+        LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
+
         const rango = (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas)
             ? PeriodoHelper.obtenerRangoFechas()
             : ((typeof PeriodoHelper !== 'undefined' && PeriodoHelper.calcularRangoFechas) ? PeriodoHelper.calcularRangoFechas() : { fechaInicio: '', fechaFin: '' });
@@ -865,11 +882,10 @@ class SaldosController {
 
         const selectedCuentas = this.msCuentaVenta.getSelectedValues();
         if (selectedCuentas.length === 0) {
-            contenedor.innerHTML = `
-                <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 font-medium">
-                    No hay cuentas seleccionadas para consultar.
-                </div>
-            `;
+            LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                mensaje: 'No hay cuentas seleccionadas para consultar.'
+            });
+            LoadingHelper.restaurarBoton('btn-cargar');
             return;
         }
 
@@ -879,15 +895,10 @@ class SaldosController {
         const esVistaAnalisisCuentas = tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
         const esVistaCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
 
-        contenedor.innerHTML = `
-            <div id="loader-graficos" class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-blue-600 font-medium flex items-center justify-center gap-2">
-                <svg class="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                <span>Consultando datos del servidor...</span>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
+            titulo: 'Cargando gráficos de saldos...',
+            subtitulo: 'Consultando y procesando la información del servidor'
+        });
 
         try {
             if (esVistaCorporativosZona) {
@@ -903,14 +914,12 @@ class SaldosController {
                 };
 
                 const res = await this.service.obtenerCorporativosZonaDeudores(payload);
-                document.getElementById('loader-graficos')?.remove();
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
 
                 if (!res.success || !res.data || !res.data.corporativos || res.data.corporativos.length === 0) {
-                    contenedor.innerHTML = `
-                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                            No se encontraron registros de corporativos deudores para los filtros seleccionados.
-                        </div>
-                    `;
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron registros de corporativos deudores para los filtros seleccionados.'
+                    });
                     return;
                 }
 
@@ -928,14 +937,12 @@ class SaldosController {
                 };
 
                 const res = await this.service.obtenerGraficoAnalisisCuentas(payload);
-                document.getElementById('loader-graficos')?.remove();
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
 
                 if (!res.success || !res.payload || !res.payload.data || Object.keys(res.payload.data).length === 0) {
-                    contenedor.innerHTML = `
-                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                            No se encontraron registros de saldos por cuenta para los filtros seleccionados.
-                        </div>
-                    `;
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron registros de saldos por cuenta para los filtros seleccionados.'
+                    });
                     return;
                 }
 
@@ -951,14 +958,12 @@ class SaldosController {
                 };
 
                 const res = await this.service.obtenerGraficoAnticiposData(payload);
-                document.getElementById('loader-graficos')?.remove();
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
 
                 if (!res.success || !res.payload || !res.payload.data || Object.keys(res.payload.data).length === 0) {
-                    contenedor.innerHTML = `
-                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                            No se encontraron datos de anticipos para las cuentas y fechas seleccionadas.
-                        </div>
-                    `;
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron datos de anticipos para las cuentas y fechas seleccionadas.'
+                    });
                     return;
                 }
 
@@ -981,14 +986,12 @@ class SaldosController {
                 };
 
                 const res = await this.service.obtenerGraficoLineaData(payload);
-                document.getElementById('loader-graficos')?.remove();
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
 
                 if (!res.success || !res.payload || !res.payload.data || Object.keys(res.payload.data).length === 0) {
-                    contenedor.innerHTML = `
-                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                            No se encontraron registros de zonas para los filtros seleccionados.
-                        </div>
-                    `;
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron registros de zonas para los filtros seleccionados.'
+                    });
                     return;
                 }
 
@@ -1013,14 +1016,12 @@ class SaldosController {
                 };
 
                 const res = await this.service.obtenerGraficoData(payload);
-                document.getElementById('loader-graficos')?.remove();
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
 
                 if (!res.success || !res.payload || !res.payload.data) {
-                    contenedor.innerHTML = `
-                        <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                            No se encontraron registros para los filtros seleccionados.
-                        </div>
-                    `;
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron registros para los filtros seleccionados.'
+                    });
                     return;
                 }
 
@@ -1032,11 +1033,11 @@ class SaldosController {
 
         } catch (error) {
             console.error('Error al cargar datos:', error);
-            contenedor.innerHTML = `
-                <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-rose-500 font-medium">
-                    Ocurrió un error al consultar el servidor.
-                </div>
-            `;
+            LoadingHelper.mostrarError('contenedor-graficos-lista', {
+                mensaje: 'Ocurrió un error al consultar el servidor.'
+            });
+        } finally {
+            LoadingHelper.restaurarBoton('btn-cargar');
         }
     }
 

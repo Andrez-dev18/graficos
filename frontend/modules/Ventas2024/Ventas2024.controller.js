@@ -16,10 +16,22 @@ class Ventas2024Controller {
     }
 
     async init() {
-        this.setupMultiSelects();
-        this.setupListeners();
-        await this.cargarFiltrosIniciales();
-        await this.onCargarClick();
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Ventas 2024',
+                subtitulo: 'Inicializando filtros y configuración...'
+            });
+        }
+        try {
+            this.setupMultiSelects();
+            this.setupListeners();
+            await this.cargarFiltrosIniciales();
+            await this.onCargarClick();
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarInicial();
+            }
+        }
     }
 
     /**
@@ -232,20 +244,35 @@ class Ventas2024Controller {
     }
 
     async onCargarClick() {
-        const contenedor = document.getElementById('contenedor-graficos-lista');
-        if (contenedor) {
-            contenedor.innerHTML = `
-                <div class="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-xs border border-slate-200/80">
-                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-                    <p class="text-sm font-semibold text-slate-600">Cargando reporte de Ventas 2024...</p>
-                </div>
-            `;
+        if (typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.iniciarBoton('btn-cargar', { texto: 'Cargando...' });
+            LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
+                titulo: 'Consultando Ventas 2024...',
+                subtitulo: 'Cargando información por corporativo y cliente...'
+            });
         }
 
-        const filtros = this.obtenerFiltrosSeleccionados();
-        this.datosDashboard = await this.service.obtenerDashboard(filtros);
+        try {
+            const filtros = this.obtenerFiltrosSeleccionados();
+            this.datosDashboard = await this.service.obtenerDashboard(filtros);
 
-        this.renderGraficoActual();
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+            }
+
+            this.renderGraficoActual();
+        } catch (error) {
+            console.error('Error al cargar ventas 2024:', error);
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.mostrarError('contenedor-graficos-lista', {
+                    mensaje: 'Ocurrió un error al obtener los datos de Ventas 2024.'
+                });
+            }
+        } finally {
+            if (typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.restaurarBoton('btn-cargar');
+            }
+        }
     }
 
     renderGraficoActual() {
