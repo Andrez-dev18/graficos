@@ -65,6 +65,28 @@ class Database {
                 'password' => defined('DB_PASSWORD_AQP_TC') ? DB_PASSWORD_AQP_TC : (defined('DB_PASSWORD_TC') ? DB_PASSWORD_TC : (defined('DB_PASSWORD_COMERCIAL') ? DB_PASSWORD_COMERCIAL : $this->password))
             ];
         }
+
+        // 4. BD Ventas 2024 (cia2024)
+        $dbName24 = defined('DB_NAME_AQP24') ? DB_NAME_AQP24 : (defined('DB_NAME_2024') ? DB_NAME_2024 : '');
+        if (!empty($dbName24)) {
+            $this->secondaryConnections['2024'] = [
+                'host'     => defined('DB_HOST_AQP24') ? DB_HOST_AQP24 : (defined('DB_HOST_2024') ? DB_HOST_2024 : $this->host),
+                'db_name'  => $dbName24,
+                'username' => defined('DB_USER_AQP24') ? DB_USER_AQP24 : (defined('DB_USER_2024') ? DB_USER_2024 : $this->username),
+                'password' => defined('DB_PASSWORD_AQP24') ? DB_PASSWORD_AQP24 : (defined('DB_PASSWORD_2024') ? DB_PASSWORD_2024 : $this->password)
+            ];
+        }
+
+        // 5. BD Ventas 2025 (cia2025)
+        $dbName25 = defined('DB_NAME_AQP25') ? DB_NAME_AQP25 : (defined('DB_NAME_2025') ? DB_NAME_2025 : '');
+        if (!empty($dbName25)) {
+            $this->secondaryConnections['2025'] = [
+                'host'     => defined('DB_HOST_AQP25') ? DB_HOST_AQP25 : (defined('DB_HOST_2025') ? DB_HOST_2025 : $this->host),
+                'db_name'  => $dbName25,
+                'username' => defined('DB_USER_AQP25') ? DB_USER_AQP25 : (defined('DB_USER_2025') ? DB_USER_2025 : $this->username),
+                'password' => defined('DB_PASSWORD_AQP25') ? DB_PASSWORD_AQP25 : (defined('DB_PASSWORD_2025') ? DB_PASSWORD_2025 : $this->password)
+            ];
+        }
     }
 
     private function loadLocalConfig($localEnvFile) {
@@ -91,6 +113,24 @@ class Database {
                 'db_name'  => $env['DB_NAME_TC'],
                 'username' => isset($env['DB_USER_TC']) ? $env['DB_USER_TC'] : $this->username,
                 'password' => isset($env['DB_PASS_TC']) ? $env['DB_PASS_TC'] : $this->password
+            ];
+        }
+
+        if (!empty($env['DB_NAME_2024'])) {
+            $this->secondaryConnections['2024'] = [
+                'host'     => isset($env['DB_HOST_2024']) ? $env['DB_HOST_2024'] : $this->host,
+                'db_name'  => $env['DB_NAME_2024'],
+                'username' => isset($env['DB_USER_2024']) ? $env['DB_USER_2024'] : $this->username,
+                'password' => isset($env['DB_PASS_2024']) ? $env['DB_PASS_2024'] : $this->password
+            ];
+        }
+
+        if (!empty($env['DB_NAME_2025'])) {
+            $this->secondaryConnections['2025'] = [
+                'host'     => isset($env['DB_HOST_2025']) ? $env['DB_HOST_2025'] : $this->host,
+                'db_name'  => $env['DB_NAME_2025'],
+                'username' => isset($env['DB_USER_2025']) ? $env['DB_USER_2025'] : $this->username,
+                'password' => isset($env['DB_PASS_2025']) ? $env['DB_PASS_2025'] : $this->password
             ];
         }
     }

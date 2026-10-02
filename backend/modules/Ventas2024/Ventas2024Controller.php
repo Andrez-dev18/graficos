@@ -11,7 +11,11 @@ class Ventas2024Controller
     public function __construct()
     {
         $database = new Database();
-        $this->db = $database->getConnection();
+        $db = $database->getConnection();
+        // Conexión específica para Ventas 2024 con fallback a conexión base
+        $this->db = ($db instanceof SmartPDO && $db->getConnection('2024')) 
+            ? $db->getConnection('2024') 
+            : $db;
         $this->service = new Ventas2024Service($this->db);
     }
 
