@@ -1,0 +1,231 @@
+openapi: 3.0.3
+info:
+  title: sanidad — API Gráficas SIP
+  description: |
+    API HTTP para gráficas SIP y catálogo de selectores. Requiere sesión PHP activa.
+
+    **Documentación dinámica (recomendada):** `/modules/sip/graficas/docs/openapi.php`
+    — con sesión activa enriquece automáticamente tipos, granjas, campañas y galpones desde BD.
+
+    **Swagger UI:** `/modules/sip/graficas/docs/swagger.php`
+
+    Este archivo YAML es referencia estática; puede regenerarse con `openapi.php?format=yaml`.
+  version: 1.4.0
+servers:
+  - url: http://localhost/sanidad
+    description: Local XAMPP
+paths:
+  /modules/sip/graficas/get_sip_grafica_data.php:
+    get:
+      summary: Datos de gráfica mortalidad
+      description: |
+        Devuelve JSON preparado para Chart.js u otros consumidores.
+        Autenticación: cookie de sesión PHP (`PHPSESSID`) tras login en `/login.php`.
+      parameters:
+        - name: tipo
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [mortalidad]
+          example: mortalidad
+        - name: granja
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "001"
+        - name: campania
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "001"
+        - name: galpon
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Obligatorio para seccion=linea
+          example: "1"
+        - name: seccion
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [linea, causas, pareto, all]
+            default: linea
+      responses:
+        '200':
+          description: Respuesta JSON
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MortalidadLinea'
+                  - $ref: '#/components/schemas/MortalidadCausas'
+                  - $ref: '#/components/schemas/MortalidadPareto'
+                  - $ref: '#/components/schemas/MortalidadAll'
+        '400':
+          description: Parámetros faltantes
+        '401':
+          description: Sin sesión
+  /modules/sip/graficas/get_sip_granjas_campanias_galpones.php:
+    get:
+      summary: Granjas, campañas y galpones
+      description: |
+        Un solo request. `campanias` es array de strings. Requiere sesión PHP activa.
+        Ver spec dinámico en `openapi.php` para parámetros de periodo completos.
+      parameters:
+        - name: granja
+          in: query
+          schema:
+            type: string
+          description: Filtro opcional por granja
+        - name: zona
+          in: query
+          schema:
+            type: string
+        - name: fechaInicio
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: fechaFin
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: periodoTipo
+          in: query
+          schema:
+            type: string
+            enum: [TODOS, POR_FECHA, ENTRE_FECHAS, POR_MES, ENTRE_MESES, ULTIMA_SEMANA]
+      responses:
+        '200':
+          description: Árbol granjas → campanias[] → galpones[]
+        '401':
+          description: Sin sesión
+components:
+  schemas:
+    MortalidadLineaDia:
+      type: object
+      properties:
+        dia:
+          type: integer
+        fecha:
+          type: string
+          format: date
+          nullable: true
+        estandar:
+          type: object
+          properties:
+            min:
+              type: number
+              nullable: true
+            max:
+              type: number
+              nullable: true
+        macho:
+          $ref: '#/components/schemas/MortalidadSexoValor'
+        hembra:
+          $ref: '#/components/schemas/MortalidadSexoValor'
+    MortalidadSexoValor:
+      type: object
+      properties:
+        valor:
+          type: number
+          nullable: true
+          description: Mortalidad diaria en porcentaje
+        cumple:
+          type: boolean
+          nullable: true
+          description: Cumple estándar (modo solo_max)
+    MortalidadLinea:
+      type: object
+      properties:
+        success:
+          type: boolean
+        dataPorDia:
+          type: array
+          items:
+            $ref: '#/components/schemas/MortalidadLineaDia'
+        unidad:
+          type: string
+          example: "%"
+        esMh:
+          type: boolean
+          example: true
+        modoEvaluacion:
+          type: string
+          example: solo_max
+        tareaKey:
+          type: string
+          example: CRIANZA_MORTALIDAD_DIARIA
+    MortalidadCausaItem:
+      type: object
+      properties:
+        codigo:
+          type: integer
+        nombre:
+          type: string
+        total:
+          type: integer
+    MortalidadCausasDia:
+      type: object
+      properties:
+        fecha:
+          type: string
+          format: date
+        dia:
+          type: integer
+          nullable: true
+          description: Día de campaña (1 = primera fecha con datos)
+        total:
+          type: integer
+        causas:
+          type: array
+          items:
+            $ref: '#/components/schemas/MortalidadCausaItem'
+    MortalidadCausas:
+      type: object
+      properties:
+        success:
+          type: boolean
+        porFecha:
+          type: array
+          items:
+            $ref: '#/components/schemas/MortalidadCausasDia'
+    MortalidadPareto:
+      type: object
+      properties:
+        success:
+          type: boolean
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              codigo:
+                type: integer
+              nombre:
+                type: string
+              total:
+                type: integer
+              pct:
+                type: number
+              pctAcum:
+                type: number
+    MortalidadAll:
+      type: object
+      properties:
+        success:
+          type: boolean
+        linea:
+          $ref: '#/components/schemas/MortalidadLinea'
+        causas:
+          $ref: '#/components/schemas/MortalidadCausas'
+        pareto:
+          $ref: '#/components/schemas/MortalidadPareto'
