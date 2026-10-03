@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let ultimaListaRenderizada = [];
     let currentFetchToken = 0;
+    let cacheGranjasData = [];
+    window.cacheGranjasData = cacheGranjasData;
 
     // --- INSTANCIACIÓN DE MULTI-SELECTS PERSONALIZADOS ---
     const msGranja = new CustomMultiSelect({
@@ -216,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const mapDias = new Map();
             for (const tipoPesaje of pesajeSeleccionados) {
-                const resp = await fetch(`../graficas/get_sip_grafica_pesaje_dias.php?tipo=${encodeURIComponent(tipoPesaje)}`, { credentials: 'same-origin' });
+                const resp = await fetch(`../../backend/interconsulta/pesaje-dias?tipo=${encodeURIComponent(tipoPesaje)}`);
                 const json = await resp.json();
                 if (json && json.success && Array.isArray(json.dias)) {
                     json.dias.forEach(d => {
@@ -254,8 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function actualizarCampaniasYGalponesHz() {
         if (!msGranjaHz || !msCampaniaHz || !msGalponHz) return;
-        const granjasSeleccionadas = msGranjaHz.getSelectedValues();
-        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(g.granja || g.codigo || g.nombre));
+        const granjasSeleccionadas = (msGranjaHz.getSelectedValues() || []).map(String);
+        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(String(g.granja || g.codigo || g.nombre)));
 
         const setCampanias = new Set();
         const setGalpones = new Set();
@@ -270,19 +272,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const opcionesCampanias = Array.from(setCampanias).map(c => ({
-            id: c,
-            label: `Campaña ${c}`,
-            selected: true
+            id: String(c),
+            label: `Campaña ${c}`
         }));
 
         const opcionesGalpones = Array.from(setGalpones).map(gp => ({
-            id: gp,
-            label: `Galpón ${gp}`,
-            selected: true
+            id: String(gp),
+            label: `Galpón ${gp}`
         }));
 
-        msCampaniaHz.setOptions(opcionesCampanias, false);
-        msGalponHz.setOptions(opcionesGalpones, false);
+        msCampaniaHz.setOptions(opcionesCampanias, true);
+        msGalponHz.setOptions(opcionesGalpones, true);
     }
 
     function obtenerParametrosPeriodo() {
@@ -313,15 +313,23 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = obtenerParametrosPeriodo();
             const qs = new URLSearchParams(params).toString();
-            const response = await fetch(`../graficas/get_sip_granjas_campanias_galpones.php?${qs}`, { credentials: 'same-origin' });
+            const response = await fetch(`../../backend/interconsulta/granjas-campanias-galpones?${qs}`);
             const data = await response.json();
 
             if (!data.success) return;
 
-            cacheGranjasData = data.granjas || [];
+            cacheGranjasData = (data.granjas || []).map(g => ({
+                ...g,
+                granja: String(g.granja || g.codigo || g.nombre || ''),
+                codigo: g.codigo ? String(g.codigo) : String(g.granja || ''),
+                nombre: g.nombre ? String(g.nombre) : '',
+                campanias: Array.isArray(g.campanias) ? g.campanias.map(String) : [],
+                galpones: Array.isArray(g.galpones) ? g.galpones.map(String) : []
+            }));
+            window.cacheGranjasData = cacheGranjasData;
 
             const opcionesGranjas = cacheGranjasData.map(g => ({
-                id: g.granja || g.codigo || g.nombre,
+                id: String(g.granja || g.codigo || g.nombre),
                 label: (g.granja || '') + (g.nombre && g.nombre !== g.granja ? ' — ' + g.nombre : '')
             }));
 
@@ -331,13 +339,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 msUbicacionUnificada.setData(cacheGranjasData, false);
             }
 
-            // TAB 2: Selecciona todas las granjas por defecto
+            // TAB 2: Selecciona solo la primera por defecto
             if (msGranjaHz) {
-                const opcionesGranjasHz = opcionesGranjas.map(g => ({ ...g, selected: true }));
-                msGranjaHz.setOptions(opcionesGranjasHz, false);
+                msGranjaHz.setOptions(opcionesGranjas, true);
             }
             if (msUbicacionUnificadaHz) {
-                msUbicacionUnificadaHz.setData(cacheGranjasData, true);
+                msUbicacionUnificadaHz.setData(cacheGranjasData, false);
             }
 
             actualizarCampaniasYGalpones();
@@ -348,8 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function actualizarCampaniasYGalpones() {
-        const granjasSeleccionadas = msGranja.getSelectedValues();
-        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(g.granja || g.codigo || g.nombre));
+        const granjasSeleccionadas = (msGranja ? msGranja.getSelectedValues() : []).map(String);
+        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(String(g.granja || g.codigo || g.nombre)));
 
         const setCampanias = new Set();
         const setGalpones = new Set();
@@ -364,12 +371,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const opcionesCampanias = Array.from(setCampanias).map(c => ({
-            id: c,
+            id: String(c),
             label: `Campaña ${c}`
         }));
 
         const opcionesGalpones = Array.from(setGalpones).map(gp => ({
-            id: gp,
+            id: String(gp),
             label: `Galpón ${gp}`
         }));
 
@@ -379,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarTiposGrafica() {
         try {
-            const response = await fetch('../graficas/get_sip_grafica_tipos.php', { credentials: 'same-origin' });
+            const response = await fetch('../../backend/interconsulta/tipos-grafica');
             const data = await response.json();
 
             if (!data.success || !Array.isArray(data.data)) return;
@@ -763,6 +770,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLimpiarHz = document.getElementById('btn-limpiar-hz');
     const inputFechaInicioHz = document.getElementById('input-fecha-inicio-hz');
     const inputFechaFinHz = document.getElementById('input-fecha-fin-hz');
+    const hoyHz = new Date();
+    const primerDiaMesHz = new Date(hoyHz.getFullYear(), hoyHz.getMonth(), 1);
+    const ultimoDiaMesHz = new Date(hoyHz.getFullYear(), hoyHz.getMonth() + 1, 0);
+    if (inputFechaInicioHz && !inputFechaInicioHz.value) inputFechaInicioHz.value = formatISOFecha(primerDiaMesHz);
+    if (inputFechaFinHz && !inputFechaFinHz.value) inputFechaFinHz.value = formatISOFecha(ultimoDiaMesHz);
     const inputSemanaHz = document.getElementById('input-semana-hz');
     const selectSexoGlobalHz = document.getElementById('select-sexo-global-hz');
     const checkLineasSuavesHz = document.getElementById('check-lineas-suaves-hz');
@@ -1012,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const qs = new URLSearchParams(params).toString();
 
                 try {
-                    const resp = await fetch(`../graficas/get_sip_grafica_acumulado_semanal.php?${qs}`, { credentials: 'same-origin' });
+                    const resp = await fetch(`../../backend/interconsulta/acumulado-semanal?${qs}`);
                     const json = await resp.json();
 
                     completadas++;
@@ -1214,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             granjas.forEach(g => {
-                const gObj = cacheGranjasData.find(item => (item.granja || item.codigo || item.nombre) === g);
+                const gObj = cacheGranjasData.find(item => String(item.granja || item.codigo || item.nombre) === String(g));
                 const campaniasDeGranja = gObj && Array.isArray(gObj.campanias) ? gObj.campanias.map(String) : campanias;
                 const galponesDeGranja = gObj && Array.isArray(gObj.galpones) ? gObj.galpones.map(String) : galpones;
 
@@ -1263,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccion: meta.tipo === 'mortalidad' ? 'all' : 'linea'
             });
 
-            fetch(`../graficas/get_sip_grafica_data.php?${params.toString()}`, { credentials: 'same-origin' })
+            fetch(`../../backend/interconsulta/grafica-data?${params.toString()}`)
                 .then(res => res.json())
                 .then(res => {
                     if (activeFetchToken !== currentFetchToken) return;
@@ -1595,11 +1607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 iconDispHorizontal.classList.toggle('hidden', disp !== 'horizontal');
             }
 
-            if (Array.isArray(ultimaListaRenderizada) && ultimaListaRenderizada.length > 0) {
-                renderizarGraficosDinamicos(ultimaListaRenderizada);
-            } else if (Array.isArray(configGraficos) && configGraficos.length > 0) {
-                renderizarGraficosDinamicos(configGraficos);
-            }
+            filtrarYMostrarGraficos();
         });
     }
 

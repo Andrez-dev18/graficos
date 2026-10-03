@@ -87,6 +87,17 @@ class Database {
                 'password' => defined('DB_PASSWORD_AQP25') ? DB_PASSWORD_AQP25 : (defined('DB_PASSWORD_2025') ? DB_PASSWORD_2025 : $this->password)
             ];
         }
+
+        // 6. BD Joya / Sanidad (Interconsulta)
+        $dbNameJoya = defined('DB_NAME_JOYA') ? DB_NAME_JOYA : (defined('DB_NAME_SANIDAD') ? DB_NAME_SANIDAD : (defined('DB_NAME_AQP_JOYA') ? DB_NAME_AQP_JOYA : ''));
+        if (!empty($dbNameJoya)) {
+            $this->secondaryConnections['joya'] = [
+                'host'     => defined('DB_HOST_JOYA') ? DB_HOST_JOYA : (defined('DB_HOST_AQP_JOYA') ? DB_HOST_AQP_JOYA : $this->host),
+                'db_name'  => $dbNameJoya,
+                'username' => defined('DB_USER_JOYA') ? DB_USER_JOYA : (defined('DB_USER_AQP_JOYA') ? DB_USER_AQP_JOYA : $this->username),
+                'password' => defined('DB_PASSWORD_JOYA') ? DB_PASSWORD_JOYA : (defined('DB_PASSWORD_AQP_JOYA') ? DB_PASSWORD_AQP_JOYA : $this->password)
+            ];
+        }
     }
 
     private function loadLocalConfig($localEnvFile) {
@@ -133,6 +144,15 @@ class Database {
                 'password' => isset($env['DB_PASS_2025']) ? $env['DB_PASS_2025'] : $this->password
             ];
         }
+
+        if (!empty($env['DB_NAME_JOYA'])) {
+            $this->secondaryConnections['joya'] = [
+                'host'     => isset($env['DB_HOST_JOYA']) ? $env['DB_HOST_JOYA'] : (isset($env['DB_HOST']) ? $env['DB_HOST'] : $this->host),
+                'db_name'  => $env['DB_NAME_JOYA'],
+                'username' => isset($env['DB_USER_JOYA']) ? $env['DB_USER_JOYA'] : (isset($env['DB_USER']) ? $env['DB_USER'] : $this->username),
+                'password' => isset($env['DB_PASS_JOYA']) ? $env['DB_PASS_JOYA'] : (isset($env['DB_PASS']) ? $env['DB_PASS'] : $this->password)
+            ];
+        }
     }
 
     public function getConnection() {
@@ -161,5 +181,30 @@ class Database {
         }
 
         return $this->conn;
+    }
+
+    public function getMysqliConnection($connectionKey = 'principal') {
+        if ($connectionKey === 'principal') {
+            $mysqli = @new mysqli($this->host, $this->username, $this->password, $this->db_name);
+            if ($mysqli->connect_error) {
+                error_log("Database::getMysqliConnection Error: " . $mysqli->connect_error);
+                return null;
+            }
+            $mysqli->set_charset("utf8mb4");
+            return $mysqli;
+        }
+
+        if (isset($this->secondaryConnections[$connectionKey])) {
+            $c = $this->secondaryConnections[$connectionKey];
+            $mysqli = @new mysqli($c['host'], $c['username'], $c['password'], $c['db_name']);
+            if ($mysqli->connect_error) {
+                error_log("Database::getMysqliConnection [{$connectionKey}] Error: " . $mysqli->connect_error);
+                return null;
+            }
+            $mysqli->set_charset("utf8mb4");
+            return $mysqli;
+        }
+
+        return null;
     }
 }

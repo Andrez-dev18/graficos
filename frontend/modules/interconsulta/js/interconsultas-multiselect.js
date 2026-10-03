@@ -163,19 +163,25 @@ class CustomMultiSelect {
         this.render();
     }
 
-    setOptions(newOptions, defaultSelectFirst = true) {
+    setOptions(newOptions, defaultSelectFirst = false) {
         const previousSelected = this.getSelectedValues();
+        const hasMatchingSelection = newOptions.some(item => {
+            const id = typeof item === 'object' ? String(item.id) : String(item);
+            return previousSelected.includes(id);
+        });
 
         this.options = newOptions.map((item, idx) => {
             const id = typeof item === 'object' ? String(item.id) : String(item);
             const label = typeof item === 'object' ? String(item.label || item.id) : String(item);
 
             let isSelected = false;
-            if (previousSelected.length > 0) {
+            if (hasMatchingSelection) {
                 isSelected = previousSelected.includes(id);
             } else if (typeof item === 'object' && item.selected !== undefined) {
                 isSelected = Boolean(item.selected);
-            } else if (defaultSelectFirst && idx === 0) {
+            } else if (defaultSelectFirst) {
+                isSelected = (idx === 0);
+            } else {
                 isSelected = true;
             }
 

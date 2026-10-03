@@ -27,13 +27,9 @@
             document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
         })();
     </script>
-    <link rel="stylesheet" href="../../../assets/css/interconsultas-theme.css">
-    <script src="../../../assets/js/interconsultas-theme.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script src="../../../assets/js/sip-grafica-shared.js"></script>
-    <script src="../../../assets/js/sip-grafica-mortalidad-render.js"></script>
     <!-- Google Fonts Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -154,7 +150,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
                             <button id="ms-granja-btn" type="button" class="w-full sm:w-auto min-w-[180px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-granja-label" class="truncate">Todos seleccionados</span>
+                                <span id="ms-granja-label" class="truncate">Seleccionar granja</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -177,7 +173,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CAMPAÑA</label>
                             <button id="ms-campania-btn" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-campania-label" class="truncate">Todos seleccionados</span>
+                                <span id="ms-campania-label" class="truncate">Seleccionar campaña</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -200,7 +196,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GALPÓN</label>
                             <button id="ms-galpon-btn" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-galpon-label" class="truncate">Todos seleccionados</span>
+                                <span id="ms-galpon-label" class="truncate">Seleccionar galpón</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -267,7 +263,7 @@
                     <div class="flex flex-col relative">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICOS</label>
                         <button id="ms-graficos-btn" type="button" class="w-full sm:w-auto min-w-[200px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                            <span id="ms-graficos-label" class="truncate">Todos seleccionados</span>
+                            <span id="ms-graficos-label" class="truncate">Seleccionar tipo</span>
                             <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
@@ -376,12 +372,7 @@
                             </svg>
                             <span>Cargar</span>
                         </button>
-                        <button id="btn-exportar-pdf" type="button" class="flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold text-sm rounded-lg shadow-md shadow-rose-500/20 focus:outline-none focus:ring-2 focus:ring-rose-500/40 transition-all cursor-pointer" title="Exportar Reporte en PDF">
-                            <svg class="icon-pdf w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <span>Exportar PDF</span>
-                        </button>
+                        
                         <button id="btn-limpiar" type="button" class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200/80 shadow-xs focus:outline-none focus:ring-2 focus:ring-slate-400/20 transition-all cursor-pointer">
                             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -439,7 +430,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
                             <button id="ms-granja-btn-hz" type="button" class="w-full sm:w-auto min-w-[180px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-granja-label-hz" class="truncate">Todos seleccionados</span>
+                                <span id="ms-granja-label-hz" class="truncate">Seleccionar granja</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -462,7 +453,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CAMPAÑA</label>
                             <button id="ms-campania-btn-hz" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-campania-label-hz" class="truncate">Todos seleccionados</span>
+                                <span id="ms-campania-label-hz" class="truncate">Seleccionar campaña</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -485,7 +476,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GALPÓN</label>
                             <button id="ms-galpon-btn-hz" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-galpon-label-hz" class="truncate">Todos seleccionados</span>
+                                <span id="ms-galpon-label-hz" class="truncate">Seleccionar galpón</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -602,13 +593,13 @@
                     <!-- 7. INPUT FECHA INICIO -->
                     <div class="flex flex-col">
                         <label for="input-fecha-inicio-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA INICIO</label>
-                        <input type="date" id="input-fecha-inicio-hz" value="<?= $primerDiaMes ?>" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <input type="date" id="input-fecha-inicio-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
 
                     <!-- 8. INPUT FECHA FIN -->
                     <div class="flex flex-col">
                         <label for="input-fecha-fin-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA FIN</label>
-                        <input type="date" id="input-fecha-fin-hz" value="<?= $ultimoDiaMes ?>" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <input type="date" id="input-fecha-fin-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
 
                     <!-- 9. INPUT SEMANA (NUMÉRICO) -->

@@ -10,8 +10,85 @@ if (!function_exists('sip_grafica_catalog_require_periodo_helpers')) {
     function sip_grafica_catalog_require_periodo_helpers(): void
     {
         $root = dirname(__DIR__, 3);
-        require_once $root . '/includes/filtro_periodo_util.php';
-        require_once $root . '/includes/hc/hc_campanias_modal_helpers.php';
+        if (file_exists($root . '/includes/filtro_periodo_util.php')) {
+            require_once $root . '/includes/filtro_periodo_util.php';
+        }
+        if (file_exists($root . '/includes/hc/hc_campanias_modal_helpers.php')) {
+            require_once $root . '/includes/hc/hc_campanias_modal_helpers.php';
+        }
+    }
+}
+
+if (!function_exists('periodo_a_rango')) {
+    function periodo_a_rango(array $params): ?array
+    {
+        $tipo = strtoupper(trim((string)($params['periodoTipo'] ?? '')));
+        $ini = trim((string)($params['fechaInicio'] ?? ''));
+        $fin = trim((string)($params['fechaFin'] ?? ''));
+        if ($ini !== '' && $fin !== '') {
+            return ['desde' => $ini, 'hasta' => $fin];
+        }
+        if ($tipo === 'POR_FECHA' && !empty($params['fechaUnica'])) {
+            return ['desde' => $params['fechaUnica'], 'hasta' => $params['fechaUnica']];
+        }
+        if ($tipo === 'POR_MES' && !empty($params['mesUnico'])) {
+            $m = $params['mesUnico'];
+            return ['desde' => "{$m}-01", 'hasta' => date('Y-m-t', strtotime("{$m}-01"))];
+        }
+        if ($tipo === 'ENTRE_MESES' && !empty($params['mesInicio']) && !empty($params['mesFin'])) {
+            return ['desde' => "{$params['mesInicio']}-01", 'hasta' => date('Y-m-t', strtotime("{$params['mesFin']}-01"))];
+        }
+        return null;
+    }
+}
+
+if (!function_exists('hc_merge_campanias_desde_hc_cab')) {
+    function hc_merge_campanias_desde_hc_cab(mysqli $conn, array &$byGranja, array $keys, ?array $rango): void
+    {
+        $table = null;
+        if (sip_grafica_catalog_table_exists($conn, 'san_fact_historia_clinica_cab')) {
+            $table = 'san_fact_historia_clinica_cab';
+        } elseif (sip_grafica_catalog_table_exists($conn, 'hc_cab')) {
+            $table = 'hc_cab';
+        }
+
+        if (!$table || empty($keys)) {
+            return;
+        }
+
+        $where = ["TRIM(`granja`) <> ''", "TRIM(`campania`) <> ''"];
+        if ($rango && !empty($rango['desde']) && !empty($rango['hasta'])) {
+            $desde = $conn->real_escape_string($rango['desde']);
+            $hasta = $conn->real_escape_string($rango['hasta']);
+            $where[] = "DATE(`fecha_inicio`) BETWEEN '{$desde}' AND '{$hasta}'";
+        }
+
+        $sql = "SELECT DISTINCT 
+                    LPAD(LEFT(TRIM(`granja`), 3), 3, '0') AS granja, 
+                    TRIM(`campania`) AS campania 
+                FROM `{$table}` 
+                WHERE " . implode(' AND ', $where) . " 
+                ORDER BY campania ASC";
+
+        $rs = @$conn->query($sql);
+        if ($rs) {
+            while ($row = $rs->fetch_assoc()) {
+                $gk = $row['granja'];
+                if (isset($byGranja[$gk])) {
+                    $c = (string)$row['campania'];
+                    $already = false;
+                    foreach ($byGranja[$gk] as $item) {
+                        if (($item['campania'] ?? '') === $c) {
+                            $already = true;
+                            break;
+                        }
+                    }
+                    if (!$already) {
+                        $byGranja[$gk][] = ['campania' => $c];
+                    }
+                }
+            }
+        }
     }
 }
 

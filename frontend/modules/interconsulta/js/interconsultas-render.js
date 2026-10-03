@@ -445,9 +445,9 @@ function filtrarYMostrarGraficos() {
                     String(c.galpon) === String(g.galpon)
                 );
             } else {
-                const matchGranja = selGranjas.includes(g.granja);
-                const matchCampania = selCampanias.includes(String(g.campania));
-                const matchGalpon = selGalpones.includes(String(g.galpon));
+                const matchGranja = selGranjas.some(sg => String(sg) === String(g.granja));
+                const matchCampania = selCampanias.some(sc => String(sc) === String(g.campania));
+                const matchGalpon = selGalpones.some(sgp => String(sgp) === String(g.galpon));
                 matchUbicacion = matchGranja && matchCampania && matchGalpon;
             }
 
@@ -473,11 +473,15 @@ function filtrarYMostrarGraficos() {
     const requiereScroll = (esHorizontal && totalPanelesVisibles > 3);
 
     const contenedor = document.getElementById('contenedor-graficos');
-    if (contenedor && esHorizontal) {
-        if (requiereScroll) {
-            contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-auto pb-6';
+    if (contenedor) {
+        if (esHorizontal) {
+            if (requiereScroll) {
+                contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-auto pb-6';
+            } else {
+                contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-hidden pb-2';
+            }
         } else {
-            contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-hidden pb-2';
+            contenedor.className = 'w-full flex flex-col gap-6';
         }
     }
 
