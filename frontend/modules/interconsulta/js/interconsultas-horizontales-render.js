@@ -179,15 +179,17 @@
             unificado = []
         } = opcionesFiltro || {};
 
-        if (esUnificado && Array.isArray(unificado) && unificado.length > 0) {
-            registrosFiltrados = registrosFiltrados.filter(r => {
-                return unificado.some(u => {
-                    const matchGranja = (u.granja && (String(u.granja) === String(r.granja) || String(u.granja) === String(r.granjaNombre)));
-                    const matchCampania = (!u.campania || String(u.campania) === String(r.campania));
-                    const matchGalpon = (!u.galpon || String(u.galpon) === String(r.galpon));
-                    return matchGranja && matchCampania && matchGalpon;
+        if (esUnificado) {
+            if (Array.isArray(unificado) && unificado.length > 0) {
+                registrosFiltrados = registrosFiltrados.filter(r => {
+                    return unificado.some(u => {
+                        const matchGranja = (!u.granja || (String(u.granja) === String(r.granja) || String(u.granja) === String(r.granjaNombre)));
+                        const matchCampania = (!u.campania || String(u.campania) === String(r.campania));
+                        const matchGalpon = (!u.galpon || String(u.galpon) === String(r.galpon));
+                        return matchGranja && matchCampania && matchGalpon;
+                    });
                 });
-            });
+            }
         } else {
             if (Array.isArray(granjas) && granjas.length > 0) {
                 registrosFiltrados = registrosFiltrados.filter(r => granjas.includes(String(r.granja)) || granjas.includes(String(r.granjaNombre)));

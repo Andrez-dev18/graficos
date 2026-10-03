@@ -273,16 +273,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const opcionesCampanias = Array.from(setCampanias).map(c => ({
             id: String(c),
-            label: `Campaña ${c}`
+            label: `Campaña ${c}`,
+            selected: true
         }));
 
         const opcionesGalpones = Array.from(setGalpones).map(gp => ({
             id: String(gp),
-            label: `Galpón ${gp}`
+            label: `Galpón ${gp}`,
+            selected: true
         }));
 
-        msCampaniaHz.setOptions(opcionesCampanias, true);
-        msGalponHz.setOptions(opcionesGalpones, true);
+        msCampaniaHz.setOptions(opcionesCampanias, false);
+        msCampaniaHz.selectAll(false);
+        msGalponHz.setOptions(opcionesGalpones, false);
+        msGalponHz.selectAll(false);
     }
 
     function obtenerParametrosPeriodo() {
@@ -339,12 +343,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 msUbicacionUnificada.setData(cacheGranjasData, false);
             }
 
-            // TAB 2: Selecciona solo la primera por defecto
+            // TAB 2: Multi-selects para vista horizontal
             if (msGranjaHz) {
-                msGranjaHz.setOptions(opcionesGranjas, true);
+                msGranjaHz.setOptions(opcionesGranjas, false);
+                msGranjaHz.selectAll(false);
             }
             if (msUbicacionUnificadaHz) {
-                msUbicacionUnificadaHz.setData(cacheGranjasData, false);
+                msUbicacionUnificadaHz.setData(cacheGranjasData, true);
             }
 
             actualizarCampaniasYGalpones();
@@ -689,6 +694,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const contenedorGraficosHorizontales = document.getElementById('contenedor-graficos-horizontales');
     const contenedorGraficos = document.getElementById('contenedor-graficos');
 
+    let horizontalesCargadoPrimeraVez = false;
+
     function cambiarTabPrincipal(tab) {
         tabActivoActual = tab;
         const seccionDinamicos = document.getElementById('seccion-graficos-dinamicos');
@@ -728,6 +735,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (vistaFiltros2) vistaFiltros2.classList.remove('hidden');
             if (seccionDinamicos) seccionDinamicos.classList.add('hidden');
             if (vistaGraficos2) vistaGraficos2.classList.remove('hidden');
+
+            if (!horizontalesCargadoPrimeraVez) {
+                horizontalesCargadoPrimeraVez = true;
+                consultarGraficosHorizontales();
+            }
         }
     }
 
@@ -771,10 +783,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputFechaInicioHz = document.getElementById('input-fecha-inicio-hz');
     const inputFechaFinHz = document.getElementById('input-fecha-fin-hz');
     const hoyHz = new Date();
-    const primerDiaMesHz = new Date(hoyHz.getFullYear(), hoyHz.getMonth(), 1);
-    const ultimoDiaMesHz = new Date(hoyHz.getFullYear(), hoyHz.getMonth() + 1, 0);
-    if (inputFechaInicioHz && !inputFechaInicioHz.value) inputFechaInicioHz.value = formatISOFecha(primerDiaMesHz);
-    if (inputFechaFinHz && !inputFechaFinHz.value) inputFechaFinHz.value = formatISOFecha(ultimoDiaMesHz);
+    const haceUnAnioHz = new Date(hoyHz.getFullYear() - 1, hoyHz.getMonth(), hoyHz.getDate());
+    if (inputFechaInicioHz && !inputFechaInicioHz.value) inputFechaInicioHz.value = formatISOFecha(haceUnAnioHz);
+    if (inputFechaFinHz && !inputFechaFinHz.value) inputFechaFinHz.value = formatISOFecha(hoyHz);
     const inputSemanaHz = document.getElementById('input-semana-hz');
     const selectSexoGlobalHz = document.getElementById('select-sexo-global-hz');
     const checkLineasSuavesHz = document.getElementById('check-lineas-suaves-hz');
