@@ -1,5 +1,5 @@
 /**
- * Servicio para el Módulo Ventas2025
+ * Servicio para el Módulo Ventas2025 (Multi-Año: 2024, 2025, 2026)
  * Conecta con el Backend (/Ventas2025/filtros y /Ventas2025/dashboard).
  */
 class Ventas2025Service {
@@ -10,11 +10,12 @@ class Ventas2025Service {
     }
 
     /**
-     * Opciones para los selectores de filtros iniciales
+     * Opciones para los selectores de filtros iniciales según el año
      */
-    async obtenerFiltrosIniciales() {
+    async obtenerFiltrosIniciales(anio = '2025') {
         try {
-            const res = await fetch(`${this.baseUrl}/Ventas2025/filtros`);
+            const url = `${this.baseUrl}/Ventas2025/filtros?anio=${encodeURIComponent(anio)}`;
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 if (data && data.success && data.data) {
@@ -45,10 +46,10 @@ class Ventas2025Service {
                 { id: '08', label: '08 - Nota de Débito' }
             ],
             fecha_defecto: {
-                inicio: '2025-06-01',
-                fin: '2025-06-21',
-                min: '2025-01-01',
-                max: '2025-12-31'
+                inicio: `${anio}-01-01`,
+                fin: `${anio}-12-31`,
+                min: `${anio}-01-01`,
+                max: `${anio}-12-31`
             }
         };
     }

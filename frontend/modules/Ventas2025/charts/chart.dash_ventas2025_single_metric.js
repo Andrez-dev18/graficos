@@ -1,16 +1,21 @@
 /**
  * Componente: Dash_Ventas2025_SingleMetric (Cantidad, Peso, Valor)
- * Módulo: Ventas2025
+ * Módulo: Ventas2025 (Paginación Backend Ultra Rápida)
  * 
  * - Renderiza la matriz pivotada por fechas para una métrica individual.
  * - Jerarquía: Provincia -> RUC -> Coorporativo -> Código -> Cliente.
  * - Fila de Subtotal 'Total' por cada Corporativo.
  * - Fila de 'Total general' global en tfoot.
+ * - Paginación en Backend a 100 registros por página.
  * - Formato numérico específico según la métrica (Entero para Cantidad, Decimal para Peso, Soles para Valor).
- * - Exportación a Excel completa.
+ * - Exportación a Excel completa del 100% de registros.
  */
 
 window.ChartRegistry = window.ChartRegistry || {};
+
+// Formatters estáticos cacheados
+const _fmtSingleEntero = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const _fmtSingleDecimal = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 window.ChartDashVentas2025_SingleMetric = {
     controllerRef: null,
@@ -18,36 +23,25 @@ window.ChartDashVentas2025_SingleMetric = {
     containerRef: null,
 
     formatValor(val, metrica) {
-        if (val === null || val === undefined || isNaN(val) || val === '') return '';
-        const num = parseFloat(val);
+        if (val === null || val === undefined || val === '') return '';
+        const num = Number(val);
+        if (isNaN(num)) return '';
 
         if (metrica === 'cantidad') {
-            return new Intl.NumberFormat('es-PE', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }).format(num);
+            return _fmtSingleEntero.format(num);
         }
 
         if (metrica === 'peso') {
-            return new Intl.NumberFormat('es-PE', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(num);
+            return _fmtSingleDecimal.format(num);
         }
 
         if (metrica === 'importe' || metrica === 'valor') {
             const isNeg = num < 0;
-            const absFmt = new Intl.NumberFormat('es-PE', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(Math.abs(num));
+            const absFmt = _fmtSingleDecimal.format(Math.abs(num));
             return isNeg ? `S/-${absFmt}` : `S/ ${absFmt}`;
         }
 
-        return new Intl.NumberFormat('es-PE', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(num);
+        return _fmtSingleDecimal.format(num);
     },
 
     render(controller, data, targetContainer = null) {
@@ -70,6 +64,14 @@ window.ChartDashVentas2025_SingleMetric = {
         const totalGeneral = data.total_general || {};
         const metrica = (data.metrica || 'cantidad').toLowerCase();
         const tipoGrafico = data.tipo_grafico || 'Cantidad';
+        const pag = data.paginacion || {
+            pagina_actual: 1,
+            limite: 100,
+            total_corporativos: 0,
+            total_paginas: 1,
+            start_item: 0,
+            end_item: 0
+        };
 
         contenedor.innerHTML = `
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
@@ -84,7 +86,7 @@ window.ChartDashVentas2025_SingleMetric = {
                                 ${data.titulo || `Ventas por Coorporativo - Cliente (${tipoGrafico})`}
                             </h2>
                             <p class="text-xs text-slate-500">
-                                Período: ${data.fecha_inicio || ''} al ${data.fecha_fin || ''} | ${columnasFechas.length} Días evaluados
+                                Período: ${data.fecha_inicio || ''} al ${data.fecha_fin || ''} | ${columnasFechas.length} Días evaluados | Total: ${pag.total_corporativos} Corporativos
                             </p>
                         </div>
                     </div>
@@ -103,7 +105,7 @@ window.ChartDashVentas2025_SingleMetric = {
                 <div class="p-4 sm:p-5">
                     <div class="w-full bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
                         
-                        <div class="w-full overflow-x-auto custom-scrollbar max-h-[750px]">
+                        <div id="scroll-wrapper-ventas2025-single" class="w-full overflow-x-auto custom-scrollbar max-h-[720px]" style="contain: content; will-change: scroll-position; transform: translateZ(0);">
                             <table id="tabla-ventas2025-single" class="w-full text-[11px] border-collapse font-sans select-none min-w-[1100px]">
                                 
                                 <!-- CABECERA DE LA TABLA (bg-blue-600 y text-white) -->
@@ -119,7 +121,7 @@ window.ChartDashVentas2025_SingleMetric = {
                                 </thead>
 
                                 <!-- CUERPO DE LA TABLA -->
-                                <tbody class="divide-y divide-slate-200">
+                                <tbody id="tbody-ventas2025-single" class="divide-y divide-slate-200">
                                     ${this.renderFilasMatriz(provincias, columnasFechas, metrica)}
                                 </tbody>
 
@@ -130,6 +132,12 @@ window.ChartDashVentas2025_SingleMetric = {
 
                             </table>
                         </div>
+
+                        <!-- BARRA DE PAGINACIÓN BACKEND -->
+                        <div id="paginacion-ventas2025-single" class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+                            ${this.renderBarraPaginacion(pag)}
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -138,14 +146,64 @@ window.ChartDashVentas2025_SingleMetric = {
         this.setupEventListeners(tipoGrafico);
     },
 
+    renderBarraPaginacion(pag) {
+        if (!pag || pag.total_corporativos === 0) return '';
+        const { pagina_actual, limite, total_corporativos, total_paginas, start_item, end_item } = pag;
+
+        return `
+            <div class="flex items-center gap-3">
+                <span class="font-medium text-slate-700">
+                    Mostrando <strong class="text-slate-900">${start_item}</strong> a <strong class="text-slate-900">${end_item}</strong> de <strong class="text-slate-900">${total_corporativos}</strong> corporativos
+                </span>
+                <div class="flex items-center gap-1.5 ml-2">
+                    <span class="text-slate-500">Mostrar:</span>
+                    <select id="select-por-pagina-single" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+                        <option value="25" ${limite == 25 ? 'selected' : ''}>25</option>
+                        <option value="50" ${limite == 50 ? 'selected' : ''}>50</option>
+                        <option value="100" ${limite == 100 ? 'selected' : ''}>100</option>
+                        <option value="999999" ${limite >= 999999 ? 'selected' : ''}>Todos</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1">
+                <button id="btn-pag-primero-s" type="button" ${pagina_actual <= 1 ? 'disabled' : ''}
+                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer">
+                    « Primero
+                </button>
+                <button id="btn-pag-anterior-s" type="button" ${pagina_actual <= 1 ? 'disabled' : ''}
+                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer">
+                    ‹ Anterior
+                </button>
+                <span class="px-3 py-1 bg-blue-50 text-blue-700 font-bold border border-blue-200 rounded">
+                    Página ${pagina_actual} de ${total_paginas}
+                </span>
+                <button id="btn-pag-siguiente-s" type="button" ${pagina_actual >= total_paginas ? 'disabled' : ''}
+                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer">
+                    Siguiente ›
+                </button>
+                <button id="btn-pag-ultimo-s" type="button" ${pagina_actual >= total_paginas ? 'disabled' : ''}
+                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer">
+                    Último »
+                </button>
+            </div>
+        `;
+    },
+
     renderCabecerasFechas(columnasFechas) {
         if (!columnasFechas || columnasFechas.length === 0) return '';
-        return columnasFechas.map(col => `
-            <th class="px-2 py-2 text-center font-bold whitespace-nowrap min-w-[92px]">
-                <div class="text-[10px] lowercase font-semibold opacity-90">${col.dia_semana},</div>
-                <div class="text-[11px] font-bold tracking-tight">${col.ymd}</div>
-            </th>
-        `).join('');
+        let html = '';
+        const len = columnasFechas.length;
+        for (let i = 0; i < len; i++) {
+            const col = columnasFechas[i];
+            html += `
+                <th class="px-2 py-2 text-center font-bold whitespace-nowrap min-w-[92px]">
+                    <div class="text-[10px] lowercase font-semibold opacity-90">${col.dia_semana},</div>
+                    <div class="text-[11px] font-bold tracking-tight">${col.ymd}</div>
+                </th>
+            `;
+        }
+        return html;
     },
 
     renderFilasMatriz(provincias, columnasFechas, metrica) {
@@ -155,16 +213,16 @@ window.ChartDashVentas2025_SingleMetric = {
         }
 
         let html = '';
+        const numCols = columnasFechas ? columnasFechas.length : 0;
 
         provincias.forEach(prov => {
             const provNombre = prov.provincia;
             const coorporativos = prov.coorporativos || [];
 
-            // 1. Total filas de la provincia
             let totalFilasProv = 0;
             coorporativos.forEach(coorp => {
                 const clientes = coorp.clientes || [];
-                totalFilasProv += clientes.length + 1; // 1 fila por cliente + 1 fila de Total Corporativo
+                totalFilasProv += clientes.length + 1;
             });
 
             let esPrimerRowProv = true;
@@ -178,24 +236,27 @@ window.ChartDashVentas2025_SingleMetric = {
 
                 let esPrimerRowCoorp = true;
 
-                // Render cada Cliente
                 clientes.forEach(cli => {
                     const codCli = cli.codigo;
                     const nomCli = cli.cliente;
                     const cliFechas = cli.fechas || {};
 
+                    let celdasFechas = '';
+                    for (let cIdx = 0; cIdx < numCols; cIdx++) {
+                        const col = columnasFechas[cIdx];
+                        const rawVal = cliFechas[col.fecha];
+                        const txt = this.formatValor(rawVal, metrica);
+                        celdasFechas += `<td class="px-2 py-1 text-right font-medium text-slate-800 whitespace-nowrap">${txt}</td>`;
+                    }
+
                     html += `
-                        <tr class="divide-x divide-slate-200 hover:bg-blue-50/30 transition-colors">
+                        <tr class="divide-x divide-slate-200 hover:bg-blue-50/40">
                             ${esPrimerRowProv ? `<td rowspan="${totalFilasProv}" class="px-2.5 py-1.5 font-bold text-slate-900 align-top bg-white border-r border-slate-300 text-left whitespace-nowrap">${provNombre}</td>` : ''}
                             ${esPrimerRowCoorp ? `<td rowspan="${totalFilasCoorp}" class="px-2.5 py-1.5 font-bold text-slate-800 align-top bg-white border-r border-slate-300 text-left whitespace-nowrap">${ruc}</td>` : ''}
                             ${esPrimerRowCoorp ? `<td rowspan="${totalFilasCoorp}" class="px-2.5 py-1.5 font-bold text-slate-900 align-top bg-white border-r border-slate-300 text-left">${coorpNombre}</td>` : ''}
                             <td class="px-2 py-1.5 font-medium text-slate-700 align-top bg-white border-r border-slate-200 text-left whitespace-nowrap">${codCli}</td>
                             <td class="px-3 py-1.5 font-medium text-slate-800 align-top bg-white border-r border-slate-200 text-left max-w-[220px]" title="${nomCli}">${nomCli}</td>
-                            ${columnasFechas.map(col => {
-                                const rawVal = cliFechas[col.fecha];
-                                const txt = this.formatValor(rawVal, metrica);
-                                return `<td class="px-2 py-1 text-right font-medium text-slate-800 whitespace-nowrap">${txt}</td>`;
-                            }).join('')}
+                            ${celdasFechas}
                         </tr>
                     `;
 
@@ -204,17 +265,21 @@ window.ChartDashVentas2025_SingleMetric = {
                 });
 
                 // Fila de SUBTOTAL 'Total' del Corporativo
+                let celdasSubFechas = '';
+                for (let cIdx = 0; cIdx < numCols; cIdx++) {
+                    const col = columnasFechas[cIdx];
+                    const rawVal = subFechas[col.fecha];
+                    const txt = this.formatValor(rawVal, metrica);
+                    celdasSubFechas += `<td class="px-2 py-1 text-right font-bold text-blue-900 bg-blue-50/30 whitespace-nowrap">${txt}</td>`;
+                }
+
                 html += `
                     <tr class="divide-x divide-slate-200 bg-slate-50/90 font-bold text-slate-900 border-b-2 border-slate-300">
                         ${esPrimerRowProv ? `<td rowspan="${totalFilasProv}" class="px-2.5 py-1.5 font-bold text-slate-900 align-top bg-white border-r border-slate-300 text-left whitespace-nowrap">${provNombre}</td>` : ''}
                         ${esPrimerRowCoorp ? `<td rowspan="${totalFilasCoorp}" class="px-2.5 py-1.5 font-bold text-slate-800 align-top bg-white border-r border-slate-300 text-left whitespace-nowrap">${ruc}</td>` : ''}
                         ${esPrimerRowCoorp ? `<td rowspan="${totalFilasCoorp}" class="px-2.5 py-1.5 font-bold text-slate-900 align-top bg-white border-r border-slate-300 text-left">${coorpNombre}</td>` : ''}
                         <td colspan="2" class="px-2.5 py-1.5 font-bold text-slate-900 bg-slate-100 align-top border-r border-slate-300 text-left">Total</td>
-                        ${columnasFechas.map(col => {
-                            const rawVal = subFechas[col.fecha];
-                            const txt = this.formatValor(rawVal, metrica);
-                            return `<td class="px-2 py-1 text-right font-bold text-blue-900 bg-blue-50/30 whitespace-nowrap">${txt}</td>`;
-                        }).join('')}
+                        ${celdasSubFechas}
                     </tr>
                 `;
                 esPrimerRowProv = false;
@@ -229,26 +294,86 @@ window.ChartDashVentas2025_SingleMetric = {
         if (!totalGeneral || !totalGeneral.fechas) return '';
 
         const gFechas = totalGeneral.fechas || {};
+        const numCols = columnasFechas ? columnasFechas.length : 0;
+
+        let celdasGFechas = '';
+        for (let cIdx = 0; cIdx < numCols; cIdx++) {
+            const col = columnasFechas[cIdx];
+            const rawVal = gFechas[col.fecha];
+            const txt = this.formatValor(rawVal, metrica);
+            celdasGFechas += `<td class="px-2 py-1 text-right font-black text-blue-950 bg-blue-100/40 whitespace-nowrap">${txt}</td>`;
+        }
 
         return `
             <tr class="divide-x divide-slate-300 font-extrabold text-slate-900 bg-slate-100">
                 <td colspan="5" class="px-3 py-2 text-left tracking-wider text-xs font-black bg-slate-200 align-top whitespace-nowrap">Total general</td>
-                ${columnasFechas.map(col => {
-                    const rawVal = gFechas[col.fecha];
-                    const txt = this.formatValor(rawVal, metrica);
-                    return `<td class="px-2 py-1 text-right font-black text-blue-950 bg-blue-100/40 whitespace-nowrap">${txt}</td>`;
-                }).join('')}
+                ${celdasGFechas}
             </tr>
         `;
     },
 
     setupEventListeners(tipoGrafico) {
-        // Exportar a Excel
+        const data = this.datosBackend || {};
+        const pag = data.paginacion || {};
+
+        // Botones Paginación
+        const btnPrimero = document.getElementById('btn-pag-primero-s');
+        if (btnPrimero && this.controllerRef) {
+            btnPrimero.onclick = () => this.controllerRef.irAPagina(1);
+        }
+
+        const btnAnterior = document.getElementById('btn-pag-anterior-s');
+        if (btnAnterior && this.controllerRef) {
+            btnAnterior.onclick = () => this.controllerRef.irAPagina((pag.pagina_actual || 1) - 1);
+        }
+
+        const btnSiguiente = document.getElementById('btn-pag-siguiente-s');
+        if (btnSiguiente && this.controllerRef) {
+            btnSiguiente.onclick = () => this.controllerRef.irAPagina((pag.pagina_actual || 1) + 1);
+        }
+
+        const btnUltimo = document.getElementById('btn-pag-ultimo-s');
+        if (btnUltimo && this.controllerRef) {
+            btnUltimo.onclick = () => this.controllerRef.irAPagina(pag.total_paginas || 1);
+        }
+
+        const selectPorPagina = document.getElementById('select-por-pagina-single');
+        if (selectPorPagina && this.controllerRef) {
+            selectPorPagina.onchange = (e) => this.controllerRef.cambiarLimite(parseInt(e.target.value, 10));
+        }
+
+        // Exportar a Excel Completo (100% de registros del Backend)
         const btnExport = document.getElementById('btn-exportar-ventas2025-single-excel');
         if (btnExport) {
-            btnExport.onclick = () => {
+            btnExport.onclick = async () => {
                 if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-ventas2025-single', `Ventas_Coorporativo_Cliente_2025_${tipoGrafico}`);
+                    const datosCompletos = await this.controllerRef.exportarTodoExcel(tipoGrafico);
+                    const fullData = datosCompletos || data;
+                    const provincias = fullData.provincias || [];
+                    const columnasFechas = fullData.columnas_fechas || [];
+                    const totalGeneral = fullData.total_general || {};
+                    const metrica = (fullData.metrica || 'cantidad').toLowerCase();
+
+                    const tempTable = document.createElement('table');
+                    tempTable.innerHTML = `
+                        <thead>
+                            <tr>
+                                <th>provincia</th>
+                                <th>ruc</th>
+                                <th>Coorporativo</th>
+                                <th>codigo</th>
+                                <th>Cliente</th>
+                                ${this.renderCabecerasFechas(columnasFechas)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${this.renderFilasMatriz(provincias, columnasFechas, metrica)}
+                        </tbody>
+                        <tfoot>
+                            ${this.renderTotalGeneral(totalGeneral, columnasFechas, metrica)}
+                        </tfoot>
+                    `;
+                    ExcelExportHelper.exportarTabla(tempTable, `Ventas_Coorporativo_Cliente_2025_${tipoGrafico}`);
                 } else {
                     alert('Exportando tabla a Excel...');
                 }

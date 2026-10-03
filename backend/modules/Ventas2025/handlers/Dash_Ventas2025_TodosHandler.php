@@ -61,8 +61,9 @@ class Dash_Ventas2025_TodosHandler
         $params = [];
 
         // 1. Fechas
-        $fechaInicio = $filtros['fecha_inicio'] ?? $filtros['fecha1'] ?? $filtros['fec_proceso_inicio'] ?? '2025-06-01';
-        $fechaFin    = $filtros['fecha_fin'] ?? $filtros['fecha2'] ?? $filtros['fec_proceso_fin'] ?? '2025-06-21';
+        $anio        = $filtros['anio'] ?? '2025';
+        $fechaInicio = $filtros['fecha_inicio'] ?? $filtros['fecha1'] ?? $filtros['fec_proceso_inicio'] ?? "{$anio}-01-01";
+        $fechaFin    = $filtros['fecha_fin'] ?? $filtros['fecha2'] ?? $filtros['fec_proceso_fin'] ?? "{$anio}-12-31";
         if (!empty($fechaInicio) && !empty($fechaFin)) {
             $whereClauses[] = "sale.tfecfac BETWEEN ? AND ?";
             $params[] = $fechaInicio;
@@ -105,7 +106,88 @@ class Dash_Ventas2025_TodosHandler
 
         $whereSql = 'WHERE ' . implode(' AND ', $whereClauses);
 
-        $sql = "
+        // 5. Parámetros de Paginación en Backend
+        $pagina = isset($filtros['pagina']) ? max(1, (int)$filtros['pagina']) : (isset($filtros['page']) ? max(1, (int)$filtros['page']) : 1);
+        $limite = isset($filtros['limite']) ? (int)$filtros['limite'] : (isset($filtros['limit']) ? (int)$filtros['limit'] : 25);
+        $isExportAll = !empty($filtros['export_all']) || $limite <= 0 || $limite >= 999999;
+
+        // 6. Fechas únicas del rango para columnas de cabecera
+        $fechasMap = [];
+        $startDate = strtotime($fechaInicio);
+        $endDate   = strtotime($fechaFin);
+        if ($startDate && $endDate && $startDate <= $endDate) {
+            $curr = $startDate;
+            while ($curr <= $endDate) {
+                $fStr = date('Y-m-d', $curr);
+                $fechasMap[$fStr] = self::formatDateLabel($fStr);
+                $curr = strtotime('+1 day', $curr);
+            }
+        }
+        $columnasFechas = array_values($fechasMap);
+
+        // 7. Determinar lista de corporativos (Paginación)
+        $sqlCoorpList = "
+            SELECT 
+                TRIM(ccte.provincia) AS provincia,
+                TRIM(ccte.ruc) AS ruc,
+                TRIM(ccte1.nombre) AS coorporativo,
+                LENGTH(TRIM(ccte.ruc)) AS ruc_len
+            FROM sale
+            INNER JOIN ccte ON sale.tprocli = ccte.codigo
+            INNER JOIN ccte AS ccte1 ON ccte.ruc = ccte1.codigo
+            {$whereSql}
+            GROUP BY provincia, ruc, coorporativo, ruc_len
+            ORDER BY provincia ASC, ruc_len ASC, ruc ASC, coorporativo ASC
+        ";
+        $stmtCoorp = $db->prepare($sqlCoorpList);
+        $stmtCoorp->execute($params);
+        $allCorporativos = $stmtCoorp->fetchAll(PDO::FETCH_ASSOC);
+
+        $totalCorporativos = count($allCorporativos);
+        $totalPaginas = ($limite > 0 && !$isExportAll) ? max(1, (int)ceil($totalCorporativos / $limite)) : 1;
+        if ($pagina > $totalPaginas) $pagina = $totalPaginas;
+
+        $offset = ($pagina - 1) * $limite;
+        $pagedCorporativos = $isExportAll ? $allCorporativos : array_slice($allCorporativos, $offset, $limite);
+
+        // Si no hay corporativos, retornar vacío
+        if ($totalCorporativos === 0) {
+            return [
+                'success'         => true,
+                'status'          => 'success',
+                'tipo_grafico'    => 'Todos',
+                'titulo'          => 'Ventas por Coorporativo - Cliente',
+                'fecha_inicio'    => $fechaInicio,
+                'fecha_fin'       => $fechaFin,
+                'columnas_fechas' => $columnasFechas,
+                'total_general'   => ['fechas' => [], 'general' => ['cantidad' => 0, 'peso' => 0, 'importe' => 0, 'precio_u' => 0, 'peso_prom' => 0]],
+                'provincias'      => [],
+                'paginacion'      => [
+                    'pagina_actual'      => 1,
+                    'limite'             => $limite,
+                    'total_corporativos' => 0,
+                    'total_paginas'      => 1,
+                    'start_item'         => 0,
+                    'end_item'           => 0
+                ],
+                'total_registros' => 0
+            ];
+        }
+
+        // 8. Consulta de ventas detalladas filtradas para los corporativos de la página actual
+        $pagedRucs = array_values(array_unique(array_column($pagedCorporativos, 'ruc')));
+        $whereClausesPaged = $whereClauses;
+        $paramsPaged = $params;
+
+        if (!$isExportAll && !empty($pagedRucs)) {
+            $rucPlaceholders = implode(',', array_fill(0, count($pagedRucs), '?'));
+            $whereClausesPaged[] = "TRIM(ccte.ruc) IN ($rucPlaceholders)";
+            foreach ($pagedRucs as $r) $paramsPaged[] = $r;
+        }
+
+        $whereSqlPaged = 'WHERE ' . implode(' AND ', $whereClausesPaged);
+
+        $sqlDetalle = "
             SELECT 
                 TRIM(ccte.provincia) AS provincia,
                 TRIM(ccte.ruc) AS ruc,
@@ -121,55 +203,54 @@ class Dash_Ventas2025_TodosHandler
             FROM sale
             INNER JOIN ccte ON sale.tprocli = ccte.codigo
             INNER JOIN ccte AS ccte1 ON ccte.ruc = ccte1.codigo
-            {$whereSql}
+            {$whereSqlPaged}
             GROUP BY provincia, ruc, coorporativo, codigo, cliente, ruc_len, cod_len, fecha
             ORDER BY provincia ASC, ruc_len ASC, ruc ASC, coorporativo ASC, cod_len ASC, codigo ASC, cliente ASC, fecha ASC
         ";
 
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        $rawRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmtDetalle = $db->prepare($sqlDetalle);
+        $stmtDetalle->execute($paramsPaged);
+        $rawRows = $stmtDetalle->fetchAll(PDO::FETCH_ASSOC);
 
-        // 1. Identificar todas las fechas únicas del rango y construir columnas de cabecera
-        $fechasMap = [];
-        $startDate = strtotime($fechaInicio);
-        $endDate   = strtotime($fechaFin);
+        // 9. Consulta del Total General Global
+        $sqlTotalesGlobales = "
+            SELECT 
+                sale.tfecfac AS fecha,
+                SUM(sale.tcantid) AS cantidad,
+                SUM(sale.tespeci) AS peso,
+                SUM(sale.timport) AS importe
+            FROM sale
+            INNER JOIN ccte ON sale.tprocli = ccte.codigo
+            INNER JOIN ccte AS ccte1 ON ccte.ruc = ccte1.codigo
+            {$whereSql}
+            GROUP BY fecha
+            ORDER BY fecha ASC
+        ";
+        $stmtTotGlobal = $db->prepare($sqlTotalesGlobales);
+        $stmtTotGlobal->execute($params);
+        $rawTotalesGlobales = $stmtTotGlobal->fetchAll(PDO::FETCH_ASSOC);
 
-        if ($startDate && $endDate && $startDate <= $endDate) {
-            $curr = $startDate;
-            while ($curr <= $endDate) {
-                $fStr = date('Y-m-d', $curr);
-                $fechasMap[$fStr] = self::formatDateLabel($fStr);
-                $curr = strtotime('+1 day', $curr);
-            }
-        } else {
-            foreach ($rawRows as $r) {
-                $f = $r['fecha'];
-                if (!isset($fechasMap[$f])) {
-                    $fechasMap[$f] = self::formatDateLabel($f);
-                }
-            }
-            ksort($fechasMap);
-        }
-
-        $columnasFechas = array_values($fechasMap);
-
-        // 2. Estructurar Árbol Jerárquico: Provincia -> Corporativo (RUC + Nombre) -> Clientes -> Fechas
-        $arbol = [];
         $totalesPorFechaGlobal = [];
         foreach ($columnasFechas as $col) {
-            $totalesPorFechaGlobal[$col['fecha']] = [
-                'cantidad' => 0.0,
-                'peso'     => 0.0,
-                'importe'  => 0.0
-            ];
+            $totalesPorFechaGlobal[$col['fecha']] = ['cantidad' => 0.0, 'peso' => 0.0, 'importe' => 0.0];
         }
-        $totalGeneralGlobal = [
-            'cantidad' => 0.0,
-            'peso'     => 0.0,
-            'importe'  => 0.0
-        ];
+        $totalGeneralGlobal = ['cantidad' => 0.0, 'peso' => 0.0, 'importe' => 0.0];
 
+        foreach ($rawTotalesGlobales as $tg) {
+            $f = $tg['fecha'];
+            $c = (float)$tg['cantidad'];
+            $p = (float)$tg['peso'];
+            $i = (float)$tg['importe'];
+            if (isset($totalesPorFechaGlobal[$f])) {
+                $totalesPorFechaGlobal[$f] = ['cantidad' => $c, 'peso' => $p, 'importe' => $i];
+            }
+            $totalGeneralGlobal['cantidad'] += $c;
+            $totalGeneralGlobal['peso']     += $p;
+            $totalGeneralGlobal['importe']  += $i;
+        }
+
+        // 10. Estructurar Árbol Jerárquico de la página actual
+        $arbol = [];
         foreach ($rawRows as $row) {
             $prov   = $row['provincia'] ?: 'SIN PROVINCIA';
             $ruc    = $row['ruc'] ?: 'SIN RUC';
@@ -216,7 +297,6 @@ class Dash_Ventas2025_TodosHandler
                 ];
             }
 
-            // Datos por fecha para el cliente
             $arbol[$prov][$coorpKey]['clientes'][$cliKey]['fechas'][$fecha] = [
                 'cantidad'  => round($cant, 0),
                 'peso'      => round($peso, 2),
@@ -225,35 +305,21 @@ class Dash_Ventas2025_TodosHandler
                 'peso_prom' => ($cant != 0.0) ? round($peso / $cant, 3) : 0.0
             ];
 
-            // Acumular total cliente
             $arbol[$prov][$coorpKey]['clientes'][$cliKey]['total']['cantidad'] += $cant;
             $arbol[$prov][$coorpKey]['clientes'][$cliKey]['total']['peso']     += $peso;
             $arbol[$prov][$coorpKey]['clientes'][$cliKey]['total']['importe']  += $imp;
 
-            // Acumular subtotal Corporativo por fecha
             if (isset($arbol[$prov][$coorpKey]['totales_fecha'][$fecha])) {
                 $arbol[$prov][$coorpKey]['totales_fecha'][$fecha]['cantidad'] += $cant;
                 $arbol[$prov][$coorpKey]['totales_fecha'][$fecha]['peso']     += $peso;
                 $arbol[$prov][$coorpKey]['totales_fecha'][$fecha]['importe']  += $imp;
             }
-
-            // Acumular globales
-            if (isset($totalesPorFechaGlobal[$fecha])) {
-                $totalesPorFechaGlobal[$fecha]['cantidad'] += $cant;
-                $totalesPorFechaGlobal[$fecha]['peso']     += $peso;
-                $totalesPorFechaGlobal[$fecha]['importe']  += $imp;
-            }
-            $totalGeneralGlobal['cantidad'] += $cant;
-            $totalGeneralGlobal['peso']     += $peso;
-            $totalGeneralGlobal['importe']  += $imp;
         }
 
-        // 3. Formatear estructura de respuesta final con filas de Total Corporativo
+        // 11. Formatear respuesta final
         $provinciasFinal = [];
-
         foreach ($arbol as $provNombre => $coorpsMap) {
             $coorpsList = [];
-
             foreach ($coorpsMap as $coorpKey => $coorpData) {
                 $clientesList = [];
                 $coorpTotGeneral = ['cantidad' => 0.0, 'peso' => 0.0, 'importe' => 0.0];
@@ -297,7 +363,6 @@ class Dash_Ventas2025_TodosHandler
                     $coorpTotGeneral['importe']  += $tImp;
                 }
 
-                // Subtotales por fecha para el Corporativo
                 $subtotalesFechas = [];
                 foreach ($columnasFechas as $col) {
                     $f = $col['fecha'];
@@ -391,6 +456,14 @@ class Dash_Ventas2025_TodosHandler
             'columnas_fechas'  => $columnasFechas,
             'total_general'    => $totalGeneral,
             'provincias'       => $provinciasFinal,
+            'paginacion'       => [
+                'pagina_actual'      => $pagina,
+                'limite'             => $limite,
+                'total_corporativos' => $totalCorporativos,
+                'total_paginas'      => $totalPaginas,
+                'start_item'         => $totalCorporativos > 0 ? $offset + 1 : 0,
+                'end_item'           => min($offset + $limite, $totalCorporativos)
+            ],
             'total_registros'  => count($rawRows)
         ];
     }

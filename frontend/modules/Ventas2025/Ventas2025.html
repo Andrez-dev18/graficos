@@ -57,7 +57,7 @@
                 </div>
             </div>
             <div>
-                <h3 class="text-sm font-bold text-slate-800">Cargando Ventas 2025</h3>
+                <h3 class="text-sm font-bold text-slate-800">Cargando Ventas</h3>
                 <p class="text-xs text-slate-500 mt-1">Obteniendo configuración y filtros...</p>
             </div>
         </div>
@@ -77,7 +77,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Ventas 2025</h1>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Ventas</h1>
                     <p class="text-xs text-slate-500">Ventas por Coorporativo - Cliente</p>
                 </div>
             </div>
@@ -101,10 +101,22 @@
                 <!-- 1. SELECTORES DE FILTRO -->
                 <div class="flex flex-wrap items-end gap-3">
                                
+                    <!-- SELECT AÑO -->
+                    <div class="flex flex-col">
+                        <label for="select-anio"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">AÑO</label>
+                        <select id="select-anio"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="2026">2026</option>
+                            <option value="2025" selected>2025</option>
+                            <option value="2024">2024</option>
+                        </select>
+                    </div>
+
                     <!-- RANGO DE FECHAS (FecProceso) -->
                     <div class="flex flex-col">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA INICIO</label>
-                        <input type="date" id="input-fecha-inicio" value="2025-06-01"
+                        <input type="date" id="input-fecha-inicio" value="2025-01-01"
                             class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
 

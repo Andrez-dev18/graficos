@@ -67,8 +67,9 @@ class Dash_Ventas2025_SingleMetricHandler
         $params = [];
 
         // 1. Fechas
-        $fechaInicio = $filtros['fecha_inicio'] ?? $filtros['fecha1'] ?? $filtros['fec_proceso_inicio'] ?? '2025-06-01';
-        $fechaFin    = $filtros['fecha_fin'] ?? $filtros['fecha2'] ?? $filtros['fec_proceso_fin'] ?? '2025-06-21';
+        $anio        = $filtros['anio'] ?? '2025';
+        $fechaInicio = $filtros['fecha_inicio'] ?? $filtros['fecha1'] ?? $filtros['fec_proceso_inicio'] ?? "{$anio}-01-01";
+        $fechaFin    = $filtros['fecha_fin'] ?? $filtros['fecha2'] ?? $filtros['fec_proceso_fin'] ?? "{$anio}-12-31";
         if (!empty($fechaInicio) && !empty($fechaFin)) {
             $whereClauses[] = "sale.tfecfac BETWEEN ? AND ?";
             $params[] = $fechaInicio;
@@ -111,6 +112,88 @@ class Dash_Ventas2025_SingleMetricHandler
 
         $whereSql = 'WHERE ' . implode(' AND ', $whereClauses);
 
+        // 5. Parámetros de Paginación en Backend
+        $pagina = isset($filtros['pagina']) ? max(1, (int)$filtros['pagina']) : (isset($filtros['page']) ? max(1, (int)$filtros['page']) : 1);
+        $limite = isset($filtros['limite']) ? (int)$filtros['limite'] : (isset($filtros['limit']) ? (int)$filtros['limit'] : 25);
+        $isExportAll = !empty($filtros['export_all']) || $limite <= 0 || $limite >= 999999;
+
+        // 6. Fechas únicas del rango
+        $fechasMap = [];
+        $startDate = strtotime($fechaInicio);
+        $endDate   = strtotime($fechaFin);
+        if ($startDate && $endDate && $startDate <= $endDate) {
+            $curr = $startDate;
+            while ($curr <= $endDate) {
+                $fStr = date('Y-m-d', $curr);
+                $fechasMap[$fStr] = self::formatDateLabel($fStr);
+                $curr = strtotime('+1 day', $curr);
+            }
+        }
+        $columnasFechas = array_values($fechasMap);
+
+        // 7. Determinar lista de corporativos (Paginación)
+        $sqlCoorpList = "
+            SELECT 
+                TRIM(ccte.provincia) AS provincia,
+                TRIM(ccte.ruc) AS ruc,
+                TRIM(ccte1.nombre) AS coorporativo,
+                LENGTH(TRIM(ccte.ruc)) AS ruc_len
+            FROM sale
+            INNER JOIN ccte ON sale.tprocli = ccte.codigo
+            INNER JOIN ccte AS ccte1 ON ccte.ruc = ccte1.codigo
+            {$whereSql}
+            GROUP BY provincia, ruc, coorporativo, ruc_len
+            ORDER BY provincia ASC, ruc_len ASC, ruc ASC, coorporativo ASC
+        ";
+        $stmtCoorp = $db->prepare($sqlCoorpList);
+        $stmtCoorp->execute($params);
+        $allCorporativos = $stmtCoorp->fetchAll(PDO::FETCH_ASSOC);
+
+        $totalCorporativos = count($allCorporativos);
+        $totalPaginas = ($limite > 0 && !$isExportAll) ? max(1, (int)ceil($totalCorporativos / $limite)) : 1;
+        if ($pagina > $totalPaginas) $pagina = $totalPaginas;
+
+        $offset = ($pagina - 1) * $limite;
+        $pagedCorporativos = $isExportAll ? $allCorporativos : array_slice($allCorporativos, $offset, $limite);
+
+        if ($totalCorporativos === 0) {
+            $tipoGraficoLabel = ($metrica === 'cantidad') ? 'Cantidad' : (($metrica === 'peso') ? 'Peso' : 'Valor');
+            return [
+                'success'         => true,
+                'status'          => 'success',
+                'tipo_grafico'    => $tipoGraficoLabel,
+                'metrica'         => $metrica,
+                'titulo'          => "Ventas por Coorporativo - Cliente ({$tipoGraficoLabel})",
+                'fecha_inicio'    => $fechaInicio,
+                'fecha_fin'       => $fechaFin,
+                'columnas_fechas' => $columnasFechas,
+                'total_general'   => ['fechas' => [], 'general' => 0],
+                'provincias'      => [],
+                'paginacion'      => [
+                    'pagina_actual'      => 1,
+                    'limite'             => $limite,
+                    'total_corporativos' => 0,
+                    'total_paginas'      => 1,
+                    'start_item'         => 0,
+                    'end_item'           => 0
+                ],
+                'total_registros' => 0
+            ];
+        }
+
+        // 8. Consulta detallada para corporativos de la página
+        $pagedRucs = array_values(array_unique(array_column($pagedCorporativos, 'ruc')));
+        $whereClausesPaged = $whereClauses;
+        $paramsPaged = $params;
+
+        if (!$isExportAll && !empty($pagedRucs)) {
+            $rucPlaceholders = implode(',', array_fill(0, count($pagedRucs), '?'));
+            $whereClausesPaged[] = "TRIM(ccte.ruc) IN ($rucPlaceholders)";
+            foreach ($pagedRucs as $r) $paramsPaged[] = $r;
+        }
+
+        $whereSqlPaged = 'WHERE ' . implode(' AND ', $whereClausesPaged);
+
         $sql = "
             SELECT 
                 TRIM(ccte.provincia) AS provincia,
@@ -127,47 +210,50 @@ class Dash_Ventas2025_SingleMetricHandler
             FROM sale
             INNER JOIN ccte ON sale.tprocli = ccte.codigo
             INNER JOIN ccte AS ccte1 ON ccte.ruc = ccte1.codigo
-            {$whereSql}
+            {$whereSqlPaged}
             GROUP BY provincia, ruc, coorporativo, codigo, cliente, ruc_len, cod_len, fecha
             ORDER BY provincia ASC, ruc_len ASC, ruc ASC, coorporativo ASC, cod_len ASC, codigo ASC, cliente ASC, fecha ASC
         ";
 
         $stmt = $db->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute($paramsPaged);
         $rawRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 1. Identificar todas las fechas del rango
-        $fechasMap = [];
-        $startDate = strtotime($fechaInicio);
-        $endDate   = strtotime($fechaFin);
+        // 9. Totales globales
+        $campoMetrica = ($metrica === 'cantidad') ? 'sale.tcantid' : (($metrica === 'peso') ? 'sale.tespeci' : 'sale.timport');
+        $sqlTotGlobal = "
+            SELECT 
+                sale.tfecfac AS fecha,
+                SUM({$campoMetrica}) AS total_metrica
+            FROM sale
+            INNER JOIN ccte ON sale.tprocli = ccte.codigo
+            INNER JOIN ccte AS ccte1 ON ccte.ruc = ccte1.codigo
+            {$whereSql}
+            GROUP BY fecha
+            ORDER BY fecha ASC
+        ";
+        $stmtTot = $db->prepare($sqlTotGlobal);
+        $stmtTot->execute($params);
+        $rawTotales = $stmtTot->fetchAll(PDO::FETCH_ASSOC);
 
-        if ($startDate && $endDate && $startDate <= $endDate) {
-            $curr = $startDate;
-            while ($curr <= $endDate) {
-                $fStr = date('Y-m-d', $curr);
-                $fechasMap[$fStr] = self::formatDateLabel($fStr);
-                $curr = strtotime('+1 day', $curr);
-            }
-        } else {
-            foreach ($rawRows as $r) {
-                $f = $r['fecha'];
-                if (!isset($fechasMap[$f])) {
-                    $fechasMap[$f] = self::formatDateLabel($f);
-                }
-            }
-            ksort($fechasMap);
-        }
-
-        $columnasFechas = array_values($fechasMap);
-
-        // 2. Agrupar datos por Provincia -> Corporativo -> Cliente
-        $arbol = [];
         $totalesPorFechaGlobal = [];
         foreach ($columnasFechas as $col) {
             $totalesPorFechaGlobal[$col['fecha']] = 0.0;
         }
         $totalGeneralGlobal = 0.0;
+        $dec = ($metrica === 'cantidad') ? 0 : 2;
 
+        foreach ($rawTotales as $rt) {
+            $f = $rt['fecha'];
+            $v = (float)$rt['total_metrica'];
+            if (isset($totalesPorFechaGlobal[$f])) {
+                $totalesPorFechaGlobal[$f] = round($v, $dec);
+            }
+            $totalGeneralGlobal += $v;
+        }
+
+        // 10. Agrupar datos por Provincia -> Corporativo -> Cliente
+        $arbol = [];
         foreach ($rawRows as $row) {
             $prov   = $row['provincia'] ?: 'SIN PROVINCIA';
             $ruc    = $row['ruc'] ?: 'SIN RUC';
@@ -204,24 +290,16 @@ class Dash_Ventas2025_SingleMetricHandler
                 ];
             }
 
-            $dec = ($metrica === 'cantidad') ? 0 : 2;
             $arbol[$prov][$coorpKey]['clientes'][$cliKey]['fechas'][$fecha] = round($val, $dec);
             $arbol[$prov][$coorpKey]['clientes'][$cliKey]['total'] += $val;
 
             if (isset($arbol[$prov][$coorpKey]['totales_fecha'][$fecha])) {
                 $arbol[$prov][$coorpKey]['totales_fecha'][$fecha] += $val;
             }
-
-            if (isset($totalesPorFechaGlobal[$fecha])) {
-                $totalesPorFechaGlobal[$fecha] += $val;
-            }
-            $totalGeneralGlobal += $val;
         }
 
-        // 3. Formatear respuesta
+        // 11. Formatear respuesta
         $provinciasFinal = [];
-        $dec = ($metrica === 'cantidad') ? 0 : 2;
-
         foreach ($arbol as $provNombre => $coorpsMap) {
             $coorpsList = [];
 
@@ -268,33 +346,30 @@ class Dash_Ventas2025_SingleMetricHandler
             ];
         }
 
-        $totalesGlobalesFechas = [];
-        foreach ($columnasFechas as $col) {
-            $f = $col['fecha'];
-            $gVal = $totalesPorFechaGlobal[$f] ?? 0.0;
-            $totalesGlobalesFechas[$f] = round($gVal, $dec);
-        }
-
-        $tituloMap = [
-            'cantidad' => 'Ventas por Coorporativo - Cliente (Cantidad)',
-            'peso'     => 'Ventas por Coorporativo - Cliente (Peso)',
-            'importe'  => 'Ventas por Coorporativo - Cliente (Valor)'
-        ];
+        $tipoGraficoLabel = ($metrica === 'cantidad') ? 'Cantidad' : (($metrica === 'peso') ? 'Peso' : 'Valor');
 
         return [
             'success'          => true,
             'status'           => 'success',
-            'tipo_grafico'     => ucfirst($metrica === 'importe' ? 'Valor' : $metrica),
+            'tipo_grafico'     => $tipoGraficoLabel,
             'metrica'          => $metrica,
-            'titulo'           => $tituloMap[$metrica] ?? 'Ventas por Coorporativo - Cliente',
+            'titulo'           => "Ventas por Coorporativo - Cliente ({$tipoGraficoLabel})",
             'fecha_inicio'     => $fechaInicio,
             'fecha_fin'        => $fechaFin,
             'columnas_fechas'  => $columnasFechas,
             'total_general'    => [
-                'fechas'  => $totalesGlobalesFechas,
+                'fechas'  => $totalesPorFechaGlobal,
                 'general' => round($totalGeneralGlobal, $dec)
             ],
             'provincias'       => $provinciasFinal,
+            'paginacion'       => [
+                'pagina_actual'      => $pagina,
+                'limite'             => $limite,
+                'total_corporativos' => $totalCorporativos,
+                'total_paginas'      => $totalPaginas,
+                'start_item'         => $totalCorporativos > 0 ? $offset + 1 : 0,
+                'end_item'           => min($offset + $limite, $totalCorporativos)
+            ],
             'total_registros'  => count($rawRows)
         ];
     }

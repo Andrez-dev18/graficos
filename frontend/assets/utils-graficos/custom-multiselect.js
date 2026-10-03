@@ -1,6 +1,6 @@
 /**
- * Componente Reutilizable CustomMultiSelect
- * Soporta selección múltiple, búsqueda interna y selección por defecto
+ * Componente Reutilizable CustomMultiSelect (Optimizado)
+ * Soporta selección múltiple, búsqueda interna con debounce y delegación de eventos.
  */
 class CustomMultiSelect {
     constructor({ btnId, labelId, dropdownId, searchId, optionsContainerId, options = [], title, onChange }) {
@@ -13,6 +13,7 @@ class CustomMultiSelect {
         this.searchQuery = '';
         this.onChange = onChange;
         this.initialized = false;
+        this.debounceTimer = null;
 
         this.options = options.map((item, idx) => {
             const id = typeof item === 'object' ? String(item.id) : String(item);
@@ -54,7 +55,29 @@ class CustomMultiSelect {
             this.search._hasMsInput = true;
             this.search.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value;
-                this.render();
+                if (this.debounceTimer) clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => {
+                    this.render();
+                }, 100);
+            });
+        }
+
+        // Delegación de eventos en container para máximo rendimiento
+        if (this.container && !this.container._hasMsChange) {
+            this.container._hasMsChange = true;
+            this.container.addEventListener('change', (e) => {
+                if (e.target.classList.contains('chk-todos')) {
+                    const isChecked = e.target.checked;
+                    this.options.forEach(o => o.selected = isChecked);
+                    this.updateLabel(true);
+                    this.render();
+                } else if (e.target.classList.contains('chk-item')) {
+                    const id = e.target.getAttribute('data-id');
+                    const opcion = this.options.find(o => o.id === id);
+                    if (opcion) opcion.selected = e.target.checked;
+                    this.updateLabel(true);
+                    this.render();
+                }
             });
         }
 
@@ -90,13 +113,15 @@ class CustomMultiSelect {
     render() {
         if (!this.container) return;
         const query = this.searchQuery.toLowerCase().trim();
-        const filtrados = this.options.filter(op => op.label.toLowerCase().includes(query));
+        const filtrados = query 
+            ? this.options.filter(op => op.label.toLowerCase().includes(query))
+            : this.options;
         const todosSeleccionados = this.options.length > 0 && this.options.every(o => o.selected);
 
         let html = '';
         if (!query || 'todos'.includes(query)) {
             html += `
-                <label class="flex items-center gap-3 px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors">
+                <label class="flex items-center gap-3 px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer group">
                     <input type="checkbox" class="chk-todos w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" ${todosSeleccionados ? 'checked' : ''}>
                     <span class="text-xs font-bold text-blue-700 group-hover:text-blue-800 uppercase tracking-wider">(TODO)</span>
                 </label>
@@ -107,38 +132,19 @@ class CustomMultiSelect {
         if (filtrados.length === 0) {
             html += `<div class="px-3 py-3 text-xs text-slate-400 text-center">No se encontraron opciones</div>`;
         } else {
-            filtrados.forEach(op => {
+            const count = filtrados.length;
+            for (let i = 0; i < count; i++) {
+                const op = filtrados[i];
                 html += `
-                    <label class="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer group transition-colors">
+                    <label class="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer group">
                         <input type="checkbox" data-id="${op.id}" ${op.selected ? 'checked' : ''} class="chk-item w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer">
                         <span class="text-xs text-slate-700 group-hover:text-slate-900 font-medium">${op.label}</span>
                     </label>
                 `;
-            });
+            }
         }
 
         this.container.innerHTML = html;
-
-        const chkTodos = this.container.querySelector('.chk-todos');
-        if (chkTodos) {
-            chkTodos.addEventListener('change', (e) => {
-                const isChecked = e.target.checked;
-                this.options.forEach(o => o.selected = isChecked);
-                this.updateLabel(true);
-                this.render();
-            });
-        }
-
-        const chksItem = this.container.querySelectorAll('.chk-item');
-        chksItem.forEach(chk => {
-            chk.addEventListener('change', (e) => {
-                const id = e.target.getAttribute('data-id');
-                const opcion = this.options.find(o => o.id === id);
-                if (opcion) opcion.selected = e.target.checked;
-                this.updateLabel(true);
-                this.render();
-            });
-        });
     }
 
     getSelectedValues() {
