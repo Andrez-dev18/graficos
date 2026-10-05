@@ -11,13 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
         periodoGraficos: 'dia',
         modoCombinado: 'ninguno',
         combinarGraficos: false,
-        modoCombinadoHz: 'ninguno'
+        modoCombinadoHz: 'ninguno',
+        unificarUbicacion: false,
+        unificarUbicacionHz: true
     };
 
     let ultimaListaRenderizada = [];
     let currentFetchToken = 0;
-    let cacheGranjasData = [];
-    window.cacheGranjasData = cacheGranjasData;
+    let tiposGraficaInicializados = false;
 
     // --- INSTANCIACIÓN DE MULTI-SELECTS PERSONALIZADOS ---
     const msGranja = new CustomMultiSelect({
@@ -141,6 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const TIPOS_PESAJE_DIAS_HZ = ['pesaje_pollo', 'cv_peso', 'ganancia_peso', 'cv_ganancia'];
+    const TIPOS_SIN_SEMANA_HZ = TIPOS_PESAJE_DIAS_HZ.concat(['luminometria']);
+    // Tipos de pesaje con consulta batch multi-día (una petición por tipo).
+    const TIPOS_PESAJE_BATCH_HZ = ['pesaje_pollo', 'ganancia_peso', 'cv_peso', 'cv_ganancia'];
+    // Tipos ocultos en la pestaña de gráficos horizontales.
+    const TIPOS_OCULTOS_HZ = ['nivel_cloro', 'respiratorio', 'digestivo'];
 
     const msDiasPesajeHz = new CustomMultiSelect({
         btnId: 'ms-dias-pesaje-btn-hz',
@@ -178,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             actualizarVisibilidadDiasPesajeHz();
+            actualizarVisibilidadLuminometriaHz();
         }
     });
 
@@ -206,6 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const seleccionados = msGraficosHz.getSelectedValues();
         const pesajeSeleccionados = seleccionados.filter(t => TIPOS_PESAJE_DIAS_HZ.includes(t));
 
+        actualizarVisibilidadSemanaHz();
+        actualizarVisibilidadLuminometriaHz();
+
         if (pesajeSeleccionados.length === 0) {
             container.classList.add('hidden');
             container.classList.remove('flex');
@@ -218,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const mapDias = new Map();
             for (const tipoPesaje of pesajeSeleccionados) {
-                const resp = await fetch(`../../backend/interconsulta/pesaje-dias?tipo=${encodeURIComponent(tipoPesaje)}`);
+                const resp = await fetch(`../../backend/interconsulta/pesaje-dias?tipo=${encodeURIComponent(tipoPesaje)}`, { credentials: 'same-origin' });
                 const json = await resp.json();
                 if (json && json.success && Array.isArray(json.dias)) {
                     json.dias.forEach(d => {
@@ -254,39 +264,222 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function actualizarCampaniasYGalponesHz() {
-        if (!msGranjaHz || !msCampaniaHz || !msGalponHz) return;
-        const granjasSeleccionadas = (msGranjaHz.getSelectedValues() || []).map(String);
-        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(String(g.granja || g.codigo || g.nombre)));
+    function actualizarVisibilidadSemanaHz() {
+        const container = document.getElementById('container-filtro-semana-hz');
+        if (!container || !msGraficosHz) return;
+        const seleccionados = msGraficosHz.getSelectedValues();
+        const showSemana = seleccionados.length === 0 || seleccionados.some(t => !TIPOS_SIN_SEMANA_HZ.includes(t));
+        container.classList.toggle('hidden', !showSemana);
+    }
 
-        const setCampanias = new Set();
-        const setGalpones = new Set();
+    function actualizarVisibilidadLuminometriaHz() {
+        const wrapModo = document.getElementById('container-filtro-lum-modo-hz');
+        const wrapPunto = document.getElementById('container-filtro-lum-punto-hz');
+        if (!msGraficosHz) return;
+        const show = msGraficosHz.getSelectedValues().includes('luminometria');
+        [wrapModo, wrapPunto].forEach(el => {
+            if (!el) return;
+            if (show) {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            } else {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }
+        });
+        if (show) {
+            cargarPuntosLuminometriaHz();
+        }
+    }
+
+    async function cargarPuntosLuminometriaHz() {
+        const sel = document.getElementById('select-lum-punto-hz');
+        if (!sel) return;
+        try {
+            const resp = await fetch('../../backend/interconsulta/luminometria-puntos?_t=' + Date.now(), { credentials: 'same-origin' });
+            const data = await resp.json();
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">Todos</option>';
+            (data.data || []).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+        } catch (err) {
+            console.error('Error al cargar puntos luminometría:', err);
+        }
+    }
+
+    function obtenerIdGranjaObj(g) {
+        return String(g.granja || g.codigo || g.nombre);
+    }
+
+    function buildOpcionesUbicacionSeparadas(granjasObj) {
+        const multiGranja = granjasObj.length > 1;
+        const opcionesCampanias = [];
+        const opcionesGalpones = [];
+        const seenCamp = new Set();
+        const seenGalp = new Set();
 
         granjasObj.forEach(g => {
+            const gId = obtenerIdGranjaObj(g);
+            const gNombre = g.nombre && g.nombre !== g.granja ? ` — ${g.nombre}` : '';
+            const gLabel = gId + gNombre;
+
             if (Array.isArray(g.campanias)) {
-                g.campanias.forEach(c => setCampanias.add(String(c)));
+                g.campanias.forEach(c => {
+                    const cVal = (typeof c === 'object' && c !== null) ? (c.campania || c.id || c.codigo || '') : c;
+                    const cStr = String(cVal !== undefined && cVal !== null ? cVal : '').trim();
+                    if (!cStr) return;
+                    const id = multiGranja ? `${gId}__${cStr}` : cStr;
+                    if (!seenCamp.has(id)) {
+                        seenCamp.add(id);
+                        opcionesCampanias.push({
+                            id,
+                            label: multiGranja ? `${gLabel} — Camp. ${cStr}` : `Campaña ${cStr}`
+                        });
+                    }
+                });
             }
+
             if (Array.isArray(g.galpones)) {
-                g.galpones.forEach(gp => setGalpones.add(String(gp)));
+                g.galpones.forEach(gp => {
+                    const gpVal = (typeof gp === 'object' && gp !== null) ? (gp.galpon || gp.id || '') : gp;
+                    const gpStr = String(gpVal !== undefined && gpVal !== null ? gpVal : '').trim();
+                    if (!gpStr) return;
+                    const id = multiGranja ? `${gId}__${gpStr}` : gpStr;
+                    if (!seenGalp.has(id)) {
+                        seenGalp.add(id);
+                        opcionesGalpones.push({
+                            id,
+                            label: multiGranja ? `${gLabel} — Galpón ${gpStr}` : `Galpón ${gpStr}`
+                        });
+                    }
+                });
             }
         });
 
-        const opcionesCampanias = Array.from(setCampanias).map(c => ({
-            id: String(c),
-            label: `Campaña ${c}`,
-            selected: true
-        }));
+        return { opcionesCampanias, opcionesGalpones };
+    }
 
-        const opcionesGalpones = Array.from(setGalpones).map(gp => ({
-            id: String(gp),
-            label: `Galpón ${gp}`,
-            selected: true
-        }));
+    function valorCampaniaApi(selId) {
+        const s = String(selId);
+        return s.includes('__') ? s.split('__').pop() : s;
+    }
 
-        msCampaniaHz.setOptions(opcionesCampanias, false);
-        msCampaniaHz.selectAll(false);
-        msGalponHz.setOptions(opcionesGalpones, false);
-        msGalponHz.selectAll(false);
+    function valorGalponApi(selId) {
+        const s = String(selId);
+        return s.includes('__') ? s.split('__').pop() : s;
+    }
+
+    function campaniaSeleccionCoincide(selId, granjaId, campaniaValor) {
+        const s = String(selId);
+        const cStr = String(campaniaValor);
+        if (s.includes('__')) {
+            const parts = s.split('__');
+            return parts[0] === String(granjaId) && parts[1] === cStr;
+        }
+        return s === cStr;
+    }
+
+    function galponSeleccionCoincide(selId, granjaId, galponValor) {
+        const s = String(selId);
+        const gpStr = String(galponValor);
+        if (s.includes('__')) {
+            const parts = s.split('__');
+            return parts[0] === String(granjaId) && parts[1] === gpStr;
+        }
+        return s === gpStr;
+    }
+
+    function campaniaSeleccionValidaParaGranja(selId, granjaId, campaniasDeGranja) {
+        const campApi = valorCampaniaApi(selId);
+        if (!campaniasDeGranja.includes(String(campApi))) return false;
+        const s = String(selId);
+        if (s.includes('__')) {
+            return s.split('__')[0] === String(granjaId);
+        }
+        return true;
+    }
+
+    function galponSeleccionValidoParaGranja(selId, granjaId, galponesDeGranja) {
+        const galApi = valorGalponApi(selId);
+        if (!galponesDeGranja.includes(String(galApi))) return false;
+        const s = String(selId);
+        if (s.includes('__')) {
+            return s.split('__')[0] === String(granjaId);
+        }
+        return true;
+    }
+
+    function pickSeleccionUbicacion(primary, fallback) {
+        if (primary) {
+            const vals = primary.getSelectedValues();
+            if (vals.length > 0) return vals;
+        }
+        return fallback ? fallback.getSelectedValues() : [];
+    }
+
+    function obtenerSeleccionUbicacionConsulta(esHorizontal = false) {
+        if (esHorizontal) {
+            if (state.unificarUbicacionHz && msUbicacionUnificadaHz) {
+                return {
+                    esUnificado: true,
+                    unificado: msUbicacionUnificadaHz.getSelectedCombinations(),
+                    granjas: [],
+                    campanias: [],
+                    galpones: []
+                };
+            }
+            return {
+                esUnificado: false,
+                unificado: [],
+                granjas: msGranjaHz ? msGranjaHz.getSelectedValues() : [],
+                campanias: msCampaniaHz ? msCampaniaHz.getSelectedValues() : [],
+                galpones: msGalponHz ? msGalponHz.getSelectedValues() : []
+            };
+        }
+
+        if (state.unificarUbicacion && msUbicacionUnificada) {
+            return {
+                esUnificado: true,
+                unificado: msUbicacionUnificada.getSelectedCombinations(),
+                granjas: [],
+                campanias: [],
+                galpones: []
+            };
+        }
+        return {
+            esUnificado: false,
+            unificado: [],
+            granjas: pickSeleccionUbicacion(msGranja, null),
+            campanias: pickSeleccionUbicacion(msCampania, null),
+            galpones: pickSeleccionUbicacion(msGalpon, null)
+        };
+    }
+
+    function actualizarCampaniasYGalponesHz() {
+        if (!msGranjaHz || !msCampaniaHz || !msGalponHz) return;
+        const granjasSeleccionadas = msGranjaHz.getSelectedValues();
+        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(obtenerIdGranjaObj(g)));
+
+        const { opcionesCampanias, opcionesGalpones } = buildOpcionesUbicacionSeparadas(granjasObj);
+
+        const todasGranjas = cacheGranjasData.length > 0
+            && granjasSeleccionadas.length >= cacheGranjasData.length;
+        const campPrev = msCampaniaHz.getSelectedValues();
+        const galPrev = msGalponHz.getSelectedValues();
+        const marcarTodos = todasGranjas && campPrev.length === 0 && galPrev.length === 0;
+
+        if (marcarTodos) {
+            msCampaniaHz.setOptions(opcionesCampanias.map(o => ({ ...o, selected: true })), false);
+            msGalponHz.setOptions(opcionesGalpones.map(o => ({ ...o, selected: true })), false);
+        } else {
+            msCampaniaHz.setOptions(opcionesCampanias, true);
+            msGalponHz.setOptions(opcionesGalpones, true);
+        }
     }
 
     function obtenerParametrosPeriodo() {
@@ -317,39 +510,43 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = obtenerParametrosPeriodo();
             const qs = new URLSearchParams(params).toString();
-            const response = await fetch(`../../backend/interconsulta/granjas-campanias-galpones?${qs}`);
+            const response = await fetch(`../../backend/interconsulta/granjas-campanias-galpones?${qs}`, { credentials: 'same-origin' });
             const data = await response.json();
 
             if (!data.success) return;
 
-            cacheGranjasData = (data.granjas || []).map(g => ({
-                ...g,
-                granja: String(g.granja || g.codigo || g.nombre || ''),
-                codigo: g.codigo ? String(g.codigo) : String(g.granja || ''),
-                nombre: g.nombre ? String(g.nombre) : '',
-                campanias: Array.isArray(g.campanias) ? g.campanias.map(String) : [],
-                galpones: Array.isArray(g.galpones) ? g.galpones.map(String) : []
-            }));
-            window.cacheGranjasData = cacheGranjasData;
+            cacheGranjasData = data.granjas || [];
 
             const opcionesGranjas = cacheGranjasData.map(g => ({
-                id: String(g.granja || g.codigo || g.nombre),
+                id: g.granja || g.codigo || g.nombre,
                 label: (g.granja || '') + (g.nombre && g.nombre !== g.granja ? ' — ' + g.nombre : '')
             }));
 
             // TAB 1: Selecciona solo la primera por defecto
             msGranja.setOptions(opcionesGranjas, true);
             if (msUbicacionUnificada) {
+                const preserveSel = msUbicacionUnificada.selectedGalpones.size > 0;
                 msUbicacionUnificada.setData(cacheGranjasData, false);
-            }
-
-            // TAB 2: Multi-selects para vista horizontal
-            if (msGranjaHz) {
-                msGranjaHz.setOptions(opcionesGranjas, false);
-                msGranjaHz.selectAll(false);
+                if (!preserveSel && typeof msUbicacionUnificada.selectMuestraInicial === 'function') {
+                    msUbicacionUnificada.selectMuestraInicial(false);
+                }
             }
             if (msUbicacionUnificadaHz) {
-                msUbicacionUnificadaHz.setData(cacheGranjasData, true);
+                const preserveSelHz = msUbicacionUnificadaHz.selectedGalpones.size > 0;
+                msUbicacionUnificadaHz.setData(cacheGranjasData, false);
+                if (!preserveSelHz) {
+                    msUbicacionUnificadaHz.selectAll(false);
+                }
+            }
+            actualizarTextoResumenPeriodo();
+
+            if (msGranjaHz) {
+                const preserveGranjasHz = msGranjaHz.getSelectedValues().length > 0;
+                if (preserveGranjasHz) {
+                    msGranjaHz.setOptions(opcionesGranjas, false);
+                } else {
+                    msGranjaHz.setOptions(opcionesGranjas.map(g => ({ ...g, selected: true })), false);
+                }
             }
 
             actualizarCampaniasYGalpones();
@@ -360,30 +557,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function actualizarCampaniasYGalpones() {
-        const granjasSeleccionadas = (msGranja ? msGranja.getSelectedValues() : []).map(String);
-        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(String(g.granja || g.codigo || g.nombre)));
+        const granjasSeleccionadas = msGranja.getSelectedValues();
+        const granjasObj = cacheGranjasData.filter(g => granjasSeleccionadas.includes(obtenerIdGranjaObj(g)));
 
-        const setCampanias = new Set();
-        const setGalpones = new Set();
-
-        granjasObj.forEach(g => {
-            if (Array.isArray(g.campanias)) {
-                g.campanias.forEach(c => setCampanias.add(String(c)));
-            }
-            if (Array.isArray(g.galpones)) {
-                g.galpones.forEach(gp => setGalpones.add(String(gp)));
-            }
-        });
-
-        const opcionesCampanias = Array.from(setCampanias).map(c => ({
-            id: String(c),
-            label: `Campaña ${c}`
-        }));
-
-        const opcionesGalpones = Array.from(setGalpones).map(gp => ({
-            id: String(gp),
-            label: `Galpón ${gp}`
-        }));
+        const { opcionesCampanias, opcionesGalpones } = buildOpcionesUbicacionSeparadas(granjasObj);
 
         msCampania.setOptions(opcionesCampanias, true);
         msGalpon.setOptions(opcionesGalpones, true);
@@ -391,25 +568,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarTiposGrafica() {
         try {
-            const response = await fetch('../../backend/interconsulta/tipos-grafica');
+            const response = await fetch('../../backend/interconsulta/tipos-grafica', { credentials: 'same-origin' });
             const data = await response.json();
 
             if (!data.success || !Array.isArray(data.data)) return;
 
-            const opcionesTipos = [];
+            const opcionesVerticales = [];
+            const opcionesHz = [];
             data.data.forEach(t => {
                 const id = t.id || t.tipo;
                 const label = t.label || t.nombre || id;
-                if (id) {
-                    opcionesTipos.push({ id, label });
+                if (!id) return;
+                if (!t.soloHorizontal) {
+                    opcionesVerticales.push({ id, label });
+                }
+                if (!TIPOS_OCULTOS_HZ.includes(id)) {
+                    opcionesHz.push({ id, label });
                 }
             });
 
-            if (opcionesTipos.length > 0) {
-                msGraficos.setOptions(opcionesTipos, true);
+            if (opcionesVerticales.length > 0 || opcionesHz.length > 0) {
+                msGraficos.setOptions(opcionesVerticales, false);
                 if (msGraficosHz) {
-                    msGraficosHz.setOptions(opcionesTipos, true);
+                    msGraficosHz.setOptions(opcionesHz, false);
                     actualizarVisibilidadDiasPesajeHz();
+                    actualizarVisibilidadLuminometriaHz();
+                }
+                if (!tiposGraficaInicializados) {
+                    msGraficos.selectOnlyIds(['mortalidad'], false);
+                    if (msGraficosHz) msGraficosHz.selectOnlyIds(['mortalidad'], false);
+                    tiposGraficaInicializados = true;
                 }
             }
         } catch (err) {
@@ -424,12 +612,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCargar = document.getElementById('btn-cargar');
 
     function renderizarInputsFecha() {
-        if (!contenedorFechasDinamicas) return;
-
         const hoy = new Date();
         const haceUnAnio = new Date(hoy.getFullYear() - 1, hoy.getMonth(), hoy.getDate());
         const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
         const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+
+        const elDesde = document.getElementById('input-fecha-desde');
+        const elHasta = document.getElementById('input-fecha-hasta');
+        if (elDesde && elHasta) {
+            if (!elDesde.value) elDesde.value = formatISOFecha(haceUnAnio);
+            if (!elHasta.value) elHasta.value = formatISOFecha(hoy);
+            return;
+        }
+        if (!contenedorFechasDinamicas) return;
 
         let html = '';
 
@@ -522,102 +717,66 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- MODAL DE CONFIGURACIÓN DE PERIODO GRANJAS ---
-    const modalPeriodo = document.getElementById('modal-periodo-granjas');
-    const btnAbrirModalPeriodo = document.getElementById('btn-abrir-modal-periodo');
-    const btnCerrarModalPeriodo = document.getElementById('btn-cerrar-modal-periodo');
-    const btnCancelarModalPeriodo = document.getElementById('btn-cancelar-modal-periodo');
-    const btnAplicarModalPeriodo = document.getElementById('btn-aplicar-modal-periodo');
+    // --- FILTRO GRANJAS / CAMPAÑAS / GALPONES + PERIODO COLAPSADO EN DROPDOWN ---
+    const btnTogglePeriodoUbicacion = document.getElementById('btn-toggle-periodo-ubicacion');
+    const panelPeriodoUbicacion = document.getElementById('panel-periodo-ubicacion');
+    const iconChevronPeriodoUbicacion = document.getElementById('icon-chevron-periodo-ubicacion');
     const labelResumenPeriodo = document.getElementById('label-resumen-periodo');
     const labelResumenPeriodoHz = document.getElementById('label-resumen-periodo-hz');
-    const btnAbrirModalPeriodoHz = document.getElementById('btn-abrir-modal-periodo-hz');
+    const chkUnificarUbicacionHz = document.getElementById('chk-unificar-ubicacion-hz');
+
+    function formatearFechaResumen(iso) {
+        if (!iso || typeof iso !== 'string') return '';
+        const p = iso.split('-');
+        if (p.length !== 3) return iso;
+        return `${p[2]}/${p[1]}/${p[0]}`;
+    }
 
     function actualizarTextoResumenPeriodo() {
-        if (!selectPeriodo) return;
-        const selectedOpt = selectPeriodo.options[selectPeriodo.selectedIndex];
-        if (selectedOpt) {
-            if (labelResumenPeriodo) labelResumenPeriodo.textContent = selectedOpt.textContent.trim();
-            if (labelResumenPeriodoHz) labelResumenPeriodoHz.textContent = selectedOpt.textContent.trim();
+        const desde = document.getElementById('input-fecha-desde');
+        const hasta = document.getElementById('input-fecha-hasta');
+        let resumen = 'Entre fechas';
+        if (desde && hasta && desde.value && hasta.value) {
+            resumen = `${formatearFechaResumen(desde.value)} — ${formatearFechaResumen(hasta.value)}`;
         }
+        if (labelResumenPeriodo) labelResumenPeriodo.textContent = resumen;
+        if (labelResumenPeriodoHz) labelResumenPeriodoHz.textContent = resumen;
     }
 
-    function abrirModalPeriodo() {
-        if (!modalPeriodo) return;
-        modalPeriodo.classList.remove('hidden');
-        const content = modalPeriodo.querySelector('.modal-card-content');
-        setTimeout(() => {
-            modalPeriodo.classList.remove('opacity-0');
-            if (content) {
-                content.classList.remove('scale-95', 'opacity-0');
-                content.classList.add('scale-100', 'opacity-100');
-            }
-        }, 10);
-    }
-
-    function cerrarModalPeriodo() {
-        if (!modalPeriodo) return;
-        const content = modalPeriodo.querySelector('.modal-card-content');
-        if (content) {
-            content.classList.remove('scale-100', 'opacity-100');
-            content.classList.add('scale-95', 'opacity-0');
-        }
-        modalPeriodo.classList.add('opacity-0');
-        setTimeout(() => {
-            modalPeriodo.classList.add('hidden');
-        }, 200);
-    }
-
-    if (btnAbrirModalPeriodo) {
-        btnAbrirModalPeriodo.addEventListener('click', abrirModalPeriodo);
-    }
-    if (btnAbrirModalPeriodoHz) {
-        btnAbrirModalPeriodoHz.addEventListener('click', abrirModalPeriodo);
-    }
-    if (btnCerrarModalPeriodo) {
-        btnCerrarModalPeriodo.addEventListener('click', cerrarModalPeriodo);
-    }
-    if (btnCancelarModalPeriodo) {
-        btnCancelarModalPeriodo.addEventListener('click', cerrarModalPeriodo);
-    }
-    if (modalPeriodo) {
-        modalPeriodo.addEventListener('click', (e) => {
-            if (e.target === modalPeriodo) cerrarModalPeriodo();
-        });
-    }
-
-    // --- SWITCH UNIFICAR FILTROS UBICACIÓN TAB 2 ---
-    const chkUnificarUbicacionHz = document.getElementById('chk-unificar-ubicacion-hz');
-    const contenedorUbicacionSeparadosHz = document.getElementById('contenedor-ubicacion-separados-hz');
-    const contenedorUbicacionUnificadoHz = document.getElementById('contenedor-ubicacion-unificado-hz');
-
-    if (chkUnificarUbicacionHz) {
-        chkUnificarUbicacionHz.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                if (contenedorUbicacionSeparadosHz) contenedorUbicacionSeparadosHz.classList.add('hidden');
-                if (contenedorUbicacionUnificadoHz) contenedorUbicacionUnificadoHz.classList.remove('hidden');
-            } else {
-                if (contenedorUbicacionSeparadosHz) contenedorUbicacionSeparadosHz.classList.remove('hidden');
-                if (contenedorUbicacionUnificadoHz) contenedorUbicacionUnificadoHz.classList.add('hidden');
+    if (btnTogglePeriodoUbicacion && panelPeriodoUbicacion) {
+        btnTogglePeriodoUbicacion.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const abierto = !panelPeriodoUbicacion.classList.contains('hidden');
+            panelPeriodoUbicacion.classList.toggle('hidden', abierto);
+            if (iconChevronPeriodoUbicacion) {
+                iconChevronPeriodoUbicacion.classList.toggle('rotate-180', !abierto);
             }
         });
     }
-    if (btnAplicarModalPeriodo) {
-        btnAplicarModalPeriodo.addEventListener('click', () => {
+
+    const inputFechaDesdeFiltro = document.getElementById('input-fecha-desde');
+    const inputFechaHastaFiltro = document.getElementById('input-fecha-hasta');
+    if (inputFechaDesdeFiltro) {
+        inputFechaDesdeFiltro.addEventListener('change', async () => {
+            state.periodo = 'entre_fechas';
             actualizarTextoResumenPeriodo();
-            cerrarModalPeriodo();
-            if (btnCargar) btnCargar.click();
+            await cargarCatalogoGranjas();
+            consultarGraficosApi();
+        });
+    }
+    if (inputFechaHastaFiltro) {
+        inputFechaHastaFiltro.addEventListener('change', async () => {
+            state.periodo = 'entre_fechas';
+            actualizarTextoResumenPeriodo();
+            await cargarCatalogoGranjas();
+            consultarGraficosApi();
         });
     }
 
     if (selectPeriodo) {
-        selectPeriodo.addEventListener('change', (e) => {
-            state.periodo = e.target.value;
-            renderizarInputsFecha();
-            actualizarTextoResumenPeriodo();
-            cargarCatalogoGranjas();
-        });
-        actualizarTextoResumenPeriodo();
+        state.periodo = selectPeriodo.value || 'entre_fechas';
     }
+    actualizarTextoResumenPeriodo();
 
     const selectPeriodoGraficos = document.getElementById('select-periodo-graficos');
     const contenedorFechasGraficos = document.getElementById('contenedor-fechas-graficos');
@@ -694,8 +853,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const contenedorGraficosHorizontales = document.getElementById('contenedor-graficos-horizontales');
     const contenedorGraficos = document.getElementById('contenedor-graficos');
 
-    let horizontalesCargadoPrimeraVez = false;
-
     function cambiarTabPrincipal(tab) {
         tabActivoActual = tab;
         const seccionDinamicos = document.getElementById('seccion-graficos-dinamicos');
@@ -719,6 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (vistaFiltros2) vistaFiltros2.classList.add('hidden');
             if (seccionDinamicos) seccionDinamicos.classList.remove('hidden');
             if (vistaGraficos2) vistaGraficos2.classList.add('hidden');
+           
         } else if (tab === 'horizontales') {
             if (tabHorizontales) {
                 tabHorizontales.className = 'flex items-center gap-2.5 px-5 py-3.5 text-xs sm:text-sm font-bold bg-white text-blue-600 border-r border-slate-200/80 z-10 transition-all cursor-pointer';
@@ -735,10 +893,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (vistaFiltros2) vistaFiltros2.classList.remove('hidden');
             if (seccionDinamicos) seccionDinamicos.classList.add('hidden');
             if (vistaGraficos2) vistaGraficos2.classList.remove('hidden');
-
-            if (!horizontalesCargadoPrimeraVez) {
-                horizontalesCargadoPrimeraVez = true;
-                consultarGraficosHorizontales();
+            if (typeof syncDockLeyendaHz === 'function') {
+                syncDockLeyendaHz();
             }
         }
     }
@@ -782,14 +938,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLimpiarHz = document.getElementById('btn-limpiar-hz');
     const inputFechaInicioHz = document.getElementById('input-fecha-inicio-hz');
     const inputFechaFinHz = document.getElementById('input-fecha-fin-hz');
-    const hoyHz = new Date();
-    const haceUnAnioHz = new Date(hoyHz.getFullYear() - 1, hoyHz.getMonth(), hoyHz.getDate());
-    if (inputFechaInicioHz && !inputFechaInicioHz.value) inputFechaInicioHz.value = formatISOFecha(haceUnAnioHz);
-    if (inputFechaFinHz && !inputFechaFinHz.value) inputFechaFinHz.value = formatISOFecha(hoyHz);
     const inputSemanaHz = document.getElementById('input-semana-hz');
     const selectSexoGlobalHz = document.getElementById('select-sexo-global-hz');
     const checkLineasSuavesHz = document.getElementById('check-lineas-suaves-hz');
     const checkSepararGraficosHz = document.getElementById('check-separar-graficos-hz');
+
+    if (inputFechaInicioHz && !inputFechaInicioHz.value) {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - 1);
+        inputFechaInicioHz.value = (typeof formatISOFecha === 'function') ? formatISOFecha(d) : d.toISOString().split('T')[0];
+    }
+    if (inputFechaFinHz && !inputFechaFinHz.value) {
+        const d = new Date();
+        inputFechaFinHz.value = (typeof formatISOFecha === 'function') ? formatISOFecha(d) : d.toISOString().split('T')[0];
+    }
 
     // Inicializar estado del check separar según el sexo seleccionado
     function sincronizarEstadoCheckSeparar() {
@@ -923,6 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
             periodo: primerResp.periodo,
             unidad: seriesList.map(s => s.unidad).filter(Boolean).join(' / '),
             esCombinado: true,
+            forzarLineasEnCombinado: false,
             seriesList: seriesList,
             registros: registrosUnificados
         };
@@ -949,9 +1112,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const contienePesaje = tiposSeleccionados.some(t => TIPOS_PESAJE_DIAS_HZ.includes(t));
-        const contieneNoPesaje = tiposSeleccionados.some(t => !TIPOS_PESAJE_DIAS_HZ.includes(t));
+        const contieneSemana = tiposSeleccionados.some(t => !TIPOS_SIN_SEMANA_HZ.includes(t));
 
-        if (contieneNoPesaje && (isNaN(semana) || semana < 1 || semana > 10)) {
+        if (contieneSemana && (isNaN(semana) || semana < 1 || semana > 10)) {
             mostrarAlertaToast('Por favor ingrese un número de semana válido (1-10)');
             return;
         }
@@ -963,42 +1126,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const tareasConsulta = [];
-        let ordenSeq = 0;
         tiposSeleccionados.forEach(tipo => {
-            if (TIPOS_PESAJE_DIAS_HZ.includes(tipo)) {
+            if (TIPOS_PESAJE_BATCH_HZ.includes(tipo)) {
+                tareasConsulta.push({
+                    tipo: tipo,
+                    dia: null,
+                    semana: null,
+                    dias: diasSeleccionados.map(d => parseInt(d, 10)).filter(d => !isNaN(d))
+                });
+            } else if (TIPOS_PESAJE_DIAS_HZ.includes(tipo)) {
                 diasSeleccionados.forEach(d => {
+                    const diaNum = parseInt(d, 10);
+                    if (isNaN(diaNum)) {
+                        return;
+                    }
                     tareasConsulta.push({
-                        orden: ordenSeq++,
                         tipo: tipo,
-                        dia: parseInt(d, 10),
-                        semana: null
+                        dia: diaNum,
+                        semana: null,
+                        dias: null
                     });
+                });
+            } else if (tipo === 'luminometria') {
+                const modoEl = document.getElementById('select-lum-modo-hz');
+                const puntoEl = document.getElementById('select-lum-punto-hz');
+                tareasConsulta.push({
+                    tipo: tipo,
+                    modo: modoEl ? modoEl.value : 'subzona',
+                    location: puntoEl ? puntoEl.value : '',
+                    dia: null,
+                    semana: null,
+                    dias: null
                 });
             } else {
                 tareasConsulta.push({
-                    orden: ordenSeq++,
                     tipo: tipo,
                     dia: null,
-                    semana: semana
+                    semana: semana,
+                    dias: null
                 });
             }
         });
 
-        const esUnificado = chkUnificarUbicacionHz ? chkUnificarUbicacionHz.checked : false;
-        const granjas = msGranjaHz ? msGranjaHz.getSelectedValues() : [];
-        const campanias = msCampaniaHz ? msCampaniaHz.getSelectedValues() : [];
-        const galpones = msGalponHz ? msGalponHz.getSelectedValues() : [];
-        const unificado = (esUnificado && msUbicacionUnificadaHz) ? msUbicacionUnificadaHz.getSelectedValues() : [];
+        const ubicacionSel = obtenerSeleccionUbicacionConsulta(true);
 
         const opcionesFiltro = {
             sexo,
             lineasSuaves,
             separarGraficos,
-            esUnificado,
-            granjas,
-            campanias,
-            galpones,
-            unificado
+            esUnificado: ubicacionSel.esUnificado,
+            granjas: ubicacionSel.granjas,
+            campanias: ubicacionSel.campanias,
+            galpones: ubicacionSel.galpones,
+            unificado: ubicacionSel.unificado,
+            mostrarPctChart: true
         };
 
         if (btnCargarHz) {
@@ -1019,83 +1200,110 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const respuestasExitosas = [];
-            const modoCombHz = state.modoCombinadoHz || 'ninguno';
+            let huboError = false;
+            const limiteConcurrente = 2;
 
-            const promesas = tareasConsulta.map(async (t) => {
-                const params = {
+            const consultarTarea = async (t) => {
+                const params = new URLSearchParams({
                     tipo: t.tipo,
                     fechaInicio: fechaInicio,
                     fechaFin: fechaFin
-                };
-                if (t.dia !== null && t.dia !== undefined) {
-                    params.dia = t.dia;
+                });
+                if (Array.isArray(t.dias) && t.dias.length > 0) {
+                    params.set('dias', t.dias.join(','));
+                } else if (t.dia !== null && t.dia !== undefined) {
+                    params.set('dia', String(t.dia));
+                } else if (t.tipo === 'luminometria') {
+                    if (t.modo) params.set('modo', t.modo);
+                    if (t.location) params.set('location', t.location);
                 } else {
-                    params.semana = t.semana;
+                    params.set('semana', String(t.semana));
                 }
-                const qs = new URLSearchParams(params).toString();
 
-                try {
-                    const resp = await fetch(`../../backend/interconsulta/acumulado-semanal?${qs}`);
-                    const json = await resp.json();
+                const resp = await fetch(`../../backend/interconsulta/acumulado-semanal?${params.toString()}`, { credentials: 'same-origin' });
+                return resp.json();
+            };
 
-                    completadas++;
-                    if (typeof actualizarIndicadorProgresoHz === 'function') {
-                        actualizarIndicadorProgresoHz(completadas, total);
-                    }
+            const procesarRespuesta = (json, tipo) => {
+                if (!json) {
+                    huboError = true;
+                    return;
+                }
+                if (!json.success) {
+                    huboError = true;
+                    mostrarAlertaToast(json.message || `Error al cargar gráfica ${tipo}`);
+                    return;
+                }
+                if (Array.isArray(json.items)) {
+                    json.items.forEach(item => respuestasExitosas.push(item));
+                } else {
+                    respuestasExitosas.push(json);
+                }
+            };
 
-                    if (json && json.success) {
-                        json.orden = t.orden;
-                        respuestasExitosas.push(json);
-
-                        // Si no es combinado, renderizar progresivamente de inmediato conforme llega cada respuesta
-                        if (modoCombHz === 'ninguno') {
-                            if (typeof renderizarGraficoHorizontal === 'function') {
-                                renderizarGraficoHorizontal(json, opcionesFiltro);
-                            }
+            let cursorTarea = 0;
+            const ejecutarTrabajador = async () => {
+                while (cursorTarea < tareasConsulta.length) {
+                    const t = tareasConsulta[cursorTarea++];
+                    try {
+                        const json = await consultarTarea(t);
+                        procesarRespuesta(json, t.tipo);
+                    } catch (err) {
+                        huboError = true;
+                        console.error('Error al consultar gráfica horizontal:', t.tipo, err);
+                    } finally {
+                        completadas++;
+                        if (typeof actualizarIndicadorProgresoHz === 'function') {
+                            actualizarIndicadorProgresoHz(completadas, total);
                         }
-                    } else if (json && !json.success) {
-                        mostrarAlertaToast(json.message || `Error al cargar gráfica ${t.tipo}`);
                     }
-                } catch (fetchErr) {
-                    completadas++;
-                    if (typeof actualizarIndicadorProgresoHz === 'function') {
-                        actualizarIndicadorProgresoHz(completadas, total);
-                    }
-                    console.error(`Error al cargar gráfica horizontal ${t.tipo}:`, fetchErr);
                 }
-            });
+            };
 
-            await Promise.all(promesas);
+            const nTrabajadores = Math.max(1, Math.min(limiteConcurrente, tareasConsulta.length));
+            const trabajadores = [];
+            for (let i = 0; i < nTrabajadores; i++) {
+                trabajadores.push(ejecutarTrabajador());
+            }
+            await Promise.all(trabajadores);
 
-            if (modoCombHz === 'tipo' && typeof renderizarGraficoHorizontal === 'function' && respuestasExitosas.length > 0) {
-                const noCombinables = [];
-                const combinables = [];
+            if (typeof renderizarGraficoHorizontal === 'function' && respuestasExitosas.length > 0) {
+                const modoCombHz = state.modoCombinadoHz || 'ninguno';
 
-                respuestasExitosas.forEach(r => {
-                    if (r.tipo === 'respiratorio' || r.tipo === 'digestivo' || r.tipo === 'nivel_cloro') {
-                        noCombinables.push(r);
-                    } else {
-                        combinables.push(r);
+                if (modoCombHz === 'tipo' && respuestasExitosas.length >= 2) {
+                    const noCombinables = [];
+                    const combinables = [];
+
+                    respuestasExitosas.forEach(r => {
+                        if (r.tipo === 'luminometria') {
+                            noCombinables.push(r);
+                        } else {
+                            combinables.push(r);
+                        }
+                    });
+
+                    if (combinables.length >= 2) {
+                        const dataComb = construirDataCombinadaHz(combinables);
+                        if (dataComb) {
+                            dataComb.forzarLineasEnCombinado = false;
+                            renderizarGraficoHorizontal(dataComb, opcionesFiltro);
+                        }
+                    } else if (combinables.length === 1) {
+                        renderizarGraficoHorizontal(combinables[0], opcionesFiltro);
                     }
-                });
 
-                if (noCombinables.length > 0) {
-                    mostrarAlertaToast('Los gráficos de barras (nivel de cloro, respiratorio y digestivo) no se pueden combinar por el momento');
+                    noCombinables.forEach(r => {
+                        renderizarGraficoHorizontal(r, opcionesFiltro);
+                    });
+                } else {
+                    respuestasExitosas.forEach(r => {
+                        renderizarGraficoHorizontal(r, opcionesFiltro);
+                    });
                 }
+            }
 
-                if (combinables.length >= 2) {
-                    const dataComb = construirDataCombinadaHz(combinables);
-                    if (dataComb) {
-                        dataComb.orden = 0;
-                        renderizarGraficoHorizontal(dataComb, opcionesFiltro);
-                    }
-                } else if (combinables.length === 1) {
-                    renderizarGraficoHorizontal(combinables[0], opcionesFiltro);
-                }
-
-                noCombinables.forEach(r => {
-                    renderizarGraficoHorizontal(r, opcionesFiltro);
-                });
+            if (huboError && respuestasExitosas.length === 0) {
+                mostrarAlertaToast('Error de conexión al cargar gráficos horizontales');
             }
         } catch (err) {
             console.error('Error al consultar gráficos horizontales:', err);
@@ -1155,9 +1363,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (state.modoCombinadoHz === 'tipo') {
                 const seleccionados = msGraficosHz ? msGraficosHz.getSelectedValues() : [];
-                if (seleccionados.includes('respiratorio') || seleccionados.includes('digestivo')) {
-                    mostrarAlertaToast('Las evaluaciones respiratoria y digestiva no se pueden combinar por el momento');
-                }
                 if (seleccionados.length > 5) {
                     mostrarAlertaToast('Máximo 5 tipos de gráfico permitidos en modo combinado');
                     msGraficosHz.options.forEach(opt => {
@@ -1237,12 +1442,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             granjas.forEach(g => {
-                const gObj = cacheGranjasData.find(item => String(item.granja || item.codigo || item.nombre) === String(g));
+                const gObj = cacheGranjasData.find(item => (item.granja || item.codigo || item.nombre) === g);
                 const campaniasDeGranja = gObj && Array.isArray(gObj.campanias) ? gObj.campanias.map(String) : campanias;
                 const galponesDeGranja = gObj && Array.isArray(gObj.galpones) ? gObj.galpones.map(String) : galpones;
 
-                const campaniasValidas = campanias.filter(c => campaniasDeGranja.includes(String(c)));
-                const galponesValidos = galpones.filter(gp => galponesDeGranja.includes(String(gp)));
+                const campaniasValidas = campanias.filter(c => campaniaSeleccionValidaParaGranja(c, g, campaniasDeGranja));
+                const galponesValidos = galpones.filter(gp => galponSeleccionValidoParaGranja(gp, g, galponesDeGranja));
 
                 campaniasValidas.forEach(c => {
                     galponesValidos.forEach(gp => {
@@ -1252,8 +1457,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     orden: metadatosPeticiones.length,
                                     ordenTipo: idxTipo,
                                     granja: g,
-                                    campania: c,
-                                    galpon: gp,
+                                    campania: valorCampaniaApi(c),
+                                    galpon: valorGalponApi(gp),
                                     tipo: t
                                 });
                             }
@@ -1277,6 +1482,23 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarGraficosDinamicos([], false);
         actualizarIndicadorProgreso(0, metadatosPeticiones.length);
 
+        const totalPeticiones = metadatosPeticiones.length;
+
+        function finalizarRenderCombinadoSiListo() {
+            if (state.modoCombinado === 'ninguno') return;
+            if (peticionesCompletadas < totalPeticiones) return;
+            let listaFinal = configsValidas;
+            if (state.modoCombinado === 'tipo' && tiposGraficos.length >= 2) {
+                listaFinal = construirConfigsCombinadas(configsValidas);
+            } else if (state.modoCombinado === 'granja') {
+                listaFinal = construirConfigsBenchmarkingGranjas(configsValidas);
+            }
+            ultimaListaRenderizada = listaFinal;
+            configGraficos = listaFinal;
+            renderizarGraficosDinamicos(listaFinal, false);
+            ocultarLoaderGraficos();
+        }
+
         metadatosPeticiones.forEach(meta => {
             const params = new URLSearchParams({
                 tipo: meta.tipo,
@@ -1286,56 +1508,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccion: meta.tipo === 'mortalidad' ? 'all' : 'linea'
             });
 
-            fetch(`../../backend/interconsulta/grafica-data?${params.toString()}`)
-                .then(res => res.json())
+            fetch(`../../backend/interconsulta/grafica-data?${params.toString()}`, { credentials: 'same-origin' })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            throw new Error(`HTTP ${res.status}: ${(text || '').slice(0, 200)}`);
+                        });
+                    }
+                    return res.json();
+                })
                 .then(res => {
                     if (activeFetchToken !== currentFetchToken) return;
                     peticionesCompletadas++;
-                    actualizarIndicadorProgreso(peticionesCompletadas, metadatosPeticiones.length);
+                    actualizarIndicadorProgreso(peticionesCompletadas, totalPeticiones);
 
-                    if (res && (res.success || (res.linea && res.linea.success) || (Array.isArray(res.dataPorDia) && res.dataPorDia.length > 0))) {
-                        const item = adaptarRespuestaApi(res, (meta.orden !== undefined ? meta.orden + 1 : configsValidas.length + 1), meta);
-                        configsValidas.push(item);
+                    const tieneDatos = typeof respuestaGraficaTieneDatos === 'function'
+                        ? respuestaGraficaTieneDatos(res)
+                        : Boolean(res && (res.success || (res.linea && res.linea.success)));
 
-                        if (state.modoCombinado === 'ninguno') {
-                            renderizarGraficosDinamicos([item], true);
-                        } else {
-                            let listaFinal = configsValidas;
-                            if (state.modoCombinado === 'tipo' && tiposGraficos.length >= 2) {
-                                listaFinal = construirConfigsCombinadas(configsValidas);
-                            } else if (state.modoCombinado === 'granja') {
-                                listaFinal = construirConfigsBenchmarkingGranjas(configsValidas);
-                            }
-                            ultimaListaRenderizada = listaFinal;
-                            renderizarGraficosDinamicos(listaFinal, false);
+                    if (tieneDatos && typeof adaptarRespuestaApi === 'function') {
+                        let item;
+                        try {
+                            item = adaptarRespuestaApi(res, (meta.orden !== undefined ? meta.orden + 1 : configsValidas.length + 1), meta);
+                        } catch (adaptErr) {
+                            console.warn('Error al adaptar respuesta de gráfica:', meta, adaptErr, res);
+                            item = null;
                         }
-                    } else {
-                        // Tarjeta informativa "Sin Datos" para mantener alineación por campaña/galpón
-                        const itemSinDatos = (typeof crearItemSinDatos === 'function') ? crearItemSinDatos(meta) : null;
-                        if (itemSinDatos) {
-                            configsValidas.push(itemSinDatos);
-                            if (state.modoCombinado === 'ninguno') {
-                                renderizarGraficosDinamicos([itemSinDatos], true);
+                        if (item) {
+                            const idxCfg = configsValidas.findIndex(c =>
+                                c.granja === meta.granja &&
+                                c.campania === meta.campania &&
+                                c.galpon === meta.galpon &&
+                                c.tipo === meta.tipo
+                            );
+                            if (idxCfg >= 0) {
+                                configsValidas[idxCfg] = item;
                             } else {
-                                let listaFinal = configsValidas;
-                                if (state.modoCombinado === 'tipo' && tiposGraficos.length >= 2) {
-                                    listaFinal = construirConfigsCombinadas(configsValidas);
-                                } else if (state.modoCombinado === 'granja') {
-                                    listaFinal = construirConfigsBenchmarkingGranjas(configsValidas);
-                                }
-                                ultimaListaRenderizada = listaFinal;
-                                renderizarGraficosDinamicos(listaFinal, false);
+                                configsValidas.push(item);
                             }
-                        } else if (configsValidas.length === 0 && peticionesCompletadas === metadatosPeticiones.length) {
-                            renderizarGraficosDinamicos([], false);
+
+                            if (state.modoCombinado === 'ninguno') {
+                                renderizarGraficosDinamicos([item], true);
+                            } else {
+                                finalizarRenderCombinadoSiListo();
+                            }
+                            return;
                         }
+                    }
+
+                    console.warn('Gráfica sin datos reconocidos:', meta, res);
+                    const itemSinDatos = (typeof crearItemSinDatos === 'function') ? crearItemSinDatos(meta) : null;
+                    if (itemSinDatos) {
+                        configsValidas.push(itemSinDatos);
+                        if (state.modoCombinado === 'ninguno') {
+                            renderizarGraficosDinamicos([itemSinDatos], true);
+                        } else {
+                            finalizarRenderCombinadoSiListo();
+                        }
+                    } else if (configsValidas.length === 0 && peticionesCompletadas === totalPeticiones) {
+                        renderizarGraficosDinamicos([], false);
+                        ocultarLoaderGraficos();
+                    } else {
+                        finalizarRenderCombinadoSiListo();
                     }
                 })
                 .catch(err => {
                     if (activeFetchToken !== currentFetchToken) return;
                     peticionesCompletadas++;
-                    actualizarIndicadorProgreso(peticionesCompletadas, metadatosPeticiones.length);
-                    console.warn('Error al cargar gráfica individual:', err);
+                    actualizarIndicadorProgreso(peticionesCompletadas, totalPeticiones);
+                    console.warn('Error al cargar gráfica individual:', meta, err);
 
                     const itemSinDatos = (typeof crearItemSinDatos === 'function') ? crearItemSinDatos(meta) : null;
                     if (itemSinDatos) {
@@ -1343,43 +1584,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (state.modoCombinado === 'ninguno') {
                             renderizarGraficosDinamicos([itemSinDatos], true);
                         } else {
-                            let listaFinal = configsValidas;
-                            if (state.modoCombinado === 'tipo' && tiposGraficos.length >= 2) {
-                                listaFinal = construirConfigsCombinadas(configsValidas);
-                            } else if (state.modoCombinado === 'granja') {
-                                listaFinal = construirConfigsBenchmarkingGranjas(configsValidas);
-                            }
-                            ultimaListaRenderizada = listaFinal;
-                            renderizarGraficosDinamicos(listaFinal, false);
+                            finalizarRenderCombinadoSiListo();
                         }
-                    } else if (configsValidas.length === 0 && peticionesCompletadas === metadatosPeticiones.length) {
+                    } else if (configsValidas.length === 0 && peticionesCompletadas === totalPeticiones) {
                         renderizarGraficosDinamicos([], false);
+                        ocultarLoaderGraficos();
+                    } else {
+                        finalizarRenderCombinadoSiListo();
                     }
                 });
+        });
+    }
+
+    function suprimirIndividualesCubiertosPorCombinado(lista) {
+        const combinados = lista.filter(i => i.esCombinado && i.tipo === 'combinado');
+        if (!combinados.length) return lista;
+
+        const mismoUbicacion = (a, b) =>
+            String(a.granja) === String(b.granja) &&
+            String(a.campania) === String(b.campania) &&
+            String(a.galpon) === String(b.galpon);
+
+        return lista.filter(item => {
+            if (item.esCombinado && item.tipo === 'combinado') return true;
+            const cubierto = combinados.some(c =>
+                mismoUbicacion(c, item) &&
+                Array.isArray(c.tiposCombinados) &&
+                c.tiposCombinados.includes(item.tipo)
+            );
+            return !cubierto;
         });
     }
 
     function construirConfigsCombinadas(listaConfigs) {
         const porGalpon = {};
         const individualesNoCombinables = [];
-        let huboNoCombinables = false;
+        let avisoLineasCombinado = false;
 
         listaConfigs.forEach(item => {
             if (item.sinDatos) {
                 individualesNoCombinables.push(item);
-            } else if (item.tipo === 'respiratorio' || item.tipo === 'digestivo' || item.tipo === 'nivel_cloro' || item.tipo === 'medicacion') {
-                individualesNoCombinables.push(item);
-                huboNoCombinables = true;
             } else {
                 const key = `${item.granja}_${item.campania}_${item.galpon}`;
                 if (!porGalpon[key]) porGalpon[key] = [];
                 porGalpon[key].push(item);
             }
         });
-
-        if (huboNoCombinables && typeof mostrarAlertaToast === 'function') {
-            mostrarAlertaToast('Los gráficos de barras (medicaciones, nivel de cloro, respiratorio y digestivo) no se pueden combinar por el momento');
-        }
 
         const result = [];
         let idxCounter = 1;
@@ -1391,6 +1641,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const seriesList = itemsGalpon.slice(0, 5).map((it, i) => ({
                     tipo: it.tipo,
                     unidad: it.unidad,
+                    barMode: it.barMode,
                     axisId: PALETA_EJES[i % PALETA_EJES.length].axisId,
                     color: PALETA_EJES[i % PALETA_EJES.length].color,
                     position: PALETA_EJES[i % PALETA_EJES.length].position,
@@ -1398,7 +1649,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     dataHembra: it.dataHembra,
                     dataStd: it.dataStd,
                     horasAplicacion: it.horasAplicacion || [],
-                    dataHoras: it.dataHoras || null
+                    dataHoras: it.dataHoras || null,
+                    franjas: it.franjas || null,
+                    signoActivo: it.signoActivo || 'todos',
+                    dataEstornudoM: it.dataEstornudoM,
+                    dataEstornudoH: it.dataEstornudoH,
+                    dataRonqueraM: it.dataRonqueraM,
+                    dataRonqueraH: it.dataRonqueraH,
+                    dataDigestivoA: it.dataDigestivoA,
+                    dataDigestivoP: it.dataDigestivoP,
+                    dataDigestivoS: it.dataDigestivoS,
+                    dataDigestivoR: it.dataDigestivoR,
+                    metricasMedicacion: it.metricasMedicacion,
+                    dataMedicacion: it.dataMedicacion,
+                    dataLarvaM: it.dataLarvaM,
+                    dataLarvaH: it.dataLarvaH,
+                    dataAdultoM: it.dataAdultoM,
+                    dataAdultoH: it.dataAdultoH,
+                    dataVivos: it.dataVivos,
+                    dataMuertos: it.dataMuertos,
+                    dataPerimetro: it.dataPerimetro,
+                    dataTecho: it.dataTecho,
+                    dataConsumoTodos: it.dataConsumoTodos,
+                    plagaMedicion: it.plagaMedicion,
+                    ambitoActivo: it.ambitoActivo
                 }));
 
                 const cloroItem = itemsGalpon.find(it => it.tipo === 'nivel_cloro' || (it.horasAplicacion && it.horasAplicacion.length > 0));
@@ -1411,6 +1685,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     return cfg.label;
                 });
 
+                const incluyeMetricasBarra = itemsGalpon.some(it =>
+                    typeof esTipoGraficoBarras === 'function' && esTipoGraficoBarras(it.tipo)
+                );
                 const combinedItem = {
                     idCard: `card-grafico-comb-${idxCounter}`,
                     canvasId: `chart-comb-${idxCounter}`,
@@ -1419,6 +1696,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     galpon: primerItem.galpon,
                     tipo: 'combinado',
                     esCombinado: true,
+                    forzarLineasEnCombinado: false,
+                    chartType: 'line',
                     seriesList: seriesList,
                     tiposCombinados: seriesList.map(s => s.tipo),
                     titulo: titulosYTipos.join(' vs '),
@@ -1450,13 +1729,11 @@ document.addEventListener('DOMContentLoaded', () => {
             result.push(item);
         });
 
-        return result;
+        return suprimirIndividualesCubiertosPorCombinado(result);
     }
 
     function construirConfigsBenchmarkingGranjas(listaConfigs) {
         const porTipo = {};
-        let huboNoCombinables = false;
-
         listaConfigs.forEach(item => {
             const t = item.tipo || 'mortalidad';
             if (!porTipo[t]) porTipo[t] = [];
@@ -1469,16 +1746,6 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(porTipo).forEach(tipoKey => {
             const itemsTipo = porTipo[tipoKey];
             const cfg = (typeof TIPO_GRAFICO_MAP !== 'undefined' && TIPO_GRAFICO_MAP[tipoKey]) ? TIPO_GRAFICO_MAP[tipoKey] : { label: tipoKey, unidad: '%' };
-
-            if (tipoKey === 'respiratorio' || tipoKey === 'digestivo' || tipoKey === 'nivel_cloro' || tipoKey === 'medicacion') {
-                if (itemsTipo.length >= 2) {
-                    huboNoCombinables = true;
-                }
-                itemsTipo.forEach(it => {
-                    result.push(it);
-                });
-                return;
-            }
 
             if (itemsTipo.length >= 2) {
                 const primerItem = itemsTipo[0];
@@ -1498,11 +1765,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     dataHembra: it.dataHembra,
                     dataStd: it.dataStd,
                     horasAplicacion: it.horasAplicacion || [],
-                    dataHoras: it.dataHoras || null
+                    dataHoras: it.dataHoras || null,
+                    franjas: it.franjas || null,
+                    signoActivo: it.signoActivo || 'todos',
+                    barMode: it.barMode,
+                    dataEstornudoM: it.dataEstornudoM,
+                    dataEstornudoH: it.dataEstornudoH,
+                    dataRonqueraM: it.dataRonqueraM,
+                    dataRonqueraH: it.dataRonqueraH,
+                    dataDigestivoA: it.dataDigestivoA,
+                    dataDigestivoP: it.dataDigestivoP,
+                    dataDigestivoS: it.dataDigestivoS,
+                    dataDigestivoR: it.dataDigestivoR,
+                    metricasMedicacion: it.metricasMedicacion,
+                    dataMedicacion: it.dataMedicacion,
+                    plagaMedicion: it.plagaMedicion,
+                    ambitoActivo: it.ambitoActivo
                 }));
 
                 const cloroItem = itemsTipo.find(it => it.tipo === 'nivel_cloro' || (it.horasAplicacion && it.horasAplicacion.length > 0));
                 const horasApp = cloroItem ? (cloroItem.horasAplicacion || []) : [];
+
+                const esBarra = typeof esTipoGraficoBarras === 'function' && esTipoGraficoBarras(tipoKey);
 
                 const combinedItem = {
                     idCard: `card-grafico-bench-${idxCounter}`,
@@ -1513,6 +1797,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     tipo: tipoKey,
                     esCombinado: true,
                     modoCombinado: 'granja',
+                    forzarLineasEnCombinado: esBarra,
+                    chartType: esBarra ? 'line' : (primerItem.chartType || 'line'),
                     seriesList: seriesList,
                     titulo: `Benchmarking: ${cfg.label}`,
                     infoBadge: `${cfg.label} (${seriesList.length} Granjas/Galpones)`,
@@ -1539,10 +1825,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (huboNoCombinables && typeof mostrarAlertaToast === 'function') {
-            mostrarAlertaToast('Las evaluaciones respiratoria y digestiva no se pueden combinar por el momento');
-        }
-
         return result;
     }
 
@@ -1554,9 +1836,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (state.modoCombinado === 'tipo') {
                 const seleccionados = msGraficos.getSelectedValues();
-                if (seleccionados.includes('respiratorio') || seleccionados.includes('digestivo')) {
-                    mostrarAlertaToast('Las evaluaciones respiratoria y digestiva no se pueden combinar por el momento');
-                }
                 if (seleccionados.length > 5) {
                     mostrarAlertaToast('Máximo 5 tipos de gráfico permitidos en modo combinado');
                     msGraficos.options.forEach(opt => {
@@ -1568,10 +1847,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     msGraficos.render();
                 }
             } else if (state.modoCombinado === 'granja') {
-                const seleccionados = msGraficos ? msGraficos.getSelectedValues() : [];
-                if (seleccionados.includes('respiratorio') || seleccionados.includes('digestivo')) {
-                    mostrarAlertaToast('Las evaluaciones respiratoria y digestiva no se pueden combinar por el momento');
-                }
                 const granjas = msGranja ? msGranja.getSelectedValues() : [];
                 const campanias = msCampania ? msCampania.getSelectedValues() : [];
                 const galpones = msGalpon ? msGalpon.getSelectedValues() : [];
@@ -1618,7 +1893,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 iconDispHorizontal.classList.toggle('hidden', disp !== 'horizontal');
             }
 
-            filtrarYMostrarGraficos();
+            if (Array.isArray(ultimaListaRenderizada) && ultimaListaRenderizada.length > 0) {
+                renderizarGraficosDinamicos(ultimaListaRenderizada);
+            } else if (Array.isArray(configGraficos) && configGraficos.length > 0) {
+                renderizarGraficosDinamicos(configGraficos);
+            }
         });
     }
 
@@ -1634,21 +1913,61 @@ document.addEventListener('DOMContentLoaded', () => {
     const chkUnificarUbicacion = document.getElementById('chk-unificar-ubicacion');
     const contenedorUbicacionSeparados = document.getElementById('contenedor-ubicacion-separados');
     const contenedorUbicacionUnificado = document.getElementById('contenedor-ubicacion-unificado');
+    const contenedorUbicacionSeparadosHz = document.getElementById('contenedor-ubicacion-separados-hz');
+    const contenedorUbicacionUnificadoHz = document.getElementById('contenedor-ubicacion-unificado-hz');
 
-    if (chkUnificarUbicacion && contenedorUbicacionSeparados && contenedorUbicacionUnificado) {
+    function aplicarModoUbicacionVertical(unificado, triggerConsulta = false) {
+        state.unificarUbicacion = unificado;
+
+        if (contenedorUbicacionSeparados) {
+            contenedorUbicacionSeparados.classList.toggle('hidden', unificado);
+        }
+        if (contenedorUbicacionUnificado) {
+            contenedorUbicacionUnificado.classList.toggle('hidden', !unificado);
+        }
+        if (chkUnificarUbicacion) {
+            chkUnificarUbicacion.checked = unificado;
+        }
+
+        if (typeof filtrarYMostrarGraficos === 'function') {
+            filtrarYMostrarGraficos();
+        }
+        if (triggerConsulta) {
+            consultarGraficosApi();
+        }
+    }
+
+    function aplicarModoUbicacionHorizontal(unificado) {
+        state.unificarUbicacionHz = unificado;
+
+        if (contenedorUbicacionSeparadosHz) {
+            contenedorUbicacionSeparadosHz.classList.toggle('hidden', unificado);
+        }
+        if (contenedorUbicacionUnificadoHz) {
+            contenedorUbicacionUnificadoHz.classList.toggle('hidden', !unificado);
+        }
+        if (chkUnificarUbicacionHz) {
+            chkUnificarUbicacionHz.checked = unificado;
+        }
+
+        if (unificado && msUbicacionUnificadaHz && msUbicacionUnificadaHz.selectedGalpones.size === 0) {
+            msUbicacionUnificadaHz.selectAll(false);
+        }
+    }
+
+    if (chkUnificarUbicacion) {
         chkUnificarUbicacion.addEventListener('change', (e) => {
-            const isUnificado = e.target.checked;
-            state.unificarUbicacion = isUnificado;
-
-            if (isUnificado) {
-                contenedorUbicacionSeparados.classList.add('hidden');
-                contenedorUbicacionUnificado.classList.remove('hidden');
-            } else {
-                contenedorUbicacionSeparados.classList.remove('hidden');
-                contenedorUbicacionUnificado.classList.add('hidden');
-            }
+            aplicarModoUbicacionVertical(e.target.checked, true);
         });
     }
+    if (chkUnificarUbicacionHz) {
+        chkUnificarUbicacionHz.addEventListener('change', (e) => {
+            aplicarModoUbicacionHorizontal(e.target.checked);
+        });
+    }
+
+    aplicarModoUbicacionVertical(false);
+    aplicarModoUbicacionHorizontal(true);
 
     if (btnCargar) {
         btnCargar.addEventListener('click', async () => {
@@ -1663,6 +1982,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (iconCargar) iconCargar.classList.remove('animate-spin');
             }
         });
+    }
+
+    function obtenerCanvasGraficoParaPdf(card) {
+        if (!card) return null;
+        const canvases = Array.from(card.querySelectorAll('canvas'));
+        const mainCanvas = canvases.find(c => !String(c.id).endsWith('-pct'));
+        const pctCanvas = canvases.find(c => String(c.id).endsWith('-pct'));
+        if (!mainCanvas) return null;
+
+        const mainChart = (typeof chartInstances !== 'undefined' && chartInstances[mainCanvas.id])
+            ? chartInstances[mainCanvas.id]
+            : ((typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(mainCanvas) : null);
+        const pctChart = pctCanvas
+            ? ((typeof chartInstances !== 'undefined' && chartInstances[pctCanvas.id])
+                ? chartInstances[pctCanvas.id]
+                : ((typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(pctCanvas) : null))
+            : null;
+
+        const mainSrc = (mainChart && mainChart.canvas) ? mainChart.canvas : mainCanvas;
+        if (!pctCanvas || !pctChart) return mainSrc;
+
+        const pctSrc = pctChart.canvas || pctCanvas;
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = Math.max(mainSrc.width, pctSrc.width);
+        offCanvas.height = pctSrc.height + mainSrc.height;
+        const offCtx = offCanvas.getContext('2d');
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+        offCtx.drawImage(pctSrc, 0, 0);
+        offCtx.drawImage(mainSrc, 0, pctSrc.height);
+        return offCanvas;
     }
 
     function capturarGraficosDashboardParaPdf() {
@@ -1697,17 +2047,17 @@ document.addEventListener('DOMContentLoaded', () => {
             panelsVisibles.forEach(panel => {
                 const cards = Array.from(panel.querySelectorAll('[id^="card-grafico-"]')).filter(c => !c.classList.contains('hidden'));
                 cards.forEach(card => {
-                    const canvas = card.querySelector('canvas');
-                    if (!canvas) return;
-                    const chart = (typeof chartInstances !== 'undefined' && chartInstances[canvas.id]) 
-                        ? chartInstances[canvas.id] 
-                        : ((typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(canvas) : null);
-                    if (chart) {
-                        const originalDpr = chart.options.devicePixelRatio || window.devicePixelRatio || 1;
-                        chart.options.devicePixelRatio = 3.0; // 300 DPI Ultra HD para el PDF
-                        chart.resize();
-                        chartsParaRestaurar.push({ chart, originalDpr });
-                    }
+                    card.querySelectorAll('canvas').forEach(canvas => {
+                        const chart = (typeof chartInstances !== 'undefined' && chartInstances[canvas.id])
+                            ? chartInstances[canvas.id]
+                            : ((typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(canvas) : null);
+                        if (chart) {
+                            const originalDpr = chart.options.devicePixelRatio || window.devicePixelRatio || 1;
+                            chart.options.devicePixelRatio = 3.0;
+                            chart.resize();
+                            chartsParaRestaurar.push({ chart, originalDpr });
+                        }
+                    });
                 });
             });
 
@@ -1731,15 +2081,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         ? configGraficos.find(c => c.idCard === cardId) 
                         : null;
 
-                    const canvas = card.querySelector('canvas');
-                    if (!canvas) return;
-
-                    const canvasId = canvas.id;
-                    const chart = (typeof chartInstances !== 'undefined' && chartInstances[canvasId]) 
-                        ? chartInstances[canvasId] 
-                        : ((typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(canvas) : null);
-
-                    const srcCanvas = (chart && chart.canvas) ? chart.canvas : canvas;
+                    const srcCanvas = obtenerCanvasGraficoParaPdf(card);
+                    if (!srcCanvas) return;
 
                     // Crear canvas auxiliar con las dimensiones nativas en 300 DPI
                     const offCanvas = document.createElement('canvas');
@@ -1806,7 +2149,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = 'reportePDF/reporte_graficos_pdf.php';
+            form.action = '../../backend/interconsulta/exportar-pdf';
             form.target = '_blank';
             form.style.display = 'none';
 
@@ -1923,6 +2266,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cargar catálogos dinámicos desde endpoints PHP y luego consultar gráficas
     (async function init() {
+        window.gUmbrales = window.gUmbrales || {};
         await cargarTiposGrafica();
         await cargarCatalogoGranjas();
         await consultarGraficosApi();

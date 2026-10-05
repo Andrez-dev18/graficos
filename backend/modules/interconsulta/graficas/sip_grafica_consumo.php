@@ -98,9 +98,20 @@ if (!function_exists('sip_grafica_consumo_std_desde_map')) {
         array $stdMap,
         string $tareaKey,
         string $parametroKey,
-        int $edadDia
+        int $edadDia,
+        string $granja3 = '',
+        string $galpon = '',
+        string $sexo = ''
     ): array {
-        [$min, $max, $unidades] = sip_grafica_std_rango_desde_map($stdMap, $tareaKey, $parametroKey, $edadDia);
+        [$min, $max, $unidades] = sip_grafica_std_rango_desde_map(
+            $stdMap,
+            $tareaKey,
+            $parametroKey,
+            $edadDia,
+            $granja3,
+            $galpon,
+            $sexo
+        );
 
         return [$min, $max, $unidades];
     }
@@ -215,7 +226,7 @@ if (!function_exists('sip_grafica_consumo_linea')) {
         $modoEval = (string) $cfg['modoEvaluacion'];
         $unidad = (string) $cfg['unidadDefault'];
 
-        $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
+        $stdMap = sip_grafica_std_map_desde_san_estandares($conn, $granja3, $galBind);
         $stockPack = sip_grafica_stock_por_dia_fetch($conn, $granja3, $campania3, $galBind, $galBind2);
         $stockPorDia = $stockPack['stockPorDia'];
         $stockDia1 = $stockPack['stockDia1'];
@@ -311,7 +322,7 @@ if (!function_exists('sip_grafica_consumo_linea')) {
             }
 
             if ($sMin === null && $sMax === null) {
-                [$sMin, $sMax, $uMap] = sip_grafica_consumo_std_desde_map($stdMap, $tk, $pkUsed, $ed);
+                [$sMin, $sMax, $uMap] = sip_grafica_consumo_std_desde_map($stdMap, $tk, $pkUsed, $ed, $granja3, $galBind);
                 if ($uMap !== '—' && !preg_match('/^\d/', $uMap)) {
                     $unidad = $uMap;
                 }
@@ -327,13 +338,20 @@ if (!function_exists('sip_grafica_consumo_linea')) {
             $vmOk = ($vm !== null && !sip_grafica_is_nan($vm) && is_finite($vm));
             $vhOk = ($vh !== null && !sip_grafica_is_nan($vh) && is_finite($vh));
 
+            $mhStd = sip_grafica_std_rango_mh_desde_map($stdMap, $tk, $pkUsed, $ed, $granja3, $galBind);
+            $tieneM = ($mhStd['m']['min'] !== null || $mhStd['m']['max'] !== null);
+            $tieneH = ($mhStd['h']['min'] !== null || $mhStd['h']['max'] !== null);
+            $sMinM = $tieneM ? $mhStd['m']['min'] : $sMin;
+            $sMaxM = $tieneM ? $mhStd['m']['max'] : $sMax;
+            $sMinH = $tieneH ? $mhStd['h']['min'] : $sMin;
+            $sMaxH = $tieneH ? $mhStd['h']['max'] : $sMax;
+
             if ($modoEval === 'solo_min') {
-                $refStd = $sMin ?? $sMax;
-                $cumpleM = $vmOk ? sip_grafica_eval_range($vm, $refStd, null, 'solo_min') : null;
-                $cumpleH = $vhOk ? sip_grafica_eval_range($vh, $refStd, null, 'solo_min') : null;
+                $cumpleM = $vmOk ? sip_grafica_eval_range($vm, $sMinM ?? $sMaxM, null, 'solo_min') : null;
+                $cumpleH = $vhOk ? sip_grafica_eval_range($vh, $sMinH ?? $sMaxH, null, 'solo_min') : null;
             } else {
-                $cumpleM = $vmOk ? sip_grafica_gas_cumple($vm, $sMin, $sMax) : null;
-                $cumpleH = $vhOk ? sip_grafica_gas_cumple($vh, $sMin, $sMax) : null;
+                $cumpleM = $vmOk ? sip_grafica_gas_cumple($vm, $sMinM, $sMaxM) : null;
+                $cumpleH = $vhOk ? sip_grafica_gas_cumple($vh, $sMinH, $sMaxH) : null;
             }
 
             $dataPorDia[] = [
@@ -345,6 +363,14 @@ if (!function_exists('sip_grafica_consumo_linea')) {
                 'estandar' => [
                     'min' => $sMin ?? $sMax,
                     'max' => $sMax ?? $sMin,
+                ],
+                'estandarM' => [
+                    'min' => $sMinM ?? $sMaxM,
+                    'max' => $sMaxM ?? $sMinM,
+                ],
+                'estandarH' => [
+                    'min' => $sMinH ?? $sMaxH,
+                    'max' => $sMaxH ?? $sMinH,
                 ],
                 'macho' => [
                     'valor' => $vmOk ? $vm : null,

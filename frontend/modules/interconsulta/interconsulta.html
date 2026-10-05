@@ -27,9 +27,16 @@
             document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
         })();
     </script>
+    <link rel="stylesheet" href="css/interconsultas-theme.css">
+    <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="js/sip-grafica-shared.js"></script>
+    <script src="js/sip-grafica-alertas.js"></script>
+    <script src="js/sip-grafica-icons.js"></script>
+    <script src="js/sip-grafica-mortalidad-render.js"></script>
     <!-- Google Fonts Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,6 +76,94 @@
                 opacity: 1;
                 transform: translateY(0);
             }
+        }
+
+        .hz-legend-dock {
+            position: fixed;
+            left: 50%;
+            bottom: 1.25rem;
+            transform: translateX(-50%);
+            z-index: 45;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem 1.1rem;
+            padding: 0.55rem 1.1rem;
+            background: var(--sip-surface, #fff);
+            border: 1px solid var(--sip-border, #e2e8f0);
+            border-radius: 9999px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+            pointer-events: none;
+            max-width: min(96vw, 760px);
+        }
+
+        html[data-theme="dark"] .hz-legend-dock {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .hz-legend-dock.hidden {
+            display: none;
+        }
+
+        .chart-stack:fullscreen,
+        .chart-stack:-webkit-full-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            height: 100%;
+            background: var(--sip-bg, #fff);
+            padding: 1rem 1.25rem;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .chart-pct-wrapper {
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .chart-canvas-wrapper {
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .chart-stack:fullscreen .chart-pct-wrapper,
+        .chart-stack:-webkit-full-screen .chart-pct-wrapper {
+            flex-shrink: 0;
+            width: 100%;
+            min-height: 150px;
+            overflow: hidden;
+        }
+
+        .chart-stack:fullscreen .chart-canvas-wrapper,
+        .chart-stack:-webkit-full-screen .chart-canvas-wrapper {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: 240px;
+        }
+
+        .chart-card-legend {
+            margin-top: 8px;
+        }
+
+        .hz-legend-dock-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--sip-text, #334155);
+            white-space: nowrap;
+        }
+
+        .hz-legend-dock-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
     </style>
 </head>
@@ -119,38 +214,85 @@
             <div id="contenedor-filtros-contenido" class="p-4 sm:p-5 transition-all duration-300">
                 <div class="flex flex-wrap items-end gap-3 sm:gap-4">
 
-                    <!-- 1. BOTÓN CONFIGURACIÓN PERIODO GRANJAS (Abre Modal) -->
-                    <div class="flex flex-col">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO GRANJAS</label>
-                        <button id="btn-abrir-modal-periodo" type="button" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            <span id="label-resumen-periodo" class="truncate max-w-[170px]">Entre fechas</span>
-                            <svg class="w-3.5 h-3.5 text-slate-400 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                        </button>
-                    </div>
-
-                    <!-- Separador vertical -->
-                    <div class="hidden lg:block h-7 w-px bg-slate-200 self-center mx-0.5"></div>
-                    <!-- SWITCH UNIFICAR FILTROS DE UBICACIÓN -->
+                    <!-- FILTRO GRANJAS: unificar ubicación en un solo multiselect -->
                     <div class="flex flex-col">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FILTRO GRANJAS</label>
                         <label for="chk-unificar-ubicacion" class="h-[38px] flex items-center gap-2 cursor-pointer select-none bg-white border border-slate-300 hover:border-slate-400 rounded-lg px-3 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/20">
                             <input type="checkbox" id="chk-unificar-ubicacion" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 transition cursor-pointer">
-                            <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">Combinar Filtros</span>
+                            <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">Unificar</span>
                         </label>
                     </div>
+
+                    <!-- GRANJAS, CAMPAÑAS Y GALPONES (mismo estilo que Tipo de Gráficos) -->
+                    <div id="contenedor-ubicacion-unificado" class="flex flex-col relative hidden">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJAS, CAMPAÑAS Y GALPONES</label>
+                        <button id="ms-unificado-btn" type="button" class="w-full sm:w-auto min-w-[260px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                            <span id="ms-unificado-label" class="truncate text-slate-400 font-normal">Ninguno seleccionado</span>
+                            <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="ms-unificado-dropdown" class="custom-multiselect-dropdown dropdown-enter absolute left-0 top-full z-50 mt-1.5 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-3 hidden">
+                            <!-- Periodo colapsado (único bloque nuevo) -->
+                            <div class="mb-2.5 border-b border-slate-100 pb-2">
+                                <button type="button" id="btn-toggle-periodo-ubicacion" class="w-full flex items-center justify-between gap-2 px-1 py-1.5 rounded-lg hover:bg-slate-50 transition cursor-pointer">
+                                    <div class="flex flex-col items-start min-w-0 text-left">
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">PERIODO</span>
+                                        <span id="label-resumen-periodo" class="text-[11px] font-semibold text-slate-600 truncate max-w-[240px]">Entre fechas</span>
+                                    </div>
+                                    <svg id="icon-chevron-periodo-ubicacion" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div id="panel-periodo-ubicacion" class="hidden mt-2 px-0.5">
+                                    <select id="select-periodo" class="hidden">
+                                        <option value="entre_fechas" selected>Entre fechas</option>
+                                    </select>
+                                    <div id="contenedor-fechas-dinamicas" class="hidden"></div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex flex-col flex-1 min-w-0">
+                                            <label for="input-fecha-desde" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Desde</label>
+                                            <input type="date" id="input-fecha-desde" value="2025-01-01" class="w-full bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs font-medium rounded-lg px-2.5 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                                        </div>
+                                        <span class="text-slate-400 text-xs font-bold self-end pb-2">—</span>
+                                        <div class="flex flex-col flex-1 min-w-0">
+                                            <label for="input-fecha-hasta" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Hasta</label>
+                                            <input type="date" id="input-fecha-hasta" value="2026-10-05" class="w-full bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs font-medium rounded-lg px-2.5 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="relative mb-2.5">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <input type="text" id="ms-unificado-search" placeholder="Buscar granja, campaña o galpón..." class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 text-slate-800 placeholder-slate-400">
+                            </div>
+
+                            <div class="flex items-center justify-end px-1 pb-2 border-b border-slate-100 text-xs">
+                                <button type="button" id="btn-unificado-limpiar" class="text-slate-500 hover:text-rose-600 font-medium transition cursor-pointer flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 hover:text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    <span>Limpiar</span>
+                                </button>
+                            </div>
+
+                            <div id="ms-unificado-options" class="max-h-72 overflow-y-auto space-y-1 pr-1 pt-2"></div>
+                        </div>
+                    </div>
+
+                    <span id="label-resumen-periodo-hz" class="hidden" aria-hidden="true"></span>
+
                     <!-- CONTENEDOR FILTROS DE UBICACIÓN SEPARADOS -->
                     <div id="contenedor-ubicacion-separados" class="contents">
                         <!-- 4. MULTI-SELECT GRANJA -->
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
                             <button id="ms-granja-btn" type="button" class="w-full sm:w-auto min-w-[180px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-granja-label" class="truncate">Seleccionar granja</span>
+                                <span id="ms-granja-label" class="truncate">Todos seleccionados</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -173,7 +315,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CAMPAÑA</label>
                             <button id="ms-campania-btn" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-campania-label" class="truncate">Seleccionar campaña</span>
+                                <span id="ms-campania-label" class="truncate">Todos seleccionados</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -196,7 +338,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GALPÓN</label>
                             <button id="ms-galpon-btn" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-galpon-label" class="truncate">Seleccionar galpón</span>
+                                <span id="ms-galpon-label" class="truncate">Todos seleccionados</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -216,39 +358,6 @@
                         </div>
                     </div>
 
-                    <!-- CONTENEDOR FILTRO DE UBICACIÓN UNIFICADO (JERÁRQUICO) -->
-                    <div id="contenedor-ubicacion-unificado" class="flex flex-col relative hidden">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJAS, CAMPAÑAS Y GALPONES</label>
-                        <button id="ms-unificado-btn" type="button" class="w-full sm:w-auto min-w-[260px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                            <span id="ms-unificado-label" class="truncate text-slate-400 font-normal">Ninguno seleccionado</span>
-                            <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </button>
-
-                        <div id="ms-unificado-dropdown" class="custom-multiselect-dropdown dropdown-enter absolute left-0 top-full z-50 mt-1.5 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-3 hidden">
-                            <div class="relative mb-2.5">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                </div>
-                                <input type="text" id="ms-unificado-search" placeholder="Buscar granja, campaña o galpón..." class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 text-slate-800 placeholder-slate-400">
-                            </div>
-
-                            <!-- Botones Rápidos -->
-                            <div class="flex items-center justify-between px-1 pb-2 border-b border-slate-100 text-xs">
-                                <span class="text-slate-400 font-medium">Estructura Jerárquica</span>
-                                <button type="button" id="btn-unificado-limpiar" class="text-slate-500 hover:text-rose-600 font-medium transition cursor-pointer flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5 text-slate-400 hover:text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    <span>Limpiar</span>
-                                </button>
-                            </div>
-
-                            <div id="ms-unificado-options" class="max-h-72 overflow-y-auto space-y-1 pr-1 pt-2"></div>
-                        </div>
-                    </div>
-
                     <!-- 7. FILTRO GENERAL SEXO -->
                     <div class="flex flex-col">
                         <label for="select-sexo-global" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">SEXO</label>
@@ -263,7 +372,7 @@
                     <div class="flex flex-col relative">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICOS</label>
                         <button id="ms-graficos-btn" type="button" class="w-full sm:w-auto min-w-[200px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                            <span id="ms-graficos-label" class="truncate">Seleccionar tipo</span>
+                            <span id="ms-graficos-label" class="truncate">Todos seleccionados</span>
                             <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
@@ -349,8 +458,8 @@
                         </div>
                     </div>
 
-                    <!-- PERIODO GRÁFICOS -->
-                    <div class="flex flex-col">
+                    <!-- PERIODO GRÁFICOS (legacy oculto) -->
+                    <div class="flex flex-col hidden">
                         <label for="select-periodo-graficos" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO GRÁFICOS</label>
                         <select id="select-periodo-graficos" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                             <option value="dia" selected>Por Día</option>
@@ -359,8 +468,7 @@
                         </select>
                     </div>
 
-                    <!-- INPUTS DE FECHAS DE GRÁFICOS DINÁMICOS -->
-                    <div id="contenedor-fechas-graficos" class="flex items-end">
+                    <div id="contenedor-fechas-graficos" class="flex items-end hidden">
                         <!-- Generado por JS -->
                     </div>
 
@@ -372,7 +480,12 @@
                             </svg>
                             <span>Cargar</span>
                         </button>
-                        
+                        <button id="btn-exportar-pdf" type="button" class="flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold text-sm rounded-lg shadow-md shadow-rose-500/20 focus:outline-none focus:ring-2 focus:ring-rose-500/40 transition-all cursor-pointer" title="Exportar Reporte en PDF">
+                            <svg class="icon-pdf w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Exportar PDF</span>
+                        </button>
                         <button id="btn-limpiar" type="button" class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200/80 shadow-xs focus:outline-none focus:ring-2 focus:ring-slate-400/20 transition-all cursor-pointer">
                             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -395,42 +508,57 @@
 
             <!-- TAB 2: CONTENEDOR FILTROS GRÁFICOS HORIZONTALES -->
             <div id="contenedor-filtros-horizontales" class="p-4 sm:p-5 transition-all duration-300 hidden">
-                <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+                <div class="flex flex-col gap-3 sm:gap-4">
 
-                    <!-- 1. BOTÓN CONFIGURACIÓN PERIODO GRANJAS (Abre Modal) -->
-                    <div class="flex flex-col">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO GRANJAS</label>
-                        <button id="btn-abrir-modal-periodo-hz" type="button" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            <span id="label-resumen-periodo-hz" class="truncate max-w-[170px]">Entre fechas</span>
-                            <svg class="w-3.5 h-3.5 text-slate-400 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                        </button>
-                    </div>
+                    <!-- Fila 1: ubicación, gráficos, fechas, semana / días pesaje -->
+                    <div id="filtros-hz-fila-1" class="flex flex-wrap items-end gap-3 sm:gap-4">
 
-                    <!-- Separador vertical -->
-                    <div class="hidden lg:block h-7 w-px bg-slate-200 self-center mx-0.5"></div>
-
-                    <!-- 2. SWITCH UNIFICAR FILTROS DE UBICACIÓN -->
                     <div class="flex flex-col">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FILTRO GRANJAS</label>
                         <label for="chk-unificar-ubicacion-hz" class="h-[38px] flex items-center gap-2 cursor-pointer select-none bg-white border border-slate-300 hover:border-slate-400 rounded-lg px-3 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/20">
                             <input type="checkbox" id="chk-unificar-ubicacion-hz" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 transition cursor-pointer" checked>
-                            <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">Combinar Filtros</span>
+                            <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">Unificar</span>
                         </label>
                     </div>
 
-                    <!-- 3. CONTENEDOR FILTROS DE UBICACIÓN SEPARADOS -->
+                    <!-- GRANJAS, CAMPAÑAS Y GALPONES UNIFICADO (TAB HORIZONTAL) -->
+                    <div id="contenedor-ubicacion-unificado-hz" class="flex flex-col relative">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJAS, CAMPAÑAS Y GALPONES</label>
+                        <button id="ms-unificado-btn-hz" type="button" class="w-full sm:w-auto min-w-[260px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
+                            <span id="ms-unificado-label-hz" class="truncate text-slate-400 font-normal">Ninguno seleccionado</span>
+                            <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="ms-unificado-dropdown-hz" class="custom-multiselect-dropdown dropdown-enter absolute left-0 top-full z-50 mt-1.5 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-3 hidden">
+                            <div class="relative mb-2.5">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <input type="text" id="ms-unificado-search-hz" placeholder="Buscar granja, campaña o galpón..." class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 text-slate-800 placeholder-slate-400">
+                            </div>
+
+                            <div class="flex items-center justify-end px-1 pb-2 border-b border-slate-100 text-xs">
+                                <button type="button" id="btn-unificado-limpiar-hz" class="text-slate-500 hover:text-rose-600 font-medium transition cursor-pointer flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 hover:text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    <span>Limpiar</span>
+                                </button>
+                            </div>
+
+                            <div id="ms-unificado-options-hz" class="max-h-72 overflow-y-auto space-y-1 pr-1 pt-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- CONTENEDOR FILTROS DE UBICACIÓN SEPARADOS -->
                     <div id="contenedor-ubicacion-separados-hz" class="contents hidden">
                         <!-- MULTI-SELECT GRANJA -->
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
                             <button id="ms-granja-btn-hz" type="button" class="w-full sm:w-auto min-w-[180px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-granja-label-hz" class="truncate">Seleccionar granja</span>
+                                <span id="ms-granja-label-hz" class="truncate">Todos seleccionados</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -453,7 +581,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CAMPAÑA</label>
                             <button id="ms-campania-btn-hz" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-campania-label-hz" class="truncate">Seleccionar campaña</span>
+                                <span id="ms-campania-label-hz" class="truncate">Todos seleccionados</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -476,7 +604,7 @@
                         <div class="flex flex-col relative">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GALPÓN</label>
                             <button id="ms-galpon-btn-hz" type="button" class="w-full sm:w-auto min-w-[140px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                                <span id="ms-galpon-label-hz" class="truncate">Seleccionar galpón</span>
+                                <span id="ms-galpon-label-hz" class="truncate">Todos seleccionados</span>
                                 <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -494,59 +622,6 @@
                                 <div id="ms-galpon-options-hz" class="max-h-56 overflow-y-auto space-y-0.5 pr-1"></div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- 4. CONTENEDOR FILTRO DE UBICACIÓN UNIFICADO -->
-                    <div id="contenedor-ubicacion-unificado-hz" class="flex flex-col relative">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJAS, CAMPAÑAS Y GALPONES</label>
-                        <button id="ms-unificado-btn-hz" type="button" class="w-full sm:w-auto min-w-[260px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
-                            <span id="ms-unificado-label-hz" class="truncate text-slate-400 font-normal">Ninguno seleccionado</span>
-                            <svg class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </button>
-
-                        <div id="ms-unificado-dropdown-hz" class="custom-multiselect-dropdown dropdown-enter absolute left-0 top-full z-50 mt-1.5 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-3 hidden">
-                            <div class="relative mb-2.5">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                </div>
-                                <input type="text" id="ms-unificado-search-hz" placeholder="Buscar granja, campaña o galpón..." class="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 text-slate-800 placeholder-slate-400">
-                            </div>
-
-                            <!-- Botones Rápidos -->
-                            <div class="flex items-center justify-between px-1 pb-2 border-b border-slate-100 text-xs">
-                                <span class="text-slate-400 font-medium">Estructura Jerárquica</span>
-                                <button type="button" id="btn-unificado-limpiar-hz" class="text-slate-500 hover:text-rose-600 font-medium transition cursor-pointer flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5 text-slate-400 hover:text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    <span>Limpiar</span>
-                                </button>
-                            </div>
-
-                            <div id="ms-unificado-options-hz" class="max-h-72 overflow-y-auto space-y-1 pr-1 pt-2"></div>
-                        </div>
-                    </div>
-
-                    <!-- FILTRO GENERAL SEXO -->
-                    <div class="flex flex-col">
-                        <label for="select-sexo-global-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">SEXO</label>
-                        <select id="select-sexo-global-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <option value="macho" selected>Macho</option>
-                            <option value="hembra">Hembra</option>
-                            <option value="ambos">Ambos</option>
-                            <option value="combinado">Combinado</option>
-                        </select>
-                    </div>
-
-                    <!-- CHECK SEPARAR GRAFICOS -->
-                    <div class="flex flex-col">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">SEPARAR SEXOS</label>
-                        <label for="check-separar-graficos-hz" class="h-[38px] flex items-center gap-2 cursor-pointer select-none bg-white border border-slate-300 hover:border-slate-400 rounded-lg px-3 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/20">
-                            <input type="checkbox" id="check-separar-graficos-hz" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 transition cursor-pointer">
-                            <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">Separar</span>
-                        </label>
                     </div>
 
                     <!-- 5. MULTI-SELECT TIPO DE GRÁFICOS -->
@@ -572,15 +647,6 @@
                         </div>
                     </div>
 
-                    <!-- MODO COMBINACIÓN DE GRÁFICOS (TAB 2) -->
-                    <div class="flex flex-col">
-                        <label for="select-modo-combinado-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">MODO COMBINACIÓN</label>
-                        <select id="select-modo-combinado-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <option value="ninguno" selected>Sin combinar (Individual)</option>
-                            <option value="tipo">Combinar Tipos de Gráfico</option>
-                        </select>
-                    </div>
-
                     <!-- 6. CHECK LÍNEAS CURVAS -->
                     <div class="flex flex-col">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CURVATURA</label>
@@ -593,13 +659,13 @@
                     <!-- 7. INPUT FECHA INICIO -->
                     <div class="flex flex-col">
                         <label for="input-fecha-inicio-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA INICIO</label>
-                        <input type="date" id="input-fecha-inicio-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <input type="date" id="input-fecha-inicio-hz" value="2025-01-01" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
 
                     <!-- 8. INPUT FECHA FIN -->
                     <div class="flex flex-col">
                         <label for="input-fecha-fin-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA FIN</label>
-                        <input type="date" id="input-fecha-fin-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <input type="date" id="input-fecha-fin-hz" value="2026-10-05" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                     </div>
 
                     <!-- 9. INPUT SEMANA (NUMÉRICO) -->
@@ -608,7 +674,22 @@
                         <input type="number" id="input-semana-hz" min="1" max="10" value="1" placeholder="Semana #" class="w-24 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
                     </div>
 
-                    <!-- 9.1. MULTI-SELECT DÍAS DE PESAJE (DINÁMICO SEGÚN TIPO) -->
+                    <!-- 9.1. LUMINOMETRÍA (modo / punto) -->
+                    <div id="container-filtro-lum-modo-hz" class="hidden flex-col">
+                        <label for="select-lum-modo-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">AGRUPACIÓN LUM</label>
+                        <select id="select-lum-modo-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="subzona">Por subzona (mes)</option>
+                            <option value="granja">Por granja / campaña / galpón</option>
+                        </select>
+                    </div>
+                    <div id="container-filtro-lum-punto-hz" class="hidden flex-col min-w-[200px]">
+                        <label for="select-lum-punto-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PUNTO DETECCIÓN</label>
+                        <select id="select-lum-punto-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+
+                    <!-- 9.2. MULTI-SELECT DÍAS DE PESAJE (DINÁMICO SEGÚN TIPO) -->
                     <div id="container-filtro-dias-pesaje-hz" class="hidden flex-col relative">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DÍAS DE PESAJE/GANANCIA</label>
                         <button id="ms-dias-pesaje-btn-hz" type="button" class="w-full sm:w-auto min-w-[170px] bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all">
@@ -631,21 +712,7 @@
                         </div>
                     </div>
 
-                    <!-- 10. CONTROL DE TAMAÑO DE TEXTO (A- / A+) -->
-                    <div class="flex flex-col">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TAMAÑO TEXTO</label>
-                        <div class="h-[38px] flex items-center bg-white border border-slate-300 rounded-lg p-0.5 shadow-sm">
-                            <button type="button" id="btn-tamano-texto-dec-hz" class="px-2.5 h-full flex items-center justify-center text-slate-600 hover:text-blue-600 hover:bg-slate-100 active:bg-slate-200 rounded-md transition-all cursor-pointer font-bold text-xs select-none" title="Disminuir tamaño de letra del gráfico">
-                                <span class="font-extrabold text-sm">A−</span>
-                            </button>
-                            <span id="label-tamano-texto-hz" class="px-2 text-[11px] font-bold text-slate-600 select-none min-w-[44px] text-center border-x border-slate-200">100%</span>
-                            <button type="button" id="btn-tamano-texto-inc-hz" class="px-2.5 h-full flex items-center justify-center text-slate-600 hover:text-blue-600 hover:bg-slate-100 active:bg-slate-200 rounded-md transition-all cursor-pointer font-bold text-xs select-none" title="Aumentar tamaño de letra del gráfico">
-                                <span class="font-extrabold text-sm">A+</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 11. BOTONES ACCIÓN (CARGAR, LIMPIAR) -->
+                    <!-- BOTONES ACCIÓN (CARGAR, LIMPIAR) -->
                     <div class="flex items-center gap-2 ml-auto sm:ml-0">
                         <button id="btn-cargar-hz" type="button" class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all cursor-pointer">
                             <svg class="icon-cargar w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -660,6 +727,52 @@
                             <span>Limpiar</span>
                         </button>
                     </div>
+
+                    </div><!-- /filtros-hz-fila-1 -->
+
+                    <!-- Fila 2: sexo, modo combinación, tamaño de texto -->
+                    <div id="filtros-hz-fila-2" class="flex flex-wrap items-end gap-3 sm:gap-4 pt-1 border-t border-slate-100">
+
+                    <div class="flex flex-col">
+                        <label for="select-sexo-global-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">SEXO</label>
+                        <select id="select-sexo-global-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="macho" selected>Macho</option>
+                            <option value="hembra">Hembra</option>
+                            <option value="ambos">Ambos</option>
+                            <option value="combinado">Combinado</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">SEPARAR SEXOS</label>
+                        <label for="check-separar-graficos-hz" class="h-[38px] flex items-center gap-2 cursor-pointer select-none bg-white border border-slate-300 hover:border-slate-400 rounded-lg px-3 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/20">
+                            <input type="checkbox" id="check-separar-graficos-hz" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 transition cursor-pointer">
+                            <span class="text-xs font-semibold text-slate-700 whitespace-nowrap">Separar</span>
+                        </label>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-modo-combinado-hz" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">MODO COMBINACIÓN</label>
+                        <select id="select-modo-combinado-hz" class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="ninguno" selected>Sin combinar (Individual)</option>
+                            <option value="tipo">Combinar Tipos de Gráfico</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TAMAÑO TEXTO</label>
+                        <div class="h-[38px] flex items-center bg-white border border-slate-300 rounded-lg p-0.5 shadow-sm">
+                            <button type="button" id="btn-tamano-texto-dec-hz" class="px-2.5 h-full flex items-center justify-center text-slate-600 hover:text-blue-600 hover:bg-slate-100 active:bg-slate-200 rounded-md transition-all cursor-pointer font-bold text-xs select-none" title="Disminuir tamaño de letra del gráfico">
+                                <span class="font-extrabold text-sm">A−</span>
+                            </button>
+                            <span id="label-tamano-texto-hz" class="px-2 text-[11px] font-bold text-slate-600 select-none min-w-[44px] text-center border-x border-slate-200">100%</span>
+                            <button type="button" id="btn-tamano-texto-inc-hz" class="px-2.5 h-full flex items-center justify-center text-slate-600 hover:text-blue-600 hover:bg-slate-100 active:bg-slate-200 rounded-md transition-all cursor-pointer font-bold text-xs select-none" title="Aumentar tamaño de letra del gráfico">
+                                <span class="font-extrabold text-sm">A+</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    </div><!-- /filtros-hz-fila-2 -->
 
                 </div>
             </div>
@@ -688,77 +801,16 @@
             <!-- Generado dinámicamente para gráficos horizontales -->
         </div>
 
-    <!-- MODAL CONFIGURACIÓN PERIODO GRANJAS -->
-    <div id="modal-periodo-granjas" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden transform transition-all scale-95 opacity-0 modal-card-content">
-            <!-- Header Modal -->
-            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
-                <div class="flex items-center gap-2.5">
-                    <div class="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-2xs">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-800">Filtro de Periodo de Granjas</h3>
-                        <p class="text-[11px] text-slate-400">Define el rango de fechas o periodo para las granjas</p>
-                    </div>
-                </div>
-                <button type="button" id="btn-cerrar-modal-periodo" class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition cursor-pointer">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Body Modal -->
-            <div class="p-5 space-y-4">
-                <!-- Select de Periodo -->
-                <div class="flex flex-col gap-1.5">
-                    <label for="select-periodo" class="text-xs font-bold text-slate-700">Tipo de Periodo</label>
-                    <select id="select-periodo" class="w-full bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-xl px-3.5 py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                        <option value="por_mes">Por mes</option>
-                        <option value="entre_meses">Entre meses</option>
-                        <option value="por_fecha">Por fecha</option>
-                        <option value="entre_fechas" selected>Entre fechas</option>
-                        <option value="ultima_semana">Última Semana</option>
-                        <option value="entre_semanas">Entre semanas</option>
-                    </select>
-                </div>
-
-                <!-- Inputs de Fechas Dinámicos -->
-                <div class="flex flex-col gap-1.5 pt-1">
-                    <label class="text-xs font-bold text-slate-700">Fechas o Rango Seleccionado</label>
-                    <div id="contenedor-fechas-dinamicas" class="w-full">
-                        <!-- Generado dinámicamente por JS -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Footer Modal -->
-            <div class="flex items-center justify-end gap-2 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
-                <button type="button" id="btn-cancelar-modal-periodo" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition cursor-pointer">
-                    Cancelar
-                </button>
-                <button type="button" id="btn-aplicar-modal-periodo" class="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-1.5 cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span>Aplicar Fechas</span>
-                </button>
-            </div>
-        </div>
     </div>
 
-        <!-- Scripts JavaScript del Dashboard Modularizado -->
-        <script src="js/interconsultas-multiselect.js"></script>
-        <script src="js/interconsultas-utils.js"></script>
-        <script src="js/interconsultas-types.js"></script>
-        <script src="js/interconsultas-charts.js"></script>
-        <script src="js/interconsultas-render.js"></script>
-        <script src="js/interconsultas-horizontales-render.js"></script>
-        <script src="app.js"></script>
-
+    <!-- Scripts JavaScript del Dashboard Modularizado -->
+    <script src="js/interconsultas-multiselect.js"></script>
+    <script src="js/interconsultas-utils.js"></script>
+    <script src="js/interconsultas-types.js"></script>
+    <script src="js/interconsultas-charts.js"></script>
+    <script src="js/interconsultas-render.js"></script>
+    <script src="js/interconsultas-horizontales-render.js"></script>
+    <script src="app.js"></script>
 
 </body>
 

@@ -24,7 +24,7 @@ if (!function_exists('sip_grafica_mortalidad_linea')) {
 
         [$granja3, $campania3, $galBind, $galBind2] = sip_grafica_normalize_granja_campania($granja, $campania, $galpon);
         $tk = SIP_GRAFICA_TK_MORTALIDAD;
-        $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
+        $stdMap = sip_grafica_std_map_desde_san_estandares($conn, $granja3, $galBind);
 
         $stockPorDia = [];
         $stockDia1 = null;
@@ -108,7 +108,7 @@ if (!function_exists('sip_grafica_mortalidad_linea')) {
         }
         ksort($byEdad, SORT_NUMERIC);
 
-        $resolveStd = static function (array $r, int $ed) use ($stdMap, $tk): ?float {
+        $resolveStd = static function (array $r, int $ed) use ($stdMap, $tk, $granja3, $galBind): ?float {
             $pk = trim((string) ($r['parametroKey'] ?? ''));
             if ($pk === '') {
                 $pk = 'MORTALIDAD_DIA';
@@ -130,7 +130,7 @@ if (!function_exists('sip_grafica_mortalidad_linea')) {
                 }
             }
             if ($sm === null && !empty($stdMap)) {
-                [, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $ed);
+                [, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $ed, $granja3, $galBind);
                 $sm = $sMax;
                 if ($sm !== null && $sm > 1.0) {
                     $sm /= 100.0;
@@ -187,6 +187,18 @@ if (!function_exists('sip_grafica_mortalidad_linea')) {
             $vhOk = ($vh !== null && !sip_grafica_is_nan($vh) && is_finite($vh));
             $fecha = sip_grafica_fecha_por_dia($fechaInicio, $ed);
 
+            $mhStd = sip_grafica_std_rango_mh_desde_map($stdMap, $tk, $pkUsed, $ed, $granja3, $galBind);
+            $smM = $mhStd['m']['max'] ?? $mhStd['m']['min'];
+            $smH = $mhStd['h']['max'] ?? $mhStd['h']['min'];
+            if ($smM !== null && $smM > 1.0) {
+                $smM /= 100.0;
+            }
+            if ($smH !== null && $smH > 1.0) {
+                $smH /= 100.0;
+            }
+            $smM = $smM ?? $sm;
+            $smH = $smH ?? $sm;
+
             $dataPorDia[] = [
                 'dia' => $ed,
                 'fecha' => $fecha,
@@ -194,13 +206,21 @@ if (!function_exists('sip_grafica_mortalidad_linea')) {
                     'min' => $sm,
                     'max' => $sm,
                 ],
+                'estandarM' => [
+                    'min' => $smM,
+                    'max' => $smM,
+                ],
+                'estandarH' => [
+                    'min' => $smH,
+                    'max' => $smH,
+                ],
                 'macho' => [
                     'valor' => $vmOk ? $vm : null,
-                    'cumple' => $vmOk ? sip_grafica_eval_range($vm, null, $sm, 'solo_max') : null,
+                    'cumple' => $vmOk ? sip_grafica_eval_range($vm, null, $smM, 'solo_max') : null,
                 ],
                 'hembra' => [
                     'valor' => $vhOk ? $vh : null,
-                    'cumple' => $vhOk ? sip_grafica_eval_range($vh, null, $sm, 'solo_max') : null,
+                    'cumple' => $vhOk ? sip_grafica_eval_range($vh, null, $smH, 'solo_max') : null,
                 ],
             ];
         }
@@ -378,16 +398,20 @@ if (!function_exists('sip_grafica_mortalidad_pareto_totales')) {
 if (!function_exists('sip_grafica_mortalidad_pareto')) {
     /**
      * @param array{granja:string,campania:string,galpon?:string} $opts
+     * @param list<array<string,mixed>> $porFechaDado porFecha ya consultado (evita re-ejecutar causas)
      * @return array<string,mixed>
      */
-    function sip_grafica_mortalidad_pareto(mysqli $conn, array $opts): array
+    function sip_grafica_mortalidad_pareto(mysqli $conn, array $opts, array $porFechaDado = []): array
     {
-        $causas = sip_grafica_mortalidad_causas($conn, $opts);
-        if (empty($causas['success'])) {
-            return $causas;
+        if ($porFechaDado === []) {
+            $causas = sip_grafica_mortalidad_causas($conn, $opts);
+            if (empty($causas['success'])) {
+                return $causas;
+            }
+            $porFechaDado = $causas['porFecha'] ?? [];
         }
 
-        $totales = sip_grafica_mortalidad_pareto_totales($causas['porFecha'] ?? []);
+        $totales = sip_grafica_mortalidad_pareto_totales($porFechaDado);
         $grandTotal = 0;
         foreach ($totales as $t) {
             $grandTotal += (int) ($t['total'] ?? 0);

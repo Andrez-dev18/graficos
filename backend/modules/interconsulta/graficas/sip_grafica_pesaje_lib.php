@@ -10,7 +10,7 @@ if (!function_exists('sip_grafica_pesaje_tedades_canonicas')) {
     /** Edades de pesaje para gráficas horizontales (referencia de negocio). */
     function sip_grafica_pesaje_tedades_canonicas(): array
     {
-        return [1, 8, 15, 22, 36, 38, 41, 43];
+        return [1, 8, 15, 22, 29, 36, 38, 41, 43];
     }
 }
 
@@ -101,6 +101,7 @@ if (!function_exists('sip_grafica_pesaje_dia_semana_catalogo')) {
             8 => 1,
             15 => 2,
             22 => 3,
+            29 => 4,
             36 => 5,
             38 => null,
             41 => null,
@@ -182,7 +183,9 @@ if (!function_exists('sip_grafica_pesaje_linea_asegurar_dia_cero')) {
         ?string $fechaInicio,
         array $stdMap,
         string $tareaKey,
-        string $parametroKey
+        string $parametroKey,
+        string $granja3 = '',
+        string $galpon = ''
     ): array {
         if (sip_grafica_pesaje_linea_tiene_dia($dataPorDia, 1)) {
             return $dataPorDia;
@@ -191,7 +194,12 @@ if (!function_exists('sip_grafica_pesaje_linea_asegurar_dia_cero')) {
             return $dataPorDia;
         }
 
-        [$sMin, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tareaKey, $parametroKey, 1);
+        [$sMin, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tareaKey, $parametroKey, 1, $granja3, $galpon);
+        $mh = sip_grafica_std_rango_mh_desde_map($stdMap, $tareaKey, $parametroKey, 1, $granja3, $galpon);
+        $sMinM = $mh['m']['min'] ?? $sMin;
+        $sMaxM = $mh['m']['max'] ?? $sMax;
+        $sMinH = $mh['h']['min'] ?? $sMin;
+        $sMaxH = $mh['h']['max'] ?? $sMax;
 
         array_unshift($dataPorDia, [
             'dia' => 1,
@@ -199,6 +207,14 @@ if (!function_exists('sip_grafica_pesaje_linea_asegurar_dia_cero')) {
             'estandar' => [
                 'min' => $sMin ?? $sMax,
                 'max' => $sMax ?? $sMin,
+            ],
+            'estandarM' => [
+                'min' => $sMinM ?? $sMaxM,
+                'max' => $sMaxM ?? $sMinM,
+            ],
+            'estandarH' => [
+                'min' => $sMinH ?? $sMaxH,
+                'max' => $sMaxH ?? $sMinH,
             ],
             'macho' => [
                 'valor' => null,
@@ -535,7 +551,7 @@ if (!function_exists('sip_grafica_pesaje_linea')) {
         $pkDefault = (string) $cfg['parametroKey'];
         $modoEval = (string) $cfg['modoEvaluacion'];
         $unidad = (string) $cfg['unidadDefault'];
-        $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
+        $stdMap = sip_grafica_std_map_desde_san_estandares($conn, $granja3, $galBind);
 
         $porTedad = sip_grafica_pesaje_muestreo_por_tedad($conn, $granja3, $campania3, $galBind, $galBind2);
         $pesoDia1Movi = sip_grafica_pesaje_peso_dia1_movi_zonas($conn, $granja3, $campania3, $galBind, $galBind2);
@@ -548,15 +564,25 @@ if (!function_exists('sip_grafica_pesaje_linea')) {
 
         $dataPorDia = [];
         foreach ($porTedad as $dia => $row) {
-            [$sMin, $sMax, $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkDefault, $dia);
+            [$sMin, $sMax, $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkDefault, $dia, $granja3, $galBind);
             if ($uMap !== '—' && !preg_match('/^\d/', $uMap)) {
                 $unidad = $uMap;
             }
-            $refStd = $sMin ?? $sMax;
+            $mh = sip_grafica_std_rango_mh_desde_map($stdMap, $tk, $pkDefault, $dia, $granja3, $galBind);
+            $sMinM = $mh['m']['min'] ?? $sMin;
+            $sMaxM = $mh['m']['max'] ?? $sMax;
+            $sMinH = $mh['h']['min'] ?? $sMin;
+            $sMaxH = $mh['h']['max'] ?? $sMax;
+            $refStdM = $sMinM ?? $sMaxM;
+            $refStdH = $sMinH ?? $sMaxH;
             $vm = $row['m'];
             $vh = $row['h'];
+            $cvM = $row['cvM'];
+            $cvH = $row['cvH'];
             $vmOk = ($vm !== null && !sip_grafica_is_nan($vm) && is_finite($vm));
             $vhOk = ($vh !== null && !sip_grafica_is_nan($vh) && is_finite($vh));
+            $cvMOk = ($cvM !== null && is_finite($cvM));
+            $cvHOk = ($cvH !== null && is_finite($cvH));
 
             $dataPorDia[] = [
                 'dia' => $dia,
@@ -565,13 +591,23 @@ if (!function_exists('sip_grafica_pesaje_linea')) {
                     'min' => $sMin ?? $sMax,
                     'max' => $sMax ?? $sMin,
                 ],
+                'estandarM' => [
+                    'min' => $sMinM ?? $sMaxM,
+                    'max' => $sMaxM ?? $sMinM,
+                ],
+                'estandarH' => [
+                    'min' => $sMinH ?? $sMaxH,
+                    'max' => $sMaxH ?? $sMinH,
+                ],
                 'macho' => [
                     'valor' => $vmOk ? $vm : null,
-                    'cumple' => $vmOk ? sip_grafica_eval_range($vm, $refStd, null, 'solo_min') : null,
+                    'cv' => $cvMOk ? $cvM : null,
+                    'cumple' => $vmOk ? sip_grafica_eval_range($vm, $refStdM, null, 'solo_min') : null,
                 ],
                 'hembra' => [
                     'valor' => $vhOk ? $vh : null,
-                    'cumple' => $vhOk ? sip_grafica_eval_range($vh, $refStd, null, 'solo_min') : null,
+                    'cv' => $cvHOk ? $cvH : null,
+                    'cumple' => $vhOk ? sip_grafica_eval_range($vh, $refStdH, null, 'solo_min') : null,
                 ],
             ];
         }
@@ -581,7 +617,9 @@ if (!function_exists('sip_grafica_pesaje_linea')) {
             $fechaInicio,
             $stdMap,
             $tk,
-            $pkDefault
+            $pkDefault,
+            $granja3,
+            $galBind
         );
 
         return [

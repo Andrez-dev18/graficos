@@ -590,7 +590,10 @@ if (!function_exists('sip_grafica_acum_std_valor_resuelto')) {
         array $cfg,
         array $stdMap,
         int $edadLookup,
-        string $parametroKey
+        string $parametroKey,
+        string $granja3 = '',
+        string $galpon = '',
+        string $sexo = ''
     ): ?float {
         $transform = (string) ($cfg['transform'] ?? '');
         $modoEval = (string) ($cfg['modoEvaluacion'] ?? 'solo_max');
@@ -621,7 +624,7 @@ if (!function_exists('sip_grafica_acum_std_valor_resuelto')) {
                 }
             }
             if ($sm === null && $stdMap !== []) {
-                [, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $edadLookup);
+                [, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $edadLookup, $granja3, $galpon, $sexo);
                 $sm = $sMax;
                 if ($sm !== null && $sm > 1.0) {
                     $sm /= 100.0;
@@ -634,7 +637,7 @@ if (!function_exists('sip_grafica_acum_std_valor_resuelto')) {
         if ($transform === 'alimento' || $transform === 'gas_agua') {
             [$sMin, $sMax] = sip_grafica_consumo_std_desde_row($r, $modoEval);
             if ($sMin === null && $sMax === null && $stdMap !== []) {
-                [$sMin, $sMax] = sip_grafica_consumo_std_desde_map($stdMap, $tk, $pk, $edadLookup);
+                [$sMin, $sMax] = sip_grafica_consumo_std_desde_map($stdMap, $tk, $pk, $edadLookup, $granja3, $galpon, $sexo);
             }
 
             return sip_grafica_acum_std_ref_desde_rango($sMin, $sMax, $modoEval);
@@ -643,7 +646,7 @@ if (!function_exists('sip_grafica_acum_std_valor_resuelto')) {
         if ($transform === 'cloro' || $transform === 'peso') {
             [$sMin, $sMax] = sip_grafica_peso_std_desde_row($r, $modoEval);
             if ($sMin === null && $sMax === null && $stdMap !== []) {
-                [$sMin, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $edadLookup);
+                [$sMin, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $edadLookup, $granja3, $galpon, $sexo);
             }
 
             return sip_grafica_acum_std_ref_desde_rango($sMin, $sMax, $modoEval);
@@ -655,7 +658,7 @@ if (!function_exists('sip_grafica_acum_std_valor_resuelto')) {
 
 if (!function_exists('sip_grafica_acum_std_dias_por_combo')) {
     /**
-     * Estándar por edad (M/H comparten el mismo valor de referencia).
+     * Estándar por edad con valor propio de macho y hembra.
      *
      * @param array<int, array<string,mixed>> $edades
      * @return array<int, array{m:?float,h:?float}>
@@ -664,10 +667,30 @@ if (!function_exists('sip_grafica_acum_std_dias_por_combo')) {
         array $edades,
         array $cfg,
         array $stdMap,
-        bool $esSemanal
+        bool $esSemanal,
+        string $granja3 = '',
+        string $galpon = ''
     ): array {
         $transform = (string) ($cfg['transform'] ?? '');
         $pkDefault = trim((string) ($cfg['parametroKey'] ?? ''));
+
+        $resolverSexo = static function (array $r, array $cfg, array $stdMap, int $edLookup, string $pk, string $granja3, string $galpon, string $sexo): ?float {
+            $v = sip_grafica_acum_std_valor_resuelto($r, $cfg, $stdMap, $edLookup, $pk, $granja3, $galpon, $sexo);
+            if ($v === null && $pk !== '') {
+                $v = sip_grafica_acum_std_valor_resuelto(
+                    ['parametroKey' => $pk, 'estandarJson' => ''],
+                    $cfg,
+                    $stdMap,
+                    $edLookup,
+                    $pk,
+                    $granja3,
+                    $galpon,
+                    $sexo
+                );
+            }
+
+            return $v;
+        };
 
         $dias = [];
         foreach ($edades as $ed => $r) {
@@ -678,18 +701,10 @@ if (!function_exists('sip_grafica_acum_std_dias_por_combo')) {
             $edLookup = ($esSemanal && $transform === 'peso')
                 ? sip_grafica_semana_a_edad_std($pk, $ed)
                 : $ed;
-            $std = sip_grafica_acum_std_valor_resuelto($r, $cfg, $stdMap, $edLookup, $pk);
-            if ($std === null && $pk !== '') {
-                $std = sip_grafica_acum_std_valor_resuelto(
-                    ['parametroKey' => $pk, 'estandarJson' => ''],
-                    $cfg,
-                    $stdMap,
-                    $edLookup,
-                    $pk
-                );
-            }
-            if ($std !== null) {
-                $dias[$ed] = ['m' => $std, 'h' => $std];
+            $stdM = $resolverSexo($r, $cfg, $stdMap, $edLookup, $pk, $granja3, $galpon, 'M');
+            $stdH = $resolverSexo($r, $cfg, $stdMap, $edLookup, $pk, $granja3, $galpon, 'H');
+            if ($stdM !== null || $stdH !== null) {
+                $dias[$ed] = ['m' => $stdM ?? $stdH, 'h' => $stdH ?? $stdM];
             }
         }
 
@@ -993,16 +1008,28 @@ if (!function_exists('sip_grafica_acum_muestreo_agg_por_combo')) {
 }
 
 if (!function_exists('sip_grafica_acum_pesaje_std')) {
-    /** Estándar de peso para una edad de muestreo (no acumulado). */
-    function sip_grafica_acum_pesaje_std(int $edad, array $cfg, array $stdMap): array
-    {
+    /** Estándar de peso para una edad de muestreo (no acumulado), con valor propio por sexo. */
+    function sip_grafica_acum_pesaje_std(
+        int $edad,
+        array $cfg,
+        array $stdMap,
+        string $granja3 = '',
+        string $galpon = ''
+    ): array {
         $tk = (string) ($cfg['tareaKey'] ?? '');
         $pk = (string) ($cfg['parametroKey'] ?? '');
         $modoEval = (string) ($cfg['modoEvaluacion'] ?? 'solo_min');
-        [$sMin, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $edad);
-        $std = sip_grafica_acum_std_ref_desde_rango($sMin, $sMax, $modoEval);
+        $mh = sip_grafica_std_rango_mh_desde_map($stdMap, $tk, $pk, $edad, $granja3, $galpon);
+        $stdM = sip_grafica_acum_std_ref_desde_rango($mh['m']['min'], $mh['m']['max'], $modoEval);
+        $stdH = sip_grafica_acum_std_ref_desde_rango($mh['h']['min'], $mh['h']['max'], $modoEval);
+        if ($stdM === null && $stdH === null) {
+            [$sMin, $sMax] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pk, $edad, $granja3, $galpon);
+            $std = sip_grafica_acum_std_ref_desde_rango($sMin, $sMax, $modoEval);
 
-        return ['m' => $std, 'h' => $std];
+            return ['m' => $std, 'h' => $std];
+        }
+
+        return ['m' => $stdM ?? $stdH, 'h' => $stdH ?? $stdM];
     }
 }
 
@@ -1177,13 +1204,13 @@ if (!function_exists('sip_grafica_acum_pesaje_build')) {
             $aggPorCombo = sip_grafica_acum_muestreo_agg_por_combo($conn, $tedad, $fechaInicio, $fechaFin);
         }
         $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
-        $std = sip_grafica_acum_pesaje_std($tedadPesaje, $cfg, $stdMap);
         $semCat = sip_grafica_pesaje_dia_semana_catalogo($dia);
 
         $registros = [];
         foreach ($combos as $combo) {
             $key = $combo['key'];
             $row = $aggPorCombo[$key] ?? ['m' => null, 'h' => null];
+            $std = sip_grafica_acum_pesaje_std($tedadPesaje, $cfg, $stdMap, $combo['granja'], (string) $combo['galpon']);
             $fechaCarga = $combo['fechaCarga'] !== '' ? $combo['fechaCarga'] : null;
             $fechaPesaje = sip_grafica_acum_fecha_por_edad($combo['fechaInicio'], $tedadPesaje);
             $registros[] = [
@@ -1227,6 +1254,45 @@ if (!function_exists('sip_grafica_acumulado_semanal_build')) {
     {
         $tipo = strtolower(trim((string) ($opts['tipo'] ?? 'mortalidad')));
         $semana = (int) ($opts['semana'] ?? 0);
+
+        if ($tipo === 'luminometria') {
+            require_once __DIR__ . '/sip_grafica_luminometria_lib.php';
+
+            return sip_grafica_lum_build($conn, $opts);
+        }
+
+        if (function_exists('sip_grafica_es_plagas') && sip_grafica_es_plagas($tipo)) {
+            return sip_grafica_plagas_acum_semanal($conn, $tipo, $opts);
+        }
+
+        if (function_exists('sip_grafica_es_medicacion') && sip_grafica_es_medicacion($tipo)) {
+            require_once __DIR__ . '/sip_grafica_medicacion.php';
+
+            return sip_grafica_medicacion_acum_semanal($conn, $opts);
+        }
+
+        if (in_array($tipo, ['pesaje_pollo', 'ganancia_peso', 'cv_peso', 'cv_ganancia'], true)) {
+            require_once __DIR__ . '/sip_grafica_acumulado_semanal_fact_lib.php';
+
+            return sip_grafica_acum_fact_pesaje_ganancia_build($conn, $opts);
+        }
+
+        $diasMulti = (array) ($opts['dias'] ?? []);
+        $diasMulti = array_values(array_filter($diasMulti, static function ($d): bool {
+            return is_numeric($d) && (int) $d > 0;
+        }));
+        if ($diasMulti !== []) {
+            if (in_array($tipo, ['pesaje_pollo', 'cv_peso', 'cv_ganancia'], true)) {
+                return sip_grafica_acum_peso_cv_multidia_build($conn, $opts);
+            }
+            if ($tipo === 'ganancia_peso') {
+                require_once __DIR__ . '/sip_grafica_ganancia_lib.php';
+
+                return sip_grafica_acum_ganancia_multidia_build($conn, $opts);
+            }
+
+            return ['success' => false, 'message' => 'Tipo no soportado con varios dias: ' . $tipo];
+        }
 
         if ($tipo === 'pesaje_pollo') {
             return sip_grafica_acum_pesaje_build($conn, $opts);
@@ -1300,7 +1366,14 @@ if (!function_exists('sip_grafica_acumulado_semanal_build')) {
 
             $dias = sip_grafica_acum_dias_por_combo($edades, $transform, $stock, $esSemanal);
             $acum = sip_grafica_acum_por_semana($dias, $semana, $esSemanal);
-            $stdDias = sip_grafica_acum_std_dias_por_combo($edades, $cfg, $stdMap, $esSemanal);
+            $stdDias = sip_grafica_acum_std_dias_por_combo(
+                $edades,
+                $cfg,
+                $stdMap,
+                $esSemanal,
+                $combo['granja'],
+                (string) $combo['galpon']
+            );
             $acumStd = sip_grafica_acum_por_semana($stdDias, $semana, $esSemanal);
 
             $fechaCarga = $combo['fechaCarga'] !== '' ? $combo['fechaCarga'] : null;
@@ -1324,5 +1397,374 @@ if (!function_exists('sip_grafica_acumulado_semanal_build')) {
         $base['registros'] = $registros;
 
         return $base;
+    }
+}
+
+if (!function_exists('sip_grafica_acum_combo_rows_sort')) {
+    /**
+     * Normaliza filas crudas de combos y las ordena por fecha de carga.
+     *
+     * @param list<array<string,mixed>> $rsRows
+     * @param array<string, string> $fechaCargaMap
+     * @return list<array{key:string,granja:string,campania:string,galpon:string,fechaInicio:string,fechaCarga:string}>
+     */
+    function sip_grafica_acum_combo_rows_sort(array $rsRows, array $fechaCargaMap): array
+    {
+        $byKey = [];
+        $rows = [];
+        foreach ($rsRows as $r) {
+            $g = trim((string) ($r['granja3'] ?? ''));
+            $c = trim((string) ($r['campania'] ?? ''));
+            $gp = sip_grafica_acum_galpon_norm($r['galpon'] ?? '');
+            $fi = trim((string) ($r['fechaInicio'] ?? ''));
+            if ($g === '' || $c === '' || $gp === '' || $fi === '' || $fi === '0000-00-00') {
+                continue;
+            }
+            $key = sip_grafica_acum_combo_key($g, $c, $gp);
+            if (isset($byKey[$key])) {
+                continue;
+            }
+            $byKey[$key] = true;
+            $fProj = $fechaCargaMap[$key] ?? '';
+            $rows[] = [
+                'key' => $key,
+                'granja' => $g,
+                'campania' => $c,
+                'galpon' => $gp,
+                'fechaInicio' => $fi,
+                'fechaCarga' => $fProj !== '' ? $fProj : $fi,
+            ];
+        }
+
+        usort($rows, static function (array $a, array $b): int {
+            $cmp = strcmp($a['fechaCarga'], $b['fechaCarga']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            $cmp = strcmp($a['granja'], $b['granja']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            $cmp = strcmp($a['campania'], $b['campania']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            $na = is_numeric($a['galpon']) ? (float) $a['galpon'] : null;
+            $nb = is_numeric($b['galpon']) ? (float) $b['galpon'] : null;
+            if ($na !== null && $nb !== null) {
+                return $na <=> $nb;
+            }
+
+            return strnatcasecmp($a['galpon'], $b['galpon']);
+        });
+
+        return $rows;
+    }
+}
+
+if (!function_exists('sip_grafica_acum_pesaje_combos_multiedad_periodo')) {
+    /**
+     * Combos con pesaje registrado en muestreoaves para un conjunto de edades (una sola pasada).
+     *
+     * @param list<int> $tedads
+     * @return list<array{key:string,granja:string,campania:string,galpon:string,fechaInicio:string,fechaCarga:string}>
+     */
+    function sip_grafica_acum_pesaje_combos_multiedad_periodo(
+        mysqli $conn,
+        string $desde,
+        string $hasta,
+        array $tedads
+    ): array {
+        $tedads = array_values(array_unique(array_filter(array_map('intval', $tedads), static function (int $e): bool {
+            return $e >= 2;
+        })));
+        if ($tedads === [] || !sip_grafica_acum_muestreo_tablas_disponibles($conn)) {
+            return [];
+        }
+
+        $in = implode(',', array_fill(0, count($tedads), '?'));
+        $fechaPesaje = sip_grafica_acum_muestreo_fecha_pesaje_sql('a', 'c', 'mz');
+        $overlap = sip_grafica_acum_lote_sql_overlap('c', 'mz');
+        $fechaInicio = sip_grafica_acum_lote_fecha_inicio_sql('c', 'mz');
+
+        $sql = "SELECT
+                    LPAD(LEFT(TRIM(a.`tcencos`),3),3,'0') AS granja3,
+                    TRIM(RIGHT(TRIM(a.`tcencos`),3)) AS campania,
+                    TRIM(a.`tcodint`) AS galpon,
+                    MIN({$fechaInicio}) AS fechaInicio
+                FROM `muestreoaves` a
+                " . sip_grafica_acum_muestreo_lote_join('a', 'c', 'mz') . "
+                WHERE CAST(a.`tedad` AS SIGNED) IN ({$in})
+                  AND LPAD(LEFT(TRIM(a.`tcencos`),3),3,'0') NOT IN ('624','640','641')
+                  AND " . sip_grafica_acum_lote_tiene_fecha_sql('c', 'mz') . "
+                  AND {$overlap}
+                  AND {$fechaPesaje} BETWEEN ? AND ?
+                  AND a.`tpeso` IS NOT NULL
+                  AND a.`tcantid` IS NOT NULL
+                  AND a.`tcantid` > 0
+                GROUP BY LPAD(LEFT(TRIM(a.`tcencos`),3),3,'0'), TRIM(RIGHT(TRIM(a.`tcencos`),3)), TRIM(a.`tcodint`)";
+
+        $st = $conn->prepare($sql);
+        if (!$st) {
+            return [];
+        }
+        $types = str_repeat('i', count($tedads)) . 'ssss';
+        $params = array_merge($tedads, [$hasta, $desde, $desde, $hasta]);
+        $st->bind_param($types, ...$params);
+        $st->execute();
+        $rs = $st->get_result();
+
+        $rsRows = [];
+        while ($rs && ($r = $rs->fetch_assoc()) !== null) {
+            $rsRows[] = $r;
+        }
+        $st->close();
+
+        $fechaCargaMap = sip_grafica_acum_fecha_carga_map($conn);
+
+        return sip_grafica_acum_combo_rows_sort($rsRows, $fechaCargaMap);
+    }
+}
+
+if (!function_exists('sip_grafica_acum_muestreo_agg_multiedad_por_combo')) {
+    /**
+     * Peso promedio M/H y CV% por combo y edad desde muestreoaves (varias edades en una pasada).
+     *
+     * @param list<int> $tedads
+     * @return array<string, array<int, array{m:?float,h:?float,cvM:?float,cvH:?float}>>
+     */
+    function sip_grafica_acum_muestreo_agg_multiedad_por_combo(
+        mysqli $conn,
+        string $desde,
+        string $hasta,
+        array $tedads
+    ): array {
+        $tedads = array_values(array_unique(array_filter(array_map('intval', $tedads), static function (int $e): bool {
+            return $e >= 2;
+        })));
+        if ($tedads === [] || !sip_grafica_acum_muestreo_tablas_disponibles($conn)) {
+            return [];
+        }
+
+        $in = implode(',', array_fill(0, count($tedads), '?'));
+        $fechaPesaje = sip_grafica_acum_muestreo_fecha_pesaje_sql('a', 'c', 'mz');
+        $overlap = sip_grafica_acum_lote_sql_overlap('c', 'mz');
+
+        $sql = "SELECT
+                    LPAD(LEFT(TRIM(a.`tcencos`),3),3,'0') AS granja3,
+                    TRIM(RIGHT(TRIM(a.`tcencos`),3)) AS campania,
+                    TRIM(a.`tcodint`) AS galpon,
+                    CAST(a.`tedad` AS SIGNED) AS tedad,
+                    TRIM(a.`tsexo`) AS tsexo,
+                    a.`tpeso`,
+                    a.`tcantid`
+                FROM `muestreoaves` a
+                " . sip_grafica_acum_muestreo_lote_join('a', 'c', 'mz') . "
+                WHERE CAST(a.`tedad` AS SIGNED) IN ({$in})
+                  AND LPAD(LEFT(TRIM(a.`tcencos`),3),3,'0') NOT IN ('624','640','641')
+                  AND " . sip_grafica_acum_lote_tiene_fecha_sql('c', 'mz') . "
+                  AND {$overlap}
+                  AND {$fechaPesaje} BETWEEN ? AND ?
+                  AND a.`tpeso` IS NOT NULL
+                  AND a.`tcantid` IS NOT NULL
+                  AND a.`tcantid` > 0";
+
+        $st = $conn->prepare($sql);
+        if (!$st) {
+            return [];
+        }
+        $types = str_repeat('i', count($tedads)) . 'ssss';
+        $params = array_merge($tedads, [$hasta, $desde, $desde, $hasta]);
+        $st->bind_param($types, ...$params);
+        $st->execute();
+        $rs = $st->get_result();
+
+        /** @var array<string, array<int, array{M:list<array{0:float,1:float}>,H:list<array{0:float,1:float}>}>> $by */
+        $by = [];
+        while ($rs && ($r = $rs->fetch_assoc())) {
+            $g = trim((string) ($r['granja3'] ?? ''));
+            $c = trim((string) ($r['campania'] ?? ''));
+            $gp = sip_grafica_acum_galpon_norm($r['galpon'] ?? '');
+            $tedad = (int) ($r['tedad'] ?? 0);
+            if ($g === '' || $c === '' || $gp === '' || $tedad <= 1) {
+                continue;
+            }
+            $sexo = strtoupper(trim((string) ($r['tsexo'] ?? '')));
+            if ($sexo !== 'M' && $sexo !== 'H') {
+                continue;
+            }
+            $peso = (float) ($r['tpeso'] ?? 0);
+            $cant = (float) ($r['tcantid'] ?? 0);
+            if ($cant <= 0 || !is_finite($peso)) {
+                continue;
+            }
+            $key = sip_grafica_acum_combo_key($g, $c, $gp);
+            if (!isset($by[$key])) {
+                $by[$key] = [];
+            }
+            if (!isset($by[$key][$tedad])) {
+                $by[$key][$tedad] = ['M' => [], 'H' => []];
+            }
+            $by[$key][$tedad][$sexo][] = [$peso, $cant];
+        }
+        $st->close();
+
+        $out = [];
+        foreach ($by as $key => $edades) {
+            foreach ($edades as $tedad => $sexos) {
+                $out[$key][$tedad] = [
+                    'm' => sip_grafica_acum_peso_promedio_from_pairs($sexos['M']),
+                    'h' => sip_grafica_acum_peso_promedio_from_pairs($sexos['H']),
+                    'cvM' => sip_grafica_acum_cv_from_pairs($sexos['M']),
+                    'cvH' => sip_grafica_acum_cv_from_pairs($sexos['H']),
+                ];
+            }
+        }
+
+        return $out;
+    }
+}
+
+if (!function_exists('sip_grafica_acum_peso_cv_multidia_build')) {
+    /**
+     * Pesaje/CV horizontal para varios días con una sola pasada de muestreoaves.
+     * La respuesta trae items[] con el mismo formato por día de los builds individuales.
+     *
+     * @param array<string,mixed> $opts tipo, fechaInicio, fechaFin, dias
+     * @return array<string,mixed>
+     */
+    function sip_grafica_acum_peso_cv_multidia_build(mysqli $conn, array $opts): array
+    {
+        $tipo = strtolower(trim((string) ($opts['tipo'] ?? '')));
+        if (!in_array($tipo, ['pesaje_pollo', 'cv_peso', 'cv_ganancia'], true)) {
+            return ['success' => false, 'message' => 'Tipo no soportado en multi-dia: ' . $tipo];
+        }
+
+        $fechaInicio = trim((string) ($opts['fechaInicio'] ?? ''));
+        $fechaFin = trim((string) ($opts['fechaFin'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaInicio) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaFin)) {
+            return ['success' => false, 'message' => 'Faltan o son invalidos fechaInicio/fechaFin (YYYY-MM-DD)'];
+        }
+        if ($fechaInicio > $fechaFin) {
+            [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+        }
+
+        if (!sip_grafica_acum_muestreo_tablas_disponibles($conn)) {
+            return ['success' => false, 'message' => 'Tablas de pesaje no disponibles'];
+        }
+
+        $dias = [];
+        foreach ((array) ($opts['dias'] ?? []) as $d) {
+            $di = (int) $d;
+            if ($di > 0 && sip_grafica_pesaje_dia_valido_tipo($tipo, $di)) {
+                $dias[$di] = $di;
+            }
+        }
+        $dias = array_values($dias);
+        if ($dias === []) {
+            return [
+                'success' => false,
+                'message' => 'Parametro dias invalido. Valores permitidos: '
+                    . implode(', ', sip_grafica_pesaje_dias_permitidos_tipo($tipo)),
+            ];
+        }
+        sort($dias, SORT_NUMERIC);
+
+        $esPesaje = $tipo === 'pesaje_pollo';
+        $cfg = $esPesaje ? sip_grafica_acum_cfg_tipo('pesaje_pollo') : sip_grafica_cv_cfg($tipo);
+        if ($cfg === null) {
+            return ['success' => false, 'message' => 'Tipo no soportado: ' . $tipo];
+        }
+
+        $diasMuestreo = array_values(array_filter($dias, static function (int $d): bool {
+            return $d > 1;
+        }));
+
+        $combos = [];
+        $agg = [];
+        if ($diasMuestreo !== []) {
+            $combos = sip_grafica_acum_pesaje_combos_multiedad_periodo($conn, $fechaInicio, $fechaFin, $diasMuestreo);
+            $agg = sip_grafica_acum_muestreo_agg_multiedad_por_combo($conn, $fechaInicio, $fechaFin, $diasMuestreo);
+        }
+
+        $moviDia1 = ['combos' => [], 'agg' => []];
+        if ($esPesaje && in_array(1, $dias, true)) {
+            $moviDia1 = sip_grafica_acum_pesaje_dia1_movi($conn, $fechaInicio, $fechaFin);
+        }
+
+        $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
+        $cfgPeso = sip_grafica_acum_cfg_tipo('pesaje_pollo');
+
+        $items = [];
+        foreach ($dias as $dia) {
+            $semCat = sip_grafica_pesaje_dia_semana_catalogo($dia);
+            $combosDia = [];
+            if ($dia === 1) {
+                $combosDia = $moviDia1['combos'];
+            } else {
+                foreach ($combos as $combo) {
+                    if (isset($agg[$combo['key']][$dia])) {
+                        $combosDia[] = $combo;
+                    }
+                }
+            }
+
+            $registros = [];
+            foreach ($combosDia as $combo) {
+                $std = ['m' => null, 'h' => null];
+                if ($esPesaje && $cfgPeso !== null) {
+                    $std = sip_grafica_acum_pesaje_std($dia, $cfgPeso, $stdMap, $combo['granja'], (string) $combo['galpon']);
+                }
+                $key = $combo['key'];
+                if ($dia === 1) {
+                    $row = $moviDia1['agg'][$key] ?? ['m' => null, 'h' => null];
+                    $valM = $row['m'] ?? null;
+                    $valH = $row['h'] ?? null;
+                } else {
+                    $row = $agg[$key][$dia] ?? null;
+                    if ($row === null) {
+                        continue;
+                    }
+                    $valM = $esPesaje ? $row['m'] : $row['cvM'];
+                    $valH = $esPesaje ? $row['h'] : $row['cvH'];
+                }
+                $fechaCarga = $combo['fechaCarga'] !== '' ? $combo['fechaCarga'] : null;
+                $fechaPesaje = sip_grafica_acum_fecha_por_edad($combo['fechaInicio'], $dia);
+                $registros[] = [
+                    'granja' => $combo['granja'],
+                    'granjaNombre' => sip_grafica_acum_nombre_granja($combo['granja']),
+                    'campania' => $combo['campania'],
+                    'galpon' => $combo['galpon'],
+                    'fechaCarga' => $fechaCarga,
+                    'fechaSemana' => $fechaPesaje,
+                    'valorM' => $valM,
+                    'valorH' => $valH,
+                    'estandarM' => $esPesaje ? $std['m'] : null,
+                    'estandarH' => $esPesaje ? $std['h'] : null,
+                    'dia' => $dia,
+                    'semana' => $semCat,
+                ];
+            }
+
+            $items[] = [
+                'success' => true,
+                'tipo' => $tipo,
+                'nombre' => (string) ($cfg['label'] ?? $tipo),
+                'dia' => $dia,
+                'semana' => $semCat,
+                'periodo' => ['desde' => $fechaInicio, 'hasta' => $fechaFin],
+                'unidad' => (string) ($cfg['unidad'] ?? ''),
+                'totalRegistros' => count($registros),
+                'registros' => $registros,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'tipo' => $tipo,
+            'nombre' => (string) ($cfg['label'] ?? $tipo),
+            'periodo' => ['desde' => $fechaInicio, 'hasta' => $fechaFin],
+            'items' => $items,
+        ];
     }
 }

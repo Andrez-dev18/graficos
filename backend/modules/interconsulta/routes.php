@@ -19,3 +19,18 @@ $this->post('/interconsulta/grafica-data', 'InterconsultaController@getGraficaDa
 // 3. Gráficos Horizontales / Semanales (Tab 2)
 $this->get('/interconsulta/acumulado-semanal', 'InterconsultaController@getAcumuladoSemanal');
 $this->post('/interconsulta/acumulado-semanal', 'InterconsultaController@getAcumuladoSemanal');
+
+// 4. Servicios adicionales (Luminometría puntos, Proyección, PCT)
+$this->get('/interconsulta/luminometria-puntos', 'InterconsultaController@getLuminometriaPuntos');
+$this->post('/interconsulta/luminometria-puntos', 'InterconsultaController@getLuminometriaPuntos');
+
+$this->get('/interconsulta/proyeccion', 'InterconsultaController@getProyeccion');
+$this->post('/interconsulta/proyeccion', 'InterconsultaController@getProyeccion');
+
+$this->get('/interconsulta/pct', 'InterconsultaController@getPct');
+$this->post('/interconsulta/pct', 'InterconsultaController@getPct');
+
+// 5. Exportar Reporte PDF
+$this->post('/interconsulta/exportar-pdf', 'InterconsultaController@exportarPdf');
+$this->get('/interconsulta/exportar-pdf', 'InterconsultaController@exportarPdf');
+

@@ -71,6 +71,25 @@ if (!function_exists('sip_grafica_eval_range')) {
     }
 }
 
+if (!function_exists('sip_grafica_sexo_param_norm')) {
+    /** Normaliza el parámetro `sexo` a 'ambos'|'macho'|'hembra'; null si es inválido. */
+    function sip_grafica_sexo_param_norm(string $raw): ?string
+    {
+        $s = strtolower(trim($raw));
+        if ($s === '' || $s === 'ambos' || $s === 'ambas' || $s === 'todo' || $s === 'all') {
+            return 'ambos';
+        }
+        if ($s === 'm' || $s === 'macho' || $s === 'machos') {
+            return 'macho';
+        }
+        if ($s === 'h' || $s === 'hembra' || $s === 'hembras') {
+            return 'hembra';
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('sip_grafica_is_finite_num')) {
     function sip_grafica_is_finite_num($v): bool
     {

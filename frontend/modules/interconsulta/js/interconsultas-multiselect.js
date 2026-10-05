@@ -163,25 +163,31 @@ class CustomMultiSelect {
         this.render();
     }
 
-    setOptions(newOptions, defaultSelectFirst = false) {
-        const previousSelected = this.getSelectedValues();
-        const hasMatchingSelection = newOptions.some(item => {
-            const id = typeof item === 'object' ? String(item.id) : String(item);
-            return previousSelected.includes(id);
+    selectOnlyIds(ids, triggerChange = true) {
+        const set = new Set((ids || []).map(String));
+        this.options.forEach(o => {
+            o.selected = set.has(String(o.id));
         });
+        this.updateLabel();
+        this.render();
+        if (triggerChange && typeof this.onChange === 'function') {
+            this.onChange();
+        }
+    }
+
+    setOptions(newOptions, defaultSelectFirst = true) {
+        const previousSelected = this.getSelectedValues();
 
         this.options = newOptions.map((item, idx) => {
             const id = typeof item === 'object' ? String(item.id) : String(item);
             const label = typeof item === 'object' ? String(item.label || item.id) : String(item);
 
             let isSelected = false;
-            if (hasMatchingSelection) {
+            if (previousSelected.length > 0) {
                 isSelected = previousSelected.includes(id);
             } else if (typeof item === 'object' && item.selected !== undefined) {
                 isSelected = Boolean(item.selected);
-            } else if (defaultSelectFirst) {
-                isSelected = (idx === 0);
-            } else {
+            } else if (defaultSelectFirst && idx === 0) {
                 isSelected = true;
             }
 
@@ -215,26 +221,28 @@ class CustomHierarchicalMultiSelect {
         this.selectedGalpones = new Set();
         this.initialized = false;
 
-        if (this.btn && this.dropdown && this.container) {
+        if (this.dropdown && this.container) {
             this.init();
         }
     }
 
     init() {
-        this.btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            document.querySelectorAll('.custom-multiselect-dropdown').forEach(d => {
-                if (d !== this.dropdown) d.classList.add('hidden');
-            });
+        if (this.btn) {
+            this.btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-multiselect-dropdown').forEach(d => {
+                    if (d !== this.dropdown) d.classList.add('hidden');
+                });
 
-            const isHidden = this.dropdown.classList.contains('hidden');
-            if (isHidden) {
-                this.dropdown.classList.remove('hidden');
-                if (this.search) this.search.focus();
-            } else {
-                this.dropdown.classList.add('hidden');
-            }
-        });
+                const isHidden = this.dropdown.classList.contains('hidden');
+                if (isHidden) {
+                    this.dropdown.classList.remove('hidden');
+                    if (this.search) this.search.focus();
+                } else {
+                    this.dropdown.classList.add('hidden');
+                }
+            });
+        }
 
         this.dropdown.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -298,6 +306,71 @@ class CustomHierarchicalMultiSelect {
         this.selectedGranjas.clear();
         this.selectedCampanias.clear();
         this.selectedGalpones.clear();
+
+        this.updateLabel();
+        this.render();
+        if (triggerChange && typeof this.onChange === 'function') {
+            this.onChange();
+        }
+    }
+
+    _cmpCampania(a, b) {
+        const na = parseFloat(String(a).replace(/[^\d.-]/g, ''));
+        const nb = parseFloat(String(b).replace(/[^\d.-]/g, ''));
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a).localeCompare(String(b));
+    }
+
+    selectMuestraInicial(triggerChange = true) {
+        this.selectedGranjas.clear();
+        this.selectedCampanias.clear();
+        this.selectedGalpones.clear();
+
+        const primera = this.granjasData[0];
+        if (!primera) {
+            this.updateLabel();
+            this.render();
+            if (triggerChange && typeof this.onChange === 'function') {
+                this.onChange();
+            }
+            return;
+        }
+
+        const gId = String(primera.granja || primera.codigo || primera.nombre);
+        const campanias = Array.isArray(primera.campanias) ? primera.campanias.slice() : [];
+        const galpones = Array.isArray(primera.galpones) ? primera.galpones.slice() : [];
+
+        if (campanias.length > 0 && galpones.length > 0) {
+            campanias.sort((a, b) => this._cmpCampania(a, b));
+            this.selectedGranjas.add(gId);
+            this.selectedCampanias.add(`${gId}__${campanias[0]}`);
+            this.selectedGalpones.add(`${gId}__${galpones[0]}`);
+        }
+
+        this.updateLabel();
+        this.render();
+        if (triggerChange && typeof this.onChange === 'function') {
+            this.onChange();
+        }
+    }
+
+    selectUltimaCampania(triggerChange = true) {
+        this.selectedGranjas.clear();
+        this.selectedCampanias.clear();
+        this.selectedGalpones.clear();
+
+        this.granjasData.forEach(g => {
+            const gId = String(g.granja || g.codigo || g.nombre);
+            const campanias = Array.isArray(g.campanias) ? g.campanias.slice() : [];
+            if (campanias.length === 0) return;
+            campanias.sort((a, b) => this._cmpCampania(a, b));
+            const ultima = campanias[campanias.length - 1];
+            this.selectedGranjas.add(gId);
+            this.selectedCampanias.add(`${gId}__${ultima}`);
+            if (Array.isArray(g.galpones)) {
+                g.galpones.forEach(gp => this.selectedGalpones.add(`${gId}__${gp}`));
+            }
+        });
 
         this.updateLabel();
         this.render();
@@ -442,6 +515,15 @@ class CustomHierarchicalMultiSelect {
                             <div>
                                 <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1 block">Galpones</span>
                                 <div class="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                                    ${(() => {
+                                        const todosGalponesSel = galpones.every(gp => this.selectedGalpones.has(`${gId}__${gp}`));
+                                        return `
+                                            <label class="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-indigo-50/80 hover:bg-indigo-100/80 rounded-lg border border-indigo-200/80 hover:border-indigo-400 cursor-pointer select-none transition-colors col-span-2 sm:col-span-3">
+                                                <input type="checkbox" data-type="galpon-todos" data-granja="${gId}" class="chk-hier-galpon-todos w-3.5 h-3.5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer flex-shrink-0" ${todosGalponesSel ? 'checked' : ''}>
+                                                <span class="text-xs font-bold text-indigo-800">Todos</span>
+                                            </label>
+                                        `;
+                                    })()}
                                     ${galpones.map(gp => {
                                         const gpKey = `${gId}__${gp}`;
                                         const isGalpSelected = this.selectedGalpones.has(gpKey);
@@ -523,6 +605,27 @@ class CustomHierarchicalMultiSelect {
                     this.selectedGranjas.add(gId);
                 } else {
                     this.selectedCampanias.delete(cKey);
+                }
+
+                this.updateLabel();
+                this.render();
+            });
+        });
+
+        this.container.querySelectorAll('.chk-hier-galpon-todos').forEach(chk => {
+            chk.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+            chk.addEventListener('change', (e) => {
+                const gId = e.target.getAttribute('data-granja');
+                const gObj = this.granjasData.find(g => String(g.granja || g.codigo || g.nombre) === gId);
+                if (!gObj || !Array.isArray(gObj.galpones)) return;
+
+                if (e.target.checked) {
+                    this.selectedGranjas.add(gId);
+                    gObj.galpones.forEach(gp => this.selectedGalpones.add(`${gId}__${gp}`));
+                } else {
+                    gObj.galpones.forEach(gp => this.selectedGalpones.delete(`${gId}__${gp}`));
                 }
 
                 this.updateLabel();

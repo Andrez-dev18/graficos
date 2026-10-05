@@ -656,7 +656,9 @@ if (!function_exists('sip_grafica_cloro_entry_a_dia')) {
         string $tk,
         string $modoEval,
         array $stdMap,
-        ?string $fechaInicio
+        ?string $fechaInicio,
+        string $granja3 = '',
+        string $galpon = ''
     ): ?array {
         $row = $entry['row'] ?? null;
         $lineas = is_array($entry['lineas'] ?? null)
@@ -681,7 +683,7 @@ if (!function_exists('sip_grafica_cloro_entry_a_dia')) {
         [$sMin, $sMax] = sip_grafica_peso_std_desde_row($stdRow, $modoEval);
         $stdEdad = $edadAve > 0 ? $edadAve : $diaOrd;
         if ($sMin === null && $sMax === null) {
-            [$sMin, $sMax, $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkUsed, $stdEdad);
+            [$sMin, $sMax, $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkUsed, $stdEdad, $granja3, $galpon);
         } else {
             $uMap = '—';
         }
@@ -692,6 +694,14 @@ if (!function_exists('sip_grafica_cloro_entry_a_dia')) {
             $fecha = sip_grafica_fecha_por_dia($fechaInicio, $edadAve) ?? '';
         }
 
+        $mhStd = sip_grafica_std_rango_mh_desde_map($stdMap, $tk, $pkUsed, $stdEdad, $granja3, $galpon);
+        $tieneM = ($mhStd['m']['min'] !== null || $mhStd['m']['max'] !== null);
+        $tieneH = ($mhStd['h']['min'] !== null || $mhStd['h']['max'] !== null);
+        $sMinM = $tieneM ? $mhStd['m']['min'] : $sMin;
+        $sMaxM = $tieneM ? $mhStd['m']['max'] : $sMax;
+        $sMinH = $tieneH ? $mhStd['h']['min'] : $sMin;
+        $sMaxH = $tieneH ? $mhStd['h']['max'] : $sMax;
+
         $out = [
             'dia' => $diaOrd,
             'fecha' => $fecha !== '' ? $fecha : null,
@@ -699,9 +709,18 @@ if (!function_exists('sip_grafica_cloro_entry_a_dia')) {
                 'min' => $sMin ?? $sMax,
                 'max' => $sMax ?? $sMin,
             ],
+            'estandarM' => [
+                'min' => $sMinM ?? $sMaxM,
+                'max' => $sMaxM ?? $sMinM,
+            ],
+            'estandarH' => [
+                'min' => $sMinH ?? $sMaxH,
+                'max' => $sMaxH ?? $sMinH,
+            ],
             'lecturas' => $lecturas,
             'cumple' => sip_grafica_cloro_cumple_dia($lecturas),
         ];
+
         if ($edadAve > 0) {
             $out['edadAve'] = $edadAve;
         }
@@ -736,7 +755,7 @@ if (!function_exists('sip_grafica_peso_linea')) {
         $pkDefault = (string) $cfg['parametroKey'];
         $modoEval = (string) $cfg['modoEvaluacion'];
         $unidad = (string) $cfg['unidadDefault'];
-        $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
+        $stdMap = sip_grafica_std_map_desde_san_estandares($conn, $granja3, $galBind);
 
         $sqlDet = "SELECT d.`edadDia`, d.`parametroKey`, d.`valor`, d.`estandarJson`
                    FROM `san_fact_historia_clinica_det` d
@@ -814,17 +833,25 @@ if (!function_exists('sip_grafica_peso_linea')) {
             }
 
             if ($sMin === null && $sMax === null) {
-                [$sMin, $sMax, $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkUsed, $edadStd);
+                [$sMin, $sMax, $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkUsed, $edadStd, $granja3, $galBind);
                 if ($uMap !== '—' && !preg_match('/^\d/', $uMap)) {
                     $unidad = $uMap;
                 }
             }
 
-            $refStd = $sMin ?? $sMax;
+            $mhStd = sip_grafica_std_rango_mh_desde_map($stdMap, $tk, $pkUsed, $edadStd, $granja3, $galBind);
+            $tieneM = ($mhStd['m']['min'] !== null || $mhStd['m']['max'] !== null);
+            $tieneH = ($mhStd['h']['min'] !== null || $mhStd['h']['max'] !== null);
+            $sMinM = $tieneM ? $mhStd['m']['min'] : $sMin;
+            $sMaxM = $tieneM ? $mhStd['m']['max'] : $sMax;
+            $sMinH = $tieneH ? $mhStd['h']['min'] : $sMin;
+            $sMaxH = $tieneH ? $mhStd['h']['max'] : $sMax;
+            $refStdM = $sMinM ?? $sMaxM;
+            $refStdH = $sMinH ?? $sMaxH;
             $vmOk = ($vm !== null && !sip_grafica_is_nan($vm) && is_finite($vm));
             $vhOk = ($vh !== null && !sip_grafica_is_nan($vh) && is_finite($vh));
-            $cumpleM = $vmOk ? sip_grafica_eval_range($vm, $refStd, null, 'solo_min') : null;
-            $cumpleH = $vhOk ? sip_grafica_eval_range($vh, $refStd, null, 'solo_min') : null;
+            $cumpleM = $vmOk ? sip_grafica_eval_range($vm, $refStdM, null, 'solo_min') : null;
+            $cumpleH = $vhOk ? sip_grafica_eval_range($vh, $refStdH, null, 'solo_min') : null;
 
             $dataPorDia[] = [
                 'semana' => $semana,
@@ -837,6 +864,14 @@ if (!function_exists('sip_grafica_peso_linea')) {
                 'estandar' => [
                     'min' => $sMin ?? $sMax,
                     'max' => $sMax ?? $sMin,
+                ],
+                'estandarM' => [
+                    'min' => $sMinM ?? $sMaxM,
+                    'max' => $sMaxM ?? $sMinM,
+                ],
+                'estandarH' => [
+                    'min' => $sMinH ?? $sMaxH,
+                    'max' => $sMaxH ?? $sMinH,
                 ],
                 'macho' => [
                     'valor' => $vmOk ? $vm : null,
@@ -891,7 +926,7 @@ if (!function_exists('sip_grafica_cloro_linea')) {
         $pkDefault = (string) $cfg['parametroKey'];
         $modoEval = (string) $cfg['modoEvaluacion'];
         $unidad = (string) $cfg['unidadDefault'];
-        $stdMap = sip_grafica_std_map_desde_san_estandares($conn);
+        $stdMap = sip_grafica_std_map_desde_san_estandares($conn, $granja3, $galBind);
 
         $allRows = sip_grafica_cloro_fetch_fact_rows(
             $conn,
@@ -938,7 +973,9 @@ if (!function_exists('sip_grafica_cloro_linea')) {
                 $tk,
                 $modoEval,
                 $stdMap,
-                $fechaInicio
+                $fechaInicio,
+                $granja3,
+                $galBind
             );
             if ($diaPayload === null) {
                 --$diaOrd;
@@ -946,7 +983,7 @@ if (!function_exists('sip_grafica_cloro_linea')) {
             }
             if ($unidad === (string) $cfg['unidadDefault']) {
                 $stdEdad = $diaLabel > 0 ? $diaLabel : $diaOrd;
-                [, , $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkDefault, $stdEdad);
+                [, , $uMap] = sip_grafica_std_rango_desde_map($stdMap, $tk, $pkDefault, $stdEdad, $granja3, $galBind);
                 if ($uMap !== '—' && !preg_match('/^\d/', $uMap)) {
                     $unidad = $uMap;
                 }

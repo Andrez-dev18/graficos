@@ -62,7 +62,7 @@ if (!function_exists('sip_grafica_rd_det_rows')) {
         string $galBind2,
         string $tareaKey
     ): array {
-        $sql = "SELECT d.`edadDia`, d.`parametroKey`, d.`valor`
+        $sql = "SELECT d.`edadDia`, d.`parametroKey`, d.`valor`, d.`estandarJson`
                 FROM `san_fact_historia_clinica_det` d
                 INNER JOIN `san_fact_historia_clinica_cab` c ON c.`id` = d.`cabId`
                 WHERE LPAD(LEFT(TRIM(c.`granja`),3),3,'0') = ?
@@ -262,6 +262,13 @@ if (!function_exists('sip_grafica_respiratorio_linea')) {
             'unidad' => (string) $cfg['unidadDefault'],
             'esMh' => true,
             'tareaKey' => $tk,
+            'franjas' => sip_grafica_std_franja_meta_por_slots(
+                $conn,
+                $tk,
+                ['estornudo' => 'ESTORNUDO', 'ronquera' => 'RONQUERA'],
+                $granja3,
+                $galBind !== '' ? $galBind : $galBind2
+            ),
         ];
     }
 }
@@ -322,6 +329,86 @@ if (!function_exists('sip_grafica_digestivo_parse_celda')) {
     }
 }
 
+if (!function_exists('sip_grafica_digestivo_parse_estandar_json')) {
+    /**
+     * Estándar por slot A/P/S/R desde el estandarJson de EVALUACION_HECES_DIA.
+     *
+     * @param mixed $raw
+     * @return array<string, array{min:?float,max:?float,modoEvaluacion:string,unidades:string}>
+     */
+    function sip_grafica_digestivo_parse_estandar_json($raw): array
+    {
+        $out = [];
+        if (!is_string($raw)) {
+            return $out;
+        }
+        $s = trim($raw);
+        if ($s === '' || $s[0] !== '{') {
+            return $out;
+        }
+        $obj = @json_decode(str_replace(['&quot;', '&#34;'], '"', $s), true);
+        $lista = is_array($obj) ? ($obj['digestivoEstandares'] ?? null) : null;
+        if (!is_array($lista)) {
+            return $out;
+        }
+        foreach ($lista as $e) {
+            if (!is_array($e)) {
+                continue;
+            }
+            $letra = strtoupper(trim((string) ($e['letra'] ?? '')));
+            if (!in_array($letra, ['A', 'P', 'S', 'R'], true)) {
+                continue;
+            }
+            $out[$letra] = [
+                'min' => sip_grafica_to_num($e['stdMin'] ?? null),
+                'max' => sip_grafica_to_num($e['stdMax'] ?? null),
+                'modoEvaluacion' => strtolower(trim((string) ($e['modoEvaluacion'] ?? ''))),
+                'unidades' => trim((string) ($e['unidades'] ?? '')),
+            ];
+        }
+
+        return $out;
+    }
+}
+
+if (!function_exists('sip_grafica_digestivo_std_unificado')) {
+    /**
+     * Estándar unificado de heces (A/P/S/R comparten min/max).
+     *
+     * @param array<string, array{min:?float,max:?float,modoEvaluacion:string,unidades:string}> $slots
+     * @return array{min:?float,max:?float,modoEvaluacion:string,unidades:string}|null
+     */
+    function sip_grafica_digestivo_std_unificado(array $slots): ?array
+    {
+        $min = null;
+        $max = null;
+        $modo = '';
+        $uni = '';
+        foreach ($slots as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            if (($s['min'] ?? null) !== null && ($min === null || (float) $s['min'] < $min)) {
+                $min = (float) $s['min'];
+            }
+            if (($s['max'] ?? null) !== null && ($max === null || (float) $s['max'] > $max)) {
+                $max = (float) $s['max'];
+            }
+            if ($modo === '' && (string) ($s['modoEvaluacion'] ?? '') !== '') {
+                $modo = (string) $s['modoEvaluacion'];
+            }
+            if ($uni === '' && (string) ($s['unidades'] ?? '') !== '') {
+                $uni = (string) $s['unidades'];
+            }
+        }
+        if ($min === null && $max === null) {
+            return null;
+        }
+
+        return ['min' => $min, 'max' => $max, 'modoEvaluacion' => $modo, 'unidades' => $uni];
+    }
+}
+
 if (!function_exists('sip_grafica_digestivo_linea')) {
     /**
      * @param array{granja:string,campania:string,galpon:string} $opts
@@ -352,6 +439,16 @@ if (!function_exists('sip_grafica_digestivo_linea')) {
         $fechaInicio = sip_grafica_fecha_inicio_cab($conn, $granja3, $campania3, $galBind, $galBind2);
         $byEdad = sip_grafica_rd_group_by_edad($rows);
         $dataPorDia = [];
+
+        $stdSlots = [];
+        foreach ($rows as $r) {
+            $stdSlots = sip_grafica_digestivo_parse_estandar_json($r['estandarJson'] ?? null);
+            if ($stdSlots !== []) {
+                break;
+            }
+        }
+        $stdUni = sip_grafica_digestivo_std_unificado($stdSlots);
+        $dataEstandar = [];
 
         foreach ($byEdad as $ed => $rowsEd) {
             $slots = ['A' => null, 'P' => null, 'S' => null, 'R' => null];
@@ -385,6 +482,18 @@ if (!function_exists('sip_grafica_digestivo_linea')) {
                 $diaItem[$slot] = ['valor' => sip_grafica_rd_valor($slots[$slot])];
             }
             $dataPorDia[] = $diaItem;
+
+            if ($stdUni !== null) {
+                $dataEstandar[] = [
+                    'dia' => $ed,
+                    'min' => $stdUni['min'],
+                    'max' => $stdUni['max'],
+                    'minM' => $stdUni['min'],
+                    'maxM' => $stdUni['max'],
+                    'minH' => $stdUni['min'],
+                    'maxH' => $stdUni['max'],
+                ];
+            }
         }
 
         return [
@@ -396,6 +505,21 @@ if (!function_exists('sip_grafica_digestivo_linea')) {
             'unidad' => (string) $cfg['unidadDefault'],
             'esMh' => false,
             'tareaKey' => $tk,
+            'modoEvaluacion' => $stdUni !== null ? $stdUni['modoEvaluacion'] : '',
+            'dataEstandar' => $dataEstandar,
+            'heces_estandares' => $stdSlots,
+            'franjas' => sip_grafica_std_franja_meta_por_slots(
+                $conn,
+                $tk,
+                [
+                    'A' => 'HECES_ANARANJADAS',
+                    'P' => 'HECES_PASTOSAS',
+                    'S' => 'HECES_SUELTAS',
+                    'R' => 'HECES_ROJAS',
+                ],
+                $granja3,
+                $galBind !== '' ? $galBind : $galBind2
+            ),
         ];
     }
 }

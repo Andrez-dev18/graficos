@@ -14,8 +14,8 @@ class Database {
         // 1. Ruta del archivo en el servidor de producción (Granja Rinconada del Sur)
         $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') : '/var/www/html';
         $prodConfigFile1 = $docRoot . '/conexion_grs/configuracion.ph';
-        $prodConfigFile2 = $docRoot . '/conexion_grs/configuracion.php';
-        $prodConfigFile3 = dirname(__DIR__, 3) . '/conexion_grs/configuracion.php';
+        $prodConfigFile2 = $docRoot . '/conexion_grs/configuracion.ph';
+        $prodConfigFile3 = dirname(__DIR__, 3) . '/conexion_grs/configuracion.ph';
         
         // 2. Ruta de tu archivo local (.env)
         $localEnvFile = __DIR__ . '/.env'; 

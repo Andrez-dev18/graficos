@@ -4,6 +4,24 @@
 
 var tipoVisualizacionGlobal = 'default';
 
+function icItemMuestraPct(item) {
+    if (!item) {
+        return false;
+    }
+    if (item.mostrarPctVar === false) {
+        return false;
+    }
+    return true;
+}
+
+/** @deprecated Solo compatibilidad; el control es por tarjeta («Grafico %»). */
+function icMostrarGraficoVarPct() {
+    return true;
+}
+
+window.icMostrarGraficoVarPct = icMostrarGraficoVarPct;
+window.icItemMuestraPct = icItemMuestraPct;
+
 const ICONOS_VISUALIZACION = {
     default: `<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`,
     line: `<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>`,
@@ -63,7 +81,8 @@ function cambiarSexoGlobal(nuevoSexo) {
                 item.tipo === 'pesaje_pollo' ||
                 item.tipo === 'respiratorio' ||
                 item.tipo === 'digestivo' ||
-                (item.esCombinado && Array.isArray(item.tiposCombinados) && item.tiposCombinados.some(t => t === 'mortalidad' || t === 'consumo_alimento' || t === 'ganancia_peso' || t === 'pesaje_pollo' || t === 'respiratorio' || t === 'digestivo'))
+                item.tipo === 'gorgojos' ||
+                (item.esCombinado && Array.isArray(item.tiposCombinados) && item.tiposCombinados.some(t => t === 'mortalidad' || t === 'consumo_alimento' || t === 'ganancia_peso' || t === 'pesaje_pollo' || t === 'respiratorio' || t === 'digestivo' || t === 'gorgojos'))
             );
 
             if (soportaSexo) {

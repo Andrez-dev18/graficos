@@ -2,6 +2,151 @@
  * Renderizado de Paneles Dinámicos, Tarjetas Blancas y Filtrado
  */
 
+function icTipoIconHtml(tipo) {
+    if (typeof SipGraficaIcons !== 'undefined' && typeof SipGraficaIcons.iconHtml === 'function') {
+        return SipGraficaIcons.iconHtml(tipo);
+    }
+    const cfg = (typeof TIPO_GRAFICO_MAP !== 'undefined' && TIPO_GRAFICO_MAP[tipo]) ? TIPO_GRAFICO_MAP[tipo] : null;
+    return cfg && cfg.iconSvg ? cfg.iconSvg : '';
+}
+
+function contarGraficasVisiblesEnPanel(cardEl) {
+    const gridEl = cardEl.closest('[id^="grid-sec-"]');
+    return gridEl
+        ? gridEl.querySelectorAll('[id^="card-grafico-"]:not(.hidden)').length
+        : 1;
+}
+
+function resolverAlturaMainChartCard(cardEl, singleFullWidth) {
+    const g = (typeof configGraficos !== 'undefined')
+        ? configGraficos.find(item => item.idCard === cardEl.id)
+        : null;
+    if (g && g.esCombinado) return 480;
+
+    if (singleFullWidth) return 450;
+
+    const visibleInPanel = contarGraficasVisiblesEnPanel(cardEl);
+    if (visibleInPanel === 1) return 450;
+    if (visibleInPanel === 2) return 360;
+    return 320;
+}
+
+function obtenerLayoutOptsCard(cardEl, singleFullWidth) {
+    const visibleInPanel = contarGraficasVisiblesEnPanel(cardEl);
+    const stack = cardEl.querySelector('.chart-stack');
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    const enFullscreen = Boolean(stack && fsEl === stack);
+    const cardW = cardEl.clientWidth || cardEl.querySelector('.chart-canvas-wrapper')?.clientWidth || 300;
+    return {
+        width: cardW,
+        singleFullWidth: Boolean(singleFullWidth || visibleInPanel === 1),
+        columns: visibleInPanel,
+        fullscreen: enFullscreen
+    };
+}
+
+function redimensionarChartsCard(cardEl, layoutOpts) {
+    if (!cardEl || typeof Chart === 'undefined' || !Chart.getChart) return;
+    const SGS = (typeof SipGraficaShared !== 'undefined') ? SipGraficaShared : null;
+    const opts = layoutOpts || obtenerLayoutOptsCard(cardEl, false);
+
+    const pctCanvas = cardEl.querySelector('canvas[id$="-pct"]');
+    const mainCanvas = cardEl.querySelector('canvas:not([id$="-pct"])');
+    const pctChart = pctCanvas ? Chart.getChart(pctCanvas) : null;
+    const mainChart = mainCanvas ? Chart.getChart(mainCanvas) : null;
+
+    if (mainChart && typeof mainChart.resize === 'function') {
+        mainChart.resize();
+    }
+    if (pctChart && typeof pctChart.resize === 'function') {
+        pctChart.resize();
+    }
+    if (pctChart && SGS && typeof SGS.applyPctAdaptiveLayout === 'function') {
+        SGS.applyPctAdaptiveLayout(pctChart, opts);
+        pctChart.update('none');
+    }
+    if (mainChart && SGS && typeof SGS.applyMainChartDatalabelLayout === 'function') {
+        SGS.applyMainChartDatalabelLayout(mainChart, opts);
+        mainChart.update('none');
+    }
+    if (mainChart && pctChart && SGS && typeof SGS.finalizePctChartPair === 'function') {
+        SGS.finalizePctChartPair(mainChart, pctChart);
+    }
+}
+
+function aplicarAlturasAdaptativasCard(cardEl, singleFullWidth) {
+    if (!cardEl || typeof SipGraficaShared === 'undefined') return;
+    const SGS = SipGraficaShared;
+    const layoutOpts = obtenerLayoutOptsCard(cardEl, singleFullWidth);
+    const stack = cardEl.querySelector('.chart-stack');
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    const enFullscreen = Boolean(stack && fsEl === stack);
+
+    const mainWrap = cardEl.querySelector('.chart-canvas-wrapper');
+    const pctWrap = cardEl.querySelector('.chart-pct-wrapper');
+    const cardW = layoutOpts.width;
+    const pctVisible = pctWrap && !pctWrap.classList.contains('hidden');
+
+    if (enFullscreen && stack) {
+        const vh = window.innerHeight || 800;
+        const pctH = Math.round(vh * 0.36);
+        const mainH = Math.round(vh * 0.56);
+        if (pctWrap) pctWrap.style.height = `${pctH}px`;
+        if (mainWrap) mainWrap.style.height = `${mainH}px`;
+        layoutOpts.fullscreen = true;
+        layoutOpts.width = stack.clientWidth || cardW;
+    } else {
+        const mainH = resolverAlturaMainChartCard(cardEl, layoutOpts.singleFullWidth);
+        if (mainWrap) mainWrap.style.height = `${mainH}px`;
+        if (pctWrap && pctVisible && typeof SGS.calcPctChartHeight === 'function') {
+            const pctH = SGS.calcPctChartHeight(mainH, layoutOpts.singleFullWidth, cardW);
+            pctWrap.style.height = `${pctH}px`;
+        } else if (pctWrap && !pctVisible) {
+            pctWrap.style.height = '0px';
+        }
+    }
+
+    requestAnimationFrame(() => redimensionarChartsCard(cardEl, layoutOpts));
+}
+
+function bindCardFullscreen(cardEl) {
+    if (!cardEl) return;
+    const btn = cardEl.querySelector('.btn-card-fullscreen');
+    if (!btn || btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+        const target = cardEl.querySelector('.chart-stack') || cardEl;
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+        if (fsEl) {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+            if (exit) exit.call(document);
+            return;
+        }
+        const req = target.requestFullscreen || target.webkitRequestFullscreen || target.mozRequestFullScreen || target.msRequestFullscreen;
+        if (req) req.call(target);
+    });
+}
+
+function initFullscreenChartsInterconsultas() {
+    if (window._icFullscreenChartsBound) return;
+    window._icFullscreenChartsBound = true;
+
+    const onFsChange = () => {
+        document.querySelectorAll('[id^="card-grafico-"]').forEach(cardEl => {
+            if (cardEl.classList.contains('hidden')) return;
+            const visibleInPanel = contarGraficasVisiblesEnPanel(cardEl);
+            aplicarAlturasAdaptativasCard(cardEl, visibleInPanel === 1);
+        });
+    };
+
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+}
+
+initFullscreenChartsInterconsultas();
+
 function mostrarAlertaToast(mensaje) {
     let toast = document.getElementById('ic-toast-alerta');
     if (!toast) {
@@ -84,12 +229,33 @@ function mostrarLoaderGraficos() {
         `;
     }
 }
+
+function ocultarLoaderGraficos() {
+    const barra = document.getElementById('ic-progreso-carga-graficos');
+    if (barra) {
+        barra.classList.add('opacity-0', 'translate-y-4');
+    }
+    const btnCargar = document.getElementById('btn-cargar');
+    if (btnCargar) {
+        btnCargar.classList.remove('opacity-80');
+        const icon = btnCargar.querySelector('.icon-cargar');
+        if (icon) icon.classList.remove('animate-spin');
+    }
+}
 function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
     if (!esIncremental) {
         configGraficos = listaConfigs;
     } else {
         listaConfigs.forEach(it => {
-            if (!configGraficos.some(c => c.canvasId === it.canvasId)) {
+            const idx = configGraficos.findIndex(c =>
+                c.canvasId === it.canvasId ||
+                (c.granja === it.granja && c.campania === it.campania && c.galpon === it.galpon && c.tipo === it.tipo)
+            );
+            if (idx >= 0) {
+                if (configGraficos[idx].sinDatos && !it.sinDatos) {
+                    configGraficos[idx] = it;
+                }
+            } else {
                 configGraficos.push(it);
             }
         });
@@ -148,6 +314,7 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
     if (msgSinGraficos) msgSinGraficos.classList.add('hidden');
 
     const itemsACrear = [];
+    const itemsUiPct = [];
 
     Object.keys(gruposPorTipo).forEach(tipoKey => {
         const itemsGrupo = gruposPorTipo[tipoKey];
@@ -207,7 +374,7 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                     <div class="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100 flex-shrink-0">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold px-3 py-1.5 rounded-lg ${cfg.badgeBg} ${cfg.badgeText} border ${cfg.badgeBorder} flex items-center gap-1.5 shadow-sm">
-                                ${cfg.iconSvg} ${sectionLabel}
+                                ${icTipoIconHtml(tipoKey)} ${sectionLabel}
                             </span>
                             <span class="span-count-graficas text-xs font-semibold text-slate-400">
                                 (${itemsGrupo.length} ${itemsGrupo.length === 1 ? 'gráfica' : 'gráficas'})
@@ -239,13 +406,27 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
         }
 
         itemsGrupo.forEach(item => {
-            if (document.getElementById(item.idCard)) return;
+            const cardExistente = document.getElementById(item.idCard);
+            if (cardExistente) {
+                if (item.sinDatos || cardExistente.getAttribute('data-sin-datos') !== '1') {
+                    if (!item.sinDatos) {
+                        if (typeof asegurarUiPctTarjeta === 'function') {
+                            asegurarUiPctTarjeta(item, cardExistente);
+                        }
+                        if (typeof itemGraficoLineaSoportaPctUi === 'function' && itemGraficoLineaSoportaPctUi(item)) {
+                            itemsUiPct.push(item);
+                        }
+                    }
+                    return;
+                }
+                cardExistente.remove();
+            }
 
             const itemOrden = item.orden !== undefined ? item.orden : 9999;
 
             if (item.sinDatos) {
                 const cardHtml = `
-                <div id="${item.idCard}" data-orden="${itemOrden}" class="bg-slate-50/50 rounded-xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between transition-all w-full flex-1">
+                <div id="${item.idCard}" data-sin-datos="1" data-orden="${itemOrden}" class="bg-slate-50/50 rounded-xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between transition-all w-full flex-1">
                     <div class="flex flex-wrap items-center justify-between gap-2.5 pb-3 mb-2 border-b border-slate-200/60 min-h-[42px] flex-shrink-0">
                         <div class="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
                             <span class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
@@ -295,11 +476,10 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                                     ${item.soloSemanal ? 'disabled' : ''}
                                     class="btn-vista px-2 py-0.5 text-xs ${item.vistaActiva === 'diario' ? 'font-semibold bg-blue-600 text-white shadow-2xs' : (item.soloSemanal ? 'text-slate-300 opacity-40 cursor-not-allowed pointer-events-none' : 'font-medium text-slate-600 hover:text-slate-900')} rounded-md transition-all">Diario</button>
                                 <button type="button" data-chart="${item.canvasId}" data-vista="acumulado"
-                                    ${(item.soloSemanal || item.soloDiario) ? 'disabled' : ''}
-                                    class="btn-vista px-2 py-0.5 text-xs ${item.vistaActiva === 'acumulado' ? 'font-semibold bg-blue-600 text-white shadow-2xs' : ((item.soloSemanal || item.soloDiario) ? 'text-slate-300 opacity-40 cursor-not-allowed pointer-events-none' : 'font-medium text-slate-600 hover:text-slate-900')} rounded-md transition-all">Acumulado</button>
+                                    ${item.soloSemanal ? 'disabled' : ''}
+                                    class="btn-vista px-2 py-0.5 text-xs ${item.vistaActiva === 'acumulado' ? 'font-semibold bg-blue-600 text-white shadow-2xs' : (item.soloSemanal ? 'text-slate-300 opacity-40 cursor-not-allowed pointer-events-none' : 'font-medium text-slate-600 hover:text-slate-900')} rounded-md transition-all">Acumulado</button>
                                 <button type="button" data-chart="${item.canvasId}" data-vista="semanal"
-                                    ${item.soloDiario ? 'disabled' : ''}
-                                    class="btn-vista px-2 py-0.5 text-xs ${item.vistaActiva === 'semanal' ? 'font-semibold bg-blue-600 text-white shadow-2xs' : (item.soloDiario ? 'text-slate-300 opacity-40 cursor-not-allowed pointer-events-none' : 'font-medium text-slate-600 hover:text-slate-900')} rounded-md transition-all">Semanal</button>
+                                    class="btn-vista px-2 py-0.5 text-xs ${item.vistaActiva === 'semanal' ? 'font-semibold bg-blue-600 text-white shadow-2xs' : 'font-medium text-slate-600 hover:text-slate-900'} rounded-md transition-all">Semanal</button>
                             </div>
                         </div>
                         <div class="flex items-center gap-1">
@@ -314,7 +494,7 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                                 <option value="fin">Fin</option>
                             </select>
                         </div>
-                        ${(item.tipo === 'mortalidad' || item.tipo === 'consumo_alimento' || item.tipo === 'ganancia_peso' || item.tipo === 'pesaje_pollo' || item.tipo === 'respiratorio' || (item.esCombinado && Array.isArray(item.tiposCombinados) && item.tiposCombinados.some(t => t === 'mortalidad' || t === 'consumo_alimento' || t === 'ganancia_peso' || t === 'pesaje_pollo' || t === 'respiratorio'))) ? `
+                        ${(item.tipo === 'mortalidad' || item.tipo === 'consumo_alimento' || item.tipo === 'ganancia_peso' || item.tipo === 'pesaje_pollo' || item.tipo === 'respiratorio' || item.tipo === 'gorgojos' || (item.esCombinado && Array.isArray(item.tiposCombinados) && item.tiposCombinados.some(t => t === 'mortalidad' || t === 'consumo_alimento' || t === 'ganancia_peso' || t === 'pesaje_pollo' || t === 'respiratorio' || t === 'gorgojos'))) ? `
                         <div class="flex items-center gap-1">
                             <span class="font-medium text-slate-500">Sexo:</span>
                             <select data-chart="${item.canvasId}" class="select-sexo bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-medium rounded-md px-1.5 py-0.5 shadow-2xs focus:outline-none cursor-pointer">
@@ -335,6 +515,46 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                             </select>
                         </div>
                         ` : ''}
+                        ${item.tipo === 'gorgojos' ? `
+                        <div class="flex items-center gap-1">
+                            <span class="font-medium text-slate-500">Medición:</span>
+                            <select data-chart="${item.canvasId}" class="select-plaga-medicion bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-medium rounded-md px-1.5 py-0.5 shadow-2xs focus:outline-none cursor-pointer">
+                                <option value="todos" ${(item.plagaMedicion || 'todos') === 'todos' ? 'selected' : ''}>Todos</option>
+                                <option value="larvas" ${(item.plagaMedicion || 'todos') === 'larvas' ? 'selected' : ''}>Larvas</option>
+                                <option value="adultos" ${(item.plagaMedicion || 'todos') === 'adultos' ? 'selected' : ''}>Adultos</option>
+                            </select>
+                        </div>
+                        ` : ''}
+                        ${item.tipo === 'roedores' ? (function () {
+                            const ambRoed = item.ambitoActivo || 'avistamiento';
+                            const medRoed = item.plagaMedicion || 'todos';
+                            const optsMedRoed = ambRoed === 'consumo'
+                                ? [
+                                    { v: 'todos', t: 'Todos' },
+                                    { v: 'perimetro', t: 'Perímetro' },
+                                    { v: 'techo', t: 'Techo' }
+                                ]
+                                : [
+                                    { v: 'todos', t: 'Todos' },
+                                    { v: 'vivos', t: 'Vivos' },
+                                    { v: 'muertos', t: 'Muertos' }
+                                ];
+                            const medOk = optsMedRoed.some(o => o.v === medRoed) ? medRoed : 'todos';
+                            return `
+                        <div class="flex items-center gap-1">
+                            <span class="font-medium text-slate-500">Ámbito:</span>
+                            <select data-chart="${item.canvasId}" class="select-ambito-plaga bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-medium rounded-md px-1.5 py-0.5 shadow-2xs focus:outline-none cursor-pointer">
+                                <option value="avistamiento" ${ambRoed === 'avistamiento' ? 'selected' : ''}>Avistamiento</option>
+                                <option value="consumo" ${ambRoed === 'consumo' ? 'selected' : ''}>Consumo</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="font-medium text-slate-500">Medición:</span>
+                            <select data-chart="${item.canvasId}" class="select-plaga-medicion bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-medium rounded-md px-1.5 py-0.5 shadow-2xs focus:outline-none cursor-pointer">
+                                ${optsMedRoed.map(o => `<option value="${o.v}" ${medOk === o.v ? 'selected' : ''}>${o.t}</option>`).join('')}
+                            </select>
+                        </div>`;
+                        })() : ''}
                         ${(Array.isArray(item.horasAplicacion) && item.horasAplicacion.length > 0) ? `
                         <div class="flex items-center gap-1">
                             <span class="font-medium text-slate-500">Hora:</span>
@@ -343,6 +563,18 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                                 ${item.horasAplicacion.map(h => `<option value="${h}" ${(item.horaActiva || 'todas') === h ? 'selected' : ''}>${h}</option>`).join('')}
                             </select>
                         </div>
+                        ` : ''}
+                        ${item.tipo === 'pesaje_pollo' ? `
+                        <label class="flex items-center gap-1 cursor-pointer select-none text-xs font-medium text-slate-600">
+                            <input type="checkbox" data-chart="${item.canvasId}" class="chk-proy-pesaje w-3.5 h-3.5 rounded text-blue-600" ${item.proyActiva ? 'checked' : ''} ${item.campaniaAbierta === false ? 'disabled' : ''}>
+                            <span>Proyección</span>
+                        </label>
+                        ` : ''}
+                        ${(typeof itemGraficoLineaSoportaPctUi === 'function' && itemGraficoLineaSoportaPctUi(item)) ? `
+                        <label class="flex items-center gap-1 cursor-pointer select-none text-xs font-medium text-slate-600">
+                            <input type="checkbox" data-chart="${item.canvasId}" class="chk-mostrar-pct-card w-3.5 h-3.5 rounded text-blue-600" ${(typeof icItemMuestraPct === 'function' ? icItemMuestraPct(item) : true) ? 'checked' : ''}>
+                            <span>Grafico %</span>
+                        </label>
                         ` : ''}
                         ${item.tipo === 'mortalidad' ? `
                         <div class="flex items-center gap-1">
@@ -356,13 +588,27 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                         ` : ''}
                     </div>
 
-                    <span class="inline-flex items-center border-2 border-sky-500 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700 inset-ring inset-ring-blue-700/10 shadow-sm">
-                        ${item.infoBadge}
-                    </span>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" class="btn-card-fullscreen p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:border-blue-300 transition cursor-pointer" title="Pantalla completa">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                        </button>
+                        <span class="inline-flex items-center border-2 border-sky-500 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700 inset-ring inset-ring-blue-700/10 shadow-sm">
+                            ${item.infoBadge}
+                        </span>
+                    </div>
                 </div>
+                ${(typeof itemGraficoLineaSoportaPctUi === 'function' && itemGraficoLineaSoportaPctUi(item)) ? `
+                <div class="chart-stack flex flex-col gap-0">
+                    <div class="chart-pct-wrapper relative w-full h-[220px] overflow-hidden min-h-0${(typeof icItemMuestraPct === 'function' && !icItemMuestraPct(item)) ? ' hidden' : ''}">
+                        <canvas id="${item.canvasId}-pct"></canvas>
+                    </div>
+                    <div class="chart-canvas-wrapper relative w-full h-[320px] transition-all duration-300">
+                        <canvas id="${item.canvasId}"></canvas>
+                    </div>
+                </div>` : `
                 <div class="chart-canvas-wrapper relative w-full h-[320px] transition-all duration-300">
                     <canvas id="${item.canvasId}"></canvas>
-                </div>
+                </div>`}
             </div>`;
 
             const newCardWrapper = document.createElement('div');
@@ -381,6 +627,10 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                 gridEl.appendChild(newCardEl);
             }
 
+            const singleFullWidth = !esHorizontal && itemsGrupo.length === 1;
+            aplicarAlturasAdaptativasCard(newCardEl, singleFullWidth);
+            bindCardFullscreen(newCardEl);
+
             itemsACrear.push(item);
         });
 
@@ -394,6 +644,14 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
     });
 
     itemsACrear.forEach(item => crearGraficoChartJS(item));
+    itemsUiPct.forEach(item => {
+        if (typeof inicializarFiltrosTarjeta === 'function') {
+            inicializarFiltrosTarjeta(item);
+        }
+        if (typeof crearGraficoChartJS === 'function') {
+            crearGraficoChartJS(item);
+        }
+    });
     filtrarYMostrarGraficos();
 }
 
@@ -445,9 +703,25 @@ function filtrarYMostrarGraficos() {
                     String(c.galpon) === String(g.galpon)
                 );
             } else {
-                const matchGranja = selGranjas.some(sg => String(sg) === String(g.granja));
-                const matchCampania = selCampanias.some(sc => String(sc) === String(g.campania));
-                const matchGalpon = selGalpones.some(sgp => String(sgp) === String(g.galpon));
+                const matchGranja = selGranjas.includes(g.granja);
+                const matchCampania = selCampanias.some(c => {
+                    const s = String(c);
+                    const cStr = String(g.campania);
+                    if (s.includes('__')) {
+                        const parts = s.split('__');
+                        return parts[0] === String(g.granja) && parts[1] === cStr;
+                    }
+                    return s === cStr;
+                });
+                const matchGalpon = selGalpones.some(gp => {
+                    const s = String(gp);
+                    const gpStr = String(g.galpon);
+                    if (s.includes('__')) {
+                        const parts = s.split('__');
+                        return parts[0] === String(g.granja) && parts[1] === gpStr;
+                    }
+                    return s === gpStr;
+                });
                 matchUbicacion = matchGranja && matchCampania && matchGalpon;
             }
 
@@ -457,7 +731,21 @@ function filtrarYMostrarGraficos() {
                     : (selTipos.includes(g.tipo1) || selTipos.includes(g.tipo2)))
                 : selTipos.includes(g.tipo);
 
-            if (matchUbicacion && matchTipo) {
+            let ocultoPorCombinado = false;
+            if (!g.esCombinado && g.tipo !== 'combinado') {
+                ocultoPorCombinado = configGraficos.some(c =>
+                    c.esCombinado &&
+                    c.tipo === 'combinado' &&
+                    c.modoCombinado !== 'granja' &&
+                    String(c.granja) === String(g.granja) &&
+                    String(c.campania) === String(g.campania) &&
+                    String(c.galpon) === String(g.galpon) &&
+                    Array.isArray(c.tiposCombinados) &&
+                    c.tiposCombinados.includes(g.tipo)
+                );
+            }
+
+            if (matchUbicacion && matchTipo && !ocultoPorCombinado) {
                 card.classList.remove('hidden');
                 visibleInPanel++;
                 totalVisibleCount++;
@@ -473,15 +761,11 @@ function filtrarYMostrarGraficos() {
     const requiereScroll = (esHorizontal && totalPanelesVisibles > 3);
 
     const contenedor = document.getElementById('contenedor-graficos');
-    if (contenedor) {
-        if (esHorizontal) {
-            if (requiereScroll) {
-                contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-auto pb-6';
-            } else {
-                contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-hidden pb-2';
-            }
+    if (contenedor && esHorizontal) {
+        if (requiereScroll) {
+            contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-auto pb-6';
         } else {
-            contenedor.className = 'w-full flex flex-col gap-6';
+            contenedor.className = 'w-full flex flex-row items-stretch gap-4 overflow-x-hidden pb-2';
         }
     }
 
@@ -519,7 +803,7 @@ function filtrarYMostrarGraficos() {
                         } else if (visibleInPanel === 1) {
                             canvasWrapper.className = 'chart-canvas-wrapper relative w-full h-[400px] sm:h-[450px] transition-all duration-300';
                         } else if (visibleInPanel === 2) {
-                            canvasWrapper.className = 'chart-canvas-wrapper relative w-full h-[340px] transition-all duration-300';
+                            canvasWrapper.className = 'chart-canvas-wrapper relative w-full h-[360px] transition-all duration-300';
                         } else {
                             canvasWrapper.className = 'chart-canvas-wrapper relative w-full h-[300px] transition-all duration-300';
                         }
@@ -555,10 +839,9 @@ function filtrarYMostrarGraficos() {
     }
 
     setTimeout(() => {
-        Object.values(chartInstances).forEach(chart => {
-            if (chart && typeof chart.resize === 'function') {
-                chart.resize();
-            }
+        document.querySelectorAll('[id^="card-grafico-"]:not(.hidden)').forEach(cardEl => {
+            const visibleInPanel = contarGraficasVisiblesEnPanel(cardEl);
+            aplicarAlturasAdaptativasCard(cardEl, visibleInPanel === 1);
         });
     }, 50);
 }

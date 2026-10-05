@@ -1,0 +1,12 @@
+{
+    "name": "corebi/sistema",
+    "description": "Core BI - Sistema de Gestion de Pollo y Dashboards",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "mpdf/mpdf": "^8.0"
+    },
+    "config": {
+        "vendor-dir": "backend/libs/vendor"
+    }
+}

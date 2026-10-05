@@ -6,6 +6,7 @@ require_once __DIR__ . '/sip_grafica_mortalidad.php';
 require_once __DIR__ . '/sip_grafica_consumo.php';
 require_once __DIR__ . '/sip_grafica_peso_cloro.php';
 require_once __DIR__ . '/sip_grafica_respiratorio_digestivo.php';
+require_once __DIR__ . '/sip_grafica_plagas.php';
 require_once __DIR__ . '/sip_grafica_medicacion.php';
 require_once __DIR__ . '/sip_grafica_cv_lib.php';
 
@@ -19,6 +20,7 @@ if (!function_exists('sip_grafica_tipos_soportados')) {
             sip_grafica_peso_cloro_tipos(),
             sip_grafica_cv_tipos(),
             sip_grafica_respiratorio_digestivo_tipos(),
+            sip_grafica_plagas_tipos(),
             sip_grafica_medicacion_tipos()
         );
     }
@@ -47,18 +49,34 @@ if (!function_exists('sip_grafica_build')) {
     {
         $tipoNorm = strtolower(trim($tipo));
         $seccion = strtolower(trim((string) ($opts['seccion'] ?? 'all')));
+        $esFact = strtolower(trim((string) ($opts['origen'] ?? ''))) === 'fact';
 
         if (sip_grafica_es_consumo($tipoNorm)) {
             return sip_grafica_consumo_linea($conn, $opts, $tipoNorm);
         }
 
         if (sip_grafica_es_cv($tipoNorm)) {
+            if ($esFact) {
+                require_once __DIR__ . '/sip_grafica_pesaje_fact_lib.php';
+
+                return sip_grafica_cv_fact_linea($conn, $opts, $tipoNorm);
+            }
+
             return sip_grafica_cv_linea($conn, $opts, $tipoNorm);
         }
 
         if (sip_grafica_es_peso_cloro($tipoNorm)) {
             if ($tipoNorm === 'nivel_cloro') {
                 return sip_grafica_cloro_linea($conn, $opts);
+            }
+            if ($esFact) {
+                require_once __DIR__ . '/sip_grafica_pesaje_fact_lib.php';
+                if ($tipoNorm === 'pesaje_pollo') {
+                    return sip_grafica_pesaje_fact_linea($conn, $opts);
+                }
+                if ($tipoNorm === 'ganancia_peso') {
+                    return sip_grafica_ganancia_fact_linea($conn, $opts);
+                }
             }
             if ($tipoNorm === 'pesaje_pollo') {
                 require_once __DIR__ . '/sip_grafica_pesaje_lib.php';
@@ -80,6 +98,10 @@ if (!function_exists('sip_grafica_build')) {
                 : sip_grafica_digestivo_linea($conn, $opts);
         }
 
+        if (sip_grafica_es_plagas($tipoNorm)) {
+            return sip_grafica_plagas_linea($conn, $tipoNorm, $opts);
+        }
+
         if (sip_grafica_es_medicacion($tipoNorm)) {
             return sip_grafica_medicacion_linea($conn, $opts);
         }
@@ -91,7 +113,7 @@ if (!function_exists('sip_grafica_build')) {
         if ($seccion === 'all') {
             $linea = sip_grafica_mortalidad_linea($conn, $opts);
             $causas = sip_grafica_mortalidad_causas($conn, $opts);
-            $pareto = sip_grafica_mortalidad_pareto($conn, $opts);
+            $pareto = sip_grafica_mortalidad_pareto($conn, $opts, $causas['porFecha'] ?? []);
 
             return [
                 'success' => ($linea['success'] ?? false) || ($causas['success'] ?? false),
