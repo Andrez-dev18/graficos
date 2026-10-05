@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trazabilidad de resultados — Laboratorio</title>
+    <script>
+        (function() {
+            var k = 'ix2-theme', mode = null;
+            try {
+                var s = localStorage.getItem(k);
+                if (s === 'dark' || s === 'light') mode = s;
+            } catch (e) {}
+            if (mode == null) {
+                try {
+                    var m = document.cookie.match(/(?:^|; )ix2-theme=([^;]*)/);
+                    if (m) {
+                        var c = decodeURIComponent(m[1]);
+                        if (c === 'dark' || c === 'light') mode = c;
+                    }
+                } catch (e2) {}
+            }
+            if (mode == null) mode = 'light';
+            document.documentElement.setAttribute('data-theme', mode);
+            document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/style.css" crossorigin="anonymous">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/trazabilidad-theme.css">
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js" crossorigin="anonymous"></script>
+</head>
+<body class="w-full min-h-screen">
+<div class="trz-page">
+
+    <!-- ── Filtro global ────────────────────────────────────────────────── -->
+    <div class="trz-card" id="trz-filtro-global">
+
+        <!-- Fila 1: periodo (ocupa todo el ancho) -->
+        <div class="trz-fglobal-row1">
+            <div class="trz-fg-periodo-wrap">
+                <label class="trz-filter-label">
+                    <i class="fas fa-calendar-alt mr-1" style="color:#3b82f6"></i>Periodo
+                </label>
+                <div class="trz-fg-periodo-inner">
+                    <select id="trz-periodoTipo" class="hc-per-input cursor-pointer" style="min-width:150px;width:auto">
+                        <option value="TODOS">Todos</option>
+                        <option value="POR_FECHA">Por fecha</option>
+                        <option value="ENTRE_FECHAS" selected>Entre fechas</option>
+                        <option value="POR_MES">Por mes</option>
+                        <option value="ENTRE_MESES">Entre meses</option>
+                        <option value="ULTIMA_SEMANA">Última semana</option>
+                    </select>
+                    <div id="trz-periodoPorFecha" style="display:none">
+                        <input type="text" id="trz-fechaUnica" class="hc-per-input hc-input-fecha-es"
+                               inputmode="numeric" autocomplete="off" placeholder="dd/mm/aaaa" maxlength="10"
+                               style="width:130px"
+                               value="05/10/2026">
+                    </div>
+                    <div id="trz-periodoEntreFechas" style="display:flex;gap:.4rem;align-items:center">
+                        <input type="text" id="trz-fechaInicio" class="hc-per-input hc-input-fecha-es"
+                               inputmode="numeric" autocomplete="off" placeholder="Desde" maxlength="10"
+                               style="width:120px"
+                               value="01/01/2025">
+                        <span style="color:var(--trz-text-muted);font-size:.75rem">–</span>
+                        <input type="text" id="trz-fechaFin" class="hc-per-input hc-input-fecha-es"
+                               inputmode="numeric" autocomplete="off" placeholder="Hasta" maxlength="10"
+                               style="width:120px"
+                               value="31/12/2026">
+                    </div>
+                    <div id="trz-periodoPorMes" style="display:none">
+                        <input type="text" id="trz-mesUnico" class="hc-per-input hc-fp-mes"
+                               readonly autocomplete="off" style="width:130px"
+                               value="2026-10">
+                    </div>
+                    <div id="trz-periodoEntreMeses" style="display:none;gap:.4rem;align-items:center">
+                        <input type="text" id="trz-mesInicio" class="hc-per-input hc-fp-mes"
+                               readonly autocomplete="off" style="width:120px"
+                               value="2026-01">
+                        <span style="color:var(--trz-text-muted);font-size:.75rem">–</span>
+                        <input type="text" id="trz-mesFin" class="hc-per-input hc-fp-mes"
+                               readonly autocomplete="off" style="width:120px"
+                               value="2026-12">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fila 2: Origen · Granja/Código · Tipo de muestra · Análisis · Aplicar -->
+        <div class="trz-fglobal-row2">
+
+            <!-- Origen -->
+            <div class="trz-fg-field" style="flex:0 1 auto;min-width:130px">
+                <label class="trz-filter-label">
+                    <i class="fas fa-layer-group mr-1" style="color:#3b82f6"></i>Origen
+                </label>
+                <select id="trz-sel-origen" class="hc-per-input">
+                    <option value="TODOS">Todos</option>
+                    <option value="GRS" selected>GRS</option>
+                    <option value="EXTERNO">Externo</option>
+                    <option value="TRASPATIO">Traspatio</option>
+                </select>
+            </div>
+
+            <!-- Granja (solo GRS) -->
+            <div class="trz-fg-field" id="trz-field-granjas">
+                <label class="trz-filter-label">
+                    <i class="fas fa-map-marker-alt mr-1" style="color:#3b82f6"></i>Granja
+                </label>
+                <button type="button" class="trz-analisis-btn" id="trz-btn-granjas"
+                        onclick="trzAbrirModalGranjas()">
+                    <i class="fas fa-map-marker-alt" style="color:#3b82f6;font-size:.8rem"></i>
+                    <span class="trz-analisis-label" id="trz-label-granjas">Todas las granjas</span>
+                    <i class="fas fa-chevron-down" style="font-size:.7rem;opacity:.6"></i>
+                </button>
+            </div>
+
+            <!-- Código Externo / Traspatio (oculto por defecto) -->
+            <div class="trz-fg-field" id="trz-field-origen-ext" style="display:none">
+                <label class="trz-filter-label" id="trz-label-origen-ext">
+                    <i class="fas fa-tag mr-1" style="color:#3b82f6"></i>Código
+                </label>
+                <select id="trz-sel-cod-origen" class="hc-per-input">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <!-- Tipo de muestra -->
+            <div class="trz-fg-field">
+                <label class="trz-filter-label">
+                    <i class="fas fa-vial mr-1" style="color:#3b82f6"></i>Tipo de muestra
+                </label>
+                <select id="trz-tipo-muestra-sel" class="hc-per-input">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <!-- Análisis -->
+            <div class="trz-fg-field">
+                <label class="trz-filter-label">
+                    <i class="fas fa-microscope mr-1" style="color:#3b82f6"></i>Análisis
+                </label>
+                <button type="button" class="trz-analisis-btn" id="trz-btn-sel-global"
+                        onclick="trzOpenDialogAnalisisGlobal()">
+                    <i class="fas fa-microscope" style="color:#3b82f6;font-size:.8rem"></i>
+                    <span class="trz-analisis-label" id="trz-label-sel-global">Todos los análisis</span>
+                    <i class="fas fa-chevron-down" style="font-size:.7rem;opacity:.6"></i>
+                </button>
+            </div>
+
+            <!-- Aplicar + PDF (PDF abre en nueva pestaña) -->
+            <div class="trz-fg-field trz-fg-apply">
+                <label class="trz-filter-label">
+                    <i class="fas fa-play-circle mr-1" style="color:#3b82f6"></i>Consulta
+                </label>
+                <div class="trz-fg-apply-btns">
+                    <button type="button" class="trz-btn trz-btn-apply" onclick="trzAplicarFiltroGlobal()">
+                        <i class="fas fa-search"></i>Aplicar
+                    </button>
+                    <button type="button" class="hidden trz-btn trz-btn-pdf" id="trz-btn-export-pdf" title="Abre el PDF en una pestaña nueva">
+                        <i class="fas fa-file-pdf"></i>Exportar PDF
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Tabs ───────────────────────────────────────────────────────────── -->
+    <div class="trz-tabs-nav">
+        <nav>
+            <button type="button" class="trz-tab trz-tab-active" data-tab="tab-periodo">
+                <i class="fas fa-chart-bar mr-1" aria-hidden="true"></i>Por análisis
+            </button>
+            <button type="button" class="trz-tab" data-tab="tab-porcentaje">
+                <i class="fas fa-percentage mr-1" aria-hidden="true"></i>Porcentaje
+            </button>
+            <button type="button" class="trz-tab" data-tab="tab-enfermedades">
+                <i class="fas fa-table mr-1" aria-hidden="true"></i>Reporte de resultados
+            </button>
+            <button type="button" class="trz-tab" data-tab="tab-reporte">
+                <i class="fas fa-list mr-1" aria-hidden="true"></i>Reporte de resultados completo
+            </button>
+        </nav>
+    </div>
+
+    <!-- ── Tabla resumen global ──────────────────────────────────────────── -->
+    <div class="trz-resumen-card" id="trz-resumen-card">
+        <button type="button" class="trz-resumen-toggle open" id="trz-resumen-toggle" onclick="trzToggleResumen()">
+            <i class="fas fa-chevron-right trz-r-chev"></i>
+            <i class="fas fa-table mr-1" style="color:#3b82f6"></i>
+            Resumen de análisis
+            <span id="trz-resumen-badge" style="margin-left:.35rem;font-size:.7rem;font-weight:400;color:var(--trz-text-muted)"></span>
+        </button>
+        <div class="trz-resumen-body" id="trz-resumen-body">
+            <!-- Por mes: Enviados | Con resultado | Positivos | % (sobre enviados); una fila por análisis -->
+            <div id="trz-resumen-table-wrap" style="overflow-x:auto">
+                <table class="trz-rtable" id="trz-resumen-table">
+                    <thead id="trz-resumen-thead">
+                        <tr>
+                            <th class="trz-rh-row">Análisis</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trz-resumen-tbody">
+                        <tr>
+                            <td colspan="8" class="trz-rd-val" style="text-align:left;color:var(--trz-text-muted)">Cargue datos o aplique filtros para ver el resumen por mes.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 1 — Gráfica temporal por análisis
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div class="trz-tab-panel trz-panel-active" id="tab-periodo">
+
+        <!-- Grid de gráficas Tab 1 (una por análisis) -->
+        <div class="trz-charts1-wrap" id="trz-charts1-wrap">
+            <div class="trz-charts1-grid" id="trz-charts1-grid">
+                <!-- Cards generadas dinámicamente por JS -->
+            </div>
+            <div class="trz-spinner-overlay hc-hidden" id="trz-spinner1" style="position:absolute;inset:0;border-radius:0.75rem">
+                <div class="trz-spinner"></div>
+            </div>
+        </div>
+    </div><!-- /tab-periodo -->
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 2 — Porcentaje de análisis
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div class="trz-tab-panel" id="tab-porcentaje">
+
+        <!-- Layout gráficas Tab 2 + desglose -->
+        <div class="trz-tab2-layout" id="trz-tab2-content">
+
+            <div class="trz-chart-card" id="trz-chart2-card">
+                <div class="trz-chart-title">
+                    <i class="fas fa-percentage" style="color:#3b82f6"></i>
+                    <span id="trz-chart2-title">Casos (%)</span>
+                </div>
+                <div class="trz-chart-wrap" style="height:420px">
+                    <canvas id="trz-chart2"></canvas>
+                </div>
+                <div class="trz-spinner-overlay hc-hidden" id="trz-spinner2">
+                    <div class="trz-spinner"></div>
+                </div>
+            </div>
+
+            <div class="trz-chart-card" id="trz-chart2-det-card">
+                <div class="trz-chart-title">
+                    <i class="fas fa-layer-group" style="color:#3b82f6"></i>
+                    <span id="trz-chart2-det-title">Desglose por resultado</span>
+                </div>
+                <div class="trz-chart-wrap trz-chart2-det-wrap" id="trz-chart2-det-outer">
+                    <div id="trz-chart2-det-grid" class="trz-t2-det-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /tab-porcentaje -->
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 3 — Reporte tabular de resultados
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div class="trz-tab-panel" id="tab-reporte">
+        <div class="trz-reporte-card" id="trz-reporte-card">
+            <h2 class="trz-reporte-titulo" id="trz-reporte-titulo"></h2>
+            <div class="trz-reporte-toolbar hc-hidden" id="trz-reporte-toolbar">
+                <span class="trz-reporte-meta" id="trz-reporte-meta"></span>
+                <label class="trz-reporte-toggle">
+                    <input type="checkbox" id="trz-reporte-compact" checked>
+                    Vista compacta
+                </label>
+            </div>
+            <div class="trz-reporte-table-wrap" id="trz-reporte-table-wrap">
+                <p class="trz-reporte-empty">Aplique filtros y seleccione esta pestaña para ver el reporte.</p>
+            </div>
+            <div class="trz-spinner-overlay hc-hidden" id="trz-spinner-reporte" style="position:absolute;inset:0;border-radius:0.75rem">
+                <div class="trz-spinner"></div>
+            </div>
+        </div>
+    </div><!-- /tab-reporte -->
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 4 — IBV, NDV, ILT, APV, REO, IBD
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div class="trz-tab-panel" id="tab-enfermedades">
+        <div class="trz-reporte-card" id="trz-enfermedades-card">
+            <h2 class="trz-reporte-titulo" id="trz-enfermedades-titulo"></h2>
+            <div class="trz-reporte-toolbar hc-hidden" id="trz-enfermedades-toolbar">
+                <span class="trz-reporte-meta" id="trz-enfermedades-meta"></span>
+            </div>
+            <div class="trz-reporte-table-wrap" id="trz-enfermedades-table-wrap">
+                <p class="trz-reporte-empty">Aplique filtros y seleccione esta pestaña para ver el reporte IBV, NDV, ILT, APV, REO e IBD.</p>
+            </div>
+            <div class="trz-spinner-overlay hc-hidden" id="trz-spinner-enfermedades" style="position:absolute;inset:0;border-radius:0.75rem">
+                <div class="trz-spinner"></div>
+            </div>
+        </div>
+    </div><!-- /tab-enfermedades -->
+
+</div><!-- /trz-page -->
+
+<!-- ══ Dialog análisis Tab 1 ═══════════════════════════════════════════════ -->
+<dialog id="trz-dialog-1" class="trz-dialog">
+    <div class="trz-dialog-head">
+        <span><i class="fas fa-microscope mr-1" style="color:#3b82f6"></i>Seleccionar análisis</span>
+        <button type="button" class="trz-dialog-close" onclick="trzCloseDialog(1)" title="Cerrar">&times;</button>
+    </div>
+    <div id="trz-dialog-body-1" class="trz-dialog-body">
+        <span style="color:var(--trz-text-muted);font-size:.82rem">Cargando análisis…</span>
+    </div>
+    <div class="trz-dialog-foot">
+        <button type="button" class="trz-btn trz-btn-apply trz-btn-sm" onclick="trzApplyDialog(1)">Aplicar</button>
+    </div>
+</dialog>
+
+<!-- ══ Dialog análisis Tab 2 ═══════════════════════════════════════════════ -->
+<dialog id="trz-dialog-2" class="trz-dialog">
+    <div class="trz-dialog-head">
+        <span><i class="fas fa-microscope mr-1" style="color:#3b82f6"></i>Seleccionar análisis</span>
+        <button type="button" class="trz-dialog-close" onclick="trzCloseDialog(2)" title="Cerrar">&times;</button>
+    </div>
+    <div id="trz-dialog-body-2" class="trz-dialog-body">
+        <span style="color:var(--trz-text-muted);font-size:.82rem">Cargando análisis…</span>
+    </div>
+    <div class="trz-dialog-foot">
+        <button type="button" class="trz-btn trz-btn-apply trz-btn-sm" onclick="trzApplyDialog(2)">Aplicar</button>
+    </div>
+</dialog>
+
+<!-- ══ Dialog análisis Reportes (tabs 3 y 4) ═══════════════════════════════ -->
+<dialog id="trz-dialog-3" class="trz-dialog">
+    <div class="trz-dialog-head">
+        <span><i class="fas fa-microscope mr-1" style="color:#3b82f6"></i>Seleccionar análisis</span>
+        <button type="button" class="trz-dialog-close" onclick="trzCloseDialog(3)" title="Cerrar">&times;</button>
+    </div>
+    <div id="trz-dialog-body-3" class="trz-dialog-body">
+        <span style="color:var(--trz-text-muted);font-size:.82rem">Cargando análisis…</span>
+    </div>
+    <div class="trz-dialog-foot">
+        <button type="button" class="trz-btn trz-btn-apply trz-btn-sm" onclick="trzApplyDialog(3)">Aplicar</button>
+    </div>
+</dialog>
+
+<!-- ══ Modal granjas ══════════════════════════════════════════════════════════ -->
+<div id="trzGBackdrop" class="trz-g-backdrop"></div>
+<div id="trzGPanel"    class="trz-g-panel" role="dialog" aria-modal="true" aria-labelledby="trzGTitle">
+    <div class="trz-g-box">
+        <div class="trz-g-head">
+            <h4 id="trzGTitle">
+                <i class="fas fa-map-marker-alt mr-1" style="color:#3b82f6"></i>
+                Seleccionar granjas
+            </h4>
+            <button type="button" id="trzBtnCerrarGranjas" class="trz-g-close" title="Cerrar" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="trz-g-body">
+            <input type="text" id="trzBuscarGranja" class="trz-g-search"
+                   placeholder="Buscar granja por código o nombre…" autocomplete="off">
+            <label class="trz-g-todas-lbl" for="trzChkTodasGranjas">
+                <input type="checkbox" id="trzChkTodasGranjas" class="w-4 h-4">
+                Seleccionar todas las granjas
+            </label>
+            <div id="trzListaGranjasTree" class="trz-g-tree" role="tree" aria-label="Zonas y granjas"></div>
+        </div>
+        <div class="trz-g-foot">
+            <button type="button" id="trzBtnCancelarGranjas" class="btn-eg-outline">Cancelar</button>
+            <button type="button" id="trzBtnAplicarGranjas"  class="btn-eg-primary-modal">Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/trazabilidad-reporte-render.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
