@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trazabilidad de resultados</title>
+    <script>
+        (function () {
+            var clave = 'ix2-theme';
+            var modo = null;
+            try {
+                var guardado = localStorage.getItem(clave);
+                if (guardado === 'dark' || guardado === 'light') modo = guardado;
+            } catch (e) {}
+            if (modo === null) {
+                try {
+                    var m = document.cookie.match(/(?:^|; )ix2-theme=([^;]*)/);
+                    if (m) {
+                        var cookie = decodeURIComponent(m[1]);
+                        if (cookie === 'dark' || cookie === 'light') modo = cookie;
+                    }
+                } catch (e2) {}
+            }
+            if (modo === null) modo = 'light';
+            document.documentElement.setAttribute('data-theme', modo);
+            document.documentElement.style.colorScheme = modo === 'dark' ? 'dark' : 'light';
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/pa.css">
+</head>
+
+<body>
+    <div class="pa-cabecera px-5 py-3 flex items-center justify-between">
+        <div>
+            <div class="text-[11px] uppercase tracking-wider" style="color: var(--pa-muted)">4.1 Laboratorio</div>
+            <h1 class="text-lg font-semibold">Trazabilidad de resultados</h1>
+        </div>
+        <button id="pa-refrescar" class="pa-boton pa-boton-sec">Actualizar</button>
+    </div>
+
+    <div class="p-5 space-y-4">
+        <div class="pa-tarjeta p-4">
+            <div class="pa-filtros">
+                <div class="pa-periodo">
+                    <button type="button" id="pa-periodo-toggle" class="pa-periodo-toggle" aria-expanded="false">
+                        <span>Registros presentes en:</span>
+                        <span id="pa-periodo-resumen" class="pa-periodo-resumen"></span>
+                        <span class="pa-periodo-chev">▾</span>
+                    </button>
+                    <div id="pa-periodo-body" class="pa-periodo-body hidden">
+                        <div class="pa-periodo-fechas">
+                            <div>
+                                <label class="pa-etiqueta" for="pa-desde">Desde</label>
+                                <input type="date" id="pa-desde" class="pa-control">
+                            </div>
+                            <div>
+                                <label class="pa-etiqueta" for="pa-hasta">Hasta</label>
+                                <input type="date" id="pa-hasta" class="pa-control">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pa-filtros--acciones">
+                    <button id="pa-aplicar" class="pa-boton">Aplicar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="pa-resumen" class="pa-resumen"></div>
+        <div id="pa-aviso" class="pa-aviso hidden"></div>
+
+        <div class="pa-tabs" id="pa-tabs">
+            <button type="button" class="pa-tab pa-tab--activo" data-vista="periodo">Por análisis</button>
+            <button type="button" class="pa-tab" data-vista="porcentaje">Porcentaje</button>
+        </div>
+
+        <div class="pa-graficas-grid" id="pa-graficas"></div>
+    </div>
+
+    <script src="js/pa-common.js"></script>
+    <script src="js/pa-charts.js"></script>
+    <script src="js/pa-trazabilidad.js"></script>
+</body>
+
+</html>

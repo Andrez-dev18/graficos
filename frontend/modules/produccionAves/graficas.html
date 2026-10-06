@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráficas de producción aves</title>
+    <script>
+        (function () {
+            var clave = 'ix2-theme';
+            var modo = null;
+            try {
+                var guardado = localStorage.getItem(clave);
+                if (guardado === 'dark' || guardado === 'light') modo = guardado;
+            } catch (e) {}
+            if (modo === null) {
+                try {
+                    var m = document.cookie.match(/(?:^|; )ix2-theme=([^;]*)/);
+                    if (m) {
+                        var cookie = decodeURIComponent(m[1]);
+                        if (cookie === 'dark' || cookie === 'light') modo = cookie;
+                    }
+                } catch (e2) {}
+            }
+            if (modo === null) modo = 'light';
+            document.documentElement.setAttribute('data-theme', modo);
+            document.documentElement.style.colorScheme = modo === 'dark' ? 'dark' : 'light';
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/pa.css">
+</head>
+
+<body>
+    <div class="pa-cabecera px-5 py-3 flex items-center justify-between">
+        <div>
+            <div class="text-[11px] uppercase tracking-wider" style="color: var(--pa-muted)">Producción Aves</div>
+            <h1 class="text-lg font-semibold">Gráficas de producción</h1>
+        </div>
+        <button id="pa-refrescar" class="pa-boton pa-boton-sec">Actualizar</button>
+    </div>
+
+    <div class="p-5 space-y-4">
+        <div class="pa-tarjeta p-4 grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+            <div>
+                <label class="pa-etiqueta" for="pa-tipo">Tipo de gráfica</label>
+                <select id="pa-tipo" class="pa-control"><option value="">Cargando...</option></select>
+            </div>
+            <div id="pa-bloque-seccion" class="hidden">
+                <label class="pa-etiqueta" for="pa-seccion">Sección</label>
+                <select id="pa-seccion" class="pa-control"></select>
+            </div>
+            <div>
+                <label class="pa-etiqueta" for="pa-granja">Granja</label>
+                <select id="pa-granja" class="pa-control"><option value="">Cargando...</option></select>
+            </div>
+            <div>
+                <label class="pa-etiqueta" for="pa-campania">Campaña</label>
+                <select id="pa-campania" class="pa-control"><option value="">Todas</option></select>
+            </div>
+            <div>
+                <label class="pa-etiqueta" for="pa-galpon">Galpón</label>
+                <select id="pa-galpon" class="pa-control"><option value="">Todos</option></select>
+            </div>
+            <div>
+                <label class="pa-etiqueta" for="pa-sexo">Sexo</label>
+                <select id="pa-sexo" class="pa-control">
+                    <option value="ambos">Ambos</option>
+                    <option value="m">Macho</option>
+                    <option value="h">Hembra</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="pa-aviso" class="pa-aviso hidden"></div>
+
+        <div class="pa-tarjeta p-4">
+            <div class="pa-lienzo">
+                <canvas id="pa-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/pa-common.js"></script>
+    <script src="js/pa-charts.js"></script>
+    <script src="js/pa-graficas.js"></script>
+</body>
+
+</html>

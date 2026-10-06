@@ -5,6 +5,11 @@ var configGraficos = [];
 var chartInstances = {};
 var cacheGranjasData = [];
 
+/* Base de la API de interconsultas */
+window.API_INTERCONSULTA = window.AppConfig && window.AppConfig.API
+    ? window.AppConfig.API.BASE_URL.replace(/\/+$/, '') + '/interconsulta'
+    : '../../backend/interconsulta';
+
 function formatISOFecha(date) {
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');

@@ -1,4 +1,17 @@
 
+/* Raíz del despliegue (<mount>), sin prefijos de frontend/ ni de módulos */
+function raizApp() {
+    var ruta = window.location.pathname;
+    var corte = ruta.length;
+    ['/frontend/', '/modules/', '/index.html'].forEach(function (marca) {
+        var pos = ruta.indexOf(marca);
+        if (pos >= 0 && pos < corte) {
+            corte = pos;
+        }
+    });
+    return ruta.substring(0, corte).replace(/\/+$/, '');
+}
+
 // === INTERCEPTOR GLOBAL DE FETCH (SOLUCIÓN MAESTRA) ===
 // Inyecta credentials y atrapa errores 401 en TODAS las peticiones automáticamente
 (function () {
@@ -33,7 +46,7 @@
                 sessionStorage.clear();
 
                 // Ajusta esta ruta a la ubicación exacta de tu login
-                window.top.location.href = '/graficos/frontend/login.html';
+                window.top.location.href = raizApp() + '/frontend/login.html';
 
                 return Promise.reject(new Error("Sesión expirada"));
             }
@@ -48,7 +61,7 @@
 
 const AppConfig = {
     API: {
-        BASE_URL: 'http://localhost/corebi/backend',
+        BASE_URL: window.location.origin + raizApp() + '/backend',
         ENDPOINTS: {
             AUTH: {
                 LOGIN: '/usuario/login',

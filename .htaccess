@@ -47,20 +47,28 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^backend/?(.*)$ backend/index.php [L,QSA]
 
+# Backend accedido con prefijo /frontend/ (URLs ya emitidas con ese prefijo)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^frontend/backend/?(.*)$ backend/index.php [L,QSA]
+
 # ============================================
 # FRONTEND
 # ============================================
+RewriteCond %{REQUEST_URI} !/frontend/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*\.(js|html|css))$ frontend/$1 [L,QSA]
 
+RewriteCond %{REQUEST_URI} !/frontend/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(js|css|img|assets|fonts|views)/(.*)$ frontend/$1/$2 [L,QSA]
 
+RewriteCond %{REQUEST_URI} !/frontend/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^frontend/?(.*)$ frontend/$1 [L,QSA]
+RewriteRule ^frontend/?(.*)$ frontend/$1 [END,QSA]
 
 DirectoryIndex frontend/index.html
 RewriteRule ^$ frontend/index.html [L]

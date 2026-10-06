@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const mapDias = new Map();
             for (const tipoPesaje of pesajeSeleccionados) {
-                const resp = await fetch(`../../backend/interconsulta/pesaje-dias?tipo=${encodeURIComponent(tipoPesaje)}`);
+                const resp = await fetch(API_INTERCONSULTA + `/pesaje-dias?tipo=${encodeURIComponent(tipoPesaje)}`);
                 const json = await resp.json();
                 if (json && json.success && Array.isArray(json.dias)) {
                     json.dias.forEach(d => {
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = obtenerParametrosPeriodo();
             const qs = new URLSearchParams(params).toString();
-            const response = await fetch(`../../backend/interconsulta/granjas-campanias-galpones?${qs}`);
+            const response = await fetch(API_INTERCONSULTA + `/granjas-campanias-galpones?${qs}`);
             const data = await response.json();
 
             if (!data.success) return;
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarTiposGrafica() {
         try {
-            const response = await fetch('../../backend/interconsulta/tipos-grafica');
+            const response = await fetch(API_INTERCONSULTA + '/tipos-grafica');
             const data = await response.json();
 
             if (!data.success || !Array.isArray(data.data)) return;
@@ -1035,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const qs = new URLSearchParams(params).toString();
 
                 try {
-                    const resp = await fetch(`../../backend/interconsulta/acumulado-semanal?${qs}`);
+                    const resp = await fetch(API_INTERCONSULTA + `/acumulado-semanal?${qs}`);
                     const json = await resp.json();
 
                     completadas++;
@@ -1286,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccion: meta.tipo === 'mortalidad' ? 'all' : 'linea'
             });
 
-            fetch(`../../backend/interconsulta/grafica-data?${params.toString()}`)
+            fetch(API_INTERCONSULTA + `/grafica-data?${params.toString()}`)
                 .then(res => res.json())
                 .then(res => {
                     if (activeFetchToken !== currentFetchToken) return;

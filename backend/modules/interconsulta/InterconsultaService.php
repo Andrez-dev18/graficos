@@ -4,14 +4,19 @@ require_once __DIR__ . '/graficas/sip_grafica_catalog_lib.php';
 require_once __DIR__ . '/graficas/sip_grafica_data_lib.php';
 require_once __DIR__ . '/graficas/sip_grafica_acumulado_semanal_lib.php';
 require_once __DIR__ . '/graficas/sip_grafica_pesaje_lib.php';
+require_once __DIR__ . '/../../core/SanidadGraficasClient.php';
 
 class InterconsultaService
 {
     private $conn;
 
+    /** @var SanidadGraficasClient */
+    private $sanidad;
+
     public function __construct($conn = null)
     {
         $this->conn = $conn;
+        $this->sanidad = new SanidadGraficasClient();
     }
 
     public function setConnection($conn)
@@ -102,5 +107,20 @@ class InterconsultaService
             'dia'         => $dia,
             'tedad'       => $tedad,
         ]);
+    }
+
+    public function getGraficaPct(array $params = [])
+    {
+        return $this->sanidad->recurso('pct', $params);
+    }
+
+    public function getGraficaProyeccion(array $params = [])
+    {
+        return $this->sanidad->recurso('proyeccion', $params);
+    }
+
+    public function getLuminometriaPuntos()
+    {
+        return $this->sanidad->recurso('luminometria-puntos');
     }
 }

@@ -105,6 +105,9 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                 delete chartInstances[id];
             }
         });
+        if (typeof IC_PCT !== 'undefined') {
+            IC_PCT.limpiarTodo();
+        }
         contenedor.innerHTML = '';
     }
 
@@ -354,6 +357,22 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                             </select>
                         </div>
                         ` : ''}
+                        ${(typeof IC_PCT !== 'undefined' && IC_PCT.soportaPct(item.tipo)) ? `
+                        <div class="flex items-center gap-1">
+                            <label class="inline-flex items-center gap-1 cursor-pointer select-none">
+                                <input type="checkbox" data-chart="${item.canvasId}" class="chk-pct-interconsulta w-3.5 h-3.5 rounded text-blue-600 cursor-pointer">
+                                <span class="font-medium text-slate-500">Gráfico %</span>
+                            </label>
+                        </div>
+                        ` : ''}
+                        ${(typeof IC_PCT !== 'undefined' && IC_PCT.soportaProy(item.tipo)) ? `
+                        <div class="flex items-center gap-1">
+                            <label class="inline-flex items-center gap-1 cursor-pointer select-none">
+                                <input type="checkbox" data-chart="${item.canvasId}" class="chk-proy-interconsulta w-3.5 h-3.5 rounded text-blue-600 cursor-pointer">
+                                <span class="font-medium text-slate-500">Proyección</span>
+                            </label>
+                        </div>
+                        ` : ''}
                     </div>
 
                     <span class="inline-flex items-center border-2 border-sky-500 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700 inset-ring inset-ring-blue-700/10 shadow-sm">
@@ -362,6 +381,9 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
                 </div>
                 <div class="chart-canvas-wrapper relative w-full h-[320px] transition-all duration-300">
                     <canvas id="${item.canvasId}"></canvas>
+                </div>
+                <div class="chart-pct-wrapper relative w-full h-[220px] mt-3 hidden">
+                    <canvas id="${item.canvasId}-pct"></canvas>
                 </div>
             </div>`;
 
@@ -394,6 +416,9 @@ function renderizarGraficosDinamicos(listaConfigs, esIncremental = false) {
     });
 
     itemsACrear.forEach(item => crearGraficoChartJS(item));
+    if (typeof IC_PCT !== 'undefined') {
+        itemsACrear.forEach(item => IC_PCT.aplicar(item));
+    }
     filtrarYMostrarGraficos();
 }
 

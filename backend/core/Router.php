@@ -39,9 +39,24 @@ class Router
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $method = $_SERVER['REQUEST_METHOD'];
 
-        // 1. Limpiamos la ruta base
-        $basePath = '/corebi/backend';
-        $path = str_replace($basePath, '', $uri);
+        // 1. Limpiamos la ruta base del despliegue (<app>/backend)
+        $scriptDir = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])) : '';
+        $basePath = rtrim($scriptDir, '/');
+        if ($basePath === '' || $basePath === '.' || $basePath === '/') {
+            $basePath = '/corebi/backend';
+        }
+
+        $path = $uri;
+        /* El front controller también es alcanzable como <app>/frontend/backend */
+        $path = preg_replace('#/frontend/backend(?=/)#', '/backend', $path, 1);
+        if (strpos($path, $basePath) === 0) {
+            $path = substr($path, strlen($basePath));
+        } else {
+            $path = str_replace($basePath, '', $path);
+        }
+        if ($path === '') {
+            $path = '/';
+        }
 
         if (isset($this->routes[$method][$path])) {
             $action = $this->routes[$method][$path];
