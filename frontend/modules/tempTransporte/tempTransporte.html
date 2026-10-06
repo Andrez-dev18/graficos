@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <script>
+        (function () {
+            var clave = 'ix2-theme';
+            var modo = null;
+            try {
+                var guardado = localStorage.getItem(clave);
+                if (guardado === 'dark' || guardado === 'light') modo = guardado;
+            } catch (e) {}
+            if (modo === null) {
+                try {
+                    var m = document.cookie.match(/(?:^|; )ix2-theme=([^;]*)/);
+                    if (m) {
+                        var cookie = decodeURIComponent(m[1]);
+                        if (cookie === 'dark' || cookie === 'light') modo = cookie;
+                    }
+                } catch (e2) {}
+            }
+            if (modo === null) modo = 'light';
+            document.documentElement.setAttribute('data-theme', modo);
+            document.documentElement.style.colorScheme = modo === 'dark' ? 'dark' : 'light';
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperatura transporte pollo BB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="css/tempTransporte.css">
+</head>
+
+<body class="bg-gray-50 dash-temperatura-page min-w-0 overflow-x-hidden">
+    <div id="ttpbb-root" class="max-w-[min(100vw-1.5rem,120rem)] mx-auto box-border">
+        <div id="panelConsultaTtpbb">
+            <div class="card p-5 md:p-6 mb-6 w-full">
+                <h3 class="text-base font-semibold text-gray-800 mb-3">Listado de registros</h3>
+                <input type="hidden" id="ttpbb-con-granja-cod" value="">
+                <input type="hidden" id="ttpbb-con-galpones" value="">
+                
+                <div class="ttpbb-filtros-row mb-4" style="flex-wrap:wrap;row-gap:0.5rem">
+                    <!-- Selector tipo de período -->
+                    <div class="ttpbb-filtro-field" style="flex:0 0 9rem;min-width:8rem">
+                        <label for="ttpbb-con-periodo-tipo" class="block text-xs font-medium text-gray-700 mb-1">Período</label>
+                        <select id="ttpbb-con-periodo-tipo"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm bg-white h-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="TODOS">Todos</option>
+                            <option value="POR_FECHA">Por fecha</option>
+                            <option value="ENTRE_FECHAS">Entre fechas</option>
+                            <option value="POR_MES">Por mes</option>
+                            <option value="ENTRE_MESES" selected>Entre meses</option>
+                        </select>
+                    </div>
+
+                    <!-- POR_FECHA -->
+                    <div id="ttpbb-con-field-fecha-unica" class="ttpbb-filtro-field hc-hidden" style="flex:0 0 10.5rem;min-width:9rem">
+                        <label for="ttpbb-con-fecha-unica" class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                        <input type="date" id="ttpbb-con-fecha-unica"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm h-10">
+                    </div>
+
+                    <!-- ENTRE_FECHAS -->
+                    <div id="ttpbb-con-field-entre-fechas" class="hc-period-dos-inputs hc-hidden">
+                        <div class="ttpbb-filtro-field" style="flex:0 0 10.5rem;min-width:9rem">
+                            <label for="ttpbb-con-fecha-inicio" class="block text-xs font-medium text-gray-700 mb-1">Desde</label>
+                            <input type="date" id="ttpbb-con-fecha-inicio"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm h-10">
+                        </div>
+                        <div class="ttpbb-filtro-field" style="flex:0 0 10.5rem;min-width:9rem">
+                            <label for="ttpbb-con-fecha-fin" class="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
+                            <input type="date" id="ttpbb-con-fecha-fin"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm h-10">
+                        </div>
+                    </div>
+
+                    <!-- POR_MES -->
+                    <div id="ttpbb-con-field-mes-unico" class="ttpbb-filtro-field hc-hidden" style="flex:0 0 10rem;min-width:9rem">
+                        <label for="ttpbb-con-mes-unico" class="block text-xs font-medium text-gray-700 mb-1">Mes</label>
+                        <input type="month" id="ttpbb-con-mes-unico"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm h-10">
+                    </div>
+
+                    <!-- ENTRE_MESES -->
+                    <div id="ttpbb-con-field-entre-meses" class="hc-period-dos-inputs">
+                        <div class="ttpbb-filtro-field" style="flex:0 0 10rem;min-width:9rem">
+                            <label for="ttpbb-con-mes-inicio" class="block text-xs font-medium text-gray-700 mb-1">Mes inicio</label>
+                            <input type="month" id="ttpbb-con-mes-inicio"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm h-10">
+                        </div>
+                        <div class="ttpbb-filtro-field" style="flex:0 0 10rem;min-width:9rem">
+                            <label for="ttpbb-con-mes-fin" class="block text-xs font-medium text-gray-700 mb-1">Mes fin</label>
+                            <input type="month" id="ttpbb-con-mes-fin"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm h-10">
+                        </div>
+                    </div>
+
+                    <!-- Granja simple -->
+                    <div class="ttpbb-filtro-field" style="flex:0 0 14rem;min-width:11rem">
+                        <label for="ttpbb-con-granja-select" class="block text-xs font-medium text-gray-700 mb-1">Granja</label>
+                        <select id="ttpbb-con-granja-select"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm bg-white h-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+
+                    <div class="ttpbb-filtro-field shrink-0" style="align-self:flex-end">
+                        <span class="block text-xs font-medium text-gray-700 mb-1 invisible select-none" aria-hidden="true">&nbsp;</span>
+                        <div class="flex gap-2">
+                            <button type="button" id="ttpbb-btn-con-filtrar"
+                                class="inline-flex h-10 items-center justify-center gap-2 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 whitespace-nowrap">
+                                <i class="fa-solid fa-filter" aria-hidden="true"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="ttpbb-con-meta" class="text-xs text-gray-500 mb-3"></p>
+
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table id="ttpbb-con-tabla-lista" class="w-full text-xs text-left border-collapse">
+                        <thead class="bg-gray-100 text-gray-700">
+                            <tr>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">N°</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Granja</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Campaña</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Galpones</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Período</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Usuario</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Placa camión</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Emp. Trans.</th>
+                                <th class="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ttpbb-con-tbody-lista"></tbody>
+                    </table>
+                </div>
+                <p id="ttpbb-con-table-count" class="text-xs text-gray-500 mt-2"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalle Gráfica / Datos (Exacto a modal.png) -->
+    <div id="hc-backdrop-temp-ttpbb" class="modal-backdrop lay-hidden"></div>
+    <div id="hc-modal-temp-ttpbb" class="modal-panel lay-hidden">
+        <div class="modal-dialog-container">
+            <div class="hc-grafica-modal-head">
+                <h4 id="hc-ttpbb-titulo">Temperatura de transporte de pollo BB</h4>
+                <div class="hc-ttpbb-tabs" role="tablist" aria-label="Vista">
+                    <button type="button" class="hc-ttpbb-tab text-xs px-3 py-1.5 rounded border font-medium bg-blue-600 text-white border-blue-600" data-hc-ttpbb-tab="grafica" role="tab" aria-selected="true">Gráfica</button>
+                    <button type="button" class="hc-ttpbb-tab text-xs px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50" data-hc-ttpbb-tab="datos" role="tab" aria-selected="false">Datos</button>
+                </div>
+                <button type="button" id="hc-ttpbb-close" class="btn-eg-close-x" title="Cerrar" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="modal-granjas-body">
+                <div id="hc-ttpbb-meta" class="hc-det-temp-meta"></div>
+                <div id="hc-ttpbb-panel-grafica" class="flex flex-col min-h-0 flex-1 overflow-y-auto space-y-4" role="tabpanel">
+                    <div id="hc-ttpbb-loading" class="hc-det-temp-loading"><i class="fas fa-spinner fa-spin mr-1"></i> Cargando lecturas...</div>
+                    <div id="hc-ttpbb-empty" class="hc-det-temp-empty lay-hidden">Sin lecturas para este galpón.</div>
+                    <div id="hc-ttpbb-chart-wrap-temp" class="hc-det-temp-canvas-wrap lay-hidden">
+                        <canvas id="hc-ttpbb-chart-temp"></canvas>
+                    </div>
+                    <div id="hc-ttpbb-chart-wrap-hum" class="hc-det-temp-canvas-wrap lay-hidden">
+                        <canvas id="hc-ttpbb-chart-hum"></canvas>
+                    </div>
+                </div>
+                <div id="hc-ttpbb-panel-datos" class="flex flex-col min-h-0 flex-1 overflow-y-auto lay-hidden" role="tabpanel">
+                    <div id="hc-ttpbb-datos-host" class="p-2"></div>
+                </div>
+            </div>
+            <div class="modal-granjas-foot">
+                <button type="button" id="hc-ttpbb-cancel" class="btn-eg-outline">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicialización de fechas
+        (function() {
+            var hoy = new Date();
+            var yyyy = hoy.getFullYear();
+            var mm = String(hoy.getMonth() + 1).padStart(2, '0');
+            var dd = String(hoy.getDate()).padStart(2, '0');
+            var hoyStr = yyyy + '-' + mm + '-' + dd;
+            var mesInicioStr = yyyy + '-01';
+            var mesFinStr = yyyy + '-12';
+
+            var inpFechaU = document.getElementById('ttpbb-con-fecha-unica');
+            var inpFechaI = document.getElementById('ttpbb-con-fecha-inicio');
+            var inpFechaF = document.getElementById('ttpbb-con-fecha-fin');
+            var inpMesU = document.getElementById('ttpbb-con-mes-unico');
+            var inpMesI = document.getElementById('ttpbb-con-mes-inicio');
+            var inpMesF = document.getElementById('ttpbb-con-mes-fin');
+
+            if (inpFechaU) inpFechaU.value = hoyStr;
+            if (inpFechaI) inpFechaI.value = hoyStr;
+            if (inpFechaF) inpFechaF.value = hoyStr;
+            if (inpMesU) inpMesU.value = mesInicioStr;
+            if (inpMesI) inpMesI.value = mesInicioStr;
+            if (inpMesF) inpMesF.value = mesFinStr;
+        })();
+    </script>
+    <script src="js/ttpbb-grafica-modal.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
