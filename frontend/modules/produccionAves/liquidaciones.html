@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <script>
+        (function () {
+            var clave = 'ix2-theme';
+            var modo = null;
+            try {
+                var guardado = localStorage.getItem(clave);
+                if (guardado === 'dark' || guardado === 'light') modo = guardado;
+            } catch (e) {}
+            if (modo === null) {
+                try {
+                    var m = document.cookie.match(/(?:^|; )ix2-theme=([^;]*)/);
+                    if (m) {
+                        var cookie = decodeURIComponent(m[1]);
+                        if (cookie === 'dark' || cookie === 'light') modo = cookie;
+                    }
+                } catch (e2) {}
+            }
+            if (modo === null) modo = 'light';
+            document.documentElement.setAttribute('data-theme', modo);
+            document.documentElement.style.colorScheme = modo === 'dark' ? 'dark' : 'light';
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráficas de liquidación</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/style.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/pa-liquidaciones.css">
+</head>
+
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 sm:p-6">
+    <div class="max-w-[min(100vw-1.5rem,120rem)] mx-auto space-y-5">
+        <div class="card-filtros-compacta mb-4 w-full max-w-full bg-white border border-gray-200 rounded-2xl shadow-sm overflow-visible">
+            <div class="p-4">
+                <div class="hc-filter-row-periodo">
+                    <div class="hc-per-field hc-per-minw" style="min-width:200px">
+                        <label class="hc-per-label" for="hcliq-periodoTipo">
+                            <i class="fas fa-calendar-alt mr-1 text-blue-600"></i>Periodo (fecha fin)
+                        </label>
+                        <select id="hcliq-periodoTipo" class="hc-per-input cursor-pointer">
+                            <option value="TODOS">Todos</option>
+                            <option value="POR_FECHA">Por fecha</option>
+                            <option value="ENTRE_FECHAS">Entre fechas</option>
+                            <option value="POR_MES">Por mes</option>
+                            <option value="ENTRE_MESES" selected>Entre meses</option>
+                            <option value="ULTIMA_SEMANA">Última semana</option>
+                        </select>
+                    </div>
+                    <div id="hcliq-periodoPorFecha" class="hc-per-field hc-per-minw hc-hidden">
+                        <label class="hc-per-label" for="hcliq-fechaUnica">Fecha</label>
+                        <input type="text" id="hcliq-fechaUnica" class="hc-per-input hc-input-fecha-es" placeholder="dd/mm/aaaa" maxlength="10">
+                    </div>
+                    <div id="hcliq-periodoEntreFechas" class="hc-period-dos-inputs hc-hidden">
+                        <div class="hc-per-field hc-per-field--twin">
+                            <label class="hc-per-label" for="hcliq-fechaInicio">Desde</label>
+                            <input type="text" id="hcliq-fechaInicio" class="hc-per-input hc-input-fecha-es" placeholder="dd/mm/aaaa" maxlength="10">
+                        </div>
+                        <div class="hc-per-field hc-per-field--twin">
+                            <label class="hc-per-label" for="hcliq-fechaFin">Hasta</label>
+                            <input type="text" id="hcliq-fechaFin" class="hc-per-input hc-input-fecha-es" placeholder="dd/mm/aaaa" maxlength="10">
+                        </div>
+                    </div>
+                    <div id="hcliq-periodoPorMes" class="hc-per-field hc-per-minw hc-hidden">
+                        <label class="hc-per-label" for="hcliq-mesUnico">Mes</label>
+                        <input type="text" id="hcliq-mesUnico" class="hc-per-input hc-fp-mes" readonly>
+                    </div>
+                    <div id="hcliq-periodoEntreMeses" class="hc-period-dos-inputs">
+                        <div class="hc-per-field hc-per-field--twin">
+                            <label class="hc-per-label" for="hcliq-mesInicio">Mes inicio</label>
+                            <input type="text" id="hcliq-mesInicio" class="hc-per-input hc-fp-mes" readonly>
+                        </div>
+                        <div class="hc-per-field hc-per-field--twin">
+                            <label class="hc-per-label" for="hcliq-mesFin">Mes fin</label>
+                            <input type="text" id="hcliq-mesFin" class="hc-per-input hc-fp-mes" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="hcliq-modo-row">
+                    <div class="hc-per-field hc-per-minw" style="min-width:200px">
+                        <span class="hc-per-label">Parámetro</span>
+                        <div class="hcliq-ms" id="hcliq-param-ms">
+                            <button type="button" id="hcliq-param-btn" class="hc-per-input hcliq-ms-btn" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="hcliq-param-label" class="hcliq-ms-btn-label">—</span>
+                                <i class="fas fa-chevron-down hcliq-ms-caret" aria-hidden="true"></i>
+                            </button>
+                            <div id="hcliq-param-dropdown" class="hcliq-ms-dropdown hc-hidden">
+                                <div class="hcliq-ms-search-wrap">
+                                    <i class="fas fa-search hcliq-ms-search-ico" aria-hidden="true"></i>
+                                    <input type="text" id="hcliq-param-search" class="hcliq-ms-search" placeholder="Buscar parámetro…">
+                                </div>
+                                <div id="hcliq-param-options" class="hcliq-ms-options"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hc-per-field hc-per-minw" style="min-width:180px">
+                        <label class="hc-per-label" for="hcliq-combinar">Combinar gráficos</label>
+                        <select id="hcliq-combinar" class="hc-per-input cursor-pointer">
+                            <option value="combinado" selected>Combinar (multieje)</option>
+                            <option value="separado">Sin combinar (uno por parámetro)</option>
+                        </select>
+                    </div>
+                    <div class="hc-per-field hc-per-minw" style="min-width:160px">
+                        <label class="hc-per-label" for="hcliq-zona" title="Restringe las granjas disponibles en los modos de granja">Zona</label>
+                        <select id="hcliq-zona" class="hc-per-input cursor-pointer">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div class="hc-per-field hc-per-minw" style="min-width:180px">
+                        <span class="hc-per-label">Agrupar por</span>
+                        <select id="hcliq-modo" class="hc-per-input cursor-pointer">
+                            <option value="global">Agrupar por zona</option>
+                            <option value="granja">Detalle de una granja</option>
+                            <option value="granjas">Comparar granjas</option>
+                        </select>
+                    </div>
+                    <div class="hc-filtro-field hc-filtro-granja" id="hcliq-granja-wrap" style="display:none;min-width:14rem;flex:1 1 16rem;max-width:28rem">
+                        <label class="hc-filtro-label" for="hcliq-granja">Granja</label>
+                        <select id="hcliq-granja" class="form-control hc-filtro-control">
+                            <option value="">— Seleccione —</option>
+                        </select>
+                    </div>
+                    <div class="hc-per-field hc-per-minw" id="hcliq-granjas-wrap" style="display:none;min-width:16rem;flex:1 1 18rem;max-width:30rem">
+                        <span class="hc-per-label">Granjas</span>
+                        <div class="hcliq-ms" id="hcliq-granjas-ms">
+                            <button type="button" id="hcliq-granjas-btn" class="hc-per-input hcliq-ms-btn" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="hcliq-granjas-label" class="hcliq-ms-btn-label">—</span>
+                                <i class="fas fa-chevron-down hcliq-ms-caret" aria-hidden="true"></i>
+                            </button>
+                            <div id="hcliq-granjas-dropdown" class="hcliq-ms-dropdown hc-hidden">
+                                <div class="hcliq-ms-search-wrap">
+                                    <i class="fas fa-search hcliq-ms-search-ico" aria-hidden="true"></i>
+                                    <input type="text" id="hcliq-granjas-search" class="hcliq-ms-search" placeholder="Buscar granja…">
+                                </div>
+                                <div id="hcliq-granjas-options" class="hcliq-ms-options"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hc-filtro-field">
+                        <span class="hc-filtro-label hc-filtro-label--spacer" aria-hidden="true">&nbsp;</span>
+                        <button type="button" id="hcliq-btn-filtrar" class="btn-eg-primary-modal hccmp-btn-comparar hcliq-btn-filtrar" data-pending="0">
+                            <i class="fas fa-filter" aria-hidden="true"></i>
+                            <span id="hcliq-btn-filtrar-label">Filtrar</span>
+                            <span class="hcliq-btn-pending-dot" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="hcliq-chart-wrap" class="hccmp-resumen-card lay-hidden space-y-3">
+            <div class="hcliq-chart-head">
+                <div id="hcliq-chart-titulo" class="text-sm font-semibold text-gray-800"></div>
+                <div class="hcliq-chart-galpon hc-hidden" id="hcliq-chart-galpon-wrap">
+                    <label for="hcliq-chart-galpon" class="hcliq-chart-galpon-label">Galpón</label>
+                    <select id="hcliq-chart-galpon" class="hcliq-chart-galpon-select">
+                        <option value="">Todos prom.</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hccmp-chart-wrap" style="min-height:360px">
+                <div id="hcliq-chart-host" class="hcliq-chart-host"></div>
+            </div>
+        </div>
+
+        <div class="hccmp-resumen-card">
+            <div class="text-sm font-semibold text-gray-800 mb-3">Granjas liquidadas</div>
+            <div class="overflow-x-auto">
+                <table class="hccmp-tabla-resumen" id="hcliq-tabla-lista">
+                    <thead id="hcliq-tabla-lista-head"></thead>
+                    <tbody id="hcliq-tabla-lista-body">
+                        <tr><td colspan="10" class="text-center text-gray-500 py-6">Pulse Filtrar para cargar liquidaciones.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="hcliq-loading" class="hcliq-loading-overlay hc-hidden" aria-hidden="true">
+        <div class="hcliq-loading-box">
+            <span class="hccmp-spinner"></span>
+            <span>Cargando…</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js" crossorigin="anonymous"></script>
+    <script src="js/pa-common.js"></script>
+    <script src="js/hcliq-multiselect.js"></script>
+    <script src="js/pa-liquidaciones.js"></script>
+</body>
+
+</html>
