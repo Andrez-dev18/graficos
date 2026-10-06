@@ -20,12 +20,8 @@ class Database {
         // 2. Ruta de tu archivo local (.env)
         $localEnvFile = __DIR__ . '/.env'; 
 
-        // Verificamos en qué entorno estamos.
-        // IMPORTANTE: el .env local tiene prioridad para desarrollo.
-        // En producción no existe backend/config/.env, así que se sigue usando conexion_grs.
-        if (file_exists($localEnvFile)) {
-            $this->loadLocalConfig($localEnvFile);
-        } elseif (file_exists($prodConfigFile1)) {
+        // Verificamos en qué entorno estamos
+        if (file_exists($prodConfigFile1)) {
             require_once $prodConfigFile1;
             $this->loadProdConfig();
         } elseif (file_exists($prodConfigFile2)) {
@@ -34,6 +30,8 @@ class Database {
         } elseif (file_exists($prodConfigFile3)) {
             require_once $prodConfigFile3;
             $this->loadProdConfig();
+        } elseif (file_exists($localEnvFile)) {
+            $this->loadLocalConfig($localEnvFile);
         } else {
             die("Error crítico: No se encontró configuración de base de datos ni en producción ni en local.");
         }
