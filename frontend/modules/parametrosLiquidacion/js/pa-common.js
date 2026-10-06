@@ -1,20 +1,15 @@
 /* Utilidades compartidas del módulo Producción Aves */
 window.PA = (function () {
-    /* Base del backend resuelta desde la URL del propio script:
-       funciona con /<app>/modules/... y con /<app>/frontend/modules/... */
-    function baseBackend() {
-        var referencia = (document.currentScript && document.currentScript.src)
-            ? document.currentScript.src
-            : window.location.href;
-        var corte = referencia.indexOf('/modules/');
-        if (corte < 0) {
-            return '../../backend/produccionAves';
-        }
-        var raiz = referencia.substring(0, corte).replace(/\/frontend$/, '');
-        return raiz + '/backend/produccionAves';
-    }
+    /* Base de Sanidad resuelta dinámicamente según el entorno actual (localhost o producción) */
+    var SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    var URLS = {
+        zonas: SANIDAD_BASE + '/modules/sip/estandares-granja/crud_estandares_granja.php?action=zonas',
+        granjas: SANIDAD_BASE + '/modules/sip/estandares-granja/crud_estandares_granja.php?action=granjas',
+        liquidaciones: SANIDAD_BASE + '/modules/sip/historia-clinica-graficas/get_liquidaciones_ica_chart.php',
+        galpones: SANIDAD_BASE + '/modules/sip/historia-clinica-graficas/get_liquidaciones_lista.php'
+    };
 
-    var BASE = baseBackend();
+    var BASE = SANIDAD_BASE;
 
     var PALETA = [
         '#2563eb', '#f97316', '#10b981', '#a855f7', '#ef4444',
@@ -58,8 +53,28 @@ window.PA = (function () {
     }
 
     async function api(recurso, params) {
-        var query = qs(Object.assign({ recurso: recurso }, params || {}));
-        var res = await fetch(BASE + '/graficas?' + query, { headers: { Accept: 'application/json' } });
+        params = params || {};
+        var url = '';
+        if (recurso === 'liquidaciones-zonas' || recurso === 'zonas') {
+            url = URLS.zonas;
+        } else if (recurso === 'liquidaciones-granjas' || recurso === 'granjas') {
+            var z = params.zona != null ? encodeURIComponent(params.zona) : '';
+            url = URLS.granjas + '&zona=' + z;
+        } else if (recurso === 'liquidaciones' || recurso === 'data' || recurso === 'chart') {
+            var query = qs(params);
+            url = URLS.liquidaciones + (query ? '?' + query : '');
+        } else if (recurso === 'liquidaciones-galpones' || recurso === 'galpones') {
+            var query = qs(params);
+            url = URLS.galpones + (query ? '?' + query : '');
+        } else {
+            var query = qs(Object.assign({ recurso: recurso }, params));
+            url = URLS.liquidaciones + '?' + query;
+        }
+
+        var res = await fetch(url, {
+            headers: { Accept: 'application/json' },
+            credentials: 'include'
+        });
         var json;
         try {
             json = await res.json();
