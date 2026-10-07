@@ -10,6 +10,10 @@ class HcliqMultiSelect {
         this.container = document.getElementById(opts.optionsContainerId);
         this.onChange = typeof opts.onChange === 'function' ? opts.onChange : function () {};
         this.maxSelected = opts.maxSelected || 4;
+        this.emptyLabel = typeof opts.emptyLabel === 'string' && opts.emptyLabel !== '' ? opts.emptyLabel : 'Ninguno';
+        this.maxMessage = typeof opts.maxMessage === 'string' && opts.maxMessage !== ''
+            ? opts.maxMessage
+            : 'Máximo {n} parámetros para combinar.';
         this.options = [];
         this.searchQuery = '';
         this.initialized = false;
@@ -80,7 +84,7 @@ class HcliqMultiSelect {
         if (this.label) {
             let texto;
             if (seleccionados.length === 0) {
-                texto = 'Ninguno';
+                texto = this.emptyLabel;
             } else if (seleccionados.length === total && total > 1) {
                 texto = 'Todos (' + total + ')';
             } else if (seleccionados.length === 1) {
@@ -166,7 +170,7 @@ class HcliqMultiSelect {
                 if (ids.length > this.maxSelected) {
                     op.selected = false;
                     if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon: 'warning', title: 'Parámetros', text: 'Máximo ' + this.maxSelected + ' parámetros para combinar.' });
+                        Swal.fire({ icon: 'warning', title: 'Selección', text: this.maxMessage.replace('{n}', String(this.maxSelected)) });
                     }
                 }
                 this.render();

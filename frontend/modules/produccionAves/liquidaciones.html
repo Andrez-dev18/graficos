@@ -44,7 +44,7 @@
                 <div class="hc-filter-row-periodo">
                     <div class="hc-per-field hc-per-minw" style="min-width:200px">
                         <label class="hc-per-label" for="hcliq-periodoTipo">
-                            <i class="fas fa-calendar-alt mr-1 text-blue-600"></i>Periodo (fecha fin)
+                            <i class="fas fa-calendar-alt mr-1 text-blue-600"></i>Periodo (fecha liquidación)
                         </label>
                         <select id="hcliq-periodoTipo" class="hc-per-input cursor-pointer">
                             <option value="TODOS">Todos</option>
@@ -108,12 +108,6 @@
                             <option value="separado">Sin combinar (uno por parámetro)</option>
                         </select>
                     </div>
-                    <div class="hc-per-field hc-per-minw" style="min-width:160px">
-                        <label class="hc-per-label" for="hcliq-zona" title="Restringe las granjas disponibles en los modos de granja">Zona</label>
-                        <select id="hcliq-zona" class="hc-per-input cursor-pointer">
-                            <option value="">Todas</option>
-                        </select>
-                    </div>
                     <div class="hc-per-field hc-per-minw" style="min-width:180px">
                         <span class="hc-per-label">Agrupar por</span>
                         <select id="hcliq-modo" class="hc-per-input cursor-pointer">
@@ -122,26 +116,52 @@
                             <option value="granjas">Comparar granjas</option>
                         </select>
                     </div>
+                    <div class="hc-per-field hc-per-minw" id="hcliq-zona-wrap" style="min-width:160px">
+                        <label class="hc-per-label" for="hcliq-zona" title="Restringe las granjas disponibles en los modos de granja">Zona</label>
+                        <select id="hcliq-zona" class="hc-per-input cursor-pointer">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
                     <div class="hc-filtro-field hc-filtro-granja" id="hcliq-granja-wrap" style="display:none;min-width:14rem;flex:1 1 16rem;max-width:28rem">
                         <label class="hc-filtro-label" for="hcliq-granja">Granja</label>
                         <select id="hcliq-granja" class="form-control hc-filtro-control">
                             <option value="">— Seleccione —</option>
                         </select>
                     </div>
-                    <div class="hc-per-field hc-per-minw" id="hcliq-granjas-wrap" style="display:none;min-width:16rem;flex:1 1 18rem;max-width:30rem">
-                        <span class="hc-per-label">Granjas</span>
-                        <div class="hcliq-ms" id="hcliq-granjas-ms">
-                            <button type="button" id="hcliq-granjas-btn" class="hc-per-input hcliq-ms-btn" aria-haspopup="listbox" aria-expanded="false">
-                                <span id="hcliq-granjas-label" class="hcliq-ms-btn-label">—</span>
+                    <div class="hc-filtro-field hc-hidden" id="hcliq-chart-galpon-wrap" style="min-width:14rem;flex:1 1 16rem;max-width:28rem">
+                        <span class="hc-per-label">Galpones</span>
+                        <div class="hcliq-ms" id="hcliq-galpon-ms">
+                            <button type="button" id="hcliq-galpon-btn" class="hc-per-input hcliq-ms-btn" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="hcliq-galpon-label" class="hcliq-ms-btn-label">—</span>
                                 <i class="fas fa-chevron-down hcliq-ms-caret" aria-hidden="true"></i>
                             </button>
-                            <div id="hcliq-granjas-dropdown" class="hcliq-ms-dropdown hc-hidden">
+                            <div id="hcliq-galpon-dropdown" class="hcliq-ms-dropdown hc-hidden">
                                 <div class="hcliq-ms-search-wrap">
                                     <i class="fas fa-search hcliq-ms-search-ico" aria-hidden="true"></i>
-                                    <input type="text" id="hcliq-granjas-search" class="hcliq-ms-search" placeholder="Buscar granja…">
+                                    <input type="text" id="hcliq-galpon-search" class="hcliq-ms-search" placeholder="Buscar galpón…">
                                 </div>
-                                <div id="hcliq-granjas-options" class="hcliq-ms-options"></div>
+                                <div id="hcliq-galpon-options" class="hcliq-ms-options"></div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="hc-filtro-field hcliq-ubic-field" id="hcliq-ubicacion-wrap" style="display:none">
+                        <span class="hc-filtro-label">Granjas, campañas y galpones</span>
+                        <button type="button" id="hcliq-ubic-btn" class="hc-per-input hcliq-ms-btn" aria-haspopup="listbox" aria-expanded="false">
+                            <span id="hcliq-ubic-label" class="hcliq-ms-btn-label">Ninguno seleccionado</span>
+                            <i class="fas fa-chevron-down hcliq-ms-caret" aria-hidden="true"></i>
+                        </button>
+                        <div id="hcliq-ubic-dropdown" class="custom-multiselect-dropdown hcliq-hier-dropdown hidden">
+                            <div class="hcliq-ms-search-wrap">
+                                <i class="fas fa-search hcliq-ms-search-ico" aria-hidden="true"></i>
+                                <input type="text" id="hcliq-ubic-search" class="hcliq-ms-search" placeholder="Buscar granja, campaña o galpón…">
+                            </div>
+                            <div class="hcliq-hier-actions">
+                                <button type="button" id="hcliq-ubic-limpiar" class="hcliq-hier-limpiar">
+                                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                    <span>Limpiar</span>
+                                </button>
+                            </div>
+                            <div id="hcliq-ubic-options" class="hcliq-hier-options"></div>
                         </div>
                     </div>
                     <div class="hc-filtro-field">
@@ -159,12 +179,6 @@
         <div id="hcliq-chart-wrap" class="hccmp-resumen-card lay-hidden space-y-3">
             <div class="hcliq-chart-head">
                 <div id="hcliq-chart-titulo" class="text-sm font-semibold text-gray-800"></div>
-                <div class="hcliq-chart-galpon hc-hidden" id="hcliq-chart-galpon-wrap">
-                    <label for="hcliq-chart-galpon" class="hcliq-chart-galpon-label">Galpón</label>
-                    <select id="hcliq-chart-galpon" class="hcliq-chart-galpon-select">
-                        <option value="">Todos prom.</option>
-                    </select>
-                </div>
             </div>
             <div class="hccmp-chart-wrap" style="min-height:360px">
                 <div id="hcliq-chart-host" class="hcliq-chart-host"></div>
@@ -198,6 +212,8 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js" crossorigin="anonymous"></script>
     <script src="js/pa-common.js"></script>
     <script src="js/hcliq-multiselect.js"></script>
+    <script src="js/sip-hierarchical-multiselect.js"></script>
+    <script src="js/temperatura-theme.js"></script>
     <script src="js/pa-liquidaciones.js"></script>
 </body>
 

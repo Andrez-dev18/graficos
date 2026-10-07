@@ -8,7 +8,8 @@
         data: 'liquidaciones',
         galpones: 'liquidaciones-galpones',
         zonas: 'liquidaciones-zonas',
-        granjas: 'liquidaciones-granjas'
+        granjas: 'liquidaciones-granjas',
+        ubicacion: 'liquidaciones-ubicacion'
     };
 
     var CATALOGO = [];
@@ -21,15 +22,53 @@
     var hcliqCharts = [];
     var chartPayload = null;
     var chartModo = 'global';
-    var galponSel = '';
     var listaRows = [];
     var hcliqReqSeq = 0;
     var msParametros = null;
-    var msGranjas = null;
+    var msUbicacion = null;
+    var catalogoUbicacion = [];
     var selectedGranjas = [];
+    var selCampaniasPorGranja = {};
+    var selGalponesPorGranja = {};
+    var modoAplicado = null;
+    var msGalpones = null;
+    var selectedGalpones = [];
+    var galponCatalogo = {};
+    /* Galpones del catálogo aplicados a la granja seleccionada */
+    var galponesListos = false;
+
+    /* Paleta de series: colores alternos para que galpones y parámetros no repitan tono */
+    var HCLIQ_PALETA = [
+        '#2563eb', '#f97316', '#10b981', '#a855f7', '#ef4444',
+        '#0891b2', '#eab308', '#ec4899', '#14b8a6', '#6366f1',
+        '#84cc16', '#f43f5e', '#0ea5e9', '#d946ef', '#22c55e',
+        '#f59e0b', '#8b5cf6', '#06b6d4', '#fb7185', '#65a30d'
+    ];
+
+    function colorSerie(indice) {
+        var i = Math.floor(Number(indice));
+        if (!isFinite(i) || i < 0) i = 0;
+        return HCLIQ_PALETA[i % HCLIQ_PALETA.length];
+    }
+
+    function colorSerieRgba(hex, alfa) {
+        var h = String(hex || '').replace('#', '');
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        if (!/^[0-9a-fA-F]{6}$/.test(h)) return hex;
+        return 'rgba(' + parseInt(h.slice(0, 2), 16) + ','
+            + parseInt(h.slice(2, 4), 16) + ','
+            + parseInt(h.slice(4, 6), 16) + ',' + alfa + ')';
+    }
 
     function esc(s) {
         return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+    function el(id) {
+        return document.getElementById(id);
+    }
+    function val(id) {
+        var n = el(id);
+        return n ? String(n.value || '').trim() : '';
     }
     function normGranja(g) {
         var s = String(g || '').trim();
@@ -89,12 +128,16 @@
         var meta = paramMetaByKey[pk || ''] || {};
         return fmtValorMeta(v, { decimals: meta.decimals, suffix: meta.suffix });
     }
-    function el(id) {
-        return document.getElementById(id);
+    function msgError(res) {
+        return (res && res.message) ? String(res.message) : 'Error al cargar la información';
     }
-    function val(id) {
-        var n = el(id);
-        return n ? String(n.value || '').trim() : '';
+    function api(recurso, params) {
+        return PA.api(recurso, params || {}).then(function (res) {
+            if (res && res.success === false) {
+                throw new Error(msgError(res));
+            }
+            return res;
+        });
     }
     function parseFechaEs(s) {
         var t = String(s || '').trim();
@@ -102,27 +145,22 @@
         if (!m) return '';
         return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
     }
-    function msgError(res) {
-        return (res && res.message) ? String(res.message) : 'Error al cargar la información';
-    }
-    function swal(opts) {
-        if (typeof Swal === 'undefined') {
-            return;
-        }
-        Swal.fire(opts);
+    /* El mes llega como Y-m (formato de valor de flatpickr) */
+    function normMes(s) {
+        var t = String(s || '').trim();
+        var m = t.match(/^(\d{2})-(\d{4})$/);
+        return m ? (m[2] + '-' + m[1]) : t;
     }
 
     /* ---- Periodo ---- */
-    function periodoParams() {
-        var p = {};
+    function hcAppendPeriodoParams(p) {
         p.periodoTipo = val('hcliq-periodoTipo');
         p.fechaUnica = parseFechaEs(val('hcliq-fechaUnica'));
         p.fechaInicio = parseFechaEs(val('hcliq-fechaInicio'));
         p.fechaFin = parseFechaEs(val('hcliq-fechaFin'));
-        p.mesUnico = val('hcliq-mesUnico');
-        p.mesInicio = val('hcliq-mesInicio');
-        p.mesFin = val('hcliq-mesFin');
-        return p;
+        p.mesUnico = normMes(val('hcliq-mesUnico'));
+        p.mesInicio = normMes(val('hcliq-mesInicio'));
+        p.mesFin = normMes(val('hcliq-mesFin'));
     }
     function aplicarVisibilidadPeriodo() {
         var t = val('hcliq-periodoTipo');
@@ -135,7 +173,7 @@
         else if (t === 'POR_MES') el('hcliq-periodoPorMes').classList.remove('hc-hidden');
         else if (t === 'ENTRE_MESES') el('hcliq-periodoEntreMeses').classList.remove('hc-hidden');
     }
-    function periodoValido() {
+    function hcPeriodoValido() {
         var t = val('hcliq-periodoTipo');
         if (t === 'POR_FECHA') return !!parseFechaEs(val('hcliq-fechaUnica'));
         if (t === 'ENTRE_FECHAS') {
@@ -185,8 +223,15 @@
     function combinarValue() {
         return val('hcliq-combinar') || 'combinado';
     }
-    function buildParams() {
-        var p = Object.assign({}, periodoParams());
+    function selUbicacionEncoded(mapa) {
+        return Object.keys(mapa).map(function (g) {
+            var vals = mapa[g] || [];
+            return vals.length ? (normGranja(g) + ':' + vals.join(',')) : '';
+        }).filter(function (s) { return s !== ''; }).join(';');
+    }
+    function buildQueryParams() {
+        var p = {};
+        hcAppendPeriodoParams(p);
         if (selectedParams.length > 0) {
             p.parametroKeys = selectedParams.join(',');
         }
@@ -198,6 +243,8 @@
             p.granja = normGranja(val('hcliq-granja'));
         } else if (modo === 'granjas') {
             p.granjas = selectedGranjas.map(normGranja).join(',');
+            p.campanias = selUbicacionEncoded(selCampaniasPorGranja);
+            p.galponesPorGranja = selUbicacionEncoded(selGalponesPorGranja);
         }
         return p;
     }
@@ -208,10 +255,21 @@
     }
     function toggleGranjaField() {
         var modo = modoValue();
-        var wrap = el('hcliq-granja-wrap');
-        if (wrap) wrap.style.display = modo === 'granja' ? '' : 'none';
-        var wrapGranjas = el('hcliq-granjas-wrap');
-        if (wrapGranjas) wrapGranjas.style.display = modo === 'granjas' ? '' : 'none';
+        if (modo !== modoAplicado) {
+            modoAplicado = modo;
+            selectedGalpones = [];
+            galponesListos = false;
+            if (msGalpones) msGalpones.setOptions([], []);
+            if (chartPayload) refrescarGraficoActual();
+        }
+        var wrapZona = el('hcliq-zona-wrap');
+        if (wrapZona) wrapZona.style.display = modo === 'global' ? '' : 'none';
+        var wrapGranja = el('hcliq-granja-wrap');
+        if (wrapGranja) wrapGranja.style.display = modo === 'granja' ? '' : 'none';
+        var wrapUbic = el('hcliq-ubicacion-wrap');
+        if (wrapUbic) wrapUbic.style.display = modo === 'granjas' ? '' : 'none';
+        var wrapGalpones = el('hcliq-chart-galpon-wrap');
+        if (wrapGalpones) wrapGalpones.classList.toggle('hc-hidden', !(modo === 'granja' && galponesListos));
     }
     function setLoading(on) {
         var ov = el('hcliq-loading');
@@ -227,6 +285,12 @@
         if (btn) btn.setAttribute('data-pending', on ? '1' : '0');
         var lbl = el('hcliq-btn-filtrar-label');
         if (lbl) lbl.textContent = on ? 'Aplicar cambios' : 'Filtrar';
+    }
+    function swal(opts) {
+        if (typeof Swal === 'undefined') {
+            return;
+        }
+        Swal.fire(opts);
     }
 
     /* ---- Tabla de liquidaciones ---- */
@@ -253,8 +317,6 @@
             return;
         }
         body.innerHTML = listaRows.map(function (r, idx) {
-            var g = esc(r.granja);
-            var c = esc(r.campania);
             var zonaTxt = esc(r.zona || r.subzona || '—');
             var nGalp = Number(r.num_galpones);
             var expCell = (isFinite(nGalp) && nGalp > 0)
@@ -270,7 +332,7 @@
                 + '<td>' + esc(String(idx + 1)) + '</td>'
                 + '<td>' + zonaTxt + '</td>'
                 + '<td>' + esc(etiquetaGranja(r.granja)) + '</td>'
-                + '<td>' + c + '</td>'
+                + '<td>' + esc(r.campania) + '</td>'
                 + '<td>' + esc(fmtFechaEs(r.fecha_inicio)) + '</td>'
                 + '<td>' + esc(fmtFechaEs(r.fecha_fin)) + '</td>'
                 + valCells
@@ -320,12 +382,11 @@
         row.parentNode.insertBefore(det, row.nextSibling);
         btn.setAttribute('aria-expanded', 'true');
         if (chev) chev.classList.add('hcliq-chev-open');
-        PA.api(RECURSO.galpones, {
+        api(RECURSO.galpones, {
             granja: normGranja(r.granja),
             campania: String(r.campania || '').trim(),
             parametroKeys: appliedParams.join(',')
         }).then(function (res) {
-            if (!res || res.success === false) throw new Error(msgError(res));
             det.querySelector('.hcliq-det-wrap').innerHTML = renderGalponesDetalle(res.data || []);
         }).catch(function (err) {
             det.querySelector('.hcliq-det-wrap').innerHTML = '<div class="hcliq-det-error">' + esc((err && err.message) || 'No se pudo cargar la información.') + '</div>';
@@ -333,7 +394,7 @@
     }
 
     /* ---- Gráfico ---- */
-    function pointLabelsPlugin() {
+    function hcliqPointLabelsPlugin() {
         return {
             id: 'hcliqPointLabels',
             afterDatasetsDraw: function (chart) {
@@ -348,7 +409,7 @@
                         if (!label || label === '—') return;
                         ctx.save();
                         ctx.font = '600 10px system-ui, sans-serif';
-                        ctx.fillStyle = dataset.borderColor || '#334155';
+                        ctx.fillStyle = dataset.borderColor || temaGrafico().legend;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'bottom';
                         ctx.fillText(label, point.x, point.y - 8);
@@ -358,25 +419,47 @@
             }
         };
     }
+    /* Colores de Chart.js según html[data-theme] (helper compartido) */
+    function temaGrafico() {
+        if (window.TempTheme && typeof window.TempTheme.chartColors === 'function') {
+            return window.TempTheme.chartColors();
+        }
+        return {
+            tick: '#374151',
+            grid: 'rgba(156, 163, 175, 0.45)',
+            title: '#111827',
+            legend: '#374151',
+            tooltipBg: 'rgba(255, 255, 255, 0.96)',
+            tooltipTitle: '#111827',
+            tooltipBody: '#374151',
+            tooltipBorder: '#e5e7eb'
+        };
+    }
+
     function buildScales(parametros) {
+        var tc = temaGrafico();
         var scales = {};
-        var list = parametros && parametros.length ? parametros : [{ key: '', label: 'Valor', axisId: 'y', color: '#334155' }];
+        var list = parametros && parametros.length ? parametros : [{ key: '', label: 'Valor', axisId: 'y', color: colorSerie(0) }];
         list.forEach(function (pm, i) {
             var id = pm.axisId || (i === 0 ? 'y' : ('y' + i));
             scales[id] = {
                 position: i === 0 ? 'left' : 'right',
                 display: true,
-                grid: { drawOnChartArea: i === 0 },
-                title: { display: true, text: String(pm.label || '') },
-                ticks: { color: pm.color || undefined }
+                grid: { drawOnChartArea: i === 0, color: tc.grid },
+                border: { color: tc.grid },
+                title: { display: true, text: String(pm.label || ''), color: tc.title },
+                ticks: { color: tc.tick }
             };
             if (i > 1) {
                 scales[id].offset = true;
             }
         });
         scales.x = {
-            title: { display: true, text: 'Mes liquidación' },
+            title: { display: true, text: 'Mes liquidación', color: tc.title },
+            grid: { color: tc.grid },
+            border: { color: tc.grid },
             ticks: {
+                color: tc.tick,
                 callback: function (value) {
                     var raw = this.getLabelForValue(value);
                     return fmtMesCorto(raw) || String(raw);
@@ -385,35 +468,121 @@
         };
         return scales;
     }
-    function granjaDatasetsDesdePorGalpon(payload, galpon) {
+    /* Selección de galpones: token "serie|galpón" (la serie identifica zona o granja) */
+    function galponToken(serie, galpon) {
+        return String(serie == null ? '' : serie) + '|' + galponKey(galpon);
+    }
+
+    function galponOpciones(payload, modo) {
+        var porg = payload.porGalpon || [];
+        var serieUnica = '';
+        porg.forEach(function (row) {
+            if (serieUnica === '' && String(row.serie || '') !== '') {
+                serieUnica = String(row.serie);
+            }
+        });
+
+        var lista = [];
+        var vistos = {};
+        if (modo === 'granja') {
+            var fuente = (payload.galpones || []).length
+                ? payload.galpones.slice()
+                : porg.map(function (row) { return row.galpon; });
+            fuente.forEach(function (gp) {
+                var gk = galponKey(gp);
+                if (gk === '' || vistos[gk]) return;
+                vistos[gk] = true;
+                lista.push({ serie: serieUnica, galpon: gk, galponLabel: String(gp || gk) });
+            });
+        } else {
+            porg.forEach(function (row) {
+                var gk = galponKey(row.galpon);
+                var serie = String(row.serie || '');
+                var id = galponToken(serie, gk);
+                if (gk === '' || vistos[id]) return;
+                vistos[id] = true;
+                lista.push({ serie: serie, galpon: gk, galponLabel: String(row.galpon || gk) });
+            });
+        }
+
+        lista.sort(function (a, b) {
+            if (a.serie !== b.serie) return String(a.serie).localeCompare(String(b.serie));
+            var na = parseInt(a.galpon, 10);
+            var nb = parseInt(b.galpon, 10);
+            if (isFinite(na) && isFinite(nb) && na !== nb) return na - nb;
+            return String(a.galpon).localeCompare(String(b.galpon));
+        });
+
+        return lista.map(function (item, idx) {
+            var etiqueta = (modo === 'granjas' && item.serie !== '')
+                ? (etiquetaGranja(item.serie) + ' · Galpón ' + item.galponLabel)
+                : ('Galpón ' + item.galponLabel);
+            return {
+                id: galponToken(item.serie, item.galpon),
+                serie: item.serie,
+                galpon: item.galpon,
+                label: etiqueta,
+                indice: idx
+            };
+        });
+    }
+
+    function galponesSeleccionadosChart() {
+        return selectedGalpones.filter(function (id) {
+            return !!galponCatalogo[id];
+        });
+    }
+
+    function galponDatasets(payload, selecciones) {
         var labels = payload.labels || [];
         var parametros = payload.parametros || [];
         var porg = payload.porGalpon || [];
-        var gk = galponKey(galpon);
-        return parametros.map(function (pm) {
-            var porMes = {};
-            porg.forEach(function (row) {
-                if (String(row.parametroKey || '') !== String(pm.key)) return;
-                if (galponKey(row.galpon) !== gk) return;
-                porMes[String(row.mes)] = row.valor;
+        var totalParam = parametros.length || 1;
+        var out = [];
+
+        selecciones.forEach(function (id) {
+            var item = galponCatalogo[id];
+            if (!item) return;
+            parametros.forEach(function (pm, pi) {
+                var porMes = {};
+                porg.forEach(function (row) {
+                    if (String(row.parametroKey || '') !== String(pm.key)) return;
+                    if (String(row.serie || '') !== String(item.serie)) return;
+                    if (galponKey(row.galpon) !== item.galpon) return;
+                    porMes[String(row.mes)] = row.valor;
+                });
+                var color = colorSerie(item.indice * totalParam + pi);
+                out.push({
+                    label: String(pm.label || pm.key || '') + ' · ' + item.label,
+                    data: labels.map(function (lab) {
+                        return Object.prototype.hasOwnProperty.call(porMes, lab) ? porMes[lab] : null;
+                    }),
+                    borderColor: color,
+                    backgroundColor: colorSerieRgba(color, 0.14),
+                    borderDash: [],
+                    tension: 0.2,
+                    spanGaps: false,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    parametroKey: pm.key,
+                    decimals: pm.decimals,
+                    suffix: pm.suffix,
+                    serie: item.serie,
+                    galponId: id,
+                    yAxisID: pm.axisId
+                });
             });
-            return {
-                label: String(pm.label || pm.key) + ' · Galpón ' + galpon,
-                data: labels.map(function (lab) { return Object.prototype.hasOwnProperty.call(porMes, lab) ? porMes[lab] : null; }),
-                borderColor: pm.color,
-                backgroundColor: pm.background,
-                borderDash: [],
-                tension: 0.2,
-                spanGaps: false,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                parametroKey: pm.key,
-                decimals: pm.decimals,
-                suffix: pm.suffix,
-                serie: 'Galpón ' + galpon,
-                yAxisID: pm.axisId
-            };
         });
+
+        return out;
+    }
+
+    function datasetsActuales(payload) {
+        var selecciones = galponesSeleccionadosChart();
+        if (selecciones.length && (chartModo === 'granja' || chartModo === 'granjas')) {
+            return galponDatasets(payload, selecciones);
+        }
+        return payload.datasets || [];
     }
     function destroyCharts() {
         hcliqCharts.forEach(function (c) {
@@ -451,18 +620,52 @@
         };
     }
     function chartBaseOptions(payload, modo) {
+        var tc = temaGrafico();
         return {
             responsive: true,
             maintainAspectRatio: false,
             layout: { padding: { top: 28 } },
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { position: 'bottom' },
+                legend: {
+                    position: 'bottom',
+                    labels: { color: tc.legend, usePointStyle: true, boxWidth: 8, boxHeight: 8 }
+                },
                 title: { display: false },
-                tooltip: chartTooltip(payload, modo)
+                tooltip: Object.assign({
+                    backgroundColor: tc.tooltipBg,
+                    titleColor: tc.tooltipTitle,
+                    bodyColor: tc.tooltipBody,
+                    borderColor: tc.tooltipBorder,
+                    borderWidth: 1
+                }, chartTooltip(payload, modo))
             }
         };
     }
+    function hcliqPanel(host, tituloPanel, color, dsPanel, labels, parametros, payload, modoChart) {
+        var panel = document.createElement('div');
+        panel.className = 'hcliq-chart-panel';
+        var cap = document.createElement('div');
+        cap.className = 'hcliq-chart-panel-title';
+        cap.innerHTML = '<span class="hcliq-ms-dot" style="background:' + esc(color) + '"></span>'
+            + '<span>' + esc(tituloPanel) + '</span>';
+        var body = document.createElement('div');
+        body.className = 'hcliq-chart-panel-body';
+        var cv = document.createElement('canvas');
+        body.appendChild(cv);
+        panel.appendChild(cap);
+        panel.appendChild(body);
+        host.appendChild(panel);
+        var opts = chartBaseOptions(payload, modoChart);
+        opts.scales = buildScales(parametros);
+        hcliqCharts.push(new Chart(cv.getContext('2d'), {
+            type: 'line',
+            data: { labels: labels, datasets: dsPanel },
+            plugins: parametros.length > 1 ? [] : [hcliqPointLabelsPlugin()],
+            options: opts
+        }));
+    }
+
     function drawChart(payload, datasets, modo) {
         var wrap = el('hcliq-chart-wrap');
         var host = el('hcliq-chart-host');
@@ -481,12 +684,27 @@
 
         if (modoChart === 'granjas') {
             lista = lista.map(function (ds) {
-                if (!ds.serie) return ds;
+                if (!ds.serie || ds.galponId) return ds;
                 var friendly = etiquetaGranja(ds.serie);
                 return Object.assign({}, ds, {
                     label: String(ds.label || '').split(String(ds.serie)).join(friendly)
                 });
             });
+        }
+
+        var seleccionesGalpon = galponesSeleccionadosChart();
+        if (combinarValue() === 'separado' && seleccionesGalpon.length > 0) {
+            host.classList.add('hcliq-charts-grid');
+            if (wrap) wrap.classList.add('hcliq-chart-wrap--grid');
+            seleccionesGalpon.forEach(function (id) {
+                var item = galponCatalogo[id];
+                if (!item) return;
+                var dsG = lista.filter(function (ds) {
+                    return String(ds.galponId || '') === String(id);
+                });
+                hcliqPanel(host, item.label, item.color, dsG, labels, parametros, payload, modoChart);
+            });
+            return;
         }
 
         if (combinarValue() === 'separado' && parametros.length > 1) {
@@ -496,27 +714,7 @@
                 var dsP = lista.filter(function (ds) {
                     return String(ds.parametroKey || '') === String(pm.key || '');
                 });
-                var panel = document.createElement('div');
-                panel.className = 'hcliq-chart-panel';
-                var cap = document.createElement('div');
-                cap.className = 'hcliq-chart-panel-title';
-                cap.innerHTML = '<span class="hcliq-ms-dot" style="background:' + esc(pm.color || '#334155') + '"></span>'
-                    + '<span>' + esc(pm.label || pm.key || '') + '</span>';
-                var body = document.createElement('div');
-                body.className = 'hcliq-chart-panel-body';
-                var cv = document.createElement('canvas');
-                body.appendChild(cv);
-                panel.appendChild(cap);
-                panel.appendChild(body);
-                host.appendChild(panel);
-                var opts = chartBaseOptions(payload, modoChart);
-                opts.scales = buildScales([pm]);
-                hcliqCharts.push(new Chart(cv.getContext('2d'), {
-                    type: 'line',
-                    data: { labels: labels, datasets: dsP },
-                    plugins: [pointLabelsPlugin()],
-                    options: opts
-                }));
+                hcliqPanel(host, pm.label || pm.key || '', pm.color || colorSerie(0), dsP, labels, [pm], payload, modoChart);
             });
             return;
         }
@@ -532,51 +730,77 @@
         hcliqChart = new Chart(canvas.getContext('2d'), {
             type: 'line',
             data: { labels: labels, datasets: lista },
-            plugins: parametros.length > 1 ? [] : [pointLabelsPlugin()],
+            plugins: parametros.length > 1 ? [] : [hcliqPointLabelsPlugin()],
             options: options
         });
         hcliqCharts.push(hcliqChart);
     }
-    function loadGalponesChart(galpones, modo) {
-        var wrap = el('hcliq-chart-galpon-wrap');
-        if (wrap) wrap.classList.toggle('hc-hidden', modo !== 'granja');
-        var sel = el('hcliq-chart-galpon');
+    function actualizarEtiquetaCombinar() {
+        var sel = el('hcliq-combinar');
         if (!sel) return;
-        var prev = galponSel;
-        var html = '<option value="">Todos prom.</option>';
-        (galpones || []).forEach(function (gp) {
-            var g = String(gp || '').trim();
-            if (!g) return;
-            html += '<option value="' + esc(g) + '">' + esc(g) + '</option>';
-        });
-        sel.innerHTML = html;
-        if (prev && sel.querySelector('option[value="' + prev.replace(/"/g, '\\"') + '"]')) {
-            sel.value = prev;
-            galponSel = prev;
-        } else {
-            sel.value = '';
-            galponSel = '';
-        }
+        var opt = sel.querySelector('option[value="separado"]');
+        if (!opt) return;
+        opt.textContent = galponesSeleccionadosChart().length > 0
+            ? 'Sin combinar (uno por galpón)'
+            : 'Sin combinar (uno por parámetro)';
     }
+
+    function loadGalponesChartOpciones(payload, modo) {
+        var wrap = el('hcliq-chart-galpon-wrap');
+        var conGalpones = !!payload && (modo === 'granja' || modo === 'granjas');
+        galponCatalogo = {};
+        galponesListos = false;
+        if (!conGalpones) {
+            selectedGalpones = [];
+            if (msGalpones) msGalpones.setOptions([], []);
+            if (wrap) wrap.classList.add('hc-hidden');
+            actualizarEtiquetaCombinar();
+            return;
+        }
+        var totalParam = (payload.parametros || []).length || 1;
+        var opciones = galponOpciones(payload, modo);
+        galponesListos = modo === 'granja' && opciones.length > 0;
+        if (wrap) wrap.classList.toggle('hc-hidden', !galponesListos);
+        opciones.forEach(function (o) {
+            galponCatalogo[o.id] = {
+                serie: o.serie,
+                galpon: o.galpon,
+                label: o.label,
+                indice: o.indice,
+                color: colorSerie(o.indice * totalParam)
+            };
+        });
+        selectedGalpones = selectedGalpones.filter(function (id) {
+            return !!galponCatalogo[id];
+        });
+        if (msGalpones && galponesListos) {
+            msGalpones.setOptions(opciones.map(function (o) {
+                return { id: o.id, label: o.label, color: colorSerie(o.indice * totalParam) };
+            }), selectedGalpones);
+        }
+        actualizarEtiquetaCombinar();
+    }
+
     function renderChart(payload, modo) {
         chartModo = String(modo || modoValue()).trim() || 'global';
         var wrap = el('hcliq-chart-wrap');
         if (!payload) return;
-        if (chartModo === 'granja') {
-            loadGalponesChart(payload.galpones || [], chartModo);
-        } else {
-            galponSel = '';
-            loadGalponesChart([], chartModo);
-        }
-        var datasets = payload.datasets || [];
-        if (chartModo === 'granja' && galponSel !== '') {
-            datasets = granjaDatasetsDesdePorGalpon(payload, galponSel);
-        }
+        loadGalponesChartOpciones(payload, chartModo);
+        var datasets = datasetsActuales(payload);
         if (!(payload.labels || []).length || !datasets.length) {
             if (wrap) wrap.classList.add('lay-hidden');
             return;
         }
         drawChart(payload, datasets, chartModo);
+    }
+
+    function refrescarGraficoActual() {
+        if (!chartPayload) return;
+        var datasets = datasetsActuales(chartPayload);
+        if (!(chartPayload.labels || []).length || !datasets.length) {
+            return;
+        }
+        drawChart(chartPayload, datasets, chartModo);
     }
     function avisoSinDatos(rows, payload) {
         var hayChart = payload && (payload.labels || []).length > 0 && (payload.datasets || []).length > 0;
@@ -588,7 +812,6 @@
         });
     }
 
-    /* ---- Carga de datos ---- */
     function aplicarRespuesta(res, modo) {
         chartPayload = res.chart || {};
         appliedParams = selectedParams.slice();
@@ -598,8 +821,9 @@
         avisoSinDatos(res.data || [], chartPayload);
         renderChart(chartPayload, res.modo || modo);
     }
+
     function filtrar() {
-        if (!periodoValido()) {
+        if (!hcPeriodoValido()) {
             swal({ icon: 'warning', title: 'Periodo', text: 'Complete el periodo de consulta.' });
             return;
         }
@@ -618,12 +842,16 @@
         }
         var seq = ++hcliqReqSeq;
         setLoading(true);
-        PA.api(RECURSO.data, buildParams()).then(function (res) {
-            if (seq !== hcliqReqSeq) return;
-            if (!res || res.success === false) {
-                throw new Error(msgError(res));
+        loadUbicacionCatalogo().then(function () {
+            if (seq !== hcliqReqSeq) return null;
+            if (modo === 'granjas' && !selectedGranjas.length) {
+                throw new Error('Seleccione al menos una granja para la vista por granjas.');
             }
-            aplicarRespuesta(res, modo);
+            return api(RECURSO.data, buildQueryParams());
+        }).then(function (res) {
+            if (!res) return;
+            if (seq !== hcliqReqSeq) return;
+            aplicarRespuesta(res, res.modo || modo);
         }).catch(function (err) {
             swal({ icon: 'error', title: 'Error', text: (err && err.message) || 'No se pudo cargar la información.' });
         }).then(function () {
@@ -671,22 +899,133 @@
             return { id: String(p.key || ''), label: String(p.label || p.key || ''), color: String(p.color || '') };
         }), selectedParams);
     }
-    function initGranjasMS() {
-        msGranjas = new HcliqMultiSelect({
-            btnId: 'hcliq-granjas-btn',
-            labelId: 'hcliq-granjas-label',
-            dropdownId: 'hcliq-granjas-dropdown',
-            searchId: 'hcliq-granjas-search',
-            optionsContainerId: 'hcliq-granjas-options',
-            maxSelected: 6,
+    function initGalponesMS() {
+        msGalpones = new HcliqMultiSelect({
+            btnId: 'hcliq-galpon-btn',
+            labelId: 'hcliq-galpon-label',
+            dropdownId: 'hcliq-galpon-dropdown',
+            searchId: 'hcliq-galpon-search',
+            optionsContainerId: 'hcliq-galpon-options',
+            maxSelected: 8,
+            emptyLabel: 'Promedio (sin galpón)',
+            maxMessage: 'Máximo {n} galpones por consulta.',
             onChange: function (ids) {
-                selectedGranjas = ids.slice();
+                selectedGalpones = ids.slice();
+                actualizarEtiquetaCombinar();
+                refrescarGraficoActual();
+            }
+        });
+    }
+    function initUbicacionMS() {
+        if (typeof CustomHierarchicalMultiSelect !== 'function') return;
+        msUbicacion = new CustomHierarchicalMultiSelect({
+            btnId: 'hcliq-ubic-btn',
+            labelId: 'hcliq-ubic-label',
+            dropdownId: 'hcliq-ubic-dropdown',
+            searchId: 'hcliq-ubic-search',
+            optionsContainerId: 'hcliq-ubic-options',
+            btnLimpiarId: 'hcliq-ubic-limpiar',
+            strictGalpones: true,
+            onChange: function () {
+                syncSeleccionUbicacion();
                 setPendiente(true);
             }
         });
     }
+    /* Traduce la selección jerárquica a granjas, campañas y galpones del gráfico */
+    function syncSeleccionUbicacion() {
+        if (!msUbicacion || modoValue() !== 'granjas') return;
+        selectedGranjas = [];
+        selCampaniasPorGranja = {};
+        selGalponesPorGranja = {};
+        var galponesChart = [];
+        catalogoUbicacion.forEach(function (g) {
+            var gRaw = String(g.granja || g.codigo || g.nombre);
+            var gId = normGranja(gRaw);
+            if (gId === '' || !msUbicacion.selectedGranjas.has(gRaw)) return;
+            selectedGranjas.push(gId);
+            var camps = [];
+            (g.campanias || []).forEach(function (c) {
+                if (msUbicacion.selectedCampanias.has(gRaw + '__' + c)) camps.push(String(c));
+            });
+            var galps = [];
+            (g.galpones || []).forEach(function (gp) {
+                if (msUbicacion.selectedGalpones.has(gRaw + '__' + gp)) {
+                    galps.push(String(gp));
+                    galponesChart.push(galponToken(gId, gp));
+                }
+            });
+            var completo = camps.length === (g.campanias || []).length;
+            if (camps.length && !completo) selCampaniasPorGranja[gId] = camps;
+            var completoG = galps.length === (g.galpones || []).length;
+            if (galps.length && !completoG) selGalponesPorGranja[gId] = galps;
+        });
+        selectedGranjas = selectedGranjas.filter(function (g, i, arr) { return arr.indexOf(g) === i; });
+        selectedGalpones = galponesChart.filter(function (g, i, arr) { return arr.indexOf(g) === i; });
+    }
+    function loadUbicacionCatalogo() {
+        if (!msUbicacion) return Promise.resolve();
+        var p = {};
+        hcAppendPeriodoParams(p);
+        return api(RECURSO.ubicacion, p).then(function (res) {
+            if (!res || !res.granjas) return;
+            catalogoUbicacion = res.granjas || [];
+            catalogoUbicacion.forEach(function (g) {
+                var nk = normGranja(g.granja || '');
+                if (nk !== '' && g.nombre) metaByGranja[nk] = String(g.nombre).trim();
+            });
+            var prev = {
+                granjas: new Set(msUbicacion.selectedGranjas),
+                campanias: new Set(msUbicacion.selectedCampanias),
+                galpones: new Set(msUbicacion.selectedGalpones)
+            };
+            var tenia = prev.granjas.size > 0;
+            msUbicacion.setData(catalogoUbicacion, false);
+            if (tenia) {
+                reaplicarSeleccionUbicacion(prev);
+            } else {
+                ubicacionSeleccionDefault();
+            }
+            syncSeleccionUbicacion();
+        }).catch(function () {});
+    }
+    /* Conserva la selección previa limitada al catálogo vigente del periodo */
+    function reaplicarSeleccionUbicacion(prev) {
+        msUbicacion.selectedGranjas.clear();
+        msUbicacion.selectedCampanias.clear();
+        msUbicacion.selectedGalpones.clear();
+        catalogoUbicacion.forEach(function (g) {
+            var gRaw = String(g.granja || g.codigo || g.nombre);
+            if (!prev.granjas.has(gRaw)) return;
+            msUbicacion.selectedGranjas.add(gRaw);
+            (g.campanias || []).forEach(function (c) {
+                if (prev.campanias.has(gRaw + '__' + c)) msUbicacion.selectedCampanias.add(gRaw + '__' + c);
+            });
+            (g.galpones || []).forEach(function (gp) {
+                if (prev.galpones.has(gRaw + '__' + gp)) msUbicacion.selectedGalpones.add(gRaw + '__' + gp);
+            });
+        });
+        msUbicacion.updateLabel();
+        msUbicacion.render();
+    }
+    /* Por defecto: todas las granjas y sus campañas, sin galpones (series por granja) */
+    function ubicacionSeleccionDefault() {
+        if (!msUbicacion) return;
+        msUbicacion.selectedGranjas.clear();
+        msUbicacion.selectedCampanias.clear();
+        msUbicacion.selectedGalpones.clear();
+        catalogoUbicacion.forEach(function (g) {
+            var gId = String(g.granja || g.codigo || g.nombre);
+            msUbicacion.selectedGranjas.add(gId);
+            (g.campanias || []).forEach(function (c) {
+                msUbicacion.selectedCampanias.add(gId + '__' + c);
+            });
+        });
+        msUbicacion.updateLabel();
+        msUbicacion.render();
+    }
     function loadZonas() {
-        return PA.api(RECURSO.zonas).then(function (res) {
+        return api(RECURSO.zonas, {}).then(function (res) {
             var sel = el('hcliq-zona');
             if (!sel) return;
             var html = '<option value="">Todas</option>';
@@ -700,10 +1039,9 @@
     }
     function loadGranjas() {
         var zona = val('hcliq-zona');
-        return PA.api(RECURSO.granjas, zona ? { zona: zona } : {}).then(function (res) {
+        return api(RECURSO.granjas, zona ? { zona: zona } : {}).then(function (res) {
             var sel = el('hcliq-granja');
             if (!sel || !res) return;
-            metaByGranja = {};
             var html = '<option value="">— Seleccione —</option>';
             (res.data || []).forEach(function (g) {
                 var cod = String(g.granja || '').trim();
@@ -716,31 +1054,27 @@
             if (sel.value && !sel.querySelector('option[value="' + sel.value.replace(/"/g, '\\"') + '"]')) {
                 sel.value = '';
             }
-            selectedGranjas = selectedGranjas.filter(function (cod) { return !!metaByGranja[cod]; });
-            if (msGranjas) {
-                msGranjas.setOptions(Object.keys(metaByGranja).sort().map(function (cod) {
-                    return { id: cod, label: etiquetaGranja(cod) };
-                }), selectedGranjas);
-            }
         }).catch(function () {});
     }
     function cargarCatalogoParametros() {
         /* El catálogo (labels, decimales, colores) viaja en la propia respuesta de liquidaciones */
-        return PA.api(RECURSO.data, Object.assign({ modo: 'global' }, periodoParams())).then(function (res) {
-            if (res && res.success === false) return null;
+        var p = {};
+        hcAppendPeriodoParams(p);
+        p.modo = 'global';
+        return api(RECURSO.data, p).then(function (res) {
             if (res && res.parametros) registrarCatalogo(res.parametros);
             return res || null;
         }).catch(function () { return null; });
     }
 
     /* ---- Fechas (flatpickr) ---- */
-    function initFlatpickr() {
+    function hcInitFlatpickrMesEspanol() {
         if (typeof flatpickr === 'undefined') return;
         var locale = (flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es';
         document.querySelectorAll('.hc-fp-mes').forEach(function (n) {
             flatpickr(n, {
                 locale: locale,
-                plugins: [new monthSelectPlugin({ shorthand: true, dateFormat: 'Y-m', altFormat: 'm/y' })],
+                plugins: [new monthSelectPlugin({ shorthand: true, dateFormat: 'Y-m', altFormat: 'm-Y' })],
                 allowInput: true
             });
         });
@@ -772,21 +1106,17 @@
             toggleGranjaField();
             marcarCambiosServidor();
         });
-        el('hcliq-granja').addEventListener('change', marcarCambiosServidor);
-        el('hcliq-chart-galpon').addEventListener('change', function () {
-            galponSel = String(this.value || '').trim();
-            if (chartPayload) {
-                var datasets = galponSel !== '' ? granjaDatasetsDesdePorGalpon(chartPayload, galponSel) : (chartPayload.datasets || []);
-                drawChart(chartPayload, datasets, 'granja');
-            }
+        el('hcliq-granja').addEventListener('change', function () {
+            galponesListos = false;
+            selectedGalpones = [];
+            if (msGalpones) msGalpones.setOptions([], []);
+            var wrapGalpones = el('hcliq-chart-galpon-wrap');
+            if (wrapGalpones) wrapGalpones.classList.add('hc-hidden');
+            marcarCambiosServidor();
         });
         el('hcliq-combinar').addEventListener('change', function () {
-            if (!chartPayload) return;
-            var datasets = chartPayload.datasets || [];
-            if (chartModo === 'granja' && galponSel !== '') {
-                datasets = granjaDatasetsDesdePorGalpon(chartPayload, galponSel);
-            }
-            drawChart(chartPayload, datasets, chartModo);
+            actualizarEtiquetaCombinar();
+            refrescarGraficoActual();
         });
         el('hcliq-btn-filtrar').addEventListener('click', filtrar);
         ['hcliq-fechaUnica', 'hcliq-fechaInicio', 'hcliq-fechaFin'].forEach(function (id) {
@@ -811,20 +1141,27 @@
         aplicarPeriodoDefecto();
         aplicarVisibilidadPeriodo();
         toggleGranjaField();
-        initFlatpickr();
-        /* El multiselect de granjas debe existir antes de resolver loadGranjas() */
-        initGranjasMS();
+        hcInitFlatpickrMesEspanol();
         setLoading(true);
-
-        Promise.all([loadZonas(), loadGranjas(), cargarCatalogoParametros()]).then(function (resultados) {
-            var res = resultados[2];
+        /* El catálogo de parámetros define las series; se resuelve antes de iniciar los multiselect */
+        cargarCatalogoParametros().then(function (res) {
             initParametrosMS();
+            initUbicacionMS();
+            initGalponesMS();
             initEventos();
-            if (res && res.chart) {
-                aplicarRespuesta(res, res.modo || 'global');
-            } else {
-                filtrar();
+            if (window.TempTheme && typeof window.TempTheme.onChange === 'function') {
+                window.TempTheme.onChange(function () {
+                    refrescarGraficoActual();
+                });
             }
+            return Promise.all([loadZonas(), loadGranjas(), loadUbicacionCatalogo()]).then(function () {
+                if (res && res.chart) {
+                    aplicarRespuesta(res, res.modo || 'global');
+                } else {
+                    filtrar();
+                }
+            });
+        }).then(function () {
             setLoading(false);
         });
     }

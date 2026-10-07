@@ -26,6 +26,7 @@ class SanidadGraficasClient
         'liquidaciones-galpones' => 'hc/liquidaciones-galpones',
         'liquidaciones-zonas' => 'hc/zonas',
         'liquidaciones-granjas' => 'hc/granjas',
+        'liquidaciones-ubicacion' => 'hc/granjas-campanias-galpones',
     ];
 
     /** @var string */
