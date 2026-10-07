@@ -2,6 +2,7 @@
 window.PA = (function () {
     /* Base de Sanidad resuelta dinámicamente según el entorno actual (localhost o producción) */
     var SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    var SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
     var URLS = {
         zonas: SANIDAD_BASE + '/modules/sip/estandares-granja/crud_estandares_granja.php?action=zonas',
         granjas: SANIDAD_BASE + '/modules/sip/estandares-granja/crud_estandares_granja.php?action=granjas',
@@ -72,7 +73,10 @@ window.PA = (function () {
         }
 
         var res = await fetch(url, {
-            headers: { Accept: 'application/json' },
+            headers: {
+                Accept: 'application/json',
+                Authorization: SANIDAD_TOKEN
+            },
             credentials: 'include'
         });
         var json;
