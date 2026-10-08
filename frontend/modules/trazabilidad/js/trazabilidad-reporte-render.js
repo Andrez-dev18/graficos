@@ -351,13 +351,21 @@
         bindCompactToggle();
     };
 
+    function getSanidadApiBase() {
+        return (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    }
+
     global.trzCargarReporte = function () {
         var params = buildParams();
         if (!params) return;
 
         bindCompactToggle();
         setSpinner(DOM_REPORTE, true);
-        $.post('../../backend/trazabilidad/reporte-resultados', params, function (resp) {
+        var url = (window.TRZ_API && window.TRZ_API.reporteResultados)
+            ? window.TRZ_API.reporteResultados
+            : (getSanidadApiBase() + '/modules/laboratorio/trazabilidad/get_reporte_resultados.php');
+
+        $.post(url, params, function (resp) {
             global.trzDataReporte = resp;
             global.trzTab3Loaded = true;
             global.trzReporteCompactoUserSet = false;
@@ -376,7 +384,11 @@
         if (!params) return;
 
         setSpinner(DOM_ENFERMEDADES, true);
-        $.post('../../backend/trazabilidad/reporte-enfermedades', params, function (resp) {
+        var url = (window.TRZ_API && window.TRZ_API.reporteEnfermedades)
+            ? window.TRZ_API.reporteEnfermedades
+            : (getSanidadApiBase() + '/modules/laboratorio/trazabilidad/get_reporte_enfermedades.php');
+
+        $.post(url, params, function (resp) {
             global.trzDataEnfermedades = resp;
             global.trzTab4Loaded = true;
             renderTabla(resp, DOM_ENFERMEDADES, true);
@@ -414,6 +426,18 @@
 
     global.trzOnTabGraficos = function () {
         toggleResumenVisible(true);
+    };
+
+    global.trzExportPdfReporte = function (soloEnfermedades) {
+        var params = buildParams();
+        if (!params) return;
+        if (soloEnfermedades) {
+            params.soloEnfermedades = '1';
+        }
+        var pdfUrl = (window.TRZ_API && window.TRZ_API.generarReporteResultadosPdf)
+            ? window.TRZ_API.generarReporteResultadosPdf
+            : (getSanidadApiBase() + '/modules/laboratorio/trazabilidad/generar_reporte_resultados_pdf.php');
+        window.open(pdfUrl + '?' + $.param(params), '_blank');
     };
 
     bindCompactToggle();

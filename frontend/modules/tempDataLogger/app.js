@@ -6,7 +6,8 @@
 (function () {
     'use strict';
 
-    const API = '../../backend/temperatura/crud';
+    const SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    const API = SANIDAD_BASE + '/modules/temperatura/crud_temperatura.php';
     const COLOR_TEMP = '#1e40af';
     const COLOR_HUM = '#047857';
     const FILL_TEMP = 'rgba(30, 64, 175, 0.12)';

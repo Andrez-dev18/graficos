@@ -2,6 +2,7 @@
     'use strict';
 
     var SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    var SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
     var DEFAULT_SERIE_URL = SANIDAD_BASE + '/modules/temperatura/crud_temp_transporte_pollo_bb.php';
 
     var chartTemp = null;
@@ -177,7 +178,10 @@
     function fetchAll() {
         if (!ctx || !ctx.granja || !ctx.campania) {
             if (ctx && ctx.idCab) {
-                return fetch(serieUrl() + '?action=serie&idCab=' + encodeURIComponent(ctx.idCab), { credentials: 'same-origin' })
+                return fetch(serieUrl() + '?action=serie&idCab=' + encodeURIComponent(ctx.idCab), {
+                    credentials: 'same-origin',
+                    headers: { 'Authorization': SANIDAD_TOKEN }
+                })
                     .then(function (resp) { return resp.json(); })
                     .then(function (d) {
                         if (!d.success || !d.payload || !d.payload.serie) {
@@ -204,7 +208,10 @@
         }
         if (ctx.placa) url += '&placa=' + encodeURIComponent(ctx.placa);
 
-        return fetch(url, { credentials: 'same-origin' })
+        return fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Authorization': SANIDAD_TOKEN }
+        })
             .then(function (resp) { return resp.json(); })
             .then(function (d) {
                 if (!d.success || !d.payload || !d.payload.serie) {

@@ -2,6 +2,25 @@
    TRAZABILIDAD — JavaScript
 ════════════════════════════════════════════════════════════════════════════ */
 
+var SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+window.SANIDAD_BASE = SANIDAD_BASE;
+
+var TRZ_API = {
+    origenAves: SANIDAD_BASE + '/includes/get_origen_aves.php',
+    granjas: SANIDAD_BASE + '/modules/planificacion/cronograma/get_granjas.php',
+    analisisFiltro: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_analisis_filtro.php',
+    analisisDetalle: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_analisis_detalle.php',
+    analisisCodRef: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_analisis_codref.php',
+    analisisPeriodo: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_analisis_periodo.php',
+    analisisPorcentaje: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_analisis_porcentaje.php',
+    tiposMuestra: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_tipos_muestra.php',
+    reporteResultados: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_reporte_resultados.php',
+    reporteEnfermedades: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/get_reporte_enfermedades.php',
+    generarPdf: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/generar_trazabilidad_pdf.php',
+    generarReporteResultadosPdf: SANIDAD_BASE + '/modules/laboratorio/trazabilidad/generar_reporte_resultados_pdf.php'
+};
+window.TRZ_API = TRZ_API;
+
 // ── Paletas ────────────────────────────────────────────────────────────────
 /** Paleta viva y distinguible (ok en claro / oscuro). */
 var TRZ_PAL_LIGHT = [
@@ -341,7 +360,7 @@ function trzCargarCodigosOrigen(tipo) {
     var sel = document.getElementById('trz-sel-cod-origen');
     if (!sel) return;
     sel.innerHTML = '<option value="">Cargando…</option>';
-    $.getJSON('../../backend/trazabilidad/origen-aves', { tipo: tipo }, function(rows) {
+    $.getJSON(TRZ_API.origenAves, { tipo: tipo }, function(rows) {
         sel.innerHTML = '<option value="">Todos</option>';
         (rows || []).forEach(function(r) {
             sel.innerHTML += '<option value="' + trzEscHtml(r.codigo) + '">'
@@ -412,7 +431,7 @@ function trzFetchAnalisisFiltro(done) {
         if (typeof done === 'function') done();
         return;
     }
-    $.post('../../backend/trazabilidad/analisis-filtro', params, function(resp) {
+    $.post(TRZ_API.analisisFiltro, params, function(resp) {
         trzDataAnalisisFiltro = (resp && resp.items) ? resp.items : [];
         trzAnalisisFiltroKey = key;
         if (typeof done === 'function') done();
@@ -712,7 +731,7 @@ function trzFetchDetalle(done) {
         if (typeof done === 'function') done();
         return;
     }
-    $.post('../../backend/trazabilidad/analisis-detalle', params, function(resp) {
+    $.post(TRZ_API.analisisDetalle, params, function(resp) {
         if (resp && resp.analisis) {
             trzDataDetalle = resp;
             trzDetalleCacheKey = key;
@@ -735,7 +754,7 @@ function trzFetchCodRef(done) {
         if (typeof done === 'function') done();
         return;
     }
-    $.post('../../backend/trazabilidad/analisis-codref', params, function(resp) {
+    $.post(TRZ_API.analisisCodRef, params, function(resp) {
         if (resp && resp.analisis) {
             trzDataCodRef = resp;
             trzCodRefCacheKey = key;
@@ -1142,7 +1161,7 @@ function trzCargarTab1() {
     if (rango) { params.fechaInicio = rango.desde; params.fechaFin = rango.hasta; }
     if (trzTipoMuestraActual) params.tipoMuestra = trzTipoMuestraActual;
     trzSpinner(1, true);
-    $.post('../../backend/trazabilidad/analisis-periodo', params, function(resp){
+    $.post(TRZ_API.analisisPeriodo, params, function(resp){
         trzSpinner(1, false);
         if (resp && resp.analisis) {
             trzDataTab1 = resp;
@@ -1527,7 +1546,7 @@ function trzCargarTab2() {
     var params = trzGetOrigenParams();
     if (rango2) { params.fechaInicio = rango2.desde; params.fechaFin = rango2.hasta; }
     if (trzTipoMuestraActual) params.tipoMuestra = trzTipoMuestraActual;
-    $.post('../../backend/trazabilidad/analisis-porcentaje', params, function(resp){
+    $.post(TRZ_API.analisisPorcentaje, params, function(resp){
         trzSpinner(2, false);
         if (resp && resp.items) {
             trzDataTab2 = resp;
@@ -1553,7 +1572,7 @@ function trzRedrawAllCharts() {
 
 // ── Cargar tipos de muestra para el select del Tab 2 ─────────────────────────
 function trzCargarTiposMuestra() {
-    $.get('../../backend/trazabilidad/tipos-muestra', function(resp){
+    $.get(TRZ_API.tiposMuestra, function(resp){
         var sel = document.getElementById('trz-tipo-muestra-sel');
         if (!sel || !resp || !resp.items) return;
         resp.items.forEach(function(tm){
@@ -2076,7 +2095,7 @@ document.getElementById('trz-btn-export-pdf').addEventListener('click', function
         else params['analisis[]'] = trzSelected2.slice();
     }
 
-    var url = 'generar_trazabilidad_pdf.php?' + $.param(params);
+    var url = TRZ_API.generarPdf + '?' + $.param(params);
     window.open(url, '_blank');
 });
 
@@ -2115,7 +2134,7 @@ function trzCerrarModalGranjas() {
 function trzCargarListaGranjas() {
     var tree = document.getElementById('trzListaGranjasTree');
     if (tree) tree.innerHTML = '<span style="color:var(--trz-text-muted);font-size:.82rem">Cargando granjas…</span>';
-    fetch('../../backend/trazabilidad/granjas', { credentials: 'same-origin' })
+    fetch(TRZ_API.granjas, { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
         .then(function(res) {
             var todas = (res && res.success && Array.isArray(res.data)) ? res.data : [];

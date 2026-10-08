@@ -2,6 +2,9 @@
  * Motor de Renderizado e Instanciación Chart.js (Soporta Línea, Causas Stacked, Diagrama de Pareto y N Ejes Y)
  */
 
+var SANIDAD_BASE = window.SANIDAD_BASE || ((window.location && window.location.origin ? window.location.origin : '') + '/sanidad');
+window.SANIDAD_BASE = SANIDAD_BASE;
+
 /** Colores bien separados en matiz (modo combinado / multi-eje). Evita varios azules/teals confusos. */
 const PALETA_EJES = [
     { axisId: 'y', position: 'left', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.12)' },
@@ -3627,7 +3630,7 @@ async function icFetchPctVar(item) {
         sexo: 'ambos'
     });
     try {
-        const res = await fetch(`../../backend/interconsulta/pct?${params.toString()}`, { credentials: 'same-origin' });
+        const res = await fetch(`${SANIDAD_BASE}/modules/sip/graficas/get_sip_grafica_pct.php?${params.toString()}`, { credentials: 'same-origin' });
         const json = await res.json();
         item.dataPctEndpoint = (json && json.success && Array.isArray(json.dataPorDia)) ? json.dataPorDia : null;
     } catch (e) {
@@ -3651,7 +3654,7 @@ async function icFetchProyeccionPesaje(item) {
         sexo: item.sexoActiva || 'ambos'
     });
     try {
-        const res = await fetch(`../../backend/interconsulta/proyeccion?${params.toString()}`, { credentials: 'same-origin' });
+        const res = await fetch(`${SANIDAD_BASE}/modules/sip/graficas/get_sip_grafica_proyeccion.php?${params.toString()}`, { credentials: 'same-origin' });
         const json = await res.json();
         if (json && json.success) {
             item.dataProyeccion = Array.isArray(json.dataProyeccion) ? json.dataProyeccion : null;

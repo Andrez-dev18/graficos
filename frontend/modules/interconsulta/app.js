@@ -3,6 +3,19 @@
  * Controlador Principal del Dashboard
  */
 
+var SANIDAD_BASE = window.SANIDAD_BASE || ((window.location && window.location.origin ? window.location.origin : '') + '/sanidad');
+window.SANIDAD_BASE = SANIDAD_BASE;
+
+var IC_API = {
+    pesajeDias: SANIDAD_BASE + '/modules/sip/graficas/get_sip_grafica_pesaje_dias.php',
+    luminometriaPuntos: SANIDAD_BASE + '/modules/sip/graficas/get_sip_grafica_luminometria_puntos.php',
+    granjasCampaniasGalpones: SANIDAD_BASE + '/modules/sip/graficas/get_sip_granjas_campanias_galpones.php',
+    tiposGrafica: SANIDAD_BASE + '/modules/sip/graficas/get_sip_tipos_grafica.php',
+    acumuladoSemanal: SANIDAD_BASE + '/modules/sip/graficas/get_sip_grafica_acumulado_semanal.php',
+    graficaData: SANIDAD_BASE + '/modules/sip/graficas/get_sip_grafica_data.php'
+};
+window.IC_API = IC_API;
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- ESTADO GENERAL ---
     const state = {
@@ -228,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const mapDias = new Map();
             for (const tipoPesaje of pesajeSeleccionados) {
-                const resp = await fetch(`../../backend/interconsulta/pesaje-dias?tipo=${encodeURIComponent(tipoPesaje)}`, { credentials: 'same-origin' });
+                const resp = await fetch(`${IC_API.pesajeDias}?tipo=${encodeURIComponent(tipoPesaje)}`, { credentials: 'same-origin' });
                 const json = await resp.json();
                 if (json && json.success && Array.isArray(json.dias)) {
                     json.dias.forEach(d => {
@@ -296,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sel = document.getElementById('select-lum-punto-hz');
         if (!sel) return;
         try {
-            const resp = await fetch('../../backend/interconsulta/luminometria-puntos?_t=' + Date.now(), { credentials: 'same-origin' });
+            const resp = await fetch(IC_API.luminometriaPuntos + '?_t=' + Date.now(), { credentials: 'same-origin' });
             const data = await resp.json();
             const cur = sel.value;
             sel.innerHTML = '<option value="">Todos</option>';
@@ -510,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = obtenerParametrosPeriodo();
             const qs = new URLSearchParams(params).toString();
-            const response = await fetch(`../../backend/interconsulta/granjas-campanias-galpones?${qs}`, { credentials: 'same-origin' });
+            const response = await fetch(`${IC_API.granjasCampaniasGalpones}?${qs}`, { credentials: 'same-origin' });
             const data = await response.json();
 
             if (!data.success) return;
@@ -568,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarTiposGrafica() {
         try {
-            const response = await fetch('../../backend/interconsulta/tipos-grafica', { credentials: 'same-origin' });
+            const response = await fetch(IC_API.tiposGrafica, { credentials: 'same-origin' });
             const data = await response.json();
 
             if (!data.success || !Array.isArray(data.data)) return;
@@ -1220,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     params.set('semana', String(t.semana));
                 }
 
-                const resp = await fetch(`../../backend/interconsulta/acumulado-semanal?${params.toString()}`, { credentials: 'same-origin' });
+                const resp = await fetch(`${IC_API.acumuladoSemanal}?${params.toString()}`, { credentials: 'same-origin' });
                 return resp.json();
             };
 
@@ -1508,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccion: meta.tipo === 'mortalidad' ? 'all' : 'linea'
             });
 
-            fetch(`../../backend/interconsulta/grafica-data?${params.toString()}`, { credentials: 'same-origin' })
+            fetch(`${IC_API.graficaData}?${params.toString()}`, { credentials: 'same-origin' })
                 .then(res => {
                     if (!res.ok) {
                         return res.text().then(text => {

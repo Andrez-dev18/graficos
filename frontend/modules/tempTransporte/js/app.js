@@ -2,6 +2,7 @@
     'use strict';
 
     var SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    var SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
     var API_CRUD = SANIDAD_BASE + '/modules/temperatura/crud_temp_transporte_pollo_bb.php';
 
     function el(id) {
@@ -9,7 +10,12 @@
     }
 
     function get(url) {
-        return fetch(url, { credentials: 'same-origin' }).then(function (r) {
+        return fetch(url, {
+            credentials: 'same-origin',
+            headers: {
+                'Authorization': SANIDAD_TOKEN
+            }
+        }).then(function (r) {
             if (!r.ok) throw new Error('HTTP_' + r.status);
             return r.json();
         });
