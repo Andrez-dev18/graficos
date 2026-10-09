@@ -6,6 +6,9 @@
 var SANIDAD_BASE = window.SANIDAD_BASE || ((window.location && window.location.origin ? window.location.origin : '') + '/sanidad');
 window.SANIDAD_BASE = SANIDAD_BASE;
 
+var SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
+window.SANIDAD_TOKEN = SANIDAD_TOKEN;
+
 var IC_API = {
     pesajeDias: SANIDAD_BASE + '/modules/sip/graficas/get_sip_grafica_pesaje_dias.php',
     luminometriaPuntos: SANIDAD_BASE + '/modules/sip/graficas/get_sip_grafica_luminometria_puntos.php',
@@ -241,7 +244,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const mapDias = new Map();
             for (const tipoPesaje of pesajeSeleccionados) {
-                const resp = await fetch(`${IC_API.pesajeDias}?tipo=${encodeURIComponent(tipoPesaje)}`, { credentials: 'same-origin' });
+                const resp = await fetch(`${IC_API.pesajeDias}?tipo=${encodeURIComponent(tipoPesaje)}`, {
+                    credentials: 'same-origin',
+                    headers: { 'Authorization': SANIDAD_TOKEN }
+                });
                 const json = await resp.json();
                 if (json && json.success && Array.isArray(json.dias)) {
                     json.dias.forEach(d => {
@@ -309,7 +315,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const sel = document.getElementById('select-lum-punto-hz');
         if (!sel) return;
         try {
-            const resp = await fetch(IC_API.luminometriaPuntos + '?_t=' + Date.now(), { credentials: 'same-origin' });
+            const resp = await fetch(IC_API.luminometriaPuntos + '?_t=' + Date.now(), {
+                credentials: 'same-origin',
+                headers: { 'Authorization': SANIDAD_TOKEN }
+            });
             const data = await resp.json();
             const cur = sel.value;
             sel.innerHTML = '<option value="">Todos</option>';
@@ -523,7 +532,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = obtenerParametrosPeriodo();
             const qs = new URLSearchParams(params).toString();
-            const response = await fetch(`${IC_API.granjasCampaniasGalpones}?${qs}`, { credentials: 'same-origin' });
+            const response = await fetch(`${IC_API.granjasCampaniasGalpones}?${qs}`, {
+                credentials: 'same-origin',
+                headers: { 'Authorization': SANIDAD_TOKEN }
+            });
             const data = await response.json();
 
             if (!data.success) return;
@@ -581,7 +593,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarTiposGrafica() {
         try {
-            const response = await fetch(IC_API.tiposGrafica, { credentials: 'same-origin' });
+            const response = await fetch(IC_API.tiposGrafica, {
+                credentials: 'same-origin',
+                headers: { 'Authorization': SANIDAD_TOKEN }
+            });
             const data = await response.json();
 
             if (!data.success || !Array.isArray(data.data)) return;
@@ -1233,7 +1248,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     params.set('semana', String(t.semana));
                 }
 
-                const resp = await fetch(`${IC_API.acumuladoSemanal}?${params.toString()}`, { credentials: 'same-origin' });
+                const resp = await fetch(`${IC_API.acumuladoSemanal}?${params.toString()}`, {
+                    credentials: 'same-origin',
+                    headers: { 'Authorization': SANIDAD_TOKEN }
+                });
                 return resp.json();
             };
 
@@ -1521,7 +1539,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccion: meta.tipo === 'mortalidad' ? 'all' : 'linea'
             });
 
-            fetch(`${IC_API.graficaData}?${params.toString()}`, { credentials: 'same-origin' })
+            fetch(`${IC_API.graficaData}?${params.toString()}`, {
+                credentials: 'same-origin',
+                headers: { 'Authorization': SANIDAD_TOKEN }
+            })
                 .then(res => {
                     if (!res.ok) {
                         return res.text().then(text => {

@@ -5,6 +5,17 @@
 var SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
 window.SANIDAD_BASE = SANIDAD_BASE;
 
+var SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
+window.SANIDAD_TOKEN = SANIDAD_TOKEN;
+
+if (typeof $ !== 'undefined' && $.ajaxSetup) {
+    $.ajaxSetup({
+        headers: {
+            'Authorization': SANIDAD_TOKEN
+        }
+    });
+}
+
 var TRZ_API = {
     origenAves: SANIDAD_BASE + '/includes/get_origen_aves.php',
     granjas: SANIDAD_BASE + '/modules/planificacion/cronograma/get_granjas.php',
@@ -2134,7 +2145,10 @@ function trzCerrarModalGranjas() {
 function trzCargarListaGranjas() {
     var tree = document.getElementById('trzListaGranjasTree');
     if (tree) tree.innerHTML = '<span style="color:var(--trz-text-muted);font-size:.82rem">Cargando granjas…</span>';
-    fetch(TRZ_API.granjas, { credentials: 'same-origin' })
+    fetch(TRZ_API.granjas, {
+        credentials: 'same-origin',
+        headers: { 'Authorization': SANIDAD_TOKEN }
+    })
         .then(function(r) { return r.json(); })
         .then(function(res) {
             var todas = (res && res.success && Array.isArray(res.data)) ? res.data : [];

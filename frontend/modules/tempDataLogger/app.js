@@ -7,6 +7,7 @@
     'use strict';
 
     const SANIDAD_BASE = (window.location && window.location.origin ? window.location.origin : '') + '/sanidad';
+    const SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
     const API = SANIDAD_BASE + '/modules/temperatura/crud_temperatura.php';
     const COLOR_TEMP = '#1e40af';
     const COLOR_HUM = '#047857';
@@ -664,7 +665,10 @@
         }
         if (g) params += '&granja=' + encodeURIComponent(g);
 
-        fetch(API + '?' + params, { credentials: 'same-origin' })
+        fetch(API + '?' + params, {
+            credentials: 'same-origin',
+            headers: { 'Authorization': SANIDAD_TOKEN }
+        })
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (!d.success) {
@@ -713,7 +717,12 @@
         fd.append('idCab', idCab);
         fd.append('tipo', 'AMBOS');
         fd.append('grupo', '1');
-        return fetch(API, { method: 'POST', body: fd, credentials: 'same-origin' })
+        return fetch(API, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'Authorization': SANIDAD_TOKEN }
+        })
             .then(function (r) {
                 return r.text().then(function (t) {
                     return tempConSafeParseJson(t);
@@ -763,7 +772,10 @@
     function tempConCargarGranjasSelect() {
         const sel = el('temp-con-granja-select');
         if (!sel) return;
-        fetch(API + '?action=granjas', { credentials: 'same-origin' })
+        fetch(API + '?action=granjas', {
+            credentials: 'same-origin',
+            headers: { 'Authorization': SANIDAD_TOKEN }
+        })
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (!d.success || !d.data) return;

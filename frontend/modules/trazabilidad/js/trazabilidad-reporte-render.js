@@ -4,6 +4,15 @@
 (function (global) {
     'use strict';
 
+    var SANIDAD_TOKEN = 'Bearer d9f7a6b3-4c8e-11ee-be56-0242ac120002';
+    if (typeof $ !== 'undefined' && $.ajaxSetup) {
+        $.ajaxSetup({
+            headers: {
+                'Authorization': SANIDAD_TOKEN
+            }
+        });
+    }
+
     var VACIO = '-----';
     var COMPACT_AUTO_MIN = 5;
 
