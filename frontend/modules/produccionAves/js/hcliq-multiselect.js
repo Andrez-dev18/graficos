@@ -9,7 +9,7 @@ class HcliqMultiSelect {
         this.search = document.getElementById(opts.searchId);
         this.container = document.getElementById(opts.optionsContainerId);
         this.onChange = typeof opts.onChange === 'function' ? opts.onChange : function () {};
-        this.maxSelected = opts.maxSelected || 4;
+        this.maxSelected = opts.maxSelected === 0 ? Infinity : (opts.maxSelected || 4); /* 0 = sin tope */
         this.emptyLabel = typeof opts.emptyLabel === 'string' && opts.emptyLabel !== '' ? opts.emptyLabel : 'Ninguno';
         this.maxMessage = typeof opts.maxMessage === 'string' && opts.maxMessage !== ''
             ? opts.maxMessage

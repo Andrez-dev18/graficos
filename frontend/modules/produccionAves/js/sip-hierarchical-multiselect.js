@@ -464,9 +464,10 @@ class CustomHierarchicalMultiSelect {
 
         this.granjasData.forEach(g => {
             const gId = String(g.granja || g.codigo || g.nombre);
-            const gName = (g.granja || '') + (g.nombre && g.nombre !== g.granja ? ' — ' + g.nombre : '');
+            const gName = (g.granja || '') + (g.nombre && g.nombre !== g.granja ? ' · ' + g.nombre : '');
             const campanias = Array.isArray(g.campanias) ? g.campanias : [];
-            const galpones = Array.isArray(g.galpones) ? g.galpones : [];
+            const galpones = (Array.isArray(g.galpones) ? g.galpones.slice() : [])
+                .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }));
 
             const matchGranja = gName.toLowerCase().includes(q) || gId.toLowerCase().includes(q);
             const matchingCampanias = campanias.filter(c => String(c).toLowerCase().includes(q));
@@ -480,17 +481,17 @@ class CustomHierarchicalMultiSelect {
             const isExpanded = (this.expandedMap[gId] !== undefined) ? this.expandedMap[gId] : (q ? true : false);
 
             html += `
-                <div class="hier-granja border border-slate-200/80 rounded-xl p-2.5 bg-slate-50/60 mb-2 transition-all">
+                <div class="hier-granja rounded-lg mb-1 transition-all">
                     <!-- CABECERA DE GRANJA (Click en la fila abre/cierra; click en el check selecciona) -->
-                    <div class="hier-granja-head flex items-center justify-between gap-2 cursor-pointer row-granja-header hover:bg-slate-100/70 p-1.5 rounded-lg transition" data-granja="${gId}">
-                        <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                    <div class="hier-granja-head flex items-center justify-between gap-2 cursor-pointer row-granja-header hover:bg-slate-100/70 py-1.5 px-1.5 rounded-lg transition" data-granja="${gId}">
+                        <div class="hier-granja-main flex items-center flex-1 min-w-0">
                             <input type="checkbox" data-type="granja" data-granja="${gId}" class="chk-hier-granja w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer flex-shrink-0" ${isGranjaSelected ? 'checked' : ''}>
                             <span class="hier-granja-name text-xs font-bold text-slate-800 truncate select-none">${gName}</span>
                         </div>
                         <div class="flex items-center gap-1.5 flex-shrink-0">
                             <span class="hier-badge text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100/80 text-blue-700 border border-blue-200/60 select-none">Granja</span>
-                            <span class="text-slate-400 p-0.5">
-                                <svg class="w-3.5 h-3.5 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            <span class="hier-granja-caret text-slate-400 p-0.5">
+                                <svg class="w-3.5 h-3.5 transition-transform duration-200" style="transform: rotate(${isExpanded ? 90 : 0}deg)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                             </span>
                         </div>
                     </div>
@@ -519,17 +520,19 @@ class CustomHierarchicalMultiSelect {
                         <!-- GALPONES -->
                         ${galpones.length > 0 ? `
                             <div class="hier-galpones">
-                                <span class="hier-nivel hier-nivel--galpon text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1 block">Galpones</span>
-                                <div class="hier-galpones-list grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                                <div class="hier-galpones-head flex items-center justify-start gap-2">
+                                    <span class="hier-nivel hier-nivel--galpon text-[10px] font-bold uppercase tracking-wider text-indigo-600">Galpones</span>
                                     ${(() => {
                                         const todosGalponesSel = galpones.every(gp => this.selectedGalpones.has(`${gId}__${gp}`));
                                         return `
-                                            <label class="hier-chip hier-chip--todos flex items-center justify-center gap-1.5 px-2 py-1.5 bg-indigo-50/80 hover:bg-indigo-100/80 rounded-lg border border-indigo-200/80 hover:border-indigo-400 cursor-pointer select-none transition-colors col-span-2 sm:col-span-3">
-                                                <input type="checkbox" data-type="galpon-todos" data-granja="${gId}" class="chk-hier-galpon-todos w-3.5 h-3.5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer flex-shrink-0" ${todosGalponesSel ? 'checked' : ''}>
-                                                <span class="hier-chip-text text-xs font-bold text-indigo-800">Todos</span>
+                                            <label class="hier-chip hier-chip--todos flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50/80 hover:bg-indigo-100/80 rounded border border-indigo-200/80 hover:border-indigo-400 cursor-pointer select-none transition-colors">
+                                                <input type="checkbox" data-type="galpon-todos" data-granja="${gId}" class="chk-hier-galpon-todos w-3 h-3 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer flex-shrink-0" ${todosGalponesSel ? 'checked' : ''}>
+                                                <span class="hier-chip-text text-[10px] font-bold text-indigo-800">Todos</span>
                                             </label>
                                         `;
                                     })()}
+                                </div>
+                                <div class="hier-galpones-list grid grid-cols-4 sm:grid-cols-6 gap-1.5">
                                     ${galpones.map(gp => {
                                         const gpKey = `${gId}__${gp}`;
                                         const isGalpSelected = this.selectedGalpones.has(gpKey);
