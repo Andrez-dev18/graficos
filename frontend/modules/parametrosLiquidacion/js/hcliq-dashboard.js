@@ -1390,6 +1390,20 @@
             if (seq === hcliqReqSeq) setLoading(false);
         });
     }
+    function defaultParamKey(list) {
+        var items = Array.isArray(list) ? list : CATALOGO;
+        if (!items || !items.length) return 'CARGA_INICIAL';
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var l = String(it.label || '').toLowerCase();
+            var k = String(it.key || '').toLowerCase();
+            if (l.indexOf('carga inicial') !== -1 || k.indexOf('carga_inicial') !== -1 || k === 'carga_inicial') {
+                return String(it.key);
+            }
+        }
+        return String(items[0].key || '');
+    }
+
     function aplicarCatalogoParametros(list) {
         if (!Array.isArray(list) || !list.length) return;
         CATALOGO = list;
@@ -1397,10 +1411,14 @@
         list.forEach(function (p) {
             paramMetaByKey[String(p.key || '')] = p;
         });
+        var defKey = defaultParamKey(list);
+        if (!selectedParams.length || (selectedParams.length === 1 && (selectedParams[0] === 'ICA_2_4' || selectedParams[0] === 'CARGA_INICIAL'))) {
+            selectedParams = [defKey];
+        }
         if (msParametros) {
             msParametros.setOptions(list.map(function (p) {
                 return { id: String(p.key || ''), label: String(p.label || p.key || ''), color: String(p.color || '') };
-            }), selectedParams.length ? selectedParams : (paramOrder[0] ? [paramOrder[0]] : []));
+            }), selectedParams.length ? selectedParams : [defKey]);
         }
     }
 
@@ -1410,10 +1428,12 @@
             paramMetaByKey[String(p.key || '')] = p;
         });
         if (!paramOrder.length) {
-            paramOrder = ['ICA_2_4'];
+            paramOrder = ['CARGA_INICIAL', 'ICA_2_4'];
+            paramMetaByKey['CARGA_INICIAL'] = { key: 'CARGA_INICIAL', label: 'Carga inicial (und)', decimals: 0, suffix: ' und' };
             paramMetaByKey['ICA_2_4'] = { key: 'ICA_2_4', label: 'ICA 2.4', decimals: 3, suffix: '' };
         }
-        selectedParams = [paramOrder[0]];
+        var defKey = defaultParamKey(CATALOGO.length ? CATALOGO : [{ key: 'CARGA_INICIAL', label: 'Carga inicial (und)' }]);
+        selectedParams = [defKey];
         msParametros = new HcliqMultiSelect({
             btnId: 'hcliq-param-btn',
             labelId: 'hcliq-param-label',
