@@ -550,7 +550,19 @@
             if (!res || !res.success) throw new Error((res && res.message) || 'Error al cargar galpones');
             det.querySelector('.hcliq-det-wrap').innerHTML = renderGalponesDetalle(res.data || []);
         }).catch(function (err) {
-            det.querySelector('.hcliq-det-wrap').innerHTML = '<div class="hcliq-det-error">' + esc((err && err.message) || 'No se pudo cargar la información.') + '</div>';
+            var msg = String((err && err.message) || '');
+            var esAuth = msg === 'auth' || msg === 'No autorizado (token Sanidad)' || msg.toLowerCase().indexOf('autorizado') !== -1;
+            if (esAuth) {
+                /* Quitar la fila de detalle y cerrar el chevron */
+                det.parentNode && det.parentNode.removeChild(det);
+                btn.setAttribute('aria-expanded', 'false');
+                if (chev) chev.classList.remove('hcliq-chev-open');
+                /* Abrir login de Sanidad en nueva ventana */
+                var loginUrl = (window.SANIDAD_BASE || '/sanidad') + '/login.php';
+                window.open(loginUrl, '_blank', 'noopener');
+                return;
+            }
+            det.querySelector('.hcliq-det-wrap').innerHTML = '<div class="hcliq-det-error">' + esc(msg || 'No se pudo cargar la información.') + '</div>';
         });
     }
     /* Etiquetas de valor en cada nodo: halo para legibilidad y reubicación si chocan (modo combinado) */
