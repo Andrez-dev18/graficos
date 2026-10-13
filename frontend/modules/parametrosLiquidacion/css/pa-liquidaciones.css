@@ -392,8 +392,8 @@ html[data-theme="dark"] .card-filtros-compacta .border-b {
             margin: 1rem 0;
         }
         .hccmp-resumen-card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
+            background: var(--sip-surface, #fff);
+            border: 1px solid var(--sip-border, #e5e7eb);
             border-radius: 0.75rem;
             padding: 1rem;
         }
@@ -405,8 +405,8 @@ html[data-theme="dark"] .card-filtros-compacta .border-b {
             text-align: left;
             font-weight: 600;
         }
-        .hccmp-tabla-resumen td { padding: 0.45rem 0.65rem; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-        .hccmp-tabla-resumen tbody tr:hover { background: #f8fafc; }
+        .hccmp-tabla-resumen td { padding: 0.45rem 0.65rem; border-bottom: 1px solid var(--sip-border, #e5e7eb); vertical-align: top; }
+        .hccmp-tabla-resumen tbody tr:hover { background: var(--sip-surface-2, #f8fafc); }
         .hccmp-tabla-resumen tr.hccmp-camp-row--open { background: #f0f9ff; }
         .hccmp-cmp-toggle {
             min-width: 26px;
@@ -642,21 +642,35 @@ html[data-theme="dark"] .card-filtros-compacta .border-b {
 .hcliq-modo-row {
         display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-top: 0.5rem; width: 100%;
     }
-    .hcliq-modo-row .hc-per-field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
-    .hcliq-modo-row .hc-per-label { font-size: 0.875rem; font-weight: 500; color: var(--sip-text, #374151); }
+    .hcliq-modo-row .hc-per-field,
+    .hcliq-modo-row .hc-filtro-field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+    /* Etiquetas y alturas uniformes en toda la fila de filtros */
+    .card-filtros-compacta .hcliq-modo-row .hc-per-label,
+    .card-filtros-compacta .hcliq-modo-row .hc-filtro-label {
+        display: block; min-height: 1.25rem; margin-bottom: 0 !important;
+        font-size: 0.75rem !important; line-height: 1.2; font-weight: 500; color: var(--sip-text, #374151);
+    }
     .hcliq-modo-row select.hc-per-input,
     .hcliq-modo-row input[type="text"].hc-per-input {
-        width: 100%; min-width: 0; height: 2.5rem; box-sizing: border-box;
-        border-radius: 0.5rem; border: 1px solid var(--sip-border, #d1d5db); font-size: 0.875rem;
+        width: 100%; min-width: 0; height: 1.875rem; box-sizing: border-box;
+        border-radius: 0.5rem; border: 1px solid var(--sip-border, #d1d5db); font-size: 0.8125rem;
         padding: 0 0.5rem; background: var(--sip-surface, #fff);
+    }
+    .card-filtros-compacta .hcliq-modo-row .hcliq-ms-btn,
+    .card-filtros-compacta .hcliq-modo-row .hcliq-btn-filtrar {
+        height: 1.875rem !important; min-height: 1.875rem !important;
+    }
+    .hcliq-modo-row .hcliq-btn-filtrar {
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 0 0.75rem; font-size: 0.8125rem;
     }
     .hcliq-modo-row select.hc-per-input:focus,
     .hcliq-modo-row input[type="text"].hc-per-input:focus {
         outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     }
     .hcliq-modo-row .hc-filtro-control {
-        width: 100%; padding: 0.625rem 1rem; border: 1px solid var(--sip-border, #d1d5db);
-        border-radius: 0.5rem; font-size: 0.875rem; background: var(--sip-surface, #fff); height: 2.5rem; box-sizing: border-box;
+        width: 100%; padding: 0.25rem 0.5rem; border: 1px solid var(--sip-border, #d1d5db);
+        border-radius: 0.5rem; font-size: 0.8125rem; background: var(--sip-surface, #fff); height: 1.875rem; box-sizing: border-box;
     }
     .hcliq-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     .hcliq-btn-link {
@@ -741,13 +755,6 @@ html[data-theme="dark"] .card-filtros-compacta .border-b {
     .hcliq-btn-filtrar[data-pending="1"] { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35); }
     .hcliq-btn-filtrar[data-pending="1"] .hcliq-btn-pending-dot { display: inline-block; }
     .hcliq-chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
-    .hcliq-chart-galpon { display: flex; align-items: center; gap: 0.45rem; }
-    .hcliq-chart-galpon-label { font-size: 0.75rem; font-weight: 600; color: var(--sip-muted, #64748b); }
-    .hcliq-chart-galpon-select {
-        height: 2.1rem; min-width: 9rem; padding: 0 0.5rem; font-size: 0.8rem;
-        border: 1px solid var(--sip-border, #d1d5db); border-radius: 0.5rem;
-        background: var(--sip-surface, #fff); color: var(--sip-text, #1f2937); cursor: pointer;
-    }
     .hcliq-chart-panel {
         display: flex; flex-direction: column; min-height: 320px; padding: 0.75rem;
         border: 1px solid var(--sip-border, #e2e8f0); border-radius: 0.75rem;
@@ -772,3 +779,76 @@ html[data-theme="dark"] .card-filtros-compacta .border-b {
         border-radius: 0.75rem; box-shadow: 0 12px 28px -8px rgba(15, 23, 42, 0.35);
         font-size: 0.85rem; font-weight: 600; color: var(--sip-text, #1f2937);
     }
+
+    /* Selector jerárquico de ubicación (granjas, campañas y galpones) */
+    .hcliq-ubic-field { position: relative; min-width: 16rem; flex: 1 1 20rem; max-width: 34rem; }
+    .hcliq-hier-dropdown {
+        position: absolute; left: 0; top: calc(100% + 0.25rem); z-index: 130; width: 100%; min-width: 24rem;
+        background: var(--sip-surface, #fff); border: 1px solid var(--sip-border, #e2e8f0);
+        border-radius: 0.75rem; box-shadow: 0 12px 28px -8px rgba(15, 23, 42, 0.28); padding: 0.6rem;
+    }
+    .hcliq-hier-actions { display: flex; justify-content: flex-end; padding: 0 0.15rem 0.4rem; border-bottom: 1px solid var(--sip-border, #f1f5f9); margin-bottom: 0.4rem; }
+    .hcliq-hier-limpiar {
+        display: inline-flex; align-items: center; gap: 0.3rem; padding: 0; border: none; background: transparent;
+        font-size: 0.72rem; font-weight: 600; color: var(--sip-muted, #64748b); cursor: pointer;
+    }
+    .hcliq-hier-limpiar:hover { color: var(--sip-danger, #e11d48); }
+    .hcliq-hier-options { max-height: 20rem; overflow-y: auto; padding-right: 0.15rem; }
+    #hcliq-ubic-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--sip-muted, #64748b); }
+
+    /* Niveles del árbol (granja → campañas → galpones) */
+    .hcliq-hier-options .hier-granja {
+        margin: 0 0 0.5rem; padding: 0.5rem 0.55rem;
+        border: 1px solid var(--sip-border, #e2e8f0); border-radius: 0.7rem;
+        background: var(--sip-surface-2, #f8fafc);
+    }
+    .hcliq-hier-options .hier-granja-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+        padding: 0.2rem 0.3rem; border-radius: 0.5rem; cursor: pointer;
+    }
+    .hcliq-hier-options .hier-granja-head:hover { background: var(--sip-hover-surface, #eef2f7); }
+    .hcliq-hier-options .hier-granja-name {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        font-size: 0.78rem; font-weight: 700; color: var(--sip-text, #1f2937);
+    }
+    .hcliq-hier-options .hier-badge {
+        flex: 0 0 auto; padding: 0.1rem 0.4rem; border-radius: 9999px;
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        background: var(--sip-primary-soft, #eff6ff); color: var(--sip-primary, #2563eb);
+        border: 1px solid var(--sip-hover-edge, #bfdbfe);
+    }
+    .hcliq-hier-options .hier-sub {
+        margin-top: 0.55rem; padding: 0.5rem 0 0 0.6rem;
+        border-top: 1px solid var(--sip-border, #e2e8f0); border-left: none;
+    }
+    .hcliq-hier-options .hier-nivel {
+        display: block; margin-bottom: 0.25rem;
+        font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .hcliq-hier-options .hier-nivel--campania { color: var(--sip-warning, #b45309); }
+    .hcliq-hier-options .hier-nivel--galpon { color: var(--sip-primary, #4338ca); }
+    .hcliq-hier-options .hier-campanias + .hier-galpones { margin-top: 0.6rem; }
+    .hcliq-hier-options .hier-campanias-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .hcliq-hier-options .hier-galpones-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.35rem; }
+    .hcliq-hier-options .hier-chip {
+        display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.45rem;
+        border: 1px solid var(--sip-border, #e2e8f0); border-radius: 0.5rem;
+        background: var(--sip-surface, #fff); cursor: pointer; user-select: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .hcliq-hier-options .hier-chip-text { font-size: 0.72rem; font-weight: 600; color: var(--sip-text, #334155); }
+    .hcliq-hier-options .hier-chip--campania:hover { border-color: var(--sip-warning, #fbbf24); background: var(--sip-warning-soft, #fffbeb); }
+    .hcliq-hier-options .hier-chip--galpon:hover { border-color: var(--sip-hover-edge, #818cf8); background: var(--sip-hover-surface, #eef2ff); }
+    .hcliq-hier-options .hier-chip--todos {
+        grid-column: span 3; justify-content: center;
+        background: var(--sip-primary-soft, #eef2ff); border-color: var(--sip-hover-edge, #c7d2fe);
+    }
+    .hcliq-hier-options .hier-chip--todos .hier-chip-text { color: var(--sip-primary, #3730a3); font-weight: 700; }
+    .hcliq-hier-options .chk-hier-galpon-todos:checked ~ .hier-chip-text { color: var(--sip-primary, #3730a3); }
+    .hcliq-hier-options input[type="checkbox"] {
+        flex: 0 0 auto; width: 0.85rem; height: 0.85rem; margin: 0;
+        accent-color: var(--sip-primary, #2563eb); cursor: pointer;
+    }
+    .hcliq-hier-options .hier-empty { padding: 0.9rem 0.5rem; text-align: center; font-size: 0.75rem; color: var(--sip-muted, #94a3b8); }
+
+    html[data-theme="dark"] .hcliq-hier-dropdown { box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.6); }
