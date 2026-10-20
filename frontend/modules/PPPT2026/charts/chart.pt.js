@@ -1,10 +1,10 @@
 /**
- * Componente de Gráfico / Vista: PT (Producto Terminado)
- * Módulo: PPPT2026
+ * Componente de GrÃ¡fico / Vista: PT (Producto Terminado)
+ * MÃ³dulo: PPPT2026
  * 
- * Renderiza la matriz de Costos por Galpón y Código de Costo según el libro Tableau PPT 2026 (Hoja PT),
- * calculando sobre timfipt (Prod Term), con filtro interactivo de LÍMITE (dual range slider con rAF throttling),
- * columnas estáticas/fijas a la izquierda (Cencos, nombre, CodigoCosto) y exportación a Excel con estilos Tableau.
+ * Renderiza la matriz de Costos por GalpÃ³n y CÃ³digo de Costo segÃºn el libro Tableau PPT 2026 (Hoja PT),
+ * calculando sobre timfipt (Prod Term), con filtro interactivo de LÃMITE (dual range slider con rAF throttling),
+ * columnas estÃ¡ticas/fijas a la izquierda (Cencos, nombre, CodigoCosto) y exportaciÃ³n a Excel con estilos Tableau.
  */
 window.ChartRegistry = window.ChartRegistry || {};
 
@@ -12,16 +12,23 @@ window.ChartPT = {
     controllerRef: null,
     datosBackend: null,
     filasCompletas: [],
+    filasFiltradas: [],
     multiActividad: null,
     maxLimiteGlobal: 284761.56,
     moneyFormatter: new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     rafId: null,
+    scrollRafId: null,
+    rowHeight: null,
+    renderVersion: 0,
+    lastRenderVersion: -1,
+    lastStart: -1,
+    lastEnd: -1,
 
     render(controller, data) {
         this.controllerRef = controller;
         this.datosBackend = data || {};
 
-        // Pre-procesar números para máxima velocidad de filtrado
+        // Pre-procesar nÃºmeros para mÃ¡xima velocidad de filtrado
         const rawFilas = (data && data.filas) ? data.filas : [];
         this.filasCompletas = rawFilas.map(f => ({
             ...f,
@@ -43,12 +50,19 @@ window.ChartPT = {
         // 1. Poblar / actualizar opciones de filtros
         this.setupFilters(this.datosBackend.opciones_filtros || {});
 
-        // 2. Inicializar / sincronizar slider de LÍMITE con los datos
+        // 2. Inicializar / sincronizar slider de LÃMITE con los datos
         this.setupLimiteSlider();
 
         // 3. Renderizar estructura base y contenido
         this.renderTableStructure();
-        this.updateTableBody(this.filasCompletas, this.datosBackend.totales);
+        this.rowHeight = null;
+        this.filasFiltradas = [];
+        this.renderVersion = 0;
+        this.lastRenderVersion = -1;
+        this.lastStart = -1;
+        this.lastEnd = -1;
+        this.setupVirtualScroll();
+        this.filtrarPorLimite(0, this.maxLimiteGlobal, true);
         this.setupExportListeners();
     },
 
@@ -56,6 +70,14 @@ window.ChartPT = {
         if (this.rafId) {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
+        }
+        if (this.scrollRafId) {
+            cancelAnimationFrame(this.scrollRafId);
+            this.scrollRafId = null;
+        }
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
         }
     },
 
@@ -94,12 +116,16 @@ window.ChartPT = {
         if (typeof CustomMultiSelect === 'undefined') return;
 
         const actDisp = opciones.actividades || ['AV', 'H2'];
+        const seleccionadas = (this.datosBackend && Array.isArray(this.datosBackend.actividades_seleccionadas))
+            ? this.datosBackend.actividades_seleccionadas.map(a => String(a).trim())
+            : [];
+        const seleccionBase = seleccionadas.length > 0 ? seleccionadas : ['AV'];
 
         if (!this.multiActividad) {
             const optActividad = actDisp.map(a => ({
                 id: String(a).trim(),
                 label: String(a).trim(),
-                selected: (String(a).trim() === 'AV')
+                selected: seleccionBase.includes(String(a).trim())
             }));
 
             this.multiActividad = new CustomMultiSelect({
@@ -111,14 +137,19 @@ window.ChartPT = {
                 title: 'ACTIVIDAD',
                 options: optActividad
             });
-        } else if (actDisp.length > 0 && !this.haveSameOptions(this.multiActividad, actDisp)) {
-            const currentSelected = this.multiActividad.getSelectedValues();
-            const optActividad = actDisp.map(a => ({
-                id: String(a).trim(),
-                label: String(a).trim(),
-                selected: currentSelected.length > 0 ? currentSelected.includes(String(a).trim()) : (String(a).trim() === 'AV')
-            }));
-            this.multiActividad.setOptions(optActividad);
+        } else {
+            const currentSelected = this.multiActividad.getSelectedValues().map(a => String(a).trim());
+            const seleccionActual = currentSelected.join('|');
+            const seleccionRespuesta = seleccionBase.join('|');
+
+            if (actDisp.length > 0 && (!this.haveSameOptions(this.multiActividad, actDisp) || seleccionActual !== seleccionRespuesta)) {
+                const optActividad = actDisp.map(a => ({
+                    id: String(a).trim(),
+                    label: String(a).trim(),
+                    selected: seleccionBase.includes(String(a).trim())
+                }));
+                this.multiActividad.setOptions(optActividad);
+            }
         }
     },
 
@@ -131,7 +162,7 @@ window.ChartPT = {
 
         if (!sliderMin || !sliderMax) return;
 
-        // Máximo exacto fijado por Tableau para PT
+        // MÃ¡ximo exacto fijado por Tableau para PT
         this.maxLimiteGlobal = 284761.56;
 
         sliderMin.min = "0";
@@ -167,7 +198,7 @@ window.ChartPT = {
                 val2 = temp;
             }
 
-            // Actualización visual instantánea de los labels y la barra (0ms lag)
+            // ActualizaciÃ³n visual instantÃ¡nea de los labels y la barra (0ms lag)
             if (labelMin) labelMin.textContent = this.formatTotal(val1);
             if (labelMax) labelMax.textContent = this.formatTotal(val2);
 
@@ -178,7 +209,7 @@ window.ChartPT = {
                 highlight.style.width = `${pctMax - pctMin}%`;
             }
 
-            // Sincronización del renderizado con requestAnimationFrame
+            // SincronizaciÃ³n del renderizado con requestAnimationFrame
             if (this.rafId) {
                 cancelAnimationFrame(this.rafId);
             }
@@ -211,10 +242,10 @@ window.ChartPT = {
         }
     },
 
-    filtrarPorLimite(minVal, maxVal) {
+    filtrarPorLimite(minVal, maxVal, resetScroll = false) {
         const isFullRange = (minVal <= 0.001 && maxVal >= (this.maxLimiteGlobal - 0.01));
         const totalRows = this.filasCompletas.length;
-        const filtradas = [];
+        const filtradas = isFullRange ? this.filasCompletas : [];
 
         const totales = {
             g1: 0.0, g2: 0.0, g3: 0.0, g4: 0.0,
@@ -250,7 +281,9 @@ window.ChartPT = {
             }
 
             if (include) {
-                filtradas.push(f);
+                if (!isFullRange) {
+                    filtradas.push(f);
+                }
                 totales.g1 += f._g1;
                 totales.g2 += f._g2;
                 totales.g3 += f._g3;
@@ -267,10 +300,15 @@ window.ChartPT = {
             }
         }
 
+        this.filasFiltradas = filtradas;
         this.datosBackend.filas = filtradas;
         this.datosBackend.totales = totales;
+        this.renderVersion += 1;
+        this.lastRenderVersion = -1;
 
-        this.updateTableBody(filtradas, totales);
+        this.actualizarBadge(filtradas.length);
+        this.renderFooter(filtradas.length > 0 ? totales : null);
+        this.renderVentana(resetScroll);
     },
 
     formatCurrency(val) {
@@ -292,17 +330,17 @@ window.ChartPT = {
 
         const tableHtml = `
             <div class="w-full flex flex-col bg-white overflow-hidden">
-                <!-- ENCABEZADO DE TABLA ESTANDARIZADO CON BOTÓN EXCEL -->
+                <!-- ENCABEZADO DE TABLA ESTANDARIZADO CON BOTÃ“N EXCEL -->
                 <div class="px-5 py-3.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                     <div>
                         <div class="flex items-center gap-2">
                             <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">PT</h2>
                             <span id="badge-total-registros-pt" class="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">0 registros</span>
                         </div>
-                        <span class="text-[11px] text-slate-400 font-medium">Costos por Galpón y Código de Costo</span>
+                        <span class="text-[11px] text-slate-400 font-medium">Costos por GalpÃ³n y CÃ³digo de Costo</span>
                     </div>
 
-                    <!-- BOTÓN EXPORTAR EXCEL ESTÁNDAR -->
+                    <!-- BOTÃ“N EXPORTAR EXCEL ESTÃNDAR -->
                     <button id="btn-export-excel-pt" type="button"
                         class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 shadow-2xs transition-all cursor-pointer">
                         <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,10 +351,10 @@ window.ChartPT = {
                 </div>
 
                 <!-- Tabla Scrolleable con Columnas Fijas a la izquierda (Cencos, nombre, CodigoCosto) -->
-                <div class="overflow-x-auto overflow-y-auto max-h-[640px] custom-scrollbar">
+                <div id="scroll-pt-pppt2026" class="overflow-x-auto overflow-y-auto max-h-[640px] custom-scrollbar" style="overflow-anchor: none;">
                     <table id="tabla-pt-pppt2026" class="w-full text-xs border-collapse border border-slate-200 select-text">
                         <thead class="sticky top-0 z-20 shadow-xs">
-                            <!-- Nivel 1: Categorías principales (Columnas congeladas a la izquierda con z-30) -->
+                            <!-- Nivel 1: CategorÃ­as principales (Columnas congeladas a la izquierda con z-30) -->
                             <tr class="bg-blue-600 text-white font-semibold text-[11px]">
                                 <th rowspan="2" class="sticky left-0 z-30 bg-blue-600 px-2.5 py-2 text-left border-r border-blue-500 w-[80px] min-w-[80px] max-w-[80px]">Cencos</th>
                                 <th rowspan="2" class="sticky left-[80px] z-30 bg-blue-600 px-2.5 py-2 text-left border-r border-blue-500 w-[180px] min-w-[180px] max-w-[180px]">nombre</th>
@@ -352,67 +390,80 @@ window.ChartPT = {
         contenedorGrafica.innerHTML = tableHtml;
     },
 
-    updateTableBody(filas, totales) {
-        const tbody = document.getElementById('tbody-pt-pppt2026');
-        const tfoot = document.getElementById('tfoot-pt-pppt2026');
+    setupVirtualScroll() {
+        const wrapper = document.getElementById('scroll-pt-pppt2026');
+        if (!wrapper || wrapper.dataset.virtualScrollBound === '1') return;
+
+        wrapper.dataset.virtualScrollBound = '1';
+        wrapper.addEventListener('scroll', () => {
+            if (this.scrollRafId) {
+                cancelAnimationFrame(this.scrollRafId);
+            }
+            this.scrollRafId = requestAnimationFrame(() => {
+                this.scrollRafId = null;
+                this.renderVentana(false);
+            });
+        }, { passive: true });
+
+        if (typeof ResizeObserver !== 'undefined') {
+            if (this._resizeObserver) {
+                this._resizeObserver.disconnect();
+            }
+            this._resizeObserver = new ResizeObserver(() => {
+                this.lastStart = -1;
+                this.lastEnd = -1;
+                this.renderVentana(false);
+            });
+            this._resizeObserver.observe(wrapper);
+        }
+    },
+
+    actualizarBadge(cantidad) {
         const badge = document.getElementById('badge-total-registros-pt');
-
-        if (!tbody || !tfoot) {
-            this.renderTableStructure();
-            return this.updateTableBody(filas, totales);
-        }
-
         if (badge) {
-            badge.textContent = `${filas.length.toLocaleString('es-PE')} registros`;
+            badge.textContent = `${cantidad.toLocaleString('es-PE')} registros`;
         }
+    },
 
-        if (filas.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="16" class="px-4 py-12 text-center text-slate-400 font-medium">
-                        <div class="flex flex-col items-center justify-center gap-2">
-                            <i class="fa-solid fa-inbox text-3xl text-slate-300"></i>
-                            <span>No se encontraron registros para los filtros o rango de límite seleccionado.</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
+    crearSpacerHtml(height) {
+        if (height <= 0) return '';
+        return `<tr class="pppt-spacer-row" aria-hidden="true"><td colspan="16" style="height:${height}px;padding:0;border:0;line-height:0;"></td></tr>`;
+    },
+
+    crearFilaHtml(r) {
+        return `
+            <tr class="pppt-data-row hover:bg-blue-50/40 transition-colors border-b border-slate-200 text-[11px] text-slate-700 group">
+                <td class="sticky left-0 z-10 bg-white group-hover:bg-blue-50/60 px-2.5 py-1.5 font-mono font-bold text-slate-800 border-r border-slate-200 w-[80px] min-w-[80px] max-w-[80px]">${r.cencos}</td>
+                <td class="sticky left-[80px] z-10 bg-white group-hover:bg-blue-50/60 px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200 w-[180px] min-w-[180px] max-w-[180px] truncate" title="${r.nombre}">${r.nombre}</td>
+                <td class="sticky left-[260px] z-10 bg-slate-50 group-hover:bg-blue-50/80 px-2.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r-2 border-slate-300 w-[90px] min-w-[90px] max-w-[90px] shadow-[2px_0_4px_-1px_rgba(0,0,0,0.08)]">${r.codigo_costo}</td>
+
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g1)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g2)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g3)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g4)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g5)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g6)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g7)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g8)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g9)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g10)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g11)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g12)}</td>
+
+                <td class="px-2.5 py-1.5 text-right font-mono font-bold text-slate-900 bg-blue-50/30 whitespace-nowrap">${this.formatTotal(r._t)}</td>
+            </tr>
+        `;
+    },
+
+    renderFooter(totales) {
+        const tfoot = document.getElementById('tfoot-pt-pppt2026');
+        if (!tfoot) return;
+
+        if (!totales) {
             tfoot.innerHTML = '';
             return;
         }
 
-        const rowsBuffer = [];
-
-        for (let i = 0; i < filas.length; i++) {
-            const r = filas[i];
-
-            rowsBuffer.push(`
-                <tr class="hover:bg-blue-50/40 transition-colors border-b border-slate-200 text-[11px] text-slate-700 group">
-                    <td class="sticky left-0 z-10 bg-white group-hover:bg-blue-50/60 px-2.5 py-1.5 font-mono font-bold text-slate-800 border-r border-slate-200 w-[80px] min-w-[80px] max-w-[80px]">${r.cencos}</td>
-                    <td class="sticky left-[80px] z-10 bg-white group-hover:bg-blue-50/60 px-2.5 py-1.5 font-medium text-slate-700 border-r border-slate-200 w-[180px] min-w-[180px] max-w-[180px] truncate" title="${r.nombre}">${r.nombre}</td>
-                    <td class="sticky left-[260px] z-10 bg-slate-50 group-hover:bg-blue-50/80 px-2.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r-2 border-slate-300 w-[90px] min-w-[90px] max-w-[90px] shadow-[2px_0_4px_-1px_rgba(0,0,0,0.08)]">${r.codigo_costo}</td>
-                    
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g1)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g2)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g3)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g4)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g5)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g6)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g7)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g8)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g9)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g10)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g11)}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200 whitespace-nowrap">${this.formatCurrency(r._g12)}</td>
-                    
-                    <td class="px-2.5 py-1.5 text-right font-mono font-bold text-slate-900 bg-blue-50/30 whitespace-nowrap">${this.formatTotal(r._t)}</td>
-                </tr>
-            `);
-        }
-
-        tbody.innerHTML = rowsBuffer.join('');
-
-        // Renderizar tfoot con subtotales y eje Tableau
         const axisCellHtml = `
             <td class="px-1.5 py-1 border-r border-slate-200 bg-white select-none">
                 <div class="flex flex-col items-center w-full">
@@ -432,7 +483,6 @@ window.ChartPT = {
         }
 
         tfoot.innerHTML = `
-            ${totales ? `
             <tr class="bg-slate-100 font-bold border-b border-slate-200">
                 <td colspan="3" class="sticky left-0 z-30 bg-slate-200 px-3 py-1.5 text-right uppercase tracking-wider font-bold border-r-2 border-slate-300 w-[350px] min-w-[350px] max-w-[350px] shadow-[2px_0_4px_-1px_rgba(0,0,0,0.1)]">
                     Total General:
@@ -451,13 +501,100 @@ window.ChartPT = {
                 <td class="px-2 py-1.5 text-right font-mono border-r border-slate-300 whitespace-nowrap">${this.formatTotal(totales.g12)}</td>
                 <td class="px-2.5 py-1.5 text-right font-mono font-bold text-blue-900 bg-blue-100/60 whitespace-nowrap">${this.formatTotal(totales.total)}</td>
             </tr>
-            ` : ''}
 
             <tr class="bg-white border-t border-slate-200 divide-x divide-slate-200">
                 <td colspan="3" class="sticky left-0 z-30 bg-white border-r-2 border-slate-300 w-[350px] min-w-[350px] max-w-[350px] shadow-[2px_0_4px_-1px_rgba(0,0,0,0.1)]"></td>
                 ${axisColsHtml}
             </tr>
         `;
+    },
+
+    renderVentana(resetScroll = false) {
+        const tbody = document.getElementById('tbody-pt-pppt2026');
+        if (!tbody) return;
+
+        const filas = this.filasFiltradas || [];
+
+        if (filas.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="16" class="px-4 py-12 text-center text-slate-400 font-medium">
+                        <div class="flex flex-col items-center justify-center gap-2">
+                            <i class="fa-solid fa-inbox text-3xl text-slate-300"></i>
+                            <span>No se encontraron registros para los filtros o rango de lÃ­mite seleccionado.</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            this.lastStart = 0;
+            this.lastEnd = 0;
+            this.lastRenderVersion = this.renderVersion;
+            return;
+        }
+
+        const wrapper = document.getElementById('scroll-pt-pppt2026');
+        if (!wrapper) return;
+
+        if (resetScroll) {
+            wrapper.scrollTop = 0;
+            this.lastStart = -1;
+            this.lastEnd = -1;
+        }
+
+        const rowHeight = this.rowHeight || 29;
+        const viewportHeight = wrapper.clientHeight || 640;
+        const scrollTop = wrapper.scrollTop;
+        const total = filas.length;
+        const overscan = 10;
+
+        let start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+        let end = Math.min(total, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan);
+
+        if (start >= total) {
+            start = Math.max(0, total - 1);
+        }
+        if (end <= start) {
+            end = Math.min(total, start + 1);
+        }
+
+        if (!resetScroll && this.lastRenderVersion === this.renderVersion && this.lastStart === start && this.lastEnd === end) {
+            return;
+        }
+
+        const topSpacerHeight = start * rowHeight;
+        const bottomSpacerHeight = Math.max(0, (total - end) * rowHeight);
+        const rowsBuffer = [];
+
+        for (let i = start; i < end; i++) {
+            rowsBuffer.push(this.crearFilaHtml(filas[i]));
+        }
+
+        const scrollTopAntes = wrapper.scrollTop;
+        tbody.innerHTML = this.crearSpacerHtml(topSpacerHeight) + rowsBuffer.join('') + this.crearSpacerHtml(bottomSpacerHeight);
+
+        this.lastStart = start;
+        this.lastEnd = end;
+        this.lastRenderVersion = this.renderVersion;
+
+        if (!this.rowHeight) {
+            const primeraFila = tbody.querySelector('tr.pppt-data-row');
+            if (primeraFila) {
+                const altura = primeraFila.getBoundingClientRect().height;
+                if (altura > 0) {
+                    this.rowHeight = altura;
+                    this.lastStart = -1;
+                    this.lastEnd = -1;
+                    requestAnimationFrame(() => this.renderVentana(false));
+                    return;
+                }
+            }
+        }
+
+        if (Math.abs(wrapper.scrollTop - scrollTopAntes) > 1) {
+            this.lastStart = -1;
+            this.lastEnd = -1;
+            requestAnimationFrame(() => this.renderVentana(false));
+        }
     },
 
     setupExportListeners() {
@@ -476,11 +613,11 @@ window.ChartPT = {
             }
 
             if (typeof XLSX === 'undefined') {
-                alert('Librería de exportación XLSX no disponible.');
+                alert('LibrerÃ­a de exportaciÃ³n XLSX no disponible.');
                 return;
             }
 
-            // Estilos oficiales estándar
+            // Estilos oficiales estÃ¡ndar
             const headerStyle = {
                 fill: { fgColor: { rgb: "2563EB" } }, // #2563EB
                 font: { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
@@ -632,7 +769,8 @@ window.ChartPT = {
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'PT');
             const fechaStr = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `PPT2026_PT_${fechaStr}.xlsx`);
+            const anio = (this.datosBackend && this.datosBackend.anio) ? this.datosBackend.anio : '2026';
+            XLSX.writeFile(wb, `PPT${anio}_PT_${fechaStr}.xlsx`);
         });
     }
 };

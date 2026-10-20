@@ -1,19 +1,26 @@
 /**
- * Controlador para la vista PPT 2026
- * Administra filtros de período (PeriodoHelper), tipo de gráfico y despacho a ChartRegistry.
+ * Controlador para la vista PPT multi-año (2024, 2025, 2026)
+ * Administra filtros de período (PeriodoHelper), tipo de gráfico, año de conexión y despacho a ChartRegistry.
  */
 class PPPT2026Controller {
     constructor() {
         this.service = new PPPT2026Service();
         this.chartTipoActual = 'PT';
+        this.anioActual = '2026';
         this.datosDashboard = null;
         this.init();
     }
 
     async init() {
+        const selectAnio = document.getElementById('select-anio');
+        if (selectAnio) {
+            this.anioActual = selectAnio.value || '2026';
+        }
+        this.actualizarTitulos();
+
         if (typeof LoadingHelper !== 'undefined') {
             LoadingHelper.mostrarInicial({
-                titulo: 'Cargando PPT 2026',
+                titulo: 'Cargando PPT',
                 subtitulo: 'Inicializando gráficos y filtros...'
             });
         }
@@ -28,6 +35,10 @@ class PPPT2026Controller {
         }
     }
 
+    mesActual() {
+        return String(new Date().getMonth() + 1).padStart(2, '0');
+    }
+
     setupPeriodo() {
         if (typeof PeriodoHelper !== 'undefined') {
             const selPeriodo = document.getElementById('select-tipo-periodo');
@@ -35,22 +46,88 @@ class PPPT2026Controller {
                 selPeriodo.value = 'por_mes';
             }
             PeriodoHelper.renderizarInputs();
-
-            // Asignar mes 2026-04 por defecto coincidiendo con Tableau si el campo está vacío
-            const inputMes = document.getElementById('input-mes-unico');
-            if (inputMes && !inputMes.value) {
-                inputMes.value = '2026-04';
-            }
+            this.sincronizarPeriodoConAnio();
         }
     }
 
+    sincronizarPeriodoConAnio() {
+        const tipoPeriodo = document.getElementById('select-tipo-periodo')?.value;
+
+        if (tipoPeriodo === 'por_mes') {
+            const inputMes = document.getElementById('input-mes-unico');
+            if (inputMes) {
+                inputMes.value = `${this.anioActual}-${this.mesActual()}`;
+            }
+            return;
+        }
+
+        this.aplicarAnioAInputsPeriodo();
+    }
+
+    aplicarAnioAInputsPeriodo() {
+        const contenedor = document.getElementById('contenedor-inputs-periodo');
+        if (!contenedor) return;
+
+        const inputs = contenedor.querySelectorAll('input[type="date"], input[type="month"], input[type="hidden"]');
+
+        inputs.forEach((input) => {
+            if (!input.value || input.value.length < 4) return;
+
+            const valorOriginal = input.value;
+            input.value = `${this.anioActual}${valorOriginal.substring(4)}`;
+
+            if (!input.value) {
+                if (input.type === 'date') {
+                    input.value = `${this.anioActual}-${this.mesActual()}-01`;
+                } else if (input.type === 'month') {
+                    input.value = `${this.anioActual}-${this.mesActual()}`;
+                }
+            }
+        });
+    }
+
+    actualizarTitulos() {
+        const anio = this.anioActual || '2026';
+        document.title = `PPT ${anio} - LIMA 1`;
+
+        const titulo = document.getElementById('titulo-modulo-pppt');
+        if (titulo) {
+            titulo.textContent = `PPT ${anio}`;
+        }
+
+        const subtitulo = document.getElementById('subtitulo-modulo-pppt');
+        if (subtitulo) {
+            subtitulo.textContent = `Módulo de costos por galpón y actividades PPT ${anio}`;
+        }
+    }
+
+    normalizarMesAlAnio(mes) {
+        const valor = String(mes || '').trim();
+        if (/^\d{4}-\d{2}/.test(valor)) {
+            return `${this.anioActual}${valor.substring(4, 7)}`;
+        }
+        return `${this.anioActual}-${this.mesActual()}`;
+    }
+
     setupListeners() {
+        // Selector de año
+        const selAnio = document.getElementById('select-anio');
+        if (selAnio) {
+            selAnio.addEventListener('change', async (e) => {
+                this.anioActual = e.target.value || '2026';
+                this.actualizarTitulos();
+                this.sincronizarPeriodoConAnio();
+                await this.onCargarClick();
+            });
+        }
+
         // Selector de tipo de período dinámico
         const selPeriodo = document.getElementById('select-tipo-periodo');
         if (selPeriodo) {
             selPeriodo.addEventListener('change', () => {
                 if (typeof PeriodoHelper !== 'undefined') {
                     PeriodoHelper.renderizarInputs();
+                    this.sincronizarPeriodoConAnio();
                 }
             });
         }
@@ -99,13 +176,18 @@ class PPPT2026Controller {
         }
 
         try {
+            const selectAnio = document.getElementById('select-anio');
+            if (selectAnio) {
+                this.anioActual = selectAnio.value || this.anioActual || '2026';
+            }
+
             const selTipoGrafico = document.getElementById('select-tipo-grafico');
             const tipoGrafico = selTipoGrafico ? selTipoGrafico.value : 'PT';
             this.chartTipoActual = tipoGrafico;
 
             if (typeof LoadingHelper !== 'undefined') {
                 LoadingHelper.mostrarEnContenedor('contenedor-grafica-costo', {
-                    titulo: `Consultando ${tipoGrafico}...`,
+                    titulo: `Consultando ${tipoGrafico} ${this.anioActual}...`,
                     subtitulo: 'Cargando métricas del período...'
                 });
             }
@@ -119,10 +201,12 @@ class PPPT2026Controller {
             const tipoPeriodo = document.getElementById('select-tipo-periodo')?.value;
             let mesSeleccionado = '';
             if (tipoPeriodo === 'por_mes') {
-                mesSeleccionado = document.getElementById('input-mes-unico')?.value || '2026-04';
+                mesSeleccionado = document.getElementById('input-mes-unico')?.value || `${this.anioActual}-${this.mesActual()}`;
             } else if (rango.fechaInicio) {
                 mesSeleccionado = rango.fechaInicio.substring(0, 7);
             }
+
+            mesSeleccionado = this.normalizarMesAlAnio(mesSeleccionado);
 
             // Extraer filtros adicionales del componente activo (ej. actividad)
             let extraFilters = {};
@@ -139,6 +223,7 @@ class PPPT2026Controller {
             }
 
             const filtros = {
+                anio: this.anioActual,
                 tipo_grafico: tipoGrafico,
                 mes: mesSeleccionado,
                 fecha_inicio: rango.fechaInicio || '',
@@ -175,7 +260,7 @@ class PPPT2026Controller {
             console.error('Error en onCargarClick:', error);
             if (typeof LoadingHelper !== 'undefined') {
                 LoadingHelper.mostrarError('contenedor-grafica-costo', {
-                    mensaje: 'Ocurrió un error al procesar el dashboard PPT 2026.'
+                    mensaje: 'Ocurrió un error al procesar el dashboard PPT.'
                 });
             }
         } finally {

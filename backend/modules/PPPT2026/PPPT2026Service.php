@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/handlers/PPPTCommonHelper.php';
 require_once __DIR__ . '/handlers/DashPTHandler.php';
 require_once __DIR__ . '/handlers/DashPPHandler.php';
 require_once __DIR__ . '/handlers/DashPPResuHandler.php';

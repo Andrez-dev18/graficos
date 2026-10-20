@@ -113,12 +113,16 @@ window.ChartPPResu = {
         if (typeof CustomMultiSelect === 'undefined') return;
 
         const actDisp = opciones.actividades || ['AV', 'H2'];
+        const seleccionadas = (this.datosBackend && Array.isArray(this.datosBackend.actividades_seleccionadas))
+            ? this.datosBackend.actividades_seleccionadas.map(a => String(a).trim())
+            : [];
+        const seleccionBase = seleccionadas.length > 0 ? seleccionadas : ['AV'];
 
         if (!this.multiActividad) {
             const optActividad = actDisp.map(a => ({
                 id: String(a).trim(),
                 label: String(a).trim(),
-                selected: (String(a).trim() === 'AV')
+                selected: seleccionBase.includes(String(a).trim())
             }));
 
             this.multiActividad = new CustomMultiSelect({
@@ -130,14 +134,19 @@ window.ChartPPResu = {
                 title: 'ACTIVIDAD',
                 options: optActividad
             });
-        } else if (actDisp.length > 0 && !this.haveSameOptions(this.multiActividad, actDisp)) {
-            const currentSelected = this.multiActividad.getSelectedValues();
-            const optActividad = actDisp.map(a => ({
-                id: String(a).trim(),
-                label: String(a).trim(),
-                selected: currentSelected.length > 0 ? currentSelected.includes(String(a).trim()) : (String(a).trim() === 'AV')
-            }));
-            this.multiActividad.setOptions(optActividad);
+        } else {
+            const currentSelected = this.multiActividad.getSelectedValues().map(a => String(a).trim());
+            const seleccionActual = currentSelected.join('|');
+            const seleccionRespuesta = seleccionBase.join('|');
+
+            if (actDisp.length > 0 && (!this.haveSameOptions(this.multiActividad, actDisp) || seleccionActual !== seleccionRespuesta)) {
+                const optActividad = actDisp.map(a => ({
+                    id: String(a).trim(),
+                    label: String(a).trim(),
+                    selected: seleccionBase.includes(String(a).trim())
+                }));
+                this.multiActividad.setOptions(optActividad);
+            }
         }
     },
 
@@ -668,7 +677,8 @@ window.ChartPPResu = {
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'PPResu');
             const fechaStr = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `PPT2026_PPResu_${fechaStr}.xlsx`);
+            const anio = (this.datosBackend && this.datosBackend.anio) ? this.datosBackend.anio : '2026';
+            XLSX.writeFile(wb, `PPT${anio}_PPResu_${fechaStr}.xlsx`);
         });
     }
 };

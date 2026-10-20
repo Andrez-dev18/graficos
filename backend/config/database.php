@@ -183,6 +183,24 @@ class Database {
         return $this->conn;
     }
 
+    /**
+     * Devuelve la conexión correspondiente al año solicitado.
+     * 2024/2025 -> conexión secundaria nativa; 2026 -> conexión principal (SmartPDO).
+     */
+    public function getConnectionForYear($anio) {
+        $db = $this->getConnection();
+        $anio = trim((string)$anio);
+
+        if ($db instanceof SmartPDO && ($anio === '2024' || $anio === '2025')) {
+            $conexionAnual = $db->getConnection($anio);
+            if ($conexionAnual) {
+                return $conexionAnual;
+            }
+        }
+
+        return $db;
+    }
+
     public function getMysqliConnection($connectionKey = 'principal') {
         if ($connectionKey === 'principal') {
             $mysqli = @new mysqli($this->host, $this->username, $this->password, $this->db_name);

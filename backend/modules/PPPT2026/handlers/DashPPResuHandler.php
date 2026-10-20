@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/PPPTCommonHelper.php';
+
 class DashPPResuHandler
 {
     /**
@@ -11,42 +13,17 @@ class DashPPResuHandler
      */
     public static function handle(PDO $db, array $filtros): array
     {
-        // 1. Resolver periodo / mes (formato YYYY/MM)
-        $tfectra = '2026/04';
-        if (!empty($filtros['mes'])) {
-            $tfectra = str_replace('-', '/', trim($filtros['mes']));
-        } elseif (!empty($filtros['fecha_inicio'])) {
-            $tfectra = str_replace('-', '/', substr(trim($filtros['fecha_inicio']), 0, 7));
-        } elseif (!empty($filtros['tfectra'])) {
-            $tfectra = is_array($filtros['tfectra']) ? ($filtros['tfectra'][0] ?? '2026/04') : trim($filtros['tfectra']);
-        }
+        // 1. Resolver año y periodo (formato YYYY/MM)
+        $anio = PPPTCommonHelper::resolverAnio($filtros);
+        $tfectra = PPPTCommonHelper::resolverTfectra($filtros, $anio);
 
-        // 2. Filtro Actividad (por defecto 'AV')
-        $actividades = $filtros['actividad'] ?? ['AV'];
-        if (!is_array($actividades)) {
-            $actividades = [$actividades];
-        }
-        $actividades = array_filter(array_map('trim', $actividades));
-        if (empty($actividades)) {
-            $actividades = ['AV'];
-        }
+        // 2. Obtener catálogo de opciones del año seleccionado
+        $opciones = PPPTCommonHelper::obtenerOpciones($db, $anio);
+        $opcionesActividad = $opciones['actividades'];
+        $opcionesMeses = $opciones['meses'];
 
-        // 3. Obtener catálogo de opciones de filtros para el frontend
-        $stmtAct = $db->query("
-            SELECT DISTINCT actividad 
-            FROM preal 
-            WHERE actividad IS NOT NULL AND actividad != '' 
-            ORDER BY actividad
-        ");
-        $opcionesActividad = $stmtAct->fetchAll(PDO::FETCH_COLUMN);
-
-        $stmtMeses = $db->query("
-            SELECT DISTINCT tfectra 
-            FROM preal 
-            WHERE tfectra IS NOT NULL AND tfectra != '' 
-            ORDER BY tfectra DESC
-        ");
-        $opcionesMeses = $stmtMeses->fetchAll(PDO::FETCH_COLUMN);
+        // 3. Validar actividades contra las opciones reales del año
+        $actividades = PPPTCommonHelper::resolverActividades($filtros['actividad'] ?? ['AV'], $opcionesActividad);
 
         // 4. Construcción de consulta agregada por Centro de Costos exacta según Tableau
         $inActividades = implode(',', array_fill(0, count($actividades), '?'));
@@ -116,6 +93,7 @@ class DashPPResuHandler
         return [
             'status' => 'success',
             'tipo_grafico' => 'PPResu',
+            'anio' => $anio,
             'tfectra' => $tfectra,
             'actividades_seleccionadas' => $actividades,
             'opciones_filtros' => [

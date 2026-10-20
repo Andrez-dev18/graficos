@@ -121,8 +121,8 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">PPT 2026</h1>
-                    <p class="text-xs text-slate-500">Módulo de costos por galpón y actividades PPT 2026</p>
+                    <h1 id="titulo-modulo-pppt" class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">PPT 2026</h1>
+                    <p id="subtitulo-modulo-pppt" class="text-xs text-slate-500">Módulo de costos por galpón y actividades PPT 2026</p>
                 </div>
             </div>
 
@@ -142,6 +142,17 @@
         <div id="contenedor-filtros-contenido" class="p-4 sm:p-5 transition-all duration-300">
             <div class="flex flex-wrap items-end gap-3 sm:gap-4">
                 
+                <!-- 0. SELECTOR DE AÑO -->
+                <div class="flex flex-col">
+                    <label for="select-anio" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">AÑO</label>
+                    <select id="select-anio"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                        <option value="2026" selected>2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                    </select>
+                </div>
+
                 <!-- 1. PERIODO Y CONTENEDOR DINÁMICO DE FECHAS (PERIODO-HELPER: inicia en 'por_mes') -->
                 <div class="flex flex-wrap items-end gap-3">
                     <div class="flex flex-col">
@@ -282,12 +293,12 @@
     <script src="../../assets/utils-graficos/custom-multiselect.js?v=20260922_3"></script>
     <script src="../../assets/utils-graficos/excel-export-helper.js?v=20260922_3"></script>
     <script src="../../assets/utils-graficos/loading-helper.js"></script>
-    <script src="charts/chart.pt.js?v=20260923_09"></script>
-    <script src="charts/chart.pp.js?v=20260923_09"></script>
-    <script src="charts/chart.pp_resu.js?v=20260923_09"></script>
-    <script src="charts/chart.pt_resu.js?v=20260923_09"></script>
-    <script src="PPPT2026.service.js?v=20260923_09"></script>
-    <script src="PPPT2026.controller.js?v=20260923_09"></script>
+    <script src="charts/chart.pt.js?v=20261020_2"></script>
+    <script src="charts/chart.pp.js?v=20261020_2"></script>
+    <script src="charts/chart.pp_resu.js?v=20261020_2"></script>
+    <script src="charts/chart.pt_resu.js?v=20261020_2"></script>
+    <script src="PPPT2026.service.js?v=20261020_2"></script>
+    <script src="PPPT2026.controller.js?v=20261020_2"></script>
 </body>
 
 </html>
