@@ -54,10 +54,13 @@ class PresupuestosAccesoService
         $usuarioCodigo = !empty($codigoUsuario) ? $codigoUsuario : ($_SESSION['usuario'] ?? null);
         $epreEmpresa   = !empty($epre) ? $epre : ($_SESSION['epre'] ?? 'RS');
 
+        $catalogo = $this->repo->obtenerPresupuestosDisponibles();
+
         if (empty($usuarioCodigo)) {
             return [
                 'usuario'      => null,
-                'presupuestos' => []
+                'presupuestos' => [],
+                'catalogo'     => $catalogo
             ];
         }
 
@@ -65,7 +68,8 @@ class PresupuestosAccesoService
 
         return [
             'usuario'      => $usuarioCodigo,
-            'presupuestos' => $presupuestosUsuario
+            'presupuestos' => $presupuestosUsuario,
+            'catalogo'     => $catalogo
         ];
     }
 }

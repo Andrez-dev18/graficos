@@ -55,6 +55,7 @@ window.ChartPresupuesto202403Pct = {
         const items = data.items || [];
         const presupuestoNombre = data.presupuesto_nombre || "202403 AMPLIACIÓN PLANTA DE ALIMENTO";
         const titulo = data.titulo || "Presupuesto Planta de Alimento";
+        const tipoReporte = data.tipo_reporte || 'DashPresupuesto202403%';
         const totales = data.totales || {
             presupuestado: 0,
             ejecutado: 0,
@@ -109,7 +110,7 @@ window.ChartPresupuesto202403Pct = {
                 <!-- ENCABEZADO DE TARJETA CON EXCEL -->
                 <div class="px-5 py-3.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                     <div class="flex items-center gap-2">
-                        <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">DashPresupuesto202403%</h2>
+                        <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">${this.escapeHtml(tipoReporte)}</h2>
                         <span class="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">${items.length} categorías N1</span>
                     </div>
 
@@ -178,6 +179,7 @@ window.ChartPresupuesto202403Pct = {
         newBtn.addEventListener('click', () => {
             const data = this.datosBackend || {};
             const items = data.items || [];
+            const codigoPresupuesto = data.presupuesto_codigo || '202403';
             if (!items.length) {
                 alert('No hay datos disponibles para exportar.');
                 return;
@@ -287,9 +289,9 @@ window.ChartPresupuesto202403Pct = {
             ];
 
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Presupuesto202403Pct');
+            XLSX.utils.book_append_sheet(wb, ws, `Presupuesto${codigoPresupuesto}Pct`);
             const fechaStr = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `PresupuestosPAB_202403_Porcentaje_${fechaStr}.xlsx`);
+            XLSX.writeFile(wb, `PresupuestosPAB_${codigoPresupuesto}_Porcentaje_${fechaStr}.xlsx`);
         });
 
         this.setupTooltips();
@@ -367,3 +369,4 @@ window.ChartPresupuesto202403Pct = {
 window.ChartRegistry['DashPresupuesto202403Pct'] = window.ChartPresupuesto202403Pct;
 window.ChartRegistry['DashPresupuesto202403%'] = window.ChartPresupuesto202403Pct;
 window.ChartRegistry['Presupuesto202403%'] = window.ChartPresupuesto202403Pct;
+window.ChartRegistry['DashPresupuestoPct'] = window.ChartPresupuesto202403Pct;

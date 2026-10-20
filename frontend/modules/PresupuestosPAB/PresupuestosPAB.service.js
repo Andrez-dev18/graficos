@@ -66,12 +66,12 @@ class PresupuestosPABService {
                 credentials: 'include'
             });
             if (!response.ok) {
-                return { success: false, data: { presupuestos: [] } };
+                return { success: false, data: { presupuestos: [], catalogo: [] } };
             }
             return await response.json();
         } catch (error) {
             console.error('Error al consultar mis presupuestos:', error);
-            return { success: false, data: { presupuestos: [] } };
+            return { success: false, data: { presupuestos: [], catalogo: [] } };
         }
     }
 }

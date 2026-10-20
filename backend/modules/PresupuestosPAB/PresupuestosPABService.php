@@ -10,6 +10,8 @@ require_once __DIR__ . '/handlers/DashPresupuesto202503Handler.php';
 require_once __DIR__ . '/handlers/DashPresupuesto202503PctHandler.php';
 require_once __DIR__ . '/handlers/AnalisisPartidasHandler.php';
 require_once __DIR__ . '/handlers/DashComparativoCronoRCHandler.php';
+require_once __DIR__ . '/handlers/DashPresupuestoDetalleHandler.php';
+require_once __DIR__ . '/handlers/DashPresupuestoPctHandler.php';
 
 class PresupuestosPABService
 {
@@ -34,6 +36,12 @@ class PresupuestosPABService
             case 'ComprasPorPartida':
             case 'RC':
                 return AnalisisPartidasHandler::handle($this->db, $filtros);
+
+            case 'DashPresupuestoDetalle':
+                return DashPresupuestoDetalleHandler::handle($this->db, $filtros);
+
+            case 'DashPresupuestoPct':
+                return DashPresupuestoPctHandler::handle($this->db, $filtros);
 
             case 'DashPresupuesto202503Pct':
             case 'DashPresupuesto202503%':
@@ -69,30 +77,12 @@ class PresupuestosPABService
 
             case 'DashPresupuesto':
             case 'Presupuesto':
-                $codigo = trim($filtros['presupuesto'] ?? $filtros['codigo_presupuesto'] ?? '202403');
-                switch ($codigo) {
-                    case '202503%':
-                    case '202503Pct':
-                        return DashPresupuesto202503PctHandler::handle($this->db, $filtros);
-                    case '202503':
-                        return DashPresupuesto202503Handler::handle($this->db, $filtros);
-                    case '202410%':
-                    case '202410Pct':
-                        return DashPresupuesto202410PctHandler::handle($this->db, $filtros);
-                    case '202410':
-                        return DashPresupuesto202410Handler::handle($this->db, $filtros);
-                    case '202404%':
-                    case '202404Pct':
-                        return DashPresupuesto202404PctHandler::handle($this->db, $filtros);
-                    case '202404':
-                        return DashPresupuesto202404Handler::handle($this->db, $filtros);
-                    case '202403%':
-                    case '202403Pct':
-                        return DashPresupuesto202403PctHandler::handle($this->db, $filtros);
-                    case '202403':
-                    default:
-                        return DashPresupuesto202403Handler::handle($this->db, $filtros);
-                }
+                $codigo = strtoupper(trim((string) ($filtros['presupuesto'] ?? $filtros['codigo_presupuesto'] ?? '202403')));
+                $esPorcentaje = substr($codigo, -1) === '%' || substr($codigo, -3) === 'PCT';
+
+                return $esPorcentaje
+                    ? DashPresupuestoPctHandler::handle($this->db, $filtros)
+                    : DashPresupuestoDetalleHandler::handle($this->db, $filtros);
 
             case 'DashPresupuesto202403':
             case 'Presupuesto202403':

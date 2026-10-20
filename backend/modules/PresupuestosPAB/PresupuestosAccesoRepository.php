@@ -61,6 +61,33 @@ class PresupuestosAccesoRepository
     // 2. Traer catálogo de presupuestos maestros disponibles
     public function obtenerPresupuestosDisponibles()
     {
+        try {
+            $sql = "SELECT LEFT(TRIM(presupuesto), 6) AS cod_presupuesto,
+                           MIN(TRIM(presupuesto)) AS nombre,
+                           MIN(TRIM(nomcencos)) AS descripcion
+                    FROM presucencosdet
+                    WHERE presupuesto IS NOT NULL
+                      AND TRIM(presupuesto) <> ''
+                      AND LEFT(TRIM(presupuesto), 6) REGEXP '^[0-9]{6}$'
+                    GROUP BY LEFT(TRIM(presupuesto), 6)
+                    ORDER BY cod_presupuesto";
+
+            $stmt = $this->conn->query($sql);
+            $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($filas)) {
+                return array_map(function ($fila) {
+                    return [
+                        'cod_presupuesto' => $fila['cod_presupuesto'],
+                        'nombre'          => !empty($fila['nombre']) ? $fila['nombre'] : $fila['cod_presupuesto'],
+                        'descripcion'     => $fila['descripcion'] ?? ''
+                    ];
+                }, $filas);
+            }
+        } catch (\Exception $e) {
+            error_log('Error al obtener catálogo de presupuestos: ' . $e->getMessage());
+        }
+
         return [
             [
                 'cod_presupuesto' => '202403',

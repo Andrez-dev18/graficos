@@ -1,14 +1,3 @@
-const PRESUPUESTOS_DASH = [
-    { codigo: '202403', nombre: '202403' },
-    { codigo: '202403%', nombre: '202403%' },
-    { codigo: '202404', nombre: '202404' },
-    { codigo: '202404%', nombre: '202404%' },
-    { codigo: '202410', nombre: '202410' },
-    { codigo: '202410%', nombre: '202410%' },
-    { codigo: '202503', nombre: '202503' },
-    { codigo: '202503%', nombre: '202503%' }
-];
-
 const PRESUPUESTOS_ANALISIS = [
     { codigo: '202410', nombre: '202410' },
     { codigo: '202404', nombre: '202404' },
@@ -17,28 +6,6 @@ const PRESUPUESTOS_ANALISIS = [
     { codigo: '202401', nombre: '202401' },
     { codigo: '202503', nombre: '202503' }
 ];
-
-const BUDGET_PAIRS = {
-    '202403': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
-    '202403%': { pct: 'DashPresupuesto202403Pct', det: 'DashPresupuesto202403' },
-    '202404': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
-    '202404%': { pct: 'DashPresupuesto202404Pct', det: 'DashPresupuesto202404' },
-    '202410': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
-    '202410%': { pct: 'DashPresupuesto202410Pct', det: 'DashPresupuesto202410' },
-    '202503': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' },
-    '202503%': { pct: 'DashPresupuesto202503Pct', det: 'DashPresupuesto202503' }
-};
-
-const CHART_MAP = {
-    '202403': 'DashPresupuesto202403',
-    '202403%': 'DashPresupuesto202403Pct',
-    '202404': 'DashPresupuesto202404',
-    '202404%': 'DashPresupuesto202404Pct',
-    '202410': 'DashPresupuesto202410',
-    '202410%': 'DashPresupuesto202410Pct',
-    '202503': 'DashPresupuesto202503',
-    '202503%': 'DashPresupuesto202503Pct'
-};
 
 /**
  * Controlador para el Módulo Presupuestos PAB
@@ -50,6 +17,7 @@ class PresupuestosPABController {
         this.chartTipoActual = 'DashPresupuesto';
         this.datosDashboard = null;
         this.misPresupuestosAutorizados = [];
+        this.catalogoPresupuestos = [];
         this.tieneRestriccionPresupuesto = false;
         this.init();
     }
@@ -67,12 +35,15 @@ class PresupuestosPABController {
             const resp = await this.service.obtenerMisPresupuestos();
             if (resp && resp.success && resp.data && Array.isArray(resp.data.presupuestos)) {
                 this.misPresupuestosAutorizados = resp.data.presupuestos;
+                this.catalogoPresupuestos = Array.isArray(resp.data.catalogo) ? resp.data.catalogo : [];
             } else {
                 this.misPresupuestosAutorizados = [];
+                this.catalogoPresupuestos = [];
             }
         } catch (e) {
             console.warn('No se pudieron obtener los permisos de presupuesto del usuario:', e);
             this.misPresupuestosAutorizados = [];
+            this.catalogoPresupuestos = [];
         }
     }
 
@@ -81,10 +52,25 @@ class PresupuestosPABController {
         if (!this.misPresupuestosAutorizados || this.misPresupuestosAutorizados.length === 0) {
             return [];
         }
-        return PRESUPUESTOS_DASH.filter(p => {
-            const codBase = p.codigo.replace('%', '');
-            return this.misPresupuestosAutorizados.includes(codBase);
-        });
+
+        const catalogo = (this.catalogoPresupuestos && this.catalogoPresupuestos.length > 0)
+            ? this.catalogoPresupuestos
+            : this.misPresupuestosAutorizados.map(codigo => ({
+                cod_presupuesto: codigo,
+                nombre: codigo
+            }));
+
+        return catalogo
+            .filter(p => this.misPresupuestosAutorizados.includes(p.cod_presupuesto))
+            .slice()
+            .sort((a, b) => String(a.cod_presupuesto).localeCompare(String(b.cod_presupuesto)))
+            .flatMap(p => {
+                const codigo = String(p.cod_presupuesto);
+                return [
+                    { codigo: codigo, nombre: codigo },
+                    { codigo: codigo + '%', nombre: codigo + '%' }
+                ];
+            });
     }
 
     setupPeriodo() {
@@ -283,20 +269,24 @@ class PresupuestosPABController {
 
                 const existeVal = listaPermitida.some(p => p.codigo === codigoPresu);
                 const codFinal = existeVal ? codigoPresu : listaPermitida[0].codigo;
-                const pair = BUDGET_PAIRS[codFinal] || BUDGET_PAIRS['202403'];
+                const codigoBase = codFinal.replace(/%$/, '');
+                const esPorcentaje = codFinal.endsWith('%');
+                const filtrosBase = {
+                    presupuesto: codigoBase,
+                    fecha_inicio: rango.fechaInicio || '',
+                    fecha_fin: rango.fechaFin || ''
+                };
 
                 if (mostrarAmbos) {
                     // Modo combinado: Cargar Resumen % (primero) y Detalle (segundo)
                     const [respPct, respDet] = await Promise.all([
                         this.service.obtenerDashboard({
-                            tipo_grafico: pair.pct,
-                            fecha_inicio: rango.fechaInicio || '',
-                            fecha_fin: rango.fechaFin || ''
+                            ...filtrosBase,
+                            tipo_grafico: 'DashPresupuestoPct'
                         }),
                         this.service.obtenerDashboard({
-                            tipo_grafico: pair.det,
-                            fecha_inicio: rango.fechaInicio || '',
-                            fecha_fin: rango.fechaFin || ''
+                            ...filtrosBase,
+                            tipo_grafico: 'DashPresupuestoDetalle'
                         })
                     ]);
 
@@ -317,21 +307,20 @@ class PresupuestosPABController {
                     }
 
                     // Renderizar primero el resumen (%)
-                    if (window.ChartRegistry && window.ChartRegistry[pair.pct]) {
-                        window.ChartRegistry[pair.pct].render(this, dataPct, 'contenedor-resumen-pct');
+                    if (window.ChartRegistry && window.ChartRegistry['DashPresupuestoPct']) {
+                        window.ChartRegistry['DashPresupuestoPct'].render(this, dataPct, 'contenedor-resumen-pct');
                     }
 
                     // Renderizar segundo el detalle
-                    if (window.ChartRegistry && window.ChartRegistry[pair.det]) {
-                        window.ChartRegistry[pair.det].render(this, dataDet, 'contenedor-detalle-presupuesto');
+                    if (window.ChartRegistry && window.ChartRegistry['DashPresupuestoDetalle']) {
+                        window.ChartRegistry['DashPresupuestoDetalle'].render(this, dataDet, 'contenedor-detalle-presupuesto');
                     }
                 } else {
                     // Modo individual: determinar componente según código (con o sin %)
-                    const targetChart = CHART_MAP[codFinal] || 'DashPresupuesto202403';
+                    const targetChart = esPorcentaje ? 'DashPresupuestoPct' : 'DashPresupuestoDetalle';
                     const resp = await this.service.obtenerDashboard({
-                        tipo_grafico: targetChart,
-                        fecha_inicio: rango.fechaInicio || '',
-                        fecha_fin: rango.fechaFin || ''
+                        ...filtrosBase,
+                        tipo_grafico: targetChart
                     });
 
                     if (!resp || resp.status !== 'success') {
@@ -344,8 +333,8 @@ class PresupuestosPABController {
 
                     if (window.ChartRegistry && window.ChartRegistry[targetChart]) {
                         window.ChartRegistry[targetChart].render(this, this.datosDashboard, contGraficos);
-                    } else if (window.ChartRegistry && window.ChartRegistry['DashPresupuesto202403']) {
-                        window.ChartRegistry['DashPresupuesto202403'].render(this, this.datosDashboard, contGraficos);
+                    } else if (window.ChartRegistry && window.ChartRegistry['DashPresupuestoDetalle']) {
+                        window.ChartRegistry['DashPresupuestoDetalle'].render(this, this.datosDashboard, contGraficos);
                     }
                 }
             } else {
