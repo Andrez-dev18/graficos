@@ -11,6 +11,8 @@ class InfoMercadosController {
         this.datosProvEmpresa = null;
         this.datosParticipacionAqp = null;
         this.datosParticipacionProv = null;
+        this.datosDashAqp = null;
+        this.datosDashProv = null;
         this.filtrosAqpCargados = false;
         this.filtrosProvCargados = false;
         this.filtrosParticipacionCargados = false;
@@ -19,6 +21,7 @@ class InfoMercadosController {
         this.empresasOptions = [];
         this.provinciasOptions = [];
         this.proveedoresOptions = [];
+        this.mesesProvOptions = [];
         this.empresasParticipacionOptions = [];
         this.provinciasParticipacionOptions = [];
         this.proveedoresParticipacionOptions = [];
@@ -26,6 +29,7 @@ class InfoMercadosController {
         this.msEmpresa = null;
         this.msProvincia = null;
         this.msProveedor = null;
+        this.msMesProv = null;
         this.msEmpresaParticipacion = null;
         this.msProvinciaParticipacion = null;
         this.msProveedorParticipacion = null;
@@ -66,6 +70,7 @@ class InfoMercadosController {
         this.iconToggleFiltros = document.getElementById('icon-toggle-filtros');
         this.filtrosAqp = document.getElementById('filtros-aqpempresa');
         this.filtrosProv = document.getElementById('filtros-provempresa');
+        this.filtroMesProv = document.getElementById('filtro-mes-prov');
         this.filtrosParticipacionPeriodo = document.getElementById('filtros-participacion-periodo');
         this.filtrosParticipacion = document.getElementById('filtros-participacion');
         this.filtrosParticipacionProv = document.getElementById('filtros-participacion-prov');
@@ -100,7 +105,11 @@ class InfoMercadosController {
 
         if (this.btnCargar) {
             this.btnCargar.addEventListener('click', async () => {
-                if (this.esParticipacionAqp()) {
+                if (this.esDashAnalisisAqp()) {
+                    await this.cargarDashAnalisisAqpConFiltros();
+                } else if (this.esDashAnalisisProv()) {
+                    await this.cargarDashAnalisisProvConFiltros();
+                } else if (this.esParticipacionAqp()) {
                     await this.cargarParticipacionAqpConFiltros();
                 } else if (this.esParticipacionProv()) {
                     await this.cargarParticipacionProvConFiltros();
@@ -114,7 +123,13 @@ class InfoMercadosController {
 
         if (this.btnLimpiar) {
             this.btnLimpiar.addEventListener('click', async () => {
-                if (this.esParticipacionAqp()) {
+                if (this.esDashAnalisisAqp()) {
+                    this.limpiarSeleccionFiltrosAqp();
+                    await this.cargarDashAnalisisAqpConFiltros();
+                } else if (this.esDashAnalisisProv()) {
+                    this.limpiarSeleccionFiltrosDashProv();
+                    await this.cargarDashAnalisisProvConFiltros();
+                } else if (this.esParticipacionAqp()) {
                     this.limpiarSeleccionFiltrosParticipacion();
                     await this.cargarParticipacionAqpConFiltros();
                 } else if (this.esParticipacionProv()) {
@@ -155,16 +170,49 @@ class InfoMercadosController {
         return tipo === 'ParticipacionMercadoPROV';
     }
 
+    esDashAnalisisAqp(tipo = this.tipoGraficoActual) {
+        return tipo === 'DashAnalisisAQP';
+    }
+
+    esDashAnalisisProv(tipo = this.tipoGraficoActual) {
+        return tipo === 'DashAnalisisPROV';
+    }
+
+    esDashboard(tipo = this.tipoGraficoActual) {
+        return this.esDashAnalisisAqp(tipo) || this.esDashAnalisisProv(tipo);
+    }
+
     esGraficoEmpresa(tipo = this.tipoGraficoActual) {
-        return this.esGraficoAqp(tipo) || this.esGraficoProv(tipo) || this.esParticipacionAqp(tipo) || this.esParticipacionProv(tipo);
+        return this.esGraficoAqp(tipo) || this.esGraficoProv(tipo) || this.esParticipacionAqp(tipo) || this.esParticipacionProv(tipo) || this.esDashboard(tipo);
     }
 
     async cambiarTipoGrafico(tipo) {
         this.requestSeq += 1;
         this.tipoGraficoActual = tipo || 'VolSemanal';
+
+        const componenteEmpresa = window.ChartRegistry && window.ChartRegistry['InfoMercadosEmpresa'];
+        if (componenteEmpresa && typeof componenteEmpresa.destroyAll === 'function') {
+            componenteEmpresa.destroyAll();
+        }
+
+        const componenteParticipacion = window.ChartRegistry && window.ChartRegistry['InfoMercadosParticipacionAQP'];
+        if (componenteParticipacion && typeof componenteParticipacion.destroy === 'function') {
+            componenteParticipacion.destroy();
+        }
+
         this.actualizarSubtitulo();
         this.actualizarVisibilidadFiltros();
         this.limpiarError();
+
+        if (this.esDashAnalisisAqp()) {
+            await this.cargarDashAnalisisAqpConFiltros();
+            return;
+        }
+
+        if (this.esDashAnalisisProv()) {
+            await this.cargarDashAnalisisProvConFiltros();
+            return;
+        }
 
         if (this.esParticipacionAqp()) {
             await this.cargarParticipacionAqpConFiltros();
@@ -214,6 +262,20 @@ class InfoMercadosController {
             return;
         }
 
+        if (this.esDashAnalisisAqp()) {
+            this.subtituloModulo.textContent = titulo
+                ? `${titulo} · Año 2026`
+                : 'Análisis AQP · Año 2026';
+            return;
+        }
+
+        if (this.esDashAnalisisProv()) {
+            this.subtituloModulo.textContent = titulo
+                ? `${titulo} · Año 2026`
+                : 'Análisis PROV · Año 2026';
+            return;
+        }
+
         if (this.esParticipacionAqp()) {
             this.subtituloModulo.textContent = titulo
                 ? `${titulo} · Año 2026`
@@ -235,8 +297,9 @@ class InfoMercadosController {
     }
 
     actualizarVisibilidadFiltros() {
-        const mostrarAqp = this.esGraficoAqp();
-        const mostrarProv = this.esGraficoProv();
+        const mostrarAqp = this.esGraficoAqp() || this.esDashAnalisisAqp();
+        const mostrarProv = this.esGraficoProv() || this.esDashAnalisisProv();
+        const mostrarMesProv = this.esDashAnalisisProv();
         const mostrarParticipacionAqp = this.esParticipacionAqp();
         const mostrarParticipacionProv = this.esParticipacionProv();
         const mostrarParticipacion = mostrarParticipacionAqp || mostrarParticipacionProv;
@@ -244,6 +307,7 @@ class InfoMercadosController {
 
         this.toggleElemento(this.filtrosAqp, mostrarAqp);
         this.toggleElemento(this.filtrosProv, mostrarProv);
+        this.toggleElemento(this.filtroMesProv, mostrarMesProv);
         this.toggleElemento(this.filtrosParticipacionPeriodo, mostrarParticipacion);
         this.toggleElemento(this.filtrosParticipacion, mostrarParticipacionAqp);
         this.toggleElemento(this.filtrosParticipacionProv, mostrarParticipacionProv);
@@ -322,6 +386,117 @@ class InfoMercadosController {
             if (seq === this.requestSeq) {
                 console.error('Error al cargar PROV Empresa:', error);
                 this.mostrarError(error.message || 'No se pudo cargar el gráfico PROV.');
+            }
+        } finally {
+            if (seq === this.requestSeq) {
+                this.cargando = false;
+                this.setBotonCargando(false);
+                this.mostrarLoader(false);
+            }
+        }
+    }
+
+    async cargarDashAnalisisAqpConFiltros() {
+        const seq = ++this.requestSeq;
+        this.cargando = true;
+        this.limpiarError();
+        this.mostrarLoader(true);
+        this.setBotonCargando(true);
+
+        try {
+            if (!this.filtrosAqpCargados) {
+                await this.cargarFiltrosAqpEmpresa();
+            }
+
+            const meses = this.msMes
+                ? this.msMes.getSelectedValues().map(valor => parseInt(valor, 10)).filter(valor => !isNaN(valor))
+                : this.mesesOptions.map(item => parseInt(item.mes, 10));
+
+            const empresas = this.msEmpresa
+                ? this.msEmpresa.getSelectedValues()
+                : this.empresasOptions.map(item => String(item.id));
+
+            const tipos = ['AQPCantEmpresa', 'AQPPesoEmpresa', 'AQPKilosEmpresa', 'AQPSolesEmpresa'];
+            const datos = await Promise.all(tipos.map(tipo => this.service.obtenerAqpEmpresa({
+                tipo_grafico: tipo,
+                anio: '2026',
+                meses,
+                empresas
+            })));
+
+            if (seq !== this.requestSeq || !this.esDashAnalisisAqp()) {
+                return;
+            }
+
+            if (datos.some(item => !item || !Array.isArray(item.series))) {
+                throw new Error('No se recibieron todos los gráficos de Análisis AQP.');
+            }
+
+            this.datosDashAqp = datos;
+            this.actualizarSubtitulo('Análisis AQP');
+            this.renderDashAnalisisAqp();
+        } catch (error) {
+            if (seq === this.requestSeq) {
+                console.error('Error al cargar Análisis AQP:', error);
+                this.mostrarError(error.message || 'No se pudo cargar el dashboard AQP.');
+            }
+        } finally {
+            if (seq === this.requestSeq) {
+                this.cargando = false;
+                this.setBotonCargando(false);
+                this.mostrarLoader(false);
+            }
+        }
+    }
+
+    async cargarDashAnalisisProvConFiltros() {
+        const seq = ++this.requestSeq;
+        this.cargando = true;
+        this.limpiarError();
+        this.mostrarLoader(true);
+        this.setBotonCargando(true);
+
+        try {
+            if (!this.filtrosProvCargados) {
+                await this.cargarFiltrosProvEmpresa();
+            }
+
+            const meses = this.msMesProv
+                ? this.msMesProv.getSelectedValues().map(valor => parseInt(valor, 10)).filter(valor => !isNaN(valor))
+                : this.mesesProvOptions.map(item => parseInt(item.mes, 10));
+
+            const provincias = this.msProvincia
+                ? this.msProvincia.getSelectedValues()
+                : this.provinciasOptions.map(item => String(item.id));
+
+            const proveedores = this.msProveedor
+                ? this.msProveedor.getSelectedValues()
+                : this.proveedoresOptions.map(item => String(item.id));
+
+            const tipos = ['PROVCantEmpresa', 'PROVPesoEmpresa', 'PROVKilosEmpresa', 'PROVSolesEmpresa'];
+            const datos = await Promise.all(tipos.map(tipo => this.service.obtenerProvEmpresa({
+                tipo_grafico: tipo,
+                anio: '2026',
+                meses,
+                provincias,
+                proveedores
+            })));
+
+            if (seq !== this.requestSeq || !this.esDashAnalisisProv()) {
+                return;
+            }
+
+            if (datos.some(item => !item || !Array.isArray(item.series))) {
+                throw new Error('No se recibieron todos los gráficos de Análisis PROV.');
+            }
+
+            this.datosDashProv = datos;
+            this.actualizarSubtitulo('Análisis PROV');
+            this.renderDashAnalisisProv();
+        } catch (error) {
+            if (seq === this.requestSeq) {
+                console.error('Error al cargar Análisis PROV:', error);
+                this.mostrarError(error.message || 'No se pudo cargar el dashboard PROV.');
             }
         } finally {
             if (seq === this.requestSeq) {
@@ -420,6 +595,7 @@ class InfoMercadosController {
 
                 this.provinciasOptions = Array.isArray(data.provincias) ? data.provincias : [];
                 this.proveedoresOptions = Array.isArray(data.proveedores) ? data.proveedores : [];
+                this.mesesProvOptions = Array.isArray(data.meses) ? data.meses : [];
                 this.inicializarMultiSelectsProv();
                 this.filtrosProvCargados = true;
             })();
@@ -642,6 +818,12 @@ class InfoMercadosController {
             selected: true
         }));
 
+        const opcionesMes = this.mesesProvOptions.map(item => ({
+            id: String(item.id),
+            label: item.label || String(item.mes),
+            selected: true
+        }));
+
         if (!this.msProvincia) {
             this.msProvincia = new CustomMultiSelect({
                 btnId: 'ms-provincia-btn',
@@ -664,6 +846,21 @@ class InfoMercadosController {
                 title: 'PROVEEDOR',
                 options: opcionesProveedor
             });
+        }
+
+        if (!this.msMesProv) {
+            this.msMesProv = new CustomMultiSelect({
+                btnId: 'ms-mes-prov-btn',
+                labelId: 'ms-mes-prov-label',
+                dropdownId: 'ms-mes-prov-dropdown',
+                searchId: 'ms-mes-prov-search',
+                optionsContainerId: 'ms-mes-prov-options',
+                title: 'MES',
+                options: opcionesMes
+            });
+        } else {
+            this.msMesProv.clearSelection(false);
+            this.msMesProv.setOptions(opcionesMes);
         }
     }
 
@@ -841,6 +1038,16 @@ class InfoMercadosController {
         }
     }
 
+    limpiarSeleccionFiltrosDashProv() {
+        this.limpiarSeleccionFiltrosProv();
+
+        if (this.msMesProv) {
+            this.msMesProv.options.forEach(opcion => opcion.selected = true);
+            this.msMesProv.updateLabel(false);
+            this.msMesProv.render();
+        }
+    }
+
     limpiarSeleccionFiltrosParticipacion() {
         if (this.selectTipoPeriodo) {
             this.selectTipoPeriodo.value = 'entre_meses';
@@ -913,6 +1120,34 @@ class InfoMercadosController {
         }
 
         componente.render(this, this.datosProvEmpresa, 'contenedor-graficos-lista');
+    }
+
+    renderDashAnalisisAqp() {
+        const componente = window.ChartRegistry && window.ChartRegistry['InfoMercadosEmpresa'];
+
+        if (!componente || typeof componente.renderDashboard !== 'function') {
+            this.mostrarError('No se encontró el componente de Análisis AQP.');
+            return;
+        }
+
+        componente.renderDashboard(this, this.datosDashAqp, 'contenedor-graficos-lista', {
+            height: 320,
+            minWidth: 1000
+        });
+    }
+
+    renderDashAnalisisProv() {
+        const componente = window.ChartRegistry && window.ChartRegistry['InfoMercadosEmpresa'];
+
+        if (!componente || typeof componente.renderDashboard !== 'function') {
+            this.mostrarError('No se encontró el componente de Análisis PROV.');
+            return;
+        }
+
+        componente.renderDashboard(this, this.datosDashProv, 'contenedor-graficos-lista', {
+            height: 320,
+            minWidth: 1000
+        });
     }
 
     renderParticipacionAqp() {

@@ -177,10 +177,37 @@ class ProvEmpresaHandler
             }
         }
 
+        $sqlMeses = "
+            SELECT DISTINCT MONTH(a.fecha) AS mes
+            FROM com_db_vivo_provincia a
+            INNER JOIN com_tipo t ON a.tipo = t.codigo
+            WHERE a.fecha >= ?
+              AND a.fecha < ?
+              AND TRIM(t.nombre) = 'Vivo'
+            ORDER BY mes ASC
+        ";
+
+        $stmtMeses = $db->prepare($sqlMeses);
+        $stmtMeses->execute([$fechaInicio, $fechaFin]);
+        $filasMeses = $stmtMeses->fetchAll(PDO::FETCH_ASSOC);
+
+        $meses = [];
+        foreach ($filasMeses as $fila) {
+            $mes = (int)($fila['mes'] ?? 0);
+            if ($mes >= 1 && $mes <= 12) {
+                $meses[] = [
+                    'id' => (string)$mes,
+                    'mes' => $mes,
+                    'label' => EmpresaChartHelper::nombreMes($mes)
+                ];
+            }
+        }
+
         return [
             'anio' => $anio,
             'provincias' => $provincias,
-            'proveedores' => $proveedores
+            'proveedores' => $proveedores,
+            'meses' => $meses
         ];
     }
 
@@ -202,6 +229,10 @@ class ProvEmpresaHandler
             array_key_exists('proveedores', $filtros) ? $filtros['proveedores'] : null,
             $opciones['proveedores']
         );
+        $mesesSeleccionados = EmpresaChartHelper::normalizarMeses(
+            array_key_exists('meses', $filtros) ? $filtros['meses'] : null,
+            $opciones['meses']
+        );
 
         $dias = range(1, 31);
 
@@ -221,12 +252,13 @@ class ProvEmpresaHandler
             'promedio' => null
         ];
 
-        if (empty($provincias) || empty($proveedores)) {
+        if (empty($provincias) || empty($proveedores) || empty($mesesSeleccionados)) {
             return $respuestaBase;
         }
 
         [$fechaInicio, $fechaFin] = EmpresaChartHelper::rangoAnio($anio);
 
+        $placeholdersMeses = implode(',', array_fill(0, count($mesesSeleccionados), '?'));
         $placeholdersProvincias = implode(',', array_fill(0, count($provincias), '?'));
         $placeholdersProveedores = implode(',', array_fill(0, count($proveedores), '?'));
 
@@ -242,13 +274,14 @@ class ProvEmpresaHandler
             WHERE a.fecha >= ?
               AND a.fecha < ?
               AND TRIM(t.nombre) = 'Vivo'
+              AND MONTH(a.fecha) IN ($placeholdersMeses)
               AND TRIM(pr.nombre) IN ($placeholdersProvincias)
               AND TRIM(p.nombre) IN ($placeholdersProveedores)
             GROUP BY MONTH(a.fecha), DAY(a.fecha)
             ORDER BY mes ASC, dia ASC
         ";
 
-        $params = array_merge([$fechaInicio, $fechaFin], $provincias, $proveedores);
+        $params = array_merge([$fechaInicio, $fechaFin], $mesesSeleccionados, $provincias, $proveedores);
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);

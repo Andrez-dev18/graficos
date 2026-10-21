@@ -7,17 +7,25 @@ window.ChartRegistry = window.ChartRegistry || {};
 
 window.ChartInfoMercadosAQPEmpresa = {
     chart: null,
+    dashboardInstances: [],
 
     paleta: [
         '#4E79A7', '#F28E2B', '#59A14F', '#E15759', '#F1CE63', '#76B7B2',
         '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC', '#86BCB6', '#D37295'
     ],
 
-    render(controller, data, targetContainer = 'contenedor-graficos-lista') {
+    render(controller, data, targetContainer = 'contenedor-graficos-lista', options = {}) {
         const contenedor = document.getElementById(targetContainer);
         if (!contenedor) return;
 
-        this.destroy();
+        this.destroyAll();
+
+        const compacto = !!options.compact;
+        const mostrarLeyenda = options.showLegend !== false;
+        const altura = Number(options.height) || 600;
+        const anchoMinimo = Number(options.minWidth) || 1200;
+        const canvasId = options.canvasId || 'aqpempresa-canvas';
+        const colorPorMes = options.colorPorMes || null;
 
         const series = Array.isArray(data && data.series) ? data.series : [];
         const dias = Array.isArray(data && data.dias) && data.dias.length > 0
@@ -46,15 +54,15 @@ window.ChartInfoMercadosAQPEmpresa = {
         );
 
         const header = `
-            <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div class="px-6 ${compacto ? 'py-3' : 'py-4'} bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
                 <div>
                     <div class="flex items-center gap-2">
                         <h2 class="text-base sm:text-lg font-bold text-slate-800 tracking-tight">${titulo}</h2>
                         <span class="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">Año ${anio}</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 font-medium mt-0.5">Comparativo mensual por día</p>
+                    <p class="${compacto ? 'hidden' : ''} text-[11px] text-slate-400 font-medium mt-0.5">Comparativo mensual por día</p>
                 </div>
-                <span class="text-[11px] text-slate-400 font-medium">Haz clic en la leyenda para ocultar o mostrar un mes</span>
+                <span class="${compacto || !mostrarLeyenda ? 'hidden' : ''} text-[11px] text-slate-400 font-medium">Haz clic en la leyenda para ocultar o mostrar un mes</span>
             </div>
         `;
 
@@ -76,15 +84,15 @@ window.ChartInfoMercadosAQPEmpresa = {
                 ${header}
                 <div class="p-3 sm:p-4">
                     <div class="w-full overflow-x-auto custom-scrollbar pb-1">
-                        <div class="relative h-[600px] min-w-[1200px]">
-                            <canvas id="aqpempresa-canvas"></canvas>
+                        <div class="relative" style="height:${altura}px;min-width:${anchoMinimo}px">
+                            <canvas id="${canvasId}"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         `;
 
-        const canvas = document.getElementById('aqpempresa-canvas');
+        const canvas = document.getElementById(canvasId);
         if (!canvas) return;
 
         if (typeof Chart === 'undefined') {
@@ -142,7 +150,9 @@ window.ChartInfoMercadosAQPEmpresa = {
         const promedios = [];
 
         series.forEach((serie, indice) => {
-            const color = this.paleta[indice % this.paleta.length];
+            const color = (colorPorMes && colorPorMes[Number(serie.mes)])
+                ? colorPorMes[Number(serie.mes)]
+                : this.paleta[indice % this.paleta.length];
             const valores = dias.map((_, i) => {
                 const valor = Array.isArray(serie.valores) ? serie.valores[i] : null;
                 if (valor === null || valor === undefined) return null;
@@ -314,6 +324,7 @@ window.ChartInfoMercadosAQPEmpresa = {
                 },
                 plugins: {
                     legend: {
+                        display: mostrarLeyenda,
                         position: 'right',
                         labels: {
                             usePointStyle: true,
@@ -410,6 +421,137 @@ window.ChartInfoMercadosAQPEmpresa = {
                 }
             }
         });
+    },
+
+    renderDashboard(controller, datos, targetContainer = 'contenedor-graficos-lista', options = {}) {
+        const contenedor = document.getElementById(targetContainer);
+        if (!contenedor) return;
+
+        this.destroyAll();
+
+        const lista = Array.isArray(datos) ? datos : [];
+
+        contenedor.innerHTML = `
+            <div class="w-full flex flex-col gap-5">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 px-5 py-3">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Meses</span>
+                        <div id="dash-meses-legend" class="flex flex-wrap items-center gap-x-3 gap-y-1.5"></div>
+                    </div>
+                </div>
+                <div id="dash-charts" class="flex flex-col gap-5"></div>
+            </div>
+        `;
+
+        const chartsContainer = document.getElementById('dash-charts');
+        const legendContainer = document.getElementById('dash-meses-legend');
+        if (!chartsContainer || !legendContainer) return;
+
+        const meses = [];
+        const vistos = new Set();
+
+        lista.forEach(item => {
+            const series = Array.isArray(item && item.series) ? item.series : [];
+            series.forEach(serie => {
+                const mes = Number(serie.mes);
+                if (!Number.isFinite(mes) || vistos.has(mes)) return;
+                vistos.add(mes);
+                meses.push({
+                    mes,
+                    label: serie.label || `Mes ${mes}`,
+                    color: this.paleta[meses.length % this.paleta.length]
+                });
+            });
+        });
+
+        const colorPorMes = meses.reduce((acumulado, item) => {
+            acumulado[item.mes] = item.color;
+            return acumulado;
+        }, {});
+
+        legendContainer.innerHTML = meses.map(item => `
+            <button type="button" data-mes="${item.mes}" aria-pressed="true"
+                class="dash-mes-legend flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 hover:text-slate-900 transition-opacity cursor-pointer">
+                <span class="w-3 h-3 rounded-[2px]" style="background:${item.color}"></span>
+                <span>${item.label}</span>
+            </button>
+        `).join('');
+
+        lista.forEach((data, index) => {
+            const slotId = `dash-chart-slot-${index}`;
+            chartsContainer.insertAdjacentHTML('beforeend', `<div id="${slotId}"></div>`);
+
+            const instancia = Object.create(this);
+            instancia.chart = null;
+            instancia.dashboardInstances = [];
+            instancia.render(controller, data, slotId, {
+                canvasId: `dash-chart-canvas-${index}`,
+                height: options.height || 320,
+                minWidth: options.minWidth || 1000,
+                compact: true,
+                showLegend: false,
+                colorPorMes
+            });
+
+            this.dashboardInstances.push(instancia);
+        });
+
+        legendContainer.querySelectorAll('[data-mes]').forEach(boton => {
+            boton.addEventListener('click', () => {
+                const mes = Number(boton.dataset.mes);
+                const referencia = this.dashboardInstances[0];
+                const visible = referencia && typeof referencia.isMonthVisible === 'function'
+                    ? referencia.isMonthVisible(mes)
+                    : true;
+
+                this.dashboardInstances.forEach(instancia => {
+                    if (instancia && typeof instancia.setMonthVisibility === 'function') {
+                        instancia.setMonthVisibility(mes, !visible);
+                    }
+                });
+
+                boton.classList.toggle('opacity-40', visible);
+                boton.setAttribute('aria-pressed', String(!visible));
+            });
+        });
+    },
+
+    isMonthVisible(mes) {
+        if (!this.chart) return false;
+
+        const indice = this.chart.data.datasets.findIndex(dataset =>
+            Number(dataset.month) === Number(mes) && dataset.isMonthLine
+        );
+
+        return indice >= 0 ? this.chart.isDatasetVisible(indice) : false;
+    },
+
+    setMonthVisibility(mes, visible) {
+        if (!this.chart) return;
+
+        this.chart.data.datasets.forEach((dataset, indice) => {
+            if (Number(dataset.month) === Number(mes) && (dataset.isMonthLine || dataset.isTrendline)) {
+                this.chart.setDatasetVisibility(indice, visible);
+            }
+        });
+
+        this.chart.update();
+    },
+
+    destroyAll() {
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
+
+        if (Array.isArray(this.dashboardInstances)) {
+            this.dashboardInstances.forEach(instancia => {
+                if (instancia && typeof instancia.destroy === 'function') {
+                    instancia.destroy();
+                }
+            });
+            this.dashboardInstances = [];
+        }
     },
 
     calcularTendencia(valores) {
