@@ -326,4 +326,168 @@ class InfoMercadosController
 
         exit;
     }
+
+    public function getParticipacionMercadoAqpFiltros()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $anio = isset($_GET['anio']) ? trim((string)$_GET['anio']) : '2026';
+
+            if ($anio !== '2026') {
+                throw new InvalidArgumentException('Año no válido. Participación de Mercado AQP solo está disponible para 2026.');
+            }
+
+            $resultado = $this->service->obtenerParticipacionMercadoAqpFiltros($anio);
+
+            echo json_encode([
+                'success' => true,
+                'status'  => 'success',
+                'data'    => $resultado
+            ]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => $e->getMessage()
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => 'Error al cargar filtros de Participación de Mercado AQP: ' . $e->getMessage()
+            ]);
+        }
+
+        exit;
+    }
+
+    public function getParticipacionMercadoAqpDashboard()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            if (!is_array($data)) {
+                $data = [];
+            }
+
+            $anio = isset($data['anio']) ? trim((string)$data['anio']) : '2026';
+
+            if ($anio !== '2026') {
+                throw new InvalidArgumentException('Año no válido. Participación de Mercado AQP solo está disponible para 2026.');
+            }
+
+            $resultado = $this->service->obtenerParticipacionMercadoAqp($data, $anio);
+
+            echo json_encode([
+                'success' => true,
+                'status'  => 'success',
+                'payload' => $resultado,
+                'data'    => $resultado
+            ]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => $e->getMessage()
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => 'Error al cargar Participación de Mercado AQP: ' . $e->getMessage()
+            ]);
+        }
+
+        exit;
+    }
+
+    public function getParticipacionMercadoProvFiltros()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $anio = isset($_GET['anio']) ? trim((string)$_GET['anio']) : '2026';
+
+            if ($anio !== '2026') {
+                throw new InvalidArgumentException('Año no válido. Participación de Mercado PROV solo está disponible para 2026.');
+            }
+
+            $resultado = $this->service->obtenerParticipacionMercadoProvFiltros($anio);
+
+            echo json_encode([
+                'success' => true,
+                'status'  => 'success',
+                'data'    => $resultado
+            ]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => $e->getMessage()
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => 'Error al cargar filtros de Participación de Mercado PROV: ' . $e->getMessage()
+            ]);
+        }
+
+        exit;
+    }
+
+    public function getParticipacionMercadoProvDashboard()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            if (!is_array($data)) {
+                $data = [];
+            }
+
+            $anio = isset($data['anio']) ? trim((string)$data['anio']) : '2026';
+
+            if ($anio !== '2026') {
+                throw new InvalidArgumentException('Año no válido. Participación de Mercado PROV solo está disponible para 2026.');
+            }
+
+            $resultado = $this->service->obtenerParticipacionMercadoProv($data, $anio);
+
+            echo json_encode([
+                'success' => true,
+                'status'  => 'success',
+                'payload' => $resultado,
+                'data'    => $resultado
+            ]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => $e->getMessage()
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'status'  => 'error',
+                'message' => 'Error al cargar Participación de Mercado PROV: ' . $e->getMessage()
+            ]);
+        }
+
+        exit;
+    }
 }

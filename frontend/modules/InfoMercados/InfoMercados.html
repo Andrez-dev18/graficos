@@ -98,6 +98,8 @@
                         <option value="PROVKilosEmpresa">PROVKilosEmpresa</option>
                         <option value="PROVSolesEmpresa">PROVSolesEmpresa</option>
                         <option value="PROVPrecioEmpresa">PROVPrecioEmpresa</option>
+                        <option value="ParticipacionMercadoAQP">ParticipacionMercadoAQP</option>
+                        <option value="ParticipacionMercadoPROV">ParticipacionMercadoPROV</option>
                     </select>
                 </div>
 
@@ -175,6 +177,82 @@
                     </div>
                 </div>
 
+                <!-- PERÍODO COMPARTIDO PARTICIPACIÓN -->
+                <div id="filtros-participacion-periodo" class="hidden flex-wrap items-end gap-3 sm:gap-4">
+                    <div class="flex flex-col">
+                        <label for="select-tipo-periodo"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO</label>
+                        <select id="select-tipo-periodo"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="por_mes">Por mes</option>
+                            <option value="entre_meses" selected>Entre meses</option>
+                            <option value="por_fecha">Por fecha</option>
+                            <option value="entre_fechas">Entre fechas</option>
+                            <option value="ultima_semana">Última semana</option>
+                            <option value="entre_semanas">Entre semanas</option>
+                        </select>
+                    </div>
+
+                    <div id="contenedor-inputs-periodo" class="flex items-end gap-2"></div>
+                </div>
+
+                <!-- FILTROS PARTICIPACIÓN DE MERCADO AQP -->
+                <div id="filtros-participacion" class="hidden flex-wrap items-end gap-3 sm:gap-4">
+                    <div class="relative flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">EMPRESA</label>
+                        <button id="ms-empresa-part-btn" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[230px] max-w-[320px]">
+                            <span id="ms-empresa-part-label" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="ms-empresa-part-dropdown"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="ms-empresa-part-search" type="text" placeholder="Buscar empresa..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="ms-empresa-part-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILTROS PARTICIPACIÓN DE MERCADO PROV -->
+                <div id="filtros-participacion-prov" class="hidden flex-wrap items-end gap-3 sm:gap-4">
+                    <div class="relative flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PROVINCIA</label>
+                        <button id="ms-provincia-part-btn" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[200px] max-w-[260px]">
+                            <span id="ms-provincia-part-label" class="truncate text-left select-none">ILO</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="ms-provincia-part-dropdown"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="ms-provincia-part-search" type="text" placeholder="Buscar provincia..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="ms-provincia-part-options" class="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                        </div>
+                    </div>
+
+                    <div class="relative flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PROVEEDOR</label>
+                        <button id="ms-proveedor-part-btn" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[240px] max-w-[330px]">
+                            <span id="ms-proveedor-part-label" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="ms-proveedor-part-dropdown"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="ms-proveedor-part-search" type="text" placeholder="Buscar proveedor..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="ms-proveedor-part-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ACCIONES COMPARTIDAS -->
                 <div id="acciones-grafico" class="hidden items-center gap-2 ml-auto sm:ml-0">
                     <button id="btn-cargar" type="button"
@@ -207,10 +285,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="../../assets/utils-graficos/loading-helper.js"></script>
     <script src="../../assets/utils-graficos/custom-multiselect.js?v=20261028_2"></script>
+    <script src="../../assets/utils-graficos/periodo-helper.js?v=20261028_1"></script>
     <script src="charts/chart.infomercados.volsemanal.js?v=20261028_5"></script>
     <script src="charts/chart.infomercados.aqpempresa.js?v=20261028_7"></script>
-    <script src="InfoMercados.service.js?v=20261028_7"></script>
-    <script src="InfoMercados.controller.js?v=20261028_7"></script>
+    <script src="charts/chart.infomercados.participacion.js?v=20261028_8"></script>
+    <script src="InfoMercados.service.js?v=20261028_9"></script>
+    <script src="InfoMercados.controller.js?v=20261028_10"></script>
 </body>
 
 </html>

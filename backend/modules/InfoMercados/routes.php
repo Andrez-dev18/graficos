@@ -21,3 +21,15 @@ $this->get('/infomercados/provempresa/filtros', 'InfoMercadosController@getProvE
 
 $this->post('/InfoMercados/PROVEmpresa/dashboard', 'InfoMercadosController@getProvEmpresaDashboard');
 $this->post('/infomercados/provempresa/dashboard', 'InfoMercadosController@getProvEmpresaDashboard');
+
+$this->get('/InfoMercados/ParticipacionMercadoAQP/filtros', 'InfoMercadosController@getParticipacionMercadoAqpFiltros');
+$this->get('/infomercados/participacionmercadoaqp/filtros', 'InfoMercadosController@getParticipacionMercadoAqpFiltros');
+
+$this->post('/InfoMercados/ParticipacionMercadoAQP/dashboard', 'InfoMercadosController@getParticipacionMercadoAqpDashboard');
+$this->post('/infomercados/participacionmercadoaqp/dashboard', 'InfoMercadosController@getParticipacionMercadoAqpDashboard');
+
+$this->get('/InfoMercados/ParticipacionMercadoPROV/filtros', 'InfoMercadosController@getParticipacionMercadoProvFiltros');
+$this->get('/infomercados/participacionmercadoprov/filtros', 'InfoMercadosController@getParticipacionMercadoProvFiltros');
+
+$this->post('/InfoMercados/ParticipacionMercadoPROV/dashboard', 'InfoMercadosController@getParticipacionMercadoProvDashboard');
+$this->post('/infomercados/participacionmercadoprov/dashboard', 'InfoMercadosController@getParticipacionMercadoProvDashboard');

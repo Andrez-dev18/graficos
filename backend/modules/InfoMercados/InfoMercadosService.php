@@ -5,6 +5,7 @@ require_once __DIR__ . '/handlers/EmpresaChartHelper.php';
 require_once __DIR__ . '/handlers/AQPEmpresaHandler.php';
 require_once __DIR__ . '/handlers/AQPCantEmpresaHandler.php';
 require_once __DIR__ . '/handlers/ProvEmpresaHandler.php';
+require_once __DIR__ . '/handlers/ParticipacionMercadoHandler.php';
 
 class InfoMercadosService
 {
@@ -48,5 +49,25 @@ class InfoMercadosService
     public function obtenerProvEmpresa(array $filtros, string $anio = '2026'): array
     {
         return ProvEmpresaHandler::handle($this->db, $filtros, $anio);
+    }
+
+    public function obtenerParticipacionMercadoAqpFiltros(string $anio = '2026'): array
+    {
+        return ParticipacionMercadoHandler::obtenerFiltros($this->db, $anio);
+    }
+
+    public function obtenerParticipacionMercadoAqp(array $filtros, string $anio = '2026'): array
+    {
+        return ParticipacionMercadoHandler::handle($this->db, $filtros, $anio);
+    }
+
+    public function obtenerParticipacionMercadoProvFiltros(string $anio = '2026'): array
+    {
+        return ParticipacionMercadoHandler::obtenerFiltrosProv($this->db, $anio);
+    }
+
+    public function obtenerParticipacionMercadoProv(array $filtros, string $anio = '2026'): array
+    {
+        return ParticipacionMercadoHandler::handleProv($this->db, $filtros, $anio);
     }
 }

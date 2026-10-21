@@ -105,4 +105,62 @@ class InfoMercadosService {
 
         return data.data || {};
     }
+
+    async obtenerParticipacionMercadoAqpFiltros(anio = '2026') {
+        const response = await fetch(`${this.baseUrl}/InfoMercados/ParticipacionMercadoAQP/filtros?anio=${encodeURIComponent(anio)}`);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `Error HTTP ${response.status}`);
+        }
+
+        return data.data || {};
+    }
+
+    async obtenerParticipacionMercadoAqp(filtros = {}) {
+        const response = await fetch(`${this.baseUrl}/InfoMercados/ParticipacionMercadoAQP/dashboard`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(filtros)
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `Error HTTP ${response.status}`);
+        }
+
+        return data.data || {};
+    }
+
+    async obtenerParticipacionMercadoProvFiltros(anio = '2026') {
+        const response = await fetch(`${this.baseUrl}/InfoMercados/ParticipacionMercadoPROV/filtros?anio=${encodeURIComponent(anio)}`);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `Error HTTP ${response.status}`);
+        }
+
+        return data.data || {};
+    }
+
+    async obtenerParticipacionMercadoProv(filtros = {}) {
+        const response = await fetch(`${this.baseUrl}/InfoMercados/ParticipacionMercadoPROV/dashboard`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(filtros)
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `Error HTTP ${response.status}`);
+        }
+
+        return data.data || {};
+    }
 }
