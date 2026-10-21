@@ -458,9 +458,16 @@ window.ChartInfoMercadosAQPEmpresa = {
     }
 };
 
+window.ChartRegistry['InfoMercadosEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
 window.ChartRegistry['InfoMercadosAQPEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
 window.ChartRegistry['InfoMercadosAQPCantEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
 window.ChartRegistry['InfoMercadosAQPPesoEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
 window.ChartRegistry['InfoMercadosAQPKilosEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
 window.ChartRegistry['InfoMercadosAQPSolesEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
 window.ChartRegistry['InfoMercadosAQPPrecioEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
+window.ChartRegistry['InfoMercadosPROVEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
+window.ChartRegistry['InfoMercadosPROVCantEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
+window.ChartRegistry['InfoMercadosPROVPesoEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
+window.ChartRegistry['InfoMercadosPROVKilosEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
+window.ChartRegistry['InfoMercadosPROVSolesEmpresa'] = window.ChartInfoMercadosAQPEmpresa;
+window.ChartRegistry['InfoMercadosPROVPrecioEmpresa'] = window.ChartInfoMercadosAQPEmpresa;

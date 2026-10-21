@@ -48,6 +48,35 @@ class InfoMercadosService {
         return data.data || {};
     }
 
+    async obtenerProvEmpresaFiltros(anio = '2026') {
+        const response = await fetch(`${this.baseUrl}/InfoMercados/PROVEmpresa/filtros?anio=${encodeURIComponent(anio)}`);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `Error HTTP ${response.status}`);
+        }
+
+        return data.data || {};
+    }
+
+    async obtenerProvEmpresa(filtros = {}) {
+        const response = await fetch(`${this.baseUrl}/InfoMercados/PROVEmpresa/dashboard`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(filtros)
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `Error HTTP ${response.status}`);
+        }
+
+        return data.data || {};
+    }
+
     async obtenerAqpCantEmpresaFiltros(anio = '2026') {
         const response = await fetch(`${this.baseUrl}/InfoMercados/AQPCantEmpresa/filtros?anio=${encodeURIComponent(anio)}`);
         const data = await response.json().catch(() => ({}));

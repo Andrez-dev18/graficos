@@ -15,3 +15,9 @@ $this->get('/infomercados/aqpempresa/filtros', 'InfoMercadosController@getAqpEmp
 
 $this->post('/InfoMercados/AQPEmpresa/dashboard', 'InfoMercadosController@getAqpEmpresaDashboard');
 $this->post('/infomercados/aqpempresa/dashboard', 'InfoMercadosController@getAqpEmpresaDashboard');
+
+$this->get('/InfoMercados/PROVEmpresa/filtros', 'InfoMercadosController@getProvEmpresaFiltros');
+$this->get('/infomercados/provempresa/filtros', 'InfoMercadosController@getProvEmpresaFiltros');
+
+$this->post('/InfoMercados/PROVEmpresa/dashboard', 'InfoMercadosController@getProvEmpresaDashboard');
+$this->post('/infomercados/provempresa/dashboard', 'InfoMercadosController@getProvEmpresaDashboard');

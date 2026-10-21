@@ -1,8 +1,10 @@
 <?php
 
 require_once __DIR__ . '/handlers/VolSemanalHandler.php';
+require_once __DIR__ . '/handlers/EmpresaChartHelper.php';
 require_once __DIR__ . '/handlers/AQPEmpresaHandler.php';
 require_once __DIR__ . '/handlers/AQPCantEmpresaHandler.php';
+require_once __DIR__ . '/handlers/ProvEmpresaHandler.php';
 
 class InfoMercadosService
 {
@@ -36,5 +38,15 @@ class InfoMercadosService
     public function obtenerAqpCantEmpresa(array $filtros, string $anio = '2026'): array
     {
         return AQPCantEmpresaHandler::handle($this->db, $filtros, $anio);
+    }
+
+    public function obtenerProvEmpresaFiltros(string $anio = '2026'): array
+    {
+        return ProvEmpresaHandler::obtenerFiltros($this->db, $anio);
+    }
+
+    public function obtenerProvEmpresa(array $filtros, string $anio = '2026'): array
+    {
+        return ProvEmpresaHandler::handle($this->db, $filtros, $anio);
     }
 }

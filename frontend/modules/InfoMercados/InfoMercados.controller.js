@@ -1,6 +1,6 @@
 /**
  * Controlador de InfoMercados.
- * Administra VolSemanal y los gráficos AQP Empresa.
+ * Administra VolSemanal, los gráficos AQP Empresa y los gráficos PROV Empresa.
  */
 class InfoMercadosController {
     constructor() {
@@ -8,14 +8,21 @@ class InfoMercadosController {
         this.tipoGraficoActual = 'VolSemanal';
         this.datosVolSemanal = null;
         this.datosAqpEmpresa = null;
+        this.datosProvEmpresa = null;
         this.filtrosAqpCargados = false;
+        this.filtrosProvCargados = false;
         this.mesesOptions = [];
         this.empresasOptions = [];
+        this.provinciasOptions = [];
+        this.proveedoresOptions = [];
         this.msMes = null;
         this.msEmpresa = null;
+        this.msProvincia = null;
+        this.msProveedor = null;
         this.cargando = false;
         this.requestSeq = 0;
         this.filtrosAqpPromise = null;
+        this.filtrosProvPromise = null;
         this.init();
     }
 
@@ -45,6 +52,8 @@ class InfoMercadosController {
         this.labelToggleFiltros = document.getElementById('label-toggle-filtros');
         this.iconToggleFiltros = document.getElementById('icon-toggle-filtros');
         this.filtrosAqp = document.getElementById('filtros-aqpempresa');
+        this.filtrosProv = document.getElementById('filtros-provempresa');
+        this.accionesGrafico = document.getElementById('acciones-grafico');
         this.btnCargar = document.getElementById('btn-cargar');
         this.btnLimpiar = document.getElementById('btn-limpiar');
         this.contenedorGraficos = document.getElementById('contenedor-graficos-lista');
@@ -76,20 +85,35 @@ class InfoMercadosController {
             this.btnCargar.addEventListener('click', async () => {
                 if (this.esGraficoAqp()) {
                     await this.cargarAqpEmpresaConFiltros();
+                } else if (this.esGraficoProv()) {
+                    await this.cargarProvEmpresaConFiltros();
                 }
             });
         }
 
         if (this.btnLimpiar) {
             this.btnLimpiar.addEventListener('click', async () => {
-                this.limpiarSeleccionFiltrosAqp();
-                await this.cargarAqpEmpresaConFiltros();
+                if (this.esGraficoAqp()) {
+                    this.limpiarSeleccionFiltrosAqp();
+                    await this.cargarAqpEmpresaConFiltros();
+                } else if (this.esGraficoProv()) {
+                    this.limpiarSeleccionFiltrosProv();
+                    await this.cargarProvEmpresaConFiltros();
+                }
             });
         }
     }
 
     esGraficoAqp(tipo = this.tipoGraficoActual) {
-        return tipo && tipo !== 'VolSemanal';
+        return !!tipo && tipo.indexOf('AQP') === 0;
+    }
+
+    esGraficoProv(tipo = this.tipoGraficoActual) {
+        return !!tipo && tipo.indexOf('PROV') === 0;
+    }
+
+    esGraficoEmpresa(tipo = this.tipoGraficoActual) {
+        return this.esGraficoAqp(tipo) || this.esGraficoProv(tipo);
     }
 
     async cambiarTipoGrafico(tipo) {
@@ -101,6 +125,11 @@ class InfoMercadosController {
 
         if (this.esGraficoAqp()) {
             await this.cargarAqpEmpresaConFiltros();
+            return;
+        }
+
+        if (this.esGraficoProv()) {
+            await this.cargarProvEmpresaConFiltros();
             return;
         }
 
@@ -132,17 +161,26 @@ class InfoMercadosController {
             return;
         }
 
+        const familia = this.esGraficoProv() ? 'PROVINCIAS' : 'AREQUIPA';
         this.subtituloModulo.textContent = titulo
             ? `${titulo} · Año 2026`
-            : 'Comportamiento de Aves AREQUIPA · Año 2026';
+            : `Comportamiento de Aves ${familia} · Año 2026`;
     }
 
     actualizarVisibilidadFiltros() {
-        if (!this.filtrosAqp) return;
+        const mostrarAqp = this.esGraficoAqp();
+        const mostrarProv = this.esGraficoProv();
+        const mostrarAcciones = mostrarAqp || mostrarProv;
 
-        const mostrar = this.esGraficoAqp();
-        this.filtrosAqp.classList.toggle('hidden', !mostrar);
-        this.filtrosAqp.classList.toggle('flex', mostrar);
+        this.toggleElemento(this.filtrosAqp, mostrarAqp);
+        this.toggleElemento(this.filtrosProv, mostrarProv);
+        this.toggleElemento(this.accionesGrafico, mostrarAcciones);
+    }
+
+    toggleElemento(elemento, mostrar) {
+        if (!elemento) return;
+        elemento.classList.toggle('hidden', !mostrar);
+        elemento.classList.toggle('flex', mostrar);
     }
 
     async cargarVolSemanal(esCargaInicial = false) {
@@ -194,6 +232,33 @@ class InfoMercadosController {
         }
     }
 
+    async cargarProvEmpresaConFiltros() {
+        const seq = ++this.requestSeq;
+        this.cargando = true;
+        this.limpiarError();
+        this.mostrarLoader(true);
+        this.setBotonCargando(true);
+
+        try {
+            if (!this.filtrosProvCargados) {
+                await this.cargarFiltrosProvEmpresa();
+            }
+
+            await this.cargarProvEmpresa(seq);
+        } catch (error) {
+            if (seq === this.requestSeq) {
+                console.error('Error al cargar PROV Empresa:', error);
+                this.mostrarError(error.message || 'No se pudo cargar el gráfico PROV.');
+            }
+        } finally {
+            if (seq === this.requestSeq) {
+                this.cargando = false;
+                this.setBotonCargando(false);
+                this.mostrarLoader(false);
+            }
+        }
+    }
+
     async cargarFiltrosAqpEmpresa() {
         if (this.filtrosAqpCargados) return;
 
@@ -203,7 +268,7 @@ class InfoMercadosController {
 
                 this.mesesOptions = Array.isArray(data.meses) ? data.meses : [];
                 this.empresasOptions = Array.isArray(data.empresas) ? data.empresas : [];
-                this.inicializarMultiSelects();
+                this.inicializarMultiSelectsAqp();
                 this.filtrosAqpCargados = true;
             })();
         }
@@ -215,9 +280,30 @@ class InfoMercadosController {
         }
     }
 
-    inicializarMultiSelects() {
+    async cargarFiltrosProvEmpresa() {
+        if (this.filtrosProvCargados) return;
+
+        if (!this.filtrosProvPromise) {
+            this.filtrosProvPromise = (async () => {
+                const data = await this.service.obtenerProvEmpresaFiltros('2026');
+
+                this.provinciasOptions = Array.isArray(data.provincias) ? data.provincias : [];
+                this.proveedoresOptions = Array.isArray(data.proveedores) ? data.proveedores : [];
+                this.inicializarMultiSelectsProv();
+                this.filtrosProvCargados = true;
+            })();
+        }
+
+        try {
+            await this.filtrosProvPromise;
+        } finally {
+            this.filtrosProvPromise = null;
+        }
+    }
+
+    inicializarMultiSelectsAqp() {
         if (typeof CustomMultiSelect === 'undefined') {
-            throw new Error('No se encontró CustomMultiSelect para los filtros.');
+            throw new Error('No se encontró CustomMultiSelect para los filtros AQP.');
         }
 
         const opcionesMes = this.mesesOptions.map(item => ({
@@ -263,6 +349,55 @@ class InfoMercadosController {
         }
     }
 
+    inicializarMultiSelectsProv() {
+        if (typeof CustomMultiSelect === 'undefined') {
+            throw new Error('No se encontró CustomMultiSelect para los filtros PROV.');
+        }
+
+        const opcionesProvincia = this.provinciasOptions.map(item => {
+            const id = String(item.id);
+            return {
+                id,
+                label: item.label || id,
+                selected: id === 'ILO'
+            };
+        });
+
+        if (opcionesProvincia.length > 0 && !opcionesProvincia.some(opcion => opcion.selected)) {
+            opcionesProvincia[0].selected = true;
+        }
+
+        const opcionesProveedor = this.proveedoresOptions.map(item => ({
+            id: String(item.id),
+            label: item.label || String(item.id),
+            selected: true
+        }));
+
+        if (!this.msProvincia) {
+            this.msProvincia = new CustomMultiSelect({
+                btnId: 'ms-provincia-btn',
+                labelId: 'ms-provincia-label',
+                dropdownId: 'ms-provincia-dropdown',
+                searchId: 'ms-provincia-search',
+                optionsContainerId: 'ms-provincia-options',
+                title: 'PROVINCIA',
+                options: opcionesProvincia
+            });
+        }
+
+        if (!this.msProveedor) {
+            this.msProveedor = new CustomMultiSelect({
+                btnId: 'ms-proveedor-btn',
+                labelId: 'ms-proveedor-label',
+                dropdownId: 'ms-proveedor-dropdown',
+                searchId: 'ms-proveedor-search',
+                optionsContainerId: 'ms-proveedor-options',
+                title: 'PROVEEDOR',
+                options: opcionesProveedor
+            });
+        }
+    }
+
     async cargarAqpEmpresa(seq = this.requestSeq) {
         const tipoSolicitado = this.tipoGraficoActual;
 
@@ -294,6 +429,37 @@ class InfoMercadosController {
         this.renderAqpEmpresa();
     }
 
+    async cargarProvEmpresa(seq = this.requestSeq) {
+        const tipoSolicitado = this.tipoGraficoActual;
+
+        const provincias = this.msProvincia
+            ? this.msProvincia.getSelectedValues()
+            : this.provinciasOptions.map(item => String(item.id));
+
+        const proveedores = this.msProveedor
+            ? this.msProveedor.getSelectedValues()
+            : this.proveedoresOptions.map(item => String(item.id));
+
+        const data = await this.service.obtenerProvEmpresa({
+            tipo_grafico: tipoSolicitado,
+            anio: '2026',
+            provincias,
+            proveedores
+        });
+
+        if (!data || !Array.isArray(data.series)) {
+            throw new Error('No se recibieron datos para el gráfico PROV.');
+        }
+
+        if (seq !== this.requestSeq || tipoSolicitado !== this.tipoGraficoActual) {
+            return;
+        }
+
+        this.datosProvEmpresa = data;
+        this.actualizarSubtitulo(data.titulo);
+        this.renderProvEmpresa();
+    }
+
     limpiarSeleccionFiltrosAqp() {
         if (this.msMes) {
             this.msMes.options.forEach(opcion => opcion.selected = true);
@@ -305,6 +471,23 @@ class InfoMercadosController {
             this.msEmpresa.options.forEach(opcion => opcion.selected = true);
             this.msEmpresa.updateLabel(false);
             this.msEmpresa.render();
+        }
+    }
+
+    limpiarSeleccionFiltrosProv() {
+        if (this.msProvincia) {
+            this.msProvincia.options.forEach(opcion => opcion.selected = opcion.id === 'ILO');
+            if (!this.msProvincia.options.some(opcion => opcion.selected) && this.msProvincia.options.length > 0) {
+                this.msProvincia.options[0].selected = true;
+            }
+            this.msProvincia.updateLabel(false);
+            this.msProvincia.render();
+        }
+
+        if (this.msProveedor) {
+            this.msProveedor.options.forEach(opcion => opcion.selected = true);
+            this.msProveedor.updateLabel(false);
+            this.msProveedor.render();
         }
     }
 
@@ -320,7 +503,7 @@ class InfoMercadosController {
     }
 
     renderAqpEmpresa() {
-        const componente = window.ChartRegistry && window.ChartRegistry['InfoMercadosAQPEmpresa'];
+        const componente = window.ChartRegistry && window.ChartRegistry['InfoMercadosEmpresa'];
 
         if (!componente || typeof componente.render !== 'function') {
             this.mostrarError('No se encontró el componente de AQP Empresa.');
@@ -328,6 +511,17 @@ class InfoMercadosController {
         }
 
         componente.render(this, this.datosAqpEmpresa, 'contenedor-graficos-lista');
+    }
+
+    renderProvEmpresa() {
+        const componente = window.ChartRegistry && window.ChartRegistry['InfoMercadosEmpresa'];
+
+        if (!componente || typeof componente.render !== 'function') {
+            this.mostrarError('No se encontró el componente de PROV Empresa.');
+            return;
+        }
+
+        componente.render(this, this.datosProvEmpresa, 'contenedor-graficos-lista');
     }
 
     setBotonCargando(cargando) {
