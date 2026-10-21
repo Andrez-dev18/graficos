@@ -337,7 +337,7 @@ window.ChartPP = {
                             <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">PP</h2>
                             <span id="badge-total-registros-pp" class="text-[11px] font-medium text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">0 registros</span>
                         </div>
-                        <span class="text-[11px] text-slate-400 font-medium">Costos por GalpÃ³n y CÃ³digo de Costo (Producto en Proceso)</span>
+                        <span class="text-[11px] text-slate-400 font-medium">Costos por Galpón y Códigos de Costo (Producto en Proceso)</span>
                     </div>
 
                     <!-- BOTÃ“N EXPORTAR EXCEL ESTÃNDAR -->

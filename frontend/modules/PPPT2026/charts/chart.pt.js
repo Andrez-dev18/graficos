@@ -2,8 +2,8 @@
  * Componente de GrÃ¡fico / Vista: PT (Producto Terminado)
  * MÃ³dulo: PPPT2026
  * 
- * Renderiza la matriz de Costos por GalpÃ³n y CÃ³digo de Costo segÃºn el libro Tableau PPT 2026 (Hoja PT),
- * calculando sobre timfipt (Prod Term), con filtro interactivo de LÃMITE (dual range slider con rAF throttling),
+ * Renderiza la matriz de Costos por Galpón y Códigos de Costo segú el libro Tableau PPT 2026 (Hoja PT),
+ * calculando sobre timfipt (Prod Term), con filtro interactivo de LÍMITE (dual range slider con rAF throttling),
  * columnas estÃ¡ticas/fijas a la izquierda (Cencos, nombre, CodigoCosto) y exportaciÃ³n a Excel con estilos Tableau.
  */
 window.ChartRegistry = window.ChartRegistry || {};
@@ -337,7 +337,7 @@ window.ChartPT = {
                             <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">PT</h2>
                             <span id="badge-total-registros-pt" class="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">0 registros</span>
                         </div>
-                        <span class="text-[11px] text-slate-400 font-medium">Costos por GalpÃ³n y CÃ³digo de Costo</span>
+                        <span class="text-[11px] text-slate-400 font-medium">Costos por Galpón y Códigos de Costo</span>
                     </div>
 
                     <!-- BOTÃ“N EXPORTAR EXCEL ESTÃNDAR -->
