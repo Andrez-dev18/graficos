@@ -1,0 +1,225 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnalisisPT0 - Planta Beneficio</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f8fafc;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .tabla-analisispt0 th,
+        .tabla-analisispt0 td {
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .tabla-analisispt0 thead th {
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .tabla-analisispt0 tbody tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 h-screen m-0 p-0 font-sans text-slate-800">
+
+    <!-- LOADER INICIAL -->
+    <div id="loader-inicial-pagina"
+        class="fixed inset-0 z-50 bg-slate-50/90 backdrop-blur-xs flex flex-col items-center justify-center transition-opacity duration-300">
+        <div class="flex flex-col items-center gap-4 bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200/90 text-center max-w-xs mx-4">
+            <div class="relative flex items-center justify-center">
+                <div class="w-12 h-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-blue-600">
+                    <i class="fas fa-boxes-stacked text-base"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Cargando Análisis PT0</h3>
+                <p class="text-xs text-slate-500 mt-1">Obteniendo fechas y movimientos...</p>
+            </div>
+        </div>
+    </div>
+
+        <!-- CABECERA -->
+        <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 relative">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                        <i class="fas fa-chart-column text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 id="titulo-modulo-pt0" class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Análisis PT0 2026</h1>
+                        <p id="subtitulo-modulo-pt0" class="text-xs text-slate-500">DashAnalisisPT0 2026 · Movimientos Planta Beneficio</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button id="btn-toggle-filtros" type="button"
+                        class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
+                        <span id="label-toggle-filtros">Ocultar filtros</span>
+                        <i id="icon-toggle-filtros" class="fas fa-chevron-up text-[10px] transition-transform duration-300"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- FILTROS -->
+            <div id="contenedor-filtros-contenido" class="px-4 pb-4 sm:px-5 transition-all duration-300">
+                <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+                    <div class="flex flex-col">
+                        <label for="select-anio" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">Año</label>
+                        <select id="select-anio"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="2026" selected>2026</option>
+                            <option value="2025">2025</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-tipo-grafico" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">Reporte / Gráfico</label>
+                        <select id="select-tipo-grafico"
+                            onchange="window.analisisPT0Controller && window.analisisPT0Controller.cambiarTipoGrafico(this.value)"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="DashAnalisisPT0" selected>DashAnalisisPT0</option>
+                            <option value="AlmaFecha">AlmaFecha</option>
+                            <option value="FechaCliente">FechaCliente</option>
+                            <option value="FechaClienteTrans">FechaClienteTrans</option>
+                            <option value="FechaClienteTransCod">FechaClienteTransCod</option>
+                            <option value="Dashboard2">Dashboard 2</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="input-mes" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">Mes</label>
+                        <input type="month" id="input-mes"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="input-dia" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">Día (opcional)</label>
+                        <input type="date" id="input-dia"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                    </div>
+
+                    <div id="contenedor-filtro-talm" class="relative hidden flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">talm</label>
+                        <button id="btn-dropdown-talm" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[160px] max-w-[260px]">
+                            <span id="label-talm" class="truncate text-left select-none">PB7</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-talm"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-talm" type="text" placeholder="Buscar almacén..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-talm" class="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                                <!-- Opciones generadas por CustomMultiSelect -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="btn-cargar" type="button"
+                            class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
+                            <i class="fas fa-rotate-right text-xs"></i>
+                            <span>Cargar</span>
+                        </button>
+                        <button id="btn-limpiar" type="button"
+                            class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200 transition-all cursor-pointer">
+                            <i class="fas fa-eraser text-xs"></i>
+                            <span>Limpiar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <!-- CHIP DE FILTRO CRUZADO -->
+    <div id="chip-filtro-activo"
+        class="hidden mt-3 flex flex-wrap items-center justify-between gap-2 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl px-3.5 py-2.5">
+        <div class="flex items-center gap-2 text-xs">
+            <i class="fas fa-filter text-blue-500"></i>
+            <span class="font-semibold">Filtro activo:</span>
+            <span id="chip-filtro-texto" class="font-medium"></span>
+        </div>
+        <button id="btn-quitar-filtro" type="button"
+            class="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-white/70 hover:bg-white border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer">
+            <i class="fas fa-xmark"></i>
+            Quitar filtro
+        </button>
+    </div>
+
+    <div id="mensaje-error"
+        class="hidden mt-3 bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-xl px-4 py-3"></div>
+
+    <!-- TABLAS -->
+    <div id="contenedor-graficos-lista" class="grid grid-cols-1 xl:grid-cols-12 gap-6 mt-6 pb-10">
+        <div id="contenedor-detalle-fecha" class="xl:col-span-6 min-w-0"></div>
+        <div id="contenedor-detalle-cliente" class="xl:col-span-6 min-w-0"></div>
+        <div id="contenedor-detalle-cliente-traan" class="xl:col-span-6 min-w-0"></div>
+        <div id="contenedor-detalle-dia" class="xl:col-span-6 min-w-0"></div>
+    </div>
+
+    <div id="contenedor-almafecha" class="hidden mt-6 pb-10"></div>
+    <div id="contenedor-fechacliente" class="hidden mt-6 pb-10"></div>
+    <div id="contenedor-fechaclientetrans" class="hidden mt-6 pb-10"></div>
+    <div id="contenedor-fechaclientetranscod" class="hidden mt-6 pb-10"></div>
+
+    <div id="contenedor-dashboard2" class="hidden mt-6 pb-10 flex-col gap-6">
+        <div id="contenedor-dashboard2-almafecha"></div>
+        <div id="contenedor-dashboard2-fechacliente"></div>
+        <div id="contenedor-dashboard2-fechaclientetranscod"></div>
+    </div>
+
+    <!-- DEPENDENCIAS -->
+    <script src="../../core/config.js"></script>
+    <script src="../../assets/utils-graficos/custom-multiselect.js?v=20261028_1"></script>
+    <script src="charts/analisispt0.helper.js?v=20261028_1"></script>
+    <script src="charts/analisispt0.tooltip.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.detallefecha.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.detallecliente.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.detalleclientetraan.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.detalledia.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.almafecha.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.fechacliente.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.fechaclientetrans.js?v=20261028_1"></script>
+    <script src="charts/chart.analisispt0.fechaclientetranscod.js?v=20261028_1"></script>
+    <script src="AnalisisPT0.service.js?v=20261028_2"></script>
+    <script src="AnalisisPT0.controller.js?v=20261028_3"></script>
+</body>
+
+</html>
+
