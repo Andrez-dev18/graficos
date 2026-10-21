@@ -102,6 +102,7 @@ window.ChartInfoMercadosVolSemanal = {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                devicePixelRatio: Math.max(2, window.devicePixelRatio || 1),
                 animation: { duration: 350 },
                 interaction: {
                     mode: 'index',
@@ -116,7 +117,8 @@ window.ChartInfoMercadosVolSemanal = {
                         backgroundColor: 'rgba(15, 23, 42, 0.94)',
                         titleColor: '#ffffff',
                         bodyColor: '#e2e8f0',
-                        padding: 10,
+                        padding: 12,
+                        bodyFont: { size: 12 },
                         displayColors: false,
                         callbacks: {
                             label: (context) => {
@@ -138,7 +140,7 @@ window.ChartInfoMercadosVolSemanal = {
                         clamp: true,
                         color: '#334155',
                         font: {
-                            size: 9.5,
+                            size: 10.5,
                             weight: '600'
                         },
                         formatter: (value) => {
@@ -155,7 +157,7 @@ window.ChartInfoMercadosVolSemanal = {
                             maxRotation: 90,
                             minRotation: 90,
                             color: '#475569',
-                            font: { size: 10 }
+                            font: { size: 11 }
                         }
                     },
                     y: {
@@ -168,14 +170,14 @@ window.ChartInfoMercadosVolSemanal = {
                         border: { display: false },
                         ticks: {
                             color: '#475569',
-                            font: { size: 10 },
+                            font: { size: 11 },
                             callback: (value) => compact(value)
                         },
                         title: {
                             display: true,
                             text: 'cantidad',
                             color: '#64748b',
-                            font: { size: 11, weight: '600' }
+                            font: { size: 12, weight: '600' }
                         }
                     }
                 }

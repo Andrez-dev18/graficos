@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InfoMercados - Volumen Semanal Arequipa</title>
+    <title>InfoMercados - AQPCantEmpresa</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -50,7 +50,7 @@
             </div>
             <div>
                 <h3 class="text-sm font-bold text-slate-800">Cargando InfoMercados</h3>
-                <p class="text-xs text-slate-500 mt-1">Obteniendo volumen semanal...</p>
+                <p class="text-xs text-slate-500 mt-1">Obteniendo información de mercados...</p>
             </div>
         </div>
     </div>
@@ -65,7 +65,7 @@
                 </div>
                 <div>
                     <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">InfoMercados</h1>
-                    <p class="text-xs text-slate-500">Volumen Semanal Arequipa · Año 2026</p>
+                    <p id="subtitulo-modulo-infomercados" class="text-xs text-slate-500">Volumen Semanal Arequipa · Año 2026</p>
                 </div>
             </div>
 
@@ -88,7 +88,65 @@
                     <select id="select-tipo-grafico"
                         class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[220px]">
                         <option value="VolSemanal" selected>VolSemanal</option>
+                        <option value="AQPCantEmpresa">AQPCantEmpresa</option>
+                        <option value="AQPPesoEmpresa">AQPPesoEmpresa</option>
+                        <option value="AQPKilosEmpresa">AQPKilosEmpresa</option>
+                        <option value="AQPSolesEmpresa">AQPSolesEmpresa</option>
+                        <option value="AQPPrecioEmpresa">AQPPrecioEmpresa</option>
                     </select>
+                </div>
+
+                <!-- FILTROS EXCLUSIVOS DE LOS GRÁFICOS AQP EMPRESA -->
+                <div id="filtros-aqpempresa" class="hidden flex-wrap items-end gap-3 sm:gap-4">
+                    <div class="relative flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">MES</label>
+                        <button id="ms-mes-aqp-btn" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[180px] max-w-[240px]">
+                            <span id="ms-mes-aqp-label" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="ms-mes-aqp-dropdown"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="ms-mes-aqp-search" type="text" placeholder="Buscar mes..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="ms-mes-aqp-options" class="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                        </div>
+                    </div>
+
+                    <div class="relative flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">EMPRESA</label>
+                        <button id="ms-empresa-aqp-btn" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[230px] max-w-[320px]">
+                            <span id="ms-empresa-aqp-label" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="ms-empresa-aqp-dropdown"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="ms-empresa-aqp-search" type="text" placeholder="Buscar empresa..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="ms-empresa-aqp-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 ml-auto sm:ml-0">
+                        <button id="btn-cargar" type="button"
+                            class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            <span>Cargar</span>
+                        </button>
+                        <button id="btn-limpiar" type="button"
+                            class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200 transition-all cursor-pointer">
+                            <span>Limpiar</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -99,17 +157,17 @@
         class="hidden mt-3 bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-xl px-4 py-3"></div>
 
     <!-- CONTENEDOR PRINCIPAL DEL GRÁFICO -->
-
     <div id="contenedor-graficos-lista" class="flex flex-col gap-6 mt-6 pb-10"></div>
 
     <script src="../../core/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="../../assets/utils-graficos/loading-helper.js"></script>
-    <script src="charts/chart.infomercados.volsemanal.js?v=20261028_3"></script>
-    <script src="InfoMercados.service.js?v=20261028_3"></script>
-    <script src="InfoMercados.controller.js?v=20261028_3"></script>
+    <script src="../../assets/utils-graficos/custom-multiselect.js?v=20261028_2"></script>
+    <script src="charts/chart.infomercados.volsemanal.js?v=20261028_5"></script>
+    <script src="charts/chart.infomercados.aqpempresa.js?v=20261028_6"></script>
+    <script src="InfoMercados.service.js?v=20261028_6"></script>
+    <script src="InfoMercados.controller.js?v=20261028_6"></script>
 </body>
 
 </html>
-
