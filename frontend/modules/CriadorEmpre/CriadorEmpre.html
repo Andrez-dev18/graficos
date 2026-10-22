@@ -76,6 +76,49 @@
         .criador-tabla thead .sticky-provincia {
             z-index: 40;
         }
+
+        .precios-tabla th,
+        .precios-tabla td {
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .precios-tabla th:last-child,
+        .precios-tabla td:last-child {
+            border-right: 0;
+        }
+
+        .precios-tabla .col-prov {
+            min-width: 130px;
+            width: 130px;
+        }
+
+        .precios-tabla .col-supplier {
+            min-width: 165px;
+            width: 165px;
+        }
+
+        .precios-tabla .col-semana {
+            min-width: 92px;
+            width: 92px;
+        }
+
+        .precios-tabla .sticky-prov {
+            position: sticky;
+            left: 0;
+            z-index: 20;
+        }
+
+        .precios-tabla .sticky-supplier {
+            position: sticky;
+            left: 130px;
+            z-index: 20;
+        }
+
+        .precios-tabla thead .sticky-prov,
+        .precios-tabla thead .sticky-supplier {
+            z-index: 40;
+        }
     </style>
 </head>
 
@@ -133,6 +176,9 @@
                         <option value="CantidadesTabla" selected>CantidadesTabla</option>
                         <option value="CantidadesGrafico">CantidadesGrafico</option>
                         <option value="DashCantidades">DashCantidades</option>
+                        <option value="PreciosGrafico">PreciosGrafico</option>
+                        <option value="PreciosTabla">PreciosTabla</option>
+                        <option value="DashPrecios">DashPrecios</option>
                     </select>
                 </div>
 
@@ -170,7 +216,7 @@
                     </div>
                 </div>
 
-                <div class="relative flex flex-col">
+                <div id="filtro-tipo" class="relative flex flex-col">
                     <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO</label>
                     <button id="ms-tipo-btn" type="button"
                         class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[200px] max-w-[280px]">
@@ -221,6 +267,40 @@
                     </div>
                 </div>
 
+                <div id="filtro-provincia-precio" class="relative hidden flex-col">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PROVINCIA</label>
+                    <button id="ms-provincia-precio-btn" type="button"
+                        class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[210px] max-w-[280px]">
+                        <span id="ms-provincia-precio-label" class="truncate text-left select-none">(Todo)</span>
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="ms-provincia-precio-dropdown"
+                        class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                        <input id="ms-provincia-precio-search" type="text" placeholder="Buscar provincia..."
+                            class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                        <div id="ms-provincia-precio-options" class="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                    </div>
+                </div>
+
+                <div id="filtro-proveedor-precio" class="relative hidden flex-col">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">NOMBRE CORREGIDO</label>
+                    <button id="ms-proveedor-precio-btn" type="button"
+                        class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[250px] max-w-[340px]">
+                        <span id="ms-proveedor-precio-label" class="truncate text-left select-none">(Todo)</span>
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div id="ms-proveedor-precio-dropdown"
+                        class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                        <input id="ms-proveedor-precio-search" type="text" placeholder="Buscar proveedor..."
+                            class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                        <div id="ms-proveedor-precio-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                    </div>
+                </div>
+
                 <div id="acciones-grafico" class="flex items-center gap-2 ml-auto sm:ml-0">
                     <button id="btn-cargar" type="button"
                         class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
@@ -256,8 +336,10 @@
     <script src="../../assets/utils-graficos/excel-export-helper.js?v=20260919_4"></script>
     <script src="charts/chart.criadorempre.cantidadestabla.js?v=20261029_4"></script>
     <script src="charts/chart.criadorempre.cantidadesgrafico.js?v=20261029_3"></script>
+    <script src="charts/chart.criadorempre.preciosgrafico.js?v=20261030_1"></script>
+    <script src="charts/chart.criadorempre.preciostabla.js?v=20261031_1"></script>
     <script src="CriadorEmpre.service.js?v=20261029_2"></script>
-    <script src="CriadorEmpre.controller.js?v=20261029_4"></script>
+    <script src="CriadorEmpre.controller.js?v=20261031_3"></script>
 </body>
 
 </html>

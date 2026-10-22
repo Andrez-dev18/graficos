@@ -279,7 +279,7 @@ class CantidadesTablaHandler
         return $provincias;
     }
 
-    private static function normalizarSeleccion($valor, array $disponibles): array
+    public static function normalizarSeleccion($valor, array $disponibles): array
     {
         if ($valor === null) {
             return [];
@@ -312,7 +312,7 @@ class CantidadesTablaHandler
         return $resultado;
     }
 
-    private static function resolverFecha($valor, string $defecto): string
+    public static function resolverFecha($valor, string $defecto): string
     {
         $valor = trim((string)$valor);
 
@@ -331,7 +331,7 @@ class CantidadesTablaHandler
         return $valor;
     }
 
-    private static function construirColumnas(string $fechaInicio, string $fechaFin): array
+    public static function construirColumnas(string $fechaInicio, string $fechaFin): array
     {
         $inicio = new DateTimeImmutable($fechaInicio);
         $fin = new DateTimeImmutable($fechaFin);

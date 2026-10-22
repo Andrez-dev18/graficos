@@ -13,6 +13,21 @@ const CRIADOR_EMPRE_GRAFICOS = {
         tipoGrafico: 'DashCantidades',
         titulo: 'Volumen Semanal Total',
         chartKeys: ['CriadorEmpreCantidadesTabla', 'CriadorEmpreCantidadesGrafico']
+    },
+    PreciosGrafico: {
+        tipoGrafico: 'PreciosGrafico',
+        titulo: 'Precio de Proveedores de Pollo BB',
+        chartKey: 'CriadorEmprePreciosGrafico'
+    },
+    PreciosTabla: {
+        tipoGrafico: 'PreciosTabla',
+        titulo: 'Precio de Proveedores de Pollo BB',
+        chartKey: 'CriadorEmprePreciosTabla'
+    },
+    DashPrecios: {
+        tipoGrafico: 'DashPrecios',
+        titulo: 'Precio de Proveedores de Pollo BB',
+        chartKeys: ['CriadorEmprePreciosTabla', 'CriadorEmprePreciosGrafico']
     }
 };
 
@@ -28,12 +43,18 @@ class CriadorEmpreController {
         this.tiposDefault = [];
         this.provinciasDefault = [];
         this.proveedoresDefault = [];
+        this.provinciasPrecioOptions = [];
+        this.proveedoresPrecioOptions = [];
+        this.provinciasPrecioDefault = [];
+        this.proveedoresPrecioDefault = [];
         this.aniosOptions = [];
         this.anioInicioDefault = null;
         this.anioFinDefault = null;
         this.msTipo = null;
         this.msProvincia = null;
         this.msProveedor = null;
+        this.msProvinciaPrecio = null;
+        this.msProveedorPrecio = null;
         this.filtrosCargados = false;
         this.cargando = false;
         this.requestSeq = 0;
@@ -72,8 +93,11 @@ class CriadorEmpreController {
         this.filtrosAnioGrafico = document.getElementById('filtros-anio-grafico');
         this.selectAnioInicio = document.getElementById('select-anio-inicio');
         this.selectAnioFin = document.getElementById('select-anio-fin');
+        this.filtroTipo = document.getElementById('filtro-tipo');
         this.filtroProvincia = document.getElementById('filtro-provincia');
         this.filtroProveedor = document.getElementById('filtro-proveedor');
+        this.filtroProvinciaPrecio = document.getElementById('filtro-provincia-precio');
+        this.filtroProveedorPrecio = document.getElementById('filtro-proveedor-precio');
         this.accionesGrafico = document.getElementById('acciones-grafico');
         this.btnCargar = document.getElementById('btn-cargar');
         this.btnLimpiar = document.getElementById('btn-limpiar');
@@ -118,7 +142,7 @@ class CriadorEmpreController {
 
         if (this.btnLimpiar) {
             this.btnLimpiar.addEventListener('click', async () => {
-                if (this.esDashCantidades()) {
+                if (this.esDashCantidades() || this.esPrecios()) {
                     this.inicializarPeriodoAnioActual();
                 } else {
                     this.inicializarPeriodoDefecto();
@@ -144,7 +168,7 @@ class CriadorEmpreController {
         this.datos = null;
         this.actualizarVisibilidadFiltros();
 
-        if (this.esDashCantidades()) {
+        if (this.esDashCantidades() || this.esPrecios()) {
             this.inicializarPeriodoAnioActual();
         }
 
@@ -165,16 +189,39 @@ class CriadorEmpreController {
         return tipo === 'DashCantidades';
     }
 
+    esPreciosGrafico(tipo = this.tipoGraficoActual) {
+        return tipo === 'PreciosGrafico';
+    }
+
+    esPreciosTabla(tipo = this.tipoGraficoActual) {
+        return tipo === 'PreciosTabla';
+    }
+
+    esDashPrecios(tipo = this.tipoGraficoActual) {
+        return tipo === 'DashPrecios';
+    }
+
+    esPrecios(tipo = this.tipoGraficoActual) {
+        return this.esPreciosGrafico(tipo) || this.esPreciosTabla(tipo) || this.esDashPrecios(tipo);
+    }
+
     actualizarVisibilidadFiltros() {
-        const mostrarPeriodo = this.esGraficoTabla() || this.esDashCantidades();
+        const esPrecios = this.esPrecios();
+        const mostrarPeriodo = this.esGraficoTabla() || this.esDashCantidades() || esPrecios;
         const mostrarAnios = this.esGraficoLineas();
-        const mostrarProvincia = !mostrarAnios;
+        const mostrarTipo = !esPrecios;
+        const mostrarProvincia = this.esGraficoTabla() || this.esDashCantidades();
         const mostrarProveedor = this.esDashCantidades();
+        const mostrarProvinciaPrecio = esPrecios;
+        const mostrarProveedorPrecio = this.esPreciosGrafico() || this.esDashPrecios();
 
         this.toggleElemento(this.filtrosPeriodoFechas, mostrarPeriodo);
         this.toggleElemento(this.filtrosAnioGrafico, mostrarAnios);
+        this.toggleElemento(this.filtroTipo, mostrarTipo);
         this.toggleElemento(this.filtroProvincia, mostrarProvincia);
         this.toggleElemento(this.filtroProveedor, mostrarProveedor);
+        this.toggleElemento(this.filtroProvinciaPrecio, mostrarProvinciaPrecio);
+        this.toggleElemento(this.filtroProveedorPrecio, mostrarProveedorPrecio);
     }
 
     toggleElemento(elemento, mostrar) {
@@ -266,9 +313,13 @@ class CriadorEmpreController {
         this.tiposOptions = Array.isArray(data.tipos) ? data.tipos : [];
         this.provinciasOptions = Array.isArray(data.provincias) ? data.provincias : [];
         this.proveedoresOptions = Array.isArray(data.proveedores) ? data.proveedores : [];
+        this.provinciasPrecioOptions = Array.isArray(data.provincias_precio) ? data.provincias_precio : [];
+        this.proveedoresPrecioOptions = Array.isArray(data.proveedores_precio) ? data.proveedores_precio : [];
         this.tiposDefault = Array.isArray(data.tipos_default) ? data.tipos_default : [];
         this.provinciasDefault = Array.isArray(data.provincias_default) ? data.provincias_default : [];
         this.proveedoresDefault = Array.isArray(data.proveedores_default) ? data.proveedores_default : [];
+        this.provinciasPrecioDefault = Array.isArray(data.provincias_precio_default) ? data.provincias_precio_default : [];
+        this.proveedoresPrecioDefault = Array.isArray(data.proveedores_precio_default) ? data.proveedores_precio_default : [];
 
         if (this.tiposDefault.length === 0) {
             this.tiposDefault = this.tiposOptions.map(item => String(item.id));
@@ -280,6 +331,14 @@ class CriadorEmpreController {
 
         if (this.proveedoresDefault.length === 0) {
             this.proveedoresDefault = this.proveedoresOptions.map(item => String(item.id));
+        }
+
+        if (this.provinciasPrecioDefault.length === 0) {
+            this.provinciasPrecioDefault = this.provinciasPrecioOptions.map(item => String(item.id));
+        }
+
+        if (this.proveedoresPrecioDefault.length === 0) {
+            this.proveedoresPrecioDefault = this.proveedoresPrecioOptions.map(item => String(item.id));
         }
 
         this.inicializarMultiSelects();
@@ -353,6 +412,24 @@ class CriadorEmpreController {
             };
         });
 
+        const opcionesProvinciaPrecio = this.provinciasPrecioOptions.map(item => {
+            const id = String(item.id);
+            return {
+                id,
+                label: item.label || id,
+                selected: this.provinciasPrecioDefault.includes(id)
+            };
+        });
+
+        const opcionesProveedorPrecio = this.proveedoresPrecioOptions.map(item => {
+            const id = String(item.id);
+            return {
+                id,
+                label: item.label || id,
+                selected: this.proveedoresPrecioDefault.includes(id)
+            };
+        });
+
         if (!this.msTipo) {
             this.msTipo = new CustomMultiSelect({
                 btnId: 'ms-tipo-btn',
@@ -397,6 +474,36 @@ class CriadorEmpreController {
             this.msProveedor.clearSelection(false);
             this.msProveedor.setOptions(opcionesProveedor);
         }
+
+        if (!this.msProvinciaPrecio) {
+            this.msProvinciaPrecio = new CustomMultiSelect({
+                btnId: 'ms-provincia-precio-btn',
+                labelId: 'ms-provincia-precio-label',
+                dropdownId: 'ms-provincia-precio-dropdown',
+                searchId: 'ms-provincia-precio-search',
+                optionsContainerId: 'ms-provincia-precio-options',
+                title: 'PROVINCIA',
+                options: opcionesProvinciaPrecio
+            });
+        } else {
+            this.msProvinciaPrecio.clearSelection(false);
+            this.msProvinciaPrecio.setOptions(opcionesProvinciaPrecio);
+        }
+
+        if (!this.msProveedorPrecio) {
+            this.msProveedorPrecio = new CustomMultiSelect({
+                btnId: 'ms-proveedor-precio-btn',
+                labelId: 'ms-proveedor-precio-label',
+                dropdownId: 'ms-proveedor-precio-dropdown',
+                searchId: 'ms-proveedor-precio-search',
+                optionsContainerId: 'ms-proveedor-precio-options',
+                title: 'NOMBRE CORREGIDO',
+                options: opcionesProveedorPrecio
+            });
+        } else {
+            this.msProveedorPrecio.clearSelection(false);
+            this.msProveedorPrecio.setOptions(opcionesProveedorPrecio);
+        }
     }
 
     resetSeleccionFiltros() {
@@ -424,6 +531,22 @@ class CriadorEmpreController {
             this.msProveedor.render();
         }
 
+        if (this.msProvinciaPrecio) {
+            this.msProvinciaPrecio.options.forEach(opcion => {
+                opcion.selected = this.provinciasPrecioDefault.includes(opcion.id);
+            });
+            this.msProvinciaPrecio.updateLabel(false);
+            this.msProvinciaPrecio.render();
+        }
+
+        if (this.msProveedorPrecio) {
+            this.msProveedorPrecio.options.forEach(opcion => {
+                opcion.selected = this.proveedoresPrecioDefault.includes(opcion.id);
+            });
+            this.msProveedorPrecio.updateLabel(false);
+            this.msProveedorPrecio.render();
+        }
+
         if (this.selectAnioInicio && this.anioInicioDefault !== null) {
             this.selectAnioInicio.value = String(this.anioInicioDefault);
         }
@@ -448,6 +571,24 @@ class CriadorEmpreController {
                 tipos,
                 provincias: provinciasTabla,
                 proveedores
+            };
+        }
+
+        if (this.esPrecios()) {
+            const rango = this.obtenerRango();
+            const provinciasPrecio = this.msProvinciaPrecio
+                ? this.msProvinciaPrecio.getSelectedValues()
+                : [];
+            const proveedoresPrecio = (this.esPreciosGrafico() || this.esDashPrecios())
+                ? (this.msProveedorPrecio ? this.msProveedorPrecio.getSelectedValues() : [])
+                : this.proveedoresPrecioDefault;
+
+            return {
+                tipo_grafico: this.config.tipoGrafico,
+                fecha_inicio: rango.fechaInicio,
+                fecha_fin: rango.fechaFin,
+                provincias: provinciasPrecio,
+                proveedores: proveedoresPrecio
             };
         }
 
@@ -510,9 +651,9 @@ class CriadorEmpreController {
                 return;
             }
 
-            if (this.esDashCantidades()) {
+            if (this.esDashCantidades() || this.esDashPrecios()) {
                 if (!data || !data.tabla || !data.grafico) {
-                    throw new Error('No se recibieron datos para DashCantidades.');
+                    throw new Error('No se recibieron datos para el dashboard.');
                 }
             } else if (!data || !Array.isArray(data.columnas)) {
                 throw new Error('No se recibieron datos para CriadorEmpre.');
@@ -552,6 +693,25 @@ class CriadorEmpreController {
 
             componenteTabla.render(this, this.datos.tabla, 'dash-cantidades-tabla');
             componenteGrafico.render(this, this.datos.grafico, 'dash-cantidades-grafico');
+            return;
+        }
+
+        if (this.esDashPrecios()) {
+            const componenteTabla = window.ChartRegistry && window.ChartRegistry['CriadorEmprePreciosTabla'];
+            const componenteGrafico = window.ChartRegistry && window.ChartRegistry['CriadorEmprePreciosGrafico'];
+
+            if (!componenteTabla || !componenteGrafico) {
+                this.mostrarError('No se encontraron los componentes de DashPrecios.');
+                return;
+            }
+
+            this.contenedorGraficos.innerHTML = `
+                <div id="dash-precios-tabla"></div>
+                <div id="dash-precios-grafico"></div>
+            `;
+
+            componenteTabla.render(this, this.datos.tabla, 'dash-precios-tabla');
+            componenteGrafico.render(this, this.datos.grafico, 'dash-precios-grafico');
             return;
         }
 
