@@ -108,9 +108,12 @@ class ParticipacionMercadoHandler
         return $fechas;
     }
 
-    private static function obtenerOpciones(PDO $db, array $config, string $anio): array
-    {
-        [$fechaInicio, $fechaFin] = EmpresaChartHelper::rangoAnio($anio);
+    private static function obtenerOpcionesRango(
+        PDO $db,
+        array $config,
+        string $fechaInicio,
+        string $fechaFin
+    ): array {
         $extra = $config['where_extra'] !== '' ? ' AND ' . $config['where_extra'] : '';
         $opciones = [];
 
@@ -120,7 +123,7 @@ class ParticipacionMercadoHandler
                 SELECT DISTINCT {$columna} AS nombre
                 FROM {$config['from']}
                 WHERE a.fecha >= ?
-                  AND a.fecha < ?
+                  AND a.fecha <= ?
                   {$extra}
                   AND {$columna} IS NOT NULL
                   AND {$columna} <> ''
@@ -145,15 +148,30 @@ class ParticipacionMercadoHandler
         return $opciones;
     }
 
-    private static function construirFiltros(PDO $db, array $config, string $anio): array
+    private static function obtenerOpciones(PDO $db, array $config, string $anio): array
     {
-        $opciones = self::obtenerOpciones($db, $config, $anio);
+        [$fechaInicio, $fechaFin] = EmpresaChartHelper::rangoAnio($anio);
+        $fechaFin = (new DateTimeImmutable($fechaFin))->modify('-1 day')->format('Y-m-d');
+
+        return self::obtenerOpcionesRango($db, $config, $fechaInicio, $fechaFin);
+    }
+
+    private static function construirFiltrosBase(
+        PDO $db,
+        array $config,
+        string $anio,
+        string $fechaInicio,
+        string $fechaFin
+    ): array {
+        $opciones = self::obtenerOpcionesRango($db, $config, $fechaInicio, $fechaFin);
 
         $respuesta = [
             'anio' => $anio,
             'titulo' => $config['titulo'],
             'etiqueta_serie' => $config['etiqueta_serie'],
-            'etiqueta_leyenda' => $config['etiqueta_leyenda']
+            'etiqueta_leyenda' => $config['etiqueta_leyenda'],
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin' => $fechaFin
         ];
 
         foreach ($opciones as $clave => $lista) {
@@ -161,6 +179,31 @@ class ParticipacionMercadoHandler
         }
 
         return $respuesta;
+    }
+
+    private static function construirFiltros(PDO $db, array $config, string $anio): array
+    {
+        [$fechaInicio, $fechaFin] = EmpresaChartHelper::rangoAnio($anio);
+        $fechaFin = (new DateTimeImmutable($fechaFin))->modify('-1 day')->format('Y-m-d');
+
+        return self::construirFiltrosBase($db, $config, $anio, $fechaInicio, $fechaFin);
+    }
+
+    private static function construirFiltrosRango(
+        PDO $db,
+        array $config,
+        string $anio,
+        string $fechaInicio,
+        string $fechaFin
+    ): array {
+        $fechaInicio = self::resolverFecha($fechaInicio, '');
+        $fechaFin = self::resolverFecha($fechaFin, '');
+
+        if ($fechaInicio > $fechaFin) {
+            throw new InvalidArgumentException('La fecha inicial no puede ser mayor que la fecha final.');
+        }
+
+        return self::construirFiltrosBase($db, $config, $anio, $fechaInicio, $fechaFin);
     }
 
     private static function periodoProv(PDO $db, string $anio): array
@@ -242,7 +285,7 @@ class ParticipacionMercadoHandler
             throw new InvalidArgumentException('La fecha inicial no puede ser mayor que la fecha final.');
         }
 
-        $opciones = self::obtenerOpciones($db, $config, $anio);
+        $opciones = self::obtenerOpcionesRango($db, $config, $fechaInicio, $fechaFin);
         $seleccionados = [];
 
         foreach ($config['filtros'] as $clave => $filtro) {
@@ -396,5 +439,35 @@ class ParticipacionMercadoHandler
     public static function handleProv(PDO $db, array $filtros, string $anio = '2026'): array
     {
         return self::construirParticipacion($db, self::configuracion('PROV'), $filtros, $anio);
+    }
+
+    public static function obtenerFiltrosRango(
+        PDO $db,
+        string $fechaInicio,
+        string $fechaFin,
+        string $anio = '2026'
+    ): array {
+        return self::construirFiltrosRango(
+            $db,
+            self::configuracion('AQP'),
+            $anio,
+            $fechaInicio,
+            $fechaFin
+        );
+    }
+
+    public static function obtenerFiltrosProvRango(
+        PDO $db,
+        string $fechaInicio,
+        string $fechaFin,
+        string $anio = '2026'
+    ): array {
+        return self::construirFiltrosRango(
+            $db,
+            self::configuracion('PROV'),
+            $anio,
+            $fechaInicio,
+            $fechaFin
+        );
     }
 }

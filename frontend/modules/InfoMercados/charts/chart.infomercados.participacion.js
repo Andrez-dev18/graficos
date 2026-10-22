@@ -18,6 +18,65 @@ window.ChartInfoMercadosParticipacionAQP = {
         '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC', '#86BCB6', '#D37295'
     ],
 
+    coloresAqp: {
+        'EL ROSARIO': '#59A14F',
+        'GRANJA RENZO': '#4E79A7',
+        'GRANJA RINCONADA DEL SUR': '#2F4B7C',
+        'GRANJAS CHICAS': '#E15759',
+        'GRANJAS CHICAS(PEDREGAL-LA JOYA)': '#FF9DA7',
+        'GRANJAS DE LIMA': '#76B7B2',
+        'RICO POLLO': '#EDC948',
+        'RICO POLLO S.A.C': '#B07AA1',
+        'FAFIO': '#E15759',
+        'GRANJAS INFORMALES': '#E15759',
+        'ROSARIO DEL SUR': '#E15759',
+        'RP/GRS': '#E15759',
+        'AVELINO CACERES': '#F28E2B'
+    },
+
+    coloresProv: {
+        'MOSCOSO': '#499894',
+        'GRANJA RINCONADA DEL SUR': '#4E79A7',
+        'ITE (JAIME)': '#76B7B2',
+        'ITE (TEOFILO)': '#59A14F',
+        'CRIADORES LOCALES': '#F28E2B',
+        'POLLO LA JOYA (WILFREDO CCOSI)': '#EDC948',
+        'RICO POLLO': '#F1CE63',
+        'MIRIAM GUTIERREZ': '#B6992D',
+        'SANTA ELENA': '#FF9DA7',
+        'ASOC. SONDOR': '#E15759',
+        'CARIOCA': '#E15759',
+        'GAMBOA Y MANTILLA': '#E15759',
+        'GRANJA CHICA': '#E15759',
+        'GRANJAS CHICAS': '#E15759',
+        'JCHE ( FAFIO )': '#E15759',
+        'JORGE PAN': '#E15759',
+        'LA GENOVESA': '#E15759',
+        'MECHA PERCA': '#E15759',
+        'MIRIAN GUTIERREZ': '#E15759',
+        'MOTTA (POLLO DEL PEDREGAL)': '#E15759',
+        'NAVARRO': '#E15759',
+        'POLLO DEL NORTE (CHRISTIAN)': '#E15759',
+        'POLLO DEL PEDREGAL (GAMBOA)': '#E15759',
+        'ROSARIO': '#E15759',
+        'SANTA ANGELA': '#E15759',
+        'SUMAQ POLLO': '#E15759'
+    },
+
+    colorSerie(serie, indice, familia) {
+        const nombre = String(serie.label || serie.empresa || serie.proveedor || '').trim().toUpperCase();
+
+        if (familia === 'AQP' && this.coloresAqp[nombre]) {
+            return this.coloresAqp[nombre];
+        }
+
+        if (familia === 'PROV' && this.coloresProv[nombre]) {
+            return this.coloresProv[nombre];
+        }
+
+        return this.paleta[indice % this.paleta.length];
+    },
+
     render(controller, data, targetContainer = 'contenedor-graficos-lista') {
         const contenedor = document.getElementById(targetContainer);
         if (!contenedor) return;
@@ -29,7 +88,17 @@ window.ChartInfoMercadosParticipacionAQP = {
         const labels = fechas.map(item => item.label || item.fecha || '');
 
         const anio = (data && data.anio) || '2026';
+        const familia = (data && data.familia) || 'AQP';
         const titulo = (data && data.titulo) || 'Participación de Mercado';
+        const anios = Array.from(new Set(
+            fechas
+                .map(item => String(item.fecha || '').slice(0, 4))
+                .filter(valor => /^\d{4}$/.test(valor))
+        )).sort();
+        const etiquetaAnio = (data && data.etiqueta_anio)
+            || (anios.length > 1
+                ? `${anios[0]} - ${anios[anios.length - 1]}`
+                : `Año ${anio}`);
         const etiquetaSerie = (data && data.etiqueta_serie) || 'NomEmpresa';
         const etiquetaLeyenda = (data && data.etiqueta_leyenda) || 'EMPRESAS';
         const tipoSerie = etiquetaSerie === 'NomProveedor' ? 'proveedor' : 'empresa';
@@ -77,7 +146,7 @@ window.ChartInfoMercadosParticipacionAQP = {
                 <div>
                     <div class="flex items-center gap-2">
                         <h2 class="text-base sm:text-lg font-bold text-slate-800 tracking-tight">${escapeHtml(titulo)}</h2>
-                        <span class="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">Año ${escapeHtml(anio)}</span>
+                        <span class="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">${escapeHtml(etiquetaAnio)}</span>
                     </div>
                     <p class="text-xs text-slate-400 font-medium mt-0.5">Participación porcentual diaria por ${escapeHtml(tipoSerie)}</p>
                 </div>
@@ -122,7 +191,7 @@ window.ChartInfoMercadosParticipacionAQP = {
                         <div id="participacion-aqp-legend"
                             class="flex flex-wrap lg:flex-col gap-1.5 max-h-[560px] overflow-y-auto custom-scrollbar pr-1">
                             ${series.map((serie, indice) => {
-                                const color = this.paleta[indice % this.paleta.length];
+                                const color = this.colorSerie(serie, indice, familia);
                                 const label = escapeHtml(serie.label || serie.empresa || '');
                                 return `
                                     <button type="button" data-dataset-index="${indice}" aria-pressed="true"
@@ -158,7 +227,7 @@ window.ChartInfoMercadosParticipacionAQP = {
         }
 
         const datasets = series.map((serie, indice) => {
-            const color = this.paleta[indice % this.paleta.length];
+            const color = this.colorSerie(serie, indice, familia);
             const valoresRaw = fechas.map((_, i) => {
                 const valor = Array.isArray(serie.valores) ? serie.valores[i] : null;
                 return valor && typeof valor === 'object' ? valor : null;
@@ -218,9 +287,13 @@ window.ChartInfoMercadosParticipacionAQP = {
 
                         const anchoTexto = ctx.measureText(texto).width;
                         const x = element.x + 3;
-                        const y = element.y - 5;
                         const anchoEtiqueta = 14;
                         const altoEtiqueta = anchoTexto;
+                        let y = element.y - 5;
+
+                        if (y - altoEtiqueta < 4) {
+                            y = element.y + altoEtiqueta + 5;
+                        }
 
                         candidatos.push({
                             x1: x,
@@ -239,7 +312,7 @@ window.ChartInfoMercadosParticipacionAQP = {
                 candidatos.sort((a, b) => b.valor - a.valor);
 
                 candidatos.forEach(candidato => {
-                    if (candidato.y1 < chartArea.top || candidato.y2 > chartArea.bottom) return;
+                    if (candidato.y1 < 4 || candidato.y2 > chartArea.bottom) return;
                     if (candidato.x1 < chartArea.left || candidato.x2 > chartArea.right) return;
 
                     const colisiona = ocupados.some(ocupado =>
@@ -435,7 +508,7 @@ window.ChartInfoMercadosParticipacionAQP = {
                     intersect: true
                 },
                 layout: {
-                    padding: { top: 42, right: 12, bottom: 8, left: 8 }
+                    padding: { top: 60, right: 12, bottom: 8, left: 8 }
                 },
                 plugins: {
                     legend: {

@@ -338,7 +338,22 @@ class InfoMercadosController
                 throw new InvalidArgumentException('Año no válido. Participación de Mercado AQP solo está disponible para 2026.');
             }
 
-            $resultado = $this->service->obtenerParticipacionMercadoAqpFiltros($anio);
+            $fechaInicio = isset($_GET['fecha_inicio']) ? trim((string)$_GET['fecha_inicio']) : '';
+            $fechaFin = isset($_GET['fecha_fin']) ? trim((string)$_GET['fecha_fin']) : '';
+
+            if ($fechaInicio !== '' || $fechaFin !== '') {
+                if ($fechaInicio === '' || $fechaFin === '') {
+                    throw new InvalidArgumentException('Debes enviar fecha_inicio y fecha_fin.');
+                }
+
+                $resultado = $this->service->obtenerParticipacionMercadoAqpFiltrosRango(
+                    $fechaInicio,
+                    $fechaFin,
+                    $anio
+                );
+            } else {
+                $resultado = $this->service->obtenerParticipacionMercadoAqpFiltros($anio);
+            }
 
             echo json_encode([
                 'success' => true,
@@ -420,7 +435,22 @@ class InfoMercadosController
                 throw new InvalidArgumentException('Año no válido. Participación de Mercado PROV solo está disponible para 2026.');
             }
 
-            $resultado = $this->service->obtenerParticipacionMercadoProvFiltros($anio);
+            $fechaInicio = isset($_GET['fecha_inicio']) ? trim((string)$_GET['fecha_inicio']) : '';
+            $fechaFin = isset($_GET['fecha_fin']) ? trim((string)$_GET['fecha_fin']) : '';
+
+            if ($fechaInicio !== '' || $fechaFin !== '') {
+                if ($fechaInicio === '' || $fechaFin === '') {
+                    throw new InvalidArgumentException('Debes enviar fecha_inicio y fecha_fin.');
+                }
+
+                $resultado = $this->service->obtenerParticipacionMercadoProvFiltrosRango(
+                    $fechaInicio,
+                    $fechaFin,
+                    $anio
+                );
+            } else {
+                $resultado = $this->service->obtenerParticipacionMercadoProvFiltros($anio);
+            }
 
             echo json_encode([
                 'success' => true,

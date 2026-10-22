@@ -56,6 +56,19 @@ class InfoMercadosService
         return ParticipacionMercadoHandler::obtenerFiltros($this->db, $anio);
     }
 
+    public function obtenerParticipacionMercadoAqpFiltrosRango(
+        string $fechaInicio,
+        string $fechaFin,
+        string $anio = '2026'
+    ): array {
+        return ParticipacionMercadoHandler::obtenerFiltrosRango(
+            $this->db,
+            $fechaInicio,
+            $fechaFin,
+            $anio
+        );
+    }
+
     public function obtenerParticipacionMercadoAqp(array $filtros, string $anio = '2026'): array
     {
         return ParticipacionMercadoHandler::handle($this->db, $filtros, $anio);
@@ -64,6 +77,19 @@ class InfoMercadosService
     public function obtenerParticipacionMercadoProvFiltros(string $anio = '2026'): array
     {
         return ParticipacionMercadoHandler::obtenerFiltrosProv($this->db, $anio);
+    }
+
+    public function obtenerParticipacionMercadoProvFiltrosRango(
+        string $fechaInicio,
+        string $fechaFin,
+        string $anio = '2026'
+    ): array {
+        return ParticipacionMercadoHandler::obtenerFiltrosProvRango(
+            $this->db,
+            $fechaInicio,
+            $fechaFin,
+            $anio
+        );
     }
 
     public function obtenerParticipacionMercadoProv(array $filtros, string $anio = '2026'): array
