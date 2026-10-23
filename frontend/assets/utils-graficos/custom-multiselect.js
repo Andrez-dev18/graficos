@@ -155,6 +155,15 @@ class CustomMultiSelect {
         return this.getSelectedValues();
     }
 
+    setSelectedValues(selectedIds = [], triggerChange = false) {
+        const idList = Array.isArray(selectedIds) ? selectedIds.map(String) : [String(selectedIds)];
+        this.options.forEach(o => {
+            o.selected = idList.includes(o.id);
+        });
+        this.updateLabel(triggerChange);
+        this.render();
+    }
+
     selectAll(triggerChange = true) {
         this.options.forEach(o => o.selected = true);
         this.updateLabel(triggerChange);
