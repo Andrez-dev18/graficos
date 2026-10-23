@@ -1,0 +1,84 @@
+/**
+ * Componente DashGral - Tiendas y Mercados
+ * Cuatro hojas de barras facetadas, igual que el dashboard de Tableau.
+ */
+window.ChartRegistry = window.ChartRegistry || {};
+
+window.ChartTiendasMercadosDashGral = {
+    charts: [],
+
+    render(controller, data, targetContainer = 'contenedor-graficos-lista') {
+        const contenedor = document.getElementById(targetContainer);
+        if (!contenedor) return;
+
+        this.destroy();
+
+        const helper = window.TiendasMercadosHelper;
+        if (!helper) {
+            contenedor.innerHTML = '<div class="p-6 bg-red-50 border border-red-200 text-red-700 rounded-xl">No se encontró el helper de Tiendas y Mercados.</div>';
+            return;
+        }
+
+        const filas = Array.isArray(data && data.filas) ? data.filas : [];
+        const titulo = (data && data.titulo) || 'Tiendas y Mercados';
+        const fechaInicio = (data && data.fecha_inicio) || '';
+        const fechaFin = (data && data.fecha_fin) || '';
+
+        if (filas.length === 0) {
+            contenedor.innerHTML = `
+                <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-base sm:text-lg font-bold text-slate-800">${helper.escapeHtml(titulo)}</h2>
+                        <p class="text-[11px] text-slate-400 mt-0.5">${helper.escapeHtml(helper.formatearPeriodo(fechaInicio, fechaFin))}</p>
+                    </div>
+                    <div class="p-10 text-center text-slate-400 font-medium">
+                        <i class="fas fa-inbox text-3xl text-slate-300 mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-600">No hay datos para los filtros seleccionados.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const resumen = helper.construirResumen(data);
+
+        contenedor.innerHTML = `
+            <div class="w-full flex flex-col gap-5">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                    <div id="tiendas-dashgral-general-cant"></div>
+                    <div id="tiendas-dashgral-general-porc"></div>
+                    <div id="tiendas-dashgral-tamanio-porc"></div>
+                    <div id="tiendas-dashgral-tamanio-cant"></div>
+                </div>
+            </div>
+        `;
+
+        const paneles = [
+            ['tiendas-dashgral-general-cant', 'PorcGeneralcant'],
+            ['tiendas-dashgral-general-porc', 'PorcGeneral'],
+            ['tiendas-dashgral-tamanio-porc', 'PorTipoEstable'],
+            ['tiendas-dashgral-tamanio-cant', 'PorTipoEstableCant']
+        ];
+
+        paneles.forEach(([id, tipo]) => {
+            const panel = document.getElementById(id);
+            const charts = helper.renderHojaBarras(panel, tipo, resumen, 360);
+            this.charts.push(...charts);
+        });
+    },
+
+    destroy() {
+        if (window.TiendasMercadosHelper) {
+            window.TiendasMercadosHelper.ocultarTooltip();
+        }
+
+        this.charts.forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
+        this.charts = [];
+    }
+};
+
+window.ChartRegistry['TiendasMercadosDashGral'] = window.ChartTiendasMercadosDashGral;
