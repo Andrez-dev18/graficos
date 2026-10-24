@@ -115,7 +115,7 @@ window.ChartIngEmpLimaParticipacionMercadoSemanal = {
         }
 
         const labels = semanas.map(s => s.label);
-        const minWidth = Math.max(1100, semanas.length * 36 + 200);
+        const minWidth = semanas.length * 36 + 200;
 
         contenedor.innerHTML = `
             <div class="w-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
@@ -123,7 +123,7 @@ window.ChartIngEmpLimaParticipacionMercadoSemanal = {
                 <div class="px-4 pt-3 pb-6 sm:px-6">
                     <div class="text-center text-xs font-semibold text-slate-500 mb-1">Semana de fecha</div>
                     <div class="w-full overflow-x-auto custom-scrollbar pb-3">
-                        <div class="relative" style="width:${minWidth}px; height: 620px;">
+                        <div class="relative w-full" style="min-width:${minWidth}px; height: 620px;">
                             <canvas id="canvas-ingemplima-semanal" style="display: block; width: 100%; height: 100%; image-rendering: -webkit-optimize-contrast; text-rendering: geometricPrecision;"></canvas>
                         </div>
                     </div>
