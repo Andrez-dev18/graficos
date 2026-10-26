@@ -152,7 +152,7 @@ class UsuarioRepository
         return $stmt->rowCount() > 0;
     }
 
-    public function tieneRolesActivos($codigoUsuario, $epre = 'RS', $idPrograma = 2)
+    public function tieneRolesActivos($codigoUsuario, $epre = 'RS', $idPrograma = 5)
     {
         $sql = "SELECT COUNT(*) 
                 FROM adm_usuario_rol ur

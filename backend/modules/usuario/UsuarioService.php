@@ -139,7 +139,7 @@ class UsuarioService
     }
 
 
-    public function tieneRolesActivos($codigoUsuario, $epre, $idPrograma = 2)
+    public function tieneRolesActivos($codigoUsuario, $epre, $idPrograma = 5)
     {
         return $this->repo->tieneRolesActivos($codigoUsuario, $epre, $idPrograma);
     }

@@ -32,7 +32,7 @@ class UsuarioController
             $codigoValidar = $resultado['data']['codigo'];
             $epreValidar   = $resultado['data']['epre'] ?? 'RS';
 
-            $tieneRoles = $this->service->tieneRolesActivos($codigoValidar, $epreValidar, 2);
+            $tieneRoles = $this->service->tieneRolesActivos($codigoValidar, $epreValidar, 5);
 
             if (!$tieneRoles) {
                 http_response_code(403);
@@ -48,7 +48,7 @@ class UsuarioController
             $_SESSION['nombre']        = $resultado['data']['nombre'];
             $_SESSION['epre']          = $epreValidar;
             $_SESSION['ruc']           = $resultado['data']['ruc'] ?? '';
-            $_SESSION['id_programa']   = '2'; // Forzamos el ID de contexto del sistema actual
+            $_SESSION['id_programa']   = '5'; // Forzamos el ID de contexto del sistema actual
 
             echo json_encode([
                 'success' => true,
@@ -72,7 +72,7 @@ class UsuarioController
         if (isset($_SESSION['usuario'])) {
             echo json_encode([
                 "success"     => true,
-                "id_programa" => $_SESSION['id_programa'] ?? '2',
+                "id_programa" => $_SESSION['id_programa'] ?? '5',
                 "usuario"     => $_SESSION['usuario'], 
                 "nombre"      => $_SESSION['nombre'],
                 "epre"        => $_SESSION['epre'] ?? 'RS',
