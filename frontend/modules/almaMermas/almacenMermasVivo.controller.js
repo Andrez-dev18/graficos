@@ -3,7 +3,11 @@ class AlmacenMermasVivoController {
         this.service = new AlmacenMermasVivoService();
         this.currentPeriodo = { inicio: '', fin: '' };
         this.cacheData = null;
+        this.cachePayload = null;
         this.activeCharts = [];
+        this.searchCliente = null;
+        this.searchPlacaMatriz = null;
+        this.filtrosMermaCargados = false;
 
         // Estado del combo de placas y modal DashPrueba1
         this.todasLasPlacas = [];
@@ -32,6 +36,8 @@ class AlmacenMermasVivoController {
 
         this.setupPeriodo();
         this.setupEventListeners();
+        this.actualizarVisibilidadFiltros();
+        this.inicializarFiltrosMerma();
         this.setupModales();
 
         // Mostrar loading inicial de página
@@ -118,11 +124,48 @@ class AlmacenMermasVivoController {
             this.limpiarFiltros();
         });
 
-        document.getElementById('select-tipo-grafico')?.addEventListener('change', (e) => {
-            const esDash1 = e.target.value === 'DashPrueba1';
-            const wrapperPlaca = document.getElementById('wrapper-filtro-placa');
-            if (wrapperPlaca) wrapperPlaca.classList.toggle('hidden', !esDash1);
+        document.getElementById('select-tipo-grafico')?.addEventListener('change', () => {
+            this.actualizarVisibilidadFiltros();
         });
+    }
+
+    actualizarVisibilidadFiltros() {
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
+        const esDash = tipoGrafico === 'DashPrueba1';
+        const esMatriz = tipoGrafico === 'PorcMermaDiariaProcesoCientePlaca';
+        const ocultarDato = ['PorcMermaDiariaProceso', 'PorcMermaDiariaProcesoCiente', 'PorcMermaDiariaProcesoCientePlaca'].includes(tipoGrafico);
+
+        document.getElementById('wrapper-filtro-placa')?.classList.toggle('hidden', !esDash);
+        document.getElementById('wrapper-filtro-cliente')?.classList.toggle('hidden', !esMatriz);
+        document.getElementById('wrapper-filtro-placa-matriz')?.classList.toggle('hidden', !esMatriz);
+        document.getElementById('wrapper-filtro-dato')?.classList.toggle('hidden', ocultarDato);
+    }
+
+    async inicializarFiltrosMerma() {
+        if (this.filtrosMermaCargados || typeof SearchableSelect === 'undefined') return;
+        this.filtrosMermaCargados = true;
+
+        this.searchCliente = new SearchableSelect({
+            containerId: 'searchable-filtro-cliente',
+            title: 'Cliente',
+            options: []
+        });
+
+        this.searchPlacaMatriz = new SearchableSelect({
+            containerId: 'searchable-filtro-placa-matriz',
+            title: 'Placa',
+            options: []
+        });
+
+        try {
+            const data = await this.service.obtenerFiltrosMerma();
+            if (data && data.success && data.payload) {
+                this.searchCliente?.setOptions(data.payload.clientes || []);
+                this.searchPlacaMatriz?.setOptions(data.payload.placas || []);
+            }
+        } catch (error) {
+            console.error('No se pudieron cargar los filtros de mermas:', error);
+        }
     }
 
     /**
@@ -137,10 +180,18 @@ class AlmacenMermasVivoController {
         const fechaFin = rango.fechaFin || rango.fin || '';
         this.currentPeriodo = { inicio: fechaInicio, fin: fechaFin };
 
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'PorcMermaProcesoDiaClientePlaca';
+        const esMatriz = tipoGrafico === 'PorcMermaDiariaProcesoCientePlaca';
+        const cliente = esMatriz && this.searchCliente ? this.searchCliente.getValue() : '';
+        const placa = esMatriz
+            ? (this.searchPlacaMatriz ? this.searchPlacaMatriz.getValue() : '')
+            : (document.getElementById('select-filtro-placa')?.value || 'TODO');
+
         return {
-            tipo_grafico: document.getElementById('select-tipo-grafico')?.value || 'PorcMermaProcesoDiaClientePlaca',
+            tipo_grafico: tipoGrafico,
             dato: document.getElementById('select-filtro-dato')?.value || 'TODO',
-            placa: document.getElementById('select-filtro-placa')?.value || 'TODO',
+            cliente: cliente || 'TODO',
+            placa: placa || 'TODO',
             fecha_inicio: fechaInicio,
             fecha_fin: fechaFin
         };
@@ -180,10 +231,12 @@ class AlmacenMermasVivoController {
 
             if (res && res.success && res.payload && res.payload.data && res.payload.data.length > 0) {
                 this.cacheData = res.payload.data;
+                this.cachePayload = res.payload;
                 this.enrutarRenderizado(filtros.tipo_grafico, this.cacheData);
                 this.poblarSelectPlacas(this.cacheData);
             } else {
                 this.cacheData = null;
+                this.cachePayload = null;
                 LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
                     mensaje: 'No se encontraron registros',
                     subtitulo: 'Intente cambiando el rango de fechas o el filtro de datos.'
@@ -191,6 +244,8 @@ class AlmacenMermasVivoController {
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
+            this.cacheData = null;
+            this.cachePayload = null;
             LoadingHelper.mostrarError('contenedor-graficos-lista', {
                 mensaje: 'Error de consulta',
                 detalle: error.message || 'Error inesperado.'
@@ -216,6 +271,22 @@ class AlmacenMermasVivoController {
                 break;
             case 'PorcMermaProcesoDiaClienteZonaPlaca':
                 this.renderizarPorcMermaProcesoDiaClienteZonaPlaca(data);
+                break;
+            case 'PorcMermaDiariaProceso':
+                this.renderizarPorcMermaDiariaLinea(data, 'dia');
+                break;
+            case 'PorcMermaDiariaProcesoMesZona':
+                this.renderizarPorcMermaDiariaLinea(data, 'mes');
+                break;
+            case 'PorcMermaDiariaProcesoCiente':
+                if (window.ChartAlmacenMermasMermaDiariaCliente) {
+                    window.ChartAlmacenMermasMermaDiariaCliente.render(this, data, 'contenedor-graficos-lista');
+                }
+                break;
+            case 'PorcMermaDiariaProcesoCientePlaca':
+                if (window.ChartAlmacenMermasMermaDiariaClientePlaca) {
+                    window.ChartAlmacenMermasMermaDiariaClientePlaca.render(this, data, 'contenedor-graficos-lista');
+                }
                 break;
             case 'DashPrueba1':
                 this.renderizarDashPrueba1(data);
@@ -298,6 +369,240 @@ class AlmacenMermasVivoController {
                 </span>
             </div>
         `;
+    }
+
+    /**
+     * Renderiza la línea diaria o mensual de porcentaje de merma
+     */
+    renderizarPorcMermaDiariaLinea(puntos, granularidad) {
+        const contenedor = document.getElementById('contenedor-graficos-lista');
+        if (!contenedor) return;
+        contenedor.innerHTML = '';
+
+        const payload = this.cachePayload || {};
+        const data = Array.isArray(puntos) ? puntos : [];
+        const esMes = granularidad === 'mes';
+        const titulo = payload.titulo || (esMes
+            ? 'Porcentaje de Merma Mensualizada por Fecha de Proceso'
+            : 'Porcentaje de Merma Diaria por Fecha de Proceso');
+        const subtitulo = payload.subtitulo || 'Merma total sobre la entrada';
+        const etiquetaY = payload.etiqueta_y || 'Porcentaje de Merma';
+
+        const valores = data.map(p => {
+            const valor = p ? p.valor : null;
+            return valor === null || valor === undefined || isNaN(valor) ? null : Number(valor);
+        });
+        const hayDatos = valores.some(v => v !== null);
+
+        if (data.length === 0 || !hayDatos) {
+            contenedor.innerHTML = `
+                <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">${this.escapeHtml(titulo)}</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">${this.escapeHtml(subtitulo)}</p>
+                    </div>
+                    <div class="p-10 text-center text-slate-400 font-medium">
+                        <i class="fas fa-inbox text-3xl text-slate-300 mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-600">No hay datos para los filtros seleccionados.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const anios = [...new Set(data.map(p => String(p.periodo || '').slice(0, 4)).filter(Boolean))];
+        const etiquetas = data.map(p => this.formatearEtiquetaPeriodo(p.periodo, granularidad, anios.length > 1));
+        const maxValor = Math.max(...valores.filter(v => v !== null), 0);
+        const maxY = Math.max(1, Math.ceil((maxValor * 1.05) / 0.5) * 0.5);
+        const tendencia = this.calcularTendencia(valores);
+        const canvasId = `canvas-merma-linea-${granularidad}`;
+
+        contenedor.innerHTML = `
+            <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="px-6 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">${this.escapeHtml(titulo)}</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">${this.escapeHtml(subtitulo)}</p>
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-medium">
+                        Período: <strong class="text-slate-800 font-semibold">${this.currentPeriodo.inicio} al ${this.currentPeriodo.fin}</strong>
+                    </div>
+                </div>
+                <div class="px-4 pt-4 pb-6 sm:px-6">
+                    ${esMes && anios.length === 1 ? `<p class="text-center text-[12px] font-semibold text-slate-500 mb-2">${anios[0]}</p>` : ''}
+                    <div class="relative w-full" style="height: ${esMes ? 500 : 620}px;">
+                        <canvas id="${canvasId}"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const datasets = [{
+            label: etiquetaY,
+            data: valores,
+            borderColor: '#e15759',
+            backgroundColor: '#e15759',
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#e15759',
+            pointBorderColor: '#e15759',
+            tension: 0,
+            spanGaps: false,
+            fill: false
+        }];
+
+        if (tendencia) {
+            datasets.push({
+                label: 'Tendencia',
+                data: tendencia,
+                borderColor: '#475569',
+                borderWidth: 1.5,
+                borderDash: [7, 5],
+                pointRadius: 0,
+                pointHoverRadius: 0,
+                tension: 0,
+                fill: false
+            });
+        }
+
+        const self = this;
+        const chart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: etiquetas,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                animation: { duration: 220 },
+                interaction: {
+                    mode: 'nearest',
+                    intersect: false
+                },
+                layout: {
+                    padding: { top: 26, right: 18, bottom: 8, left: 8 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'nearest',
+                        intersect: false,
+                        filter: (item) => item.datasetIndex === 0,
+                        callbacks: {
+                            label: (item) => `${etiquetaY}: ${self.formatearPorcentaje(item.parsed.y)}`
+                        }
+                    },
+                    datalabels: {
+                        display: (ctx) => {
+                            const valor = ctx.dataset.data[ctx.dataIndex];
+                            return ctx.datasetIndex === 0 && valor !== null && valor !== undefined && !isNaN(valor);
+                        },
+                        anchor: 'end',
+                        align: 'top',
+                        offset: 6,
+                        clamp: true,
+                        color: '#334155',
+                        font: {
+                            family: '"Segoe UI", sans-serif',
+                            size: esMes ? 11 : 9.5,
+                            weight: '600'
+                        },
+                        formatter: (value) => self.formatearPorcentaje(value)
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        border: { color: '#cbd5e1', width: 1 },
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 90,
+                            minRotation: 90,
+                            color: '#334155',
+                            padding: 10,
+                            font: {
+                                family: '"Segoe UI", sans-serif',
+                                size: esMes ? 10.5 : 8.5,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    y: {
+                        min: 0,
+                        max: maxY,
+                        grid: { color: 'rgba(226, 232, 240, 0.8)', drawTicks: false },
+                        border: { color: '#cbd5e1', width: 1 },
+                        title: {
+                            display: true,
+                            text: etiquetaY,
+                            color: '#475569',
+                            font: { family: '"Segoe UI", sans-serif', size: 12, weight: 'bold' }
+                        },
+                        ticks: {
+                            stepSize: 0.5,
+                            color: '#334155',
+                            font: { family: '"Segoe UI", sans-serif', size: 10.5, weight: '600' },
+                            padding: 10,
+                            callback: (value) => self.formatearPorcentaje(value)
+                        }
+                    }
+                }
+            }
+        });
+
+        this.activeCharts.push(chart);
+    }
+
+    calcularTendencia(valores) {
+        const puntos = valores
+            .map((valor, indice) => ({ x: indice, y: valor }))
+            .filter(p => p.y !== null && p.y !== undefined && !isNaN(p.y));
+
+        if (puntos.length < 2) return null;
+
+        const n = puntos.length;
+        const sumX = puntos.reduce((acc, p) => acc + p.x, 0);
+        const sumY = puntos.reduce((acc, p) => acc + p.y, 0);
+        const sumXY = puntos.reduce((acc, p) => acc + (p.x * p.y), 0);
+        const sumX2 = puntos.reduce((acc, p) => acc + (p.x * p.x), 0);
+        const denominador = (n * sumX2) - (sumX * sumX);
+
+        if (denominador === 0) return null;
+
+        const pendiente = ((n * sumXY) - (sumX * sumY)) / denominador;
+        const intercepto = (sumY - (pendiente * sumX)) / n;
+
+        return valores.map((_, indice) => (pendiente * indice) + intercepto);
+    }
+
+    formatearEtiquetaPeriodo(periodo, granularidad, incluirAnio) {
+        const partes = String(periodo || '').split('-').map(Number);
+        if (partes.length < 2 || partes.some(p => isNaN(p))) return String(periodo || '');
+
+        const anio = partes[0];
+        const mes = partes[1];
+        const dia = partes[2] || 1;
+
+        if (granularidad === 'mes') {
+            const fecha = new Date(anio, mes - 1, 1);
+            const nombreMes = new Intl.DateTimeFormat('es-PE', { month: 'long' }).format(fecha).toLowerCase();
+            return incluirAnio ? `${nombreMes} ${anio}` : nombreMes;
+        }
+
+        const fecha = new Date(anio, mes - 1, dia);
+        return new Intl.DateTimeFormat('es-PE', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }).format(fecha).toLowerCase();
     }
 
     /**
@@ -937,6 +1242,16 @@ class AlmacenMermasVivoController {
         contenedor.innerHTML = `<div class="p-6 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 font-semibold">Vista PorcMermaProcesoDiaClienteZonaPlaca en desarrollo.</div>`;
     }
 
+    escapeHtml(texto) {
+        if (texto === null || texto === undefined) return '';
+        return String(texto)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     formatearNumeroTableau(numero, decimales = 2) {
         if (numero === null || numero === undefined || isNaN(numero)) return '0,00';
         const num = Number(numero);
@@ -962,8 +1277,12 @@ class AlmacenMermasVivoController {
         const selDato = document.getElementById('select-filtro-dato');
         if (selDato) selDato.value = 'Valor';
 
+        this.searchCliente?.reset();
+        this.searchPlacaMatriz?.reset();
+        this.actualizarVisibilidadFiltros();
         this.destruirGraficos();
         this.cacheData = null;
+        this.cachePayload = null;
         this.todasLasPlacas = [];
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (contenedor) contenedor.innerHTML = '';

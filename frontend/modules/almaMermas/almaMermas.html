@@ -134,12 +134,16 @@
                         </option>
                         <option value="PorcMermaProcesoDiaCliente">PorcMermaProcesoDiaCliente</option>
                         <option value="PorcMermaProcesoDiaClienteZona">PorcMermaProcesoDiaClienteZona</option>
+                        <option value="PorcMermaDiariaProceso">PorcMermaDiariaProceso</option>
+                        <option value="PorcMermaDiariaProcesoMesZona">PorcMermaDiariaProcesoMesZona</option>
+                        <option value="PorcMermaDiariaProcesoCiente">PorcMermaDiariaProcesoCiente</option>
+                        <option value="PorcMermaDiariaProcesoCientePlaca">PorcMermaDiariaProcesoCientePlaca</option>
                         <option value="DashPrueba1">Dash Prueba 1 (Merma vs Objetivo)</option>
                     </select>
                 </div>
 
                 <!-- 3. SELECT DATO (TODO / CANTIDAD / PESO / VALOR) -->
-                <div class="flex flex-col">
+                <div id="wrapper-filtro-dato" class="flex flex-col">
                     <label for="select-filtro-dato"
                         class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">DATO</label>
                     <select id="select-filtro-dato"
@@ -159,6 +163,18 @@
                         class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[150px]">
                         <option value="TODO" selected>(Todo)</option>
                     </select>
+                </div>
+
+                <!-- FILTRO CLIENTE (VISIBLE PARA PORCMERMADIARIAPROCESOCLIENTEPLACA) -->
+                <div id="wrapper-filtro-cliente" class="flex flex-col hidden relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CLIENTE</label>
+                    <div id="searchable-filtro-cliente"></div>
+                </div>
+
+                <!-- FILTRO PLACA BUSCABLE (VISIBLE PARA PORCMERMADIARIAPROCESOCLIENTEPLACA) -->
+                <div id="wrapper-filtro-placa-matriz" class="flex flex-col hidden relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PLACA</label>
+                    <div id="searchable-filtro-placa-matriz"></div>
                 </div>
 
                 <!-- BOTONES DE ACCIÓN -->
@@ -341,9 +357,12 @@
     <script src="../../core/config.js"></script>
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
     <script src="../../assets/utils-graficos/loading-helper.js"></script>
+    <script src="../../assets/utils-graficos/searchable-select.js?v=20261026_1"></script>
+    <script src="charts/chart.mermaDiariaCliente.js?v=20261026_2"></script>
+    <script src="charts/chart.mermaDiariaClientePlaca.js?v=20261026_1"></script>
 
-    <script src="almacenMermasVivo.service.js?v=20260908_5"></script>
-    <script src="almacenMermasVivo.controller.js?v=20260908_5"></script>
+    <script src="almacenMermasVivo.service.js?v=20261026_7"></script>
+    <script src="almacenMermasVivo.controller.js?v=20261026_7"></script>
 
 </body>
 

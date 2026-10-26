@@ -265,6 +265,165 @@ class AlmacenMermasVivoRepo
     }
 
     /**
+     * Consulta el porcentaje de merma agregado por día o por mes
+     */
+    public function getPorcMermaLinea(array $filtros, string $granularidad, bool $forzarPeso = false): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
+        $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $dato        = trim($filtros['dato'] ?? 'TODO');
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "fechaproceso IS NOT NULL"
+        ];
+
+        if ($forzarPeso) {
+            $where[] = "TRIM(dato) = 'Peso'";
+        } elseif (!empty($dato) && strtoupper($dato) !== 'TODO') {
+            $where[] = "TRIM(dato) = :dato";
+            $params[':dato'] = $dato;
+        }
+
+        $formato = $granularidad === 'mes' ? '%Y-%m' : '%Y-%m-%d';
+        $whereStr = implode(' AND ', $where);
+
+        $sql = "SELECT 
+                    DATE_FORMAT(fechaproceso, '{$formato}') AS periodo,
+                    ROUND(COALESCE((SUM(mermatotal) / NULLIF(SUM(entrada), 0)) * 100, 0), 2) AS valor
+                FROM dmmermas
+                WHERE {$whereStr}
+                GROUP BY DATE_FORMAT(fechaproceso, '{$formato}')
+                ORDER BY periodo ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Consulta el porcentaje de merma diario agrupado por cliente
+     */
+    public function getPorcMermaDiariaCliente(array $filtros): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
+        $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
+
+        $sql = "SELECT 
+                    DATE_FORMAT(fechaproceso, '%Y-%m-%d') AS periodo,
+                    TRIM(cliente) AS cliente,
+                    ROUND(COALESCE((SUM(mermatotal) / NULLIF(SUM(entrada), 0)) * 100, 0), 2) AS valor
+                FROM dmmermas
+                WHERE fechaproceso BETWEEN :f_ini AND :f_fin
+                  AND fechaproceso IS NOT NULL
+                  AND TRIM(dato) = 'Peso'
+                  AND cliente IS NOT NULL
+                  AND TRIM(cliente) <> ''
+                GROUP BY DATE_FORMAT(fechaproceso, '%Y-%m-%d'), TRIM(cliente)
+                ORDER BY cliente ASC, periodo ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Consulta el porcentaje de merma diario agrupado por cliente y placa
+     */
+    public function getPorcMermaDiariaClientePlaca(array $filtros): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
+        $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $cliente     = trim($filtros['cliente'] ?? 'TODO');
+        $placa       = trim($filtros['placa'] ?? 'TODO');
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "fechaproceso IS NOT NULL",
+            "TRIM(dato) = 'Peso'",
+            "cliente IS NOT NULL AND TRIM(cliente) <> ''",
+            "placa IS NOT NULL AND TRIM(placa) <> ''"
+        ];
+
+        if (!empty($cliente) && strtoupper($cliente) !== 'TODO') {
+            $where[] = "TRIM(cliente) = :cliente";
+            $params[':cliente'] = $cliente;
+        }
+
+        if (!empty($placa) && strtoupper($placa) !== 'TODO') {
+            $where[] = "TRIM(placa) = :placa";
+            $params[':placa'] = $placa;
+        }
+
+        $whereStr = implode(' AND ', $where);
+
+        $sql = "SELECT 
+                    DATE_FORMAT(fechaproceso, '%Y-%m-%d') AS periodo,
+                    TRIM(cliente) AS cliente,
+                    TRIM(placa) AS placa,
+                    ROUND(COALESCE((SUM(mermatotal) / NULLIF(SUM(entrada), 0)) * 100, 0), 2) AS valor
+                FROM dmmermas
+                WHERE {$whereStr}
+                GROUP BY DATE_FORMAT(fechaproceso, '%Y-%m-%d'), TRIM(cliente), TRIM(placa)
+                ORDER BY cliente ASC, placa ASC, periodo ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene las opciones de cliente y placa para los filtros del módulo
+     */
+    public function getFiltrosClientesPlacas(): array
+    {
+        $clientes = [];
+        $sqlClientes = "SELECT DISTINCT TRIM(cliente) AS nombre
+                        FROM dmmermas
+                        WHERE cliente IS NOT NULL AND TRIM(cliente) <> ''
+                        ORDER BY nombre ASC";
+        foreach ($this->conn->query($sqlClientes)->fetchAll(PDO::FETCH_ASSOC) as $fila) {
+            $nombre = trim((string)($fila['nombre'] ?? ''));
+            if ($nombre !== '') {
+                $clientes[] = ['value' => $nombre, 'label' => $nombre];
+            }
+        }
+
+        $placas = [];
+        $sqlPlacas = "SELECT DISTINCT TRIM(placa) AS nombre
+                      FROM dmmermas
+                      WHERE placa IS NOT NULL AND TRIM(placa) <> ''
+                      ORDER BY nombre ASC";
+        foreach ($this->conn->query($sqlPlacas)->fetchAll(PDO::FETCH_ASSOC) as $fila) {
+            $nombre = trim((string)($fila['nombre'] ?? ''));
+            if ($nombre !== '') {
+                $placas[] = ['value' => $nombre, 'label' => $nombre];
+            }
+        }
+
+        return [
+            'clientes' => $clientes,
+            'placas'   => $placas
+        ];
+    }
+
+    /**
      * Consulta Hoja de Ruta y Agentes Causales para la placa y fecha seleccionadas
      */
     public function getDetallePlacaRutaCausales(array $filtros): array

@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/AlmacenMermasVivoRepo.php';
+require_once __DIR__ . '/handlers/MermaDiariaClienteHandler.php';
+require_once __DIR__ . '/handlers/MermaDiariaClientePlacaHandler.php';
 
 class AlmacenMermasVivoService
 {
@@ -111,6 +113,102 @@ class AlmacenMermasVivoService
             'status' => 'success',
             'total'  => count($matriz),
             'data'   => $matriz
+        ];
+    }
+
+    public function obtenerPorcMermaDiariaProceso(array $filtros): array
+    {
+        return $this->obtenerPorcMermaLinea($filtros, 'dia', true);
+    }
+
+    public function obtenerPorcMermaDiariaProcesoMesZona(array $filtros): array
+    {
+        return $this->obtenerPorcMermaLinea($filtros, 'mes', false);
+    }
+
+    public function obtenerPorcMermaDiariaProcesoCiente(array $filtros): array
+    {
+        $filasRaw = $this->repo->getPorcMermaDiariaCliente($filtros);
+        return MermaDiariaClienteHandler::formatear($filasRaw, $filtros);
+    }
+
+    public function obtenerPorcMermaDiariaProcesoCientePlaca(array $filtros): array
+    {
+        $filasRaw = $this->repo->getPorcMermaDiariaClientePlaca($filtros);
+        return MermaDiariaClientePlacaHandler::formatear($filasRaw, $filtros);
+    }
+
+    public function obtenerFiltrosMerma(): array
+    {
+        $filtros = $this->repo->getFiltrosClientesPlacas();
+        return [
+            'status'   => 'success',
+            'clientes' => $filtros['clientes'],
+            'placas'   => $filtros['placas']
+        ];
+    }
+
+    private function obtenerPorcMermaLinea(array $filtros, string $granularidad, bool $forzarPeso): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
+        $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $dato        = trim($filtros['dato'] ?? 'TODO');
+
+        $filasRaw = $this->repo->getPorcMermaLinea($filtros, $granularidad, $forzarPeso);
+
+        $valoresPorPeriodo = [];
+        foreach ($filasRaw as $row) {
+            $periodo = (string)($row['periodo'] ?? '');
+            if ($periodo === '') {
+                continue;
+            }
+            $valoresPorPeriodo[$periodo] = (float)($row['valor'] ?? 0);
+        }
+
+        $inicio = new DateTimeImmutable($fechaInicio);
+        $fin = new DateTimeImmutable($fechaFin);
+
+        $puntos = [];
+        if ($granularidad === 'mes') {
+            $cursor = $inicio->modify('first day of this month')->setTime(0, 0);
+            $limite = $fin->modify('first day of this month')->setTime(0, 0);
+            while ($cursor <= $limite) {
+                $periodo = $cursor->format('Y-m');
+                $puntos[] = [
+                    'periodo' => $periodo,
+                    'valor'   => array_key_exists($periodo, $valoresPorPeriodo) ? $valoresPorPeriodo[$periodo] : null
+                ];
+                $cursor = $cursor->modify('+1 month');
+            }
+        } else {
+            $cursor = $inicio->setTime(0, 0);
+            $limite = $fin->setTime(0, 0);
+            while ($cursor <= $limite) {
+                $periodo = $cursor->format('Y-m-d');
+                $puntos[] = [
+                    'periodo' => $periodo,
+                    'valor'   => array_key_exists($periodo, $valoresPorPeriodo) ? $valoresPorPeriodo[$periodo] : null
+                ];
+                $cursor = $cursor->modify('+1 day');
+            }
+        }
+
+        $esMes = $granularidad === 'mes';
+        $datoAplicado = $forzarPeso ? 'Peso' : $dato;
+
+        return [
+            'status'       => 'success',
+            'total'        => count($puntos),
+            'data'         => $puntos,
+            'granularidad' => $granularidad,
+            'titulo'       => $esMes
+                ? 'Porcentaje de Merma Mensualizada por Fecha de Proceso'
+                : 'Porcentaje de Merma Diaria por Fecha de Proceso',
+            'subtitulo'    => 'Merma total sobre la entrada',
+            'etiqueta_y'   => 'Porcentaje de Merma',
+            'dato'         => $datoAplicado,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin'    => $fechaFin
         ];
     }
 
