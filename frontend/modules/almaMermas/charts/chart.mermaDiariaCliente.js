@@ -65,6 +65,7 @@ window.ChartAlmacenMermasMermaDiariaCliente = {
         const maxY = Math.max(15, Number(payload.max_y) || 0);
         const stepY = Number(payload.step_y) || 5;
         const etiquetas = fechas.map(fecha => this.formatearFecha(fecha));
+        const anchoMinimo = 112 + (fechas.length * 36);
 
         if (clientes.length === 0 || fechas.length === 0) {
             contenedor.innerHTML = `
@@ -94,23 +95,27 @@ window.ChartAlmacenMermasMermaDiariaCliente = {
                     </div>
                 </div>
                 <div class="px-4 pt-3 pb-6 sm:px-6">
-                    <div class="grid items-center border-b border-slate-100 pb-2 mb-1" style="grid-template-columns: 112px minmax(0, 1fr);">
-                        <p class="text-center text-[12px] font-bold text-slate-600">cliente</p>
-                        <p class="text-center text-[12px] font-bold text-slate-600">${this.escapeHtml(etiquetaY)}</p>
-                    </div>
-                    <div class="grid" style="grid-template-columns: 112px minmax(0, 1fr);">
-                        ${clientes.map((fila, indice) => {
-                            const esUltima = indice === clientes.length - 1;
-                            const altura = esUltima ? 220 : 190;
-                            return `
-                                <div class="flex items-center justify-end pr-3 text-[11px] font-bold text-slate-700 uppercase ${esUltima ? '' : 'border-b border-slate-100'}" style="min-height: ${altura}px;">
-                                    ${this.escapeHtml(fila.cliente)}
-                                </div>
-                                <div class="relative ${esUltima ? '' : 'border-b border-slate-100'}" style="height: ${altura}px;">
-                                    <canvas id="canvas-merma-cliente-${indice}"></canvas>
-                                </div>
-                            `;
-                        }).join('')}
+                    <div class="w-full overflow-x-auto custom-scrollbar pb-3">
+                        <div class="w-full" style="min-width: ${anchoMinimo}px;">
+                            <div class="grid items-center border-b border-slate-100 pb-2 mb-1" style="grid-template-columns: 112px minmax(0, 1fr);">
+                                <p class="text-center text-[12px] font-bold text-slate-600 sticky left-0 z-30 bg-white">cliente</p>
+                                <p class="text-center text-[12px] font-bold text-slate-600">${this.escapeHtml(etiquetaY)}</p>
+                            </div>
+                            <div class="grid" style="grid-template-columns: 112px minmax(0, 1fr);">
+                                ${clientes.map((fila, indice) => {
+                                    const esUltima = indice === clientes.length - 1;
+                                    const altura = esUltima ? 220 : 190;
+                                    return `
+                                        <div class="flex items-center justify-end pr-3 text-[11px] font-bold text-slate-700 uppercase sticky left-0 z-20 bg-white ${esUltima ? '' : 'border-b border-slate-100'}" style="min-height: ${altura}px;">
+                                            ${this.escapeHtml(fila.cliente)}
+                                        </div>
+                                        <div class="relative ${esUltima ? '' : 'border-b border-slate-100'}" style="height: ${altura}px;">
+                                            <canvas id="canvas-merma-cliente-${indice}"></canvas>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

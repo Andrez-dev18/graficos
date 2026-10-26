@@ -416,6 +416,7 @@ class AlmacenMermasVivoController {
         const maxY = Math.max(1, Math.ceil((maxValor * 1.05) / 0.5) * 0.5);
         const tendencia = this.calcularTendencia(valores);
         const canvasId = `canvas-merma-linea-${granularidad}`;
+        const anchoMinimo = data.length * (esMes ? 100 : 36);
 
         contenedor.innerHTML = `
             <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
@@ -430,8 +431,10 @@ class AlmacenMermasVivoController {
                 </div>
                 <div class="px-4 pt-4 pb-6 sm:px-6">
                     ${esMes && anios.length === 1 ? `<p class="text-center text-[12px] font-semibold text-slate-500 mb-2">${anios[0]}</p>` : ''}
-                    <div class="relative w-full" style="height: ${esMes ? 500 : 620}px;">
-                        <canvas id="${canvasId}"></canvas>
+                    <div class="w-full overflow-x-auto custom-scrollbar pb-3">
+                        <div class="relative" style="width: max(100%, ${anchoMinimo}px); height: ${esMes ? 500 : 620}px;">
+                            <canvas id="${canvasId}"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
