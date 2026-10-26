@@ -64,6 +64,26 @@ class CostosDias2Controller {
         document.getElementById('btn-limpiar')?.addEventListener('click', async () => {
             await this.limpiarFiltros();
         });
+
+        document.getElementById('btn-export-excel-costos2')?.addEventListener('click', () => {
+            this.exportarExcel();
+        });
+
+        document.getElementById('btn-export-pdf-costos2')?.addEventListener('click', () => {
+            this.exportarPdf();
+        });
+
+        this.setExportButtonsEnabled(false);
+    }
+
+    setExportButtonsEnabled(enabled) {
+        ['btn-export-excel-costos2', 'btn-export-pdf-costos2'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.disabled = !enabled;
+            btn.classList.toggle('opacity-50', !enabled);
+            btn.classList.toggle('cursor-not-allowed', !enabled);
+        });
     }
 
     setupTooltips() {
@@ -218,13 +238,18 @@ class CostosDias2Controller {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
                 this.renderizarMatrizHorizontal(data);
+                this.setExportButtonsEnabled(Array.isArray(data.granjas) && data.granjas.length > 0);
             } else {
                 console.error('Error en respuesta de dashboard:', res);
+                this.datosDashboard = null;
                 this.renderizarVacio('Ocurrió un problema al obtener los datos.');
+                this.setExportButtonsEnabled(false);
             }
         } catch (err) {
             console.error('Excepción al cargar dashboard CostosTradicionalDia2:', err);
+            this.datosDashboard = null;
             this.renderizarVacio('Error de comunicación con el servidor.');
+            this.setExportButtonsEnabled(false);
         } finally {
             if (btnCargar) {
                 btnCargar.disabled = false;
@@ -524,6 +549,84 @@ class CostosDias2Controller {
                     ${celdasFootGalpones}
                 </tr>
             `;
+        }
+    }
+
+    exportarExcel() {
+        if (!this.datosDashboard) {
+            alert('Primero debe cargar los datos.');
+            return;
+        }
+
+        const table = document.getElementById('tabla-detalle-costos2');
+        if (!table || !table.querySelector('tbody tr')) {
+            alert('No hay datos para exportar.');
+            return;
+        }
+
+        if (typeof ExcelExportHelper === 'undefined') {
+            alert('No se encontró el componente de exportación a Excel.');
+            return;
+        }
+
+        const filtros = this.obtenerPayloadFiltros();
+        const nombre = `Costos_Tradicional_Dia2_${filtros.fecha_inicio}_${filtros.fecha_fin}`;
+        ExcelExportHelper.exportarTabla('tabla-detalle-costos2', nombre, {
+            nombreHoja: 'Costos Dia 2',
+            incluirFecha: false
+        });
+    }
+
+    async exportarPdf() {
+        if (!this.datosDashboard) {
+            alert('Primero debe cargar los datos.');
+            return;
+        }
+
+        const ventanaPdf = window.open('', '_blank');
+        if (!ventanaPdf) {
+            alert('El navegador bloqueó la nueva pestaña. Habilita las ventanas emergentes para este sitio.');
+            return;
+        }
+
+        ventanaPdf.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head><meta charset="UTF-8"><title>Generando PDF...</title></head>
+            <body style="font-family:Segoe UI,sans-serif;background:#f8fafc;color:#334155;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+                <div style="text-align:center;">
+                    <div style="width:34px;height:34px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;margin:0 auto 14px;animation:spin 0.8s linear infinite;"></div>
+                    <p style="font-size:14px;font-weight:600;">Generando PDF...</p>
+                </div>
+                <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+            </body>
+            </html>
+        `);
+
+        const btn = document.getElementById('btn-export-pdf-costos2');
+        const htmlOriginal = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Generando...</span>';
+        }
+
+        try {
+            const filtros = this.obtenerPayloadFiltros();
+            const blob = await this.service.exportarPdf(filtros);
+            const url = window.URL.createObjectURL(blob);
+            ventanaPdf.location.href = url;
+            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        } catch (error) {
+            try { ventanaPdf.close(); } catch (e) { /* Ignorar */ }
+            console.error('Error al exportar PDF:', error);
+            alert(error.message || 'No se pudo generar el PDF.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btn.innerHTML = htmlOriginal;
+            }
         }
     }
 

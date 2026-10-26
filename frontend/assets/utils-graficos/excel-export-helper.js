@@ -121,7 +121,7 @@ window.ExcelExportHelper = {
             }
 
             const isPercent = txt.endsWith('%');
-            let clean = txt.replace(/S\/\s?/g, '').replace(/%/g, '').replace(/\s+/g, '');
+            let clean = txt.replace(/S\/\s?/g, '').replace(/%/g, '').replace(/kg/gi, '').replace(/\s+/g, '');
 
             // Formato estándar peruano: 1.234,56 o 0,270 o 1234.56
             if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean) || /^-?\d+(,\d+)?$/.test(clean) || /^-?\d+(\.\d+)?$/.test(clean)) {
@@ -159,8 +159,12 @@ window.ExcelExportHelper = {
                 }
             }
 
-            if (headerText.includes('%') || headerText.includes('porc') || headerText.includes('merma') && headerText.includes('peso') && !headerText.includes('entrada')) {
+            if (headerText.includes('cu glp') || /\bcu\b/.test(headerText)) {
+                colFormatType[C] = 'unit_cost';
+            } else if (headerText.includes('%') || headerText.includes('porc') || headerText.includes('merma') && headerText.includes('peso') && !headerText.includes('entrada')) {
                 colFormatType[C] = 'percent';
+            } else if (headerText.includes('kg') || headerText.includes('peso glp') || headerText.includes('peso_glp')) {
+                colFormatType[C] = 'kg';
             } else if (headerText.includes('val') || headerText.includes('s/') || headerText.includes('soles') || headerText.includes('costo') || headerText.includes('importe')) {
                 colFormatType[C] = 'currency';
             } else {
@@ -202,6 +206,10 @@ window.ExcelExportHelper = {
                             cell.z = '0.00%';
                         } else if (fmt === 'currency') {
                             cell.z = '"S/ "#,##0.00';
+                        } else if (fmt === 'kg') {
+                            cell.z = '#,##0.00" Kg"';
+                        } else if (fmt === 'unit_cost') {
+                            cell.z = '0.000';
                         } else {
                             cell.z = '#,##0.00';
                         }
@@ -217,6 +225,10 @@ window.ExcelExportHelper = {
                             cell.z = '0.00%';
                         } else if (fmt === 'currency') {
                             cell.z = '"S/ "#,##0.00';
+                        } else if (fmt === 'kg') {
+                            cell.z = '#,##0.00" Kg"';
+                        } else if (fmt === 'unit_cost') {
+                            cell.z = '0.000';
                         } else {
                             cell.z = '#,##0.00';
                         }
@@ -237,8 +249,10 @@ window.ExcelExportHelper = {
                 if (cell && cell.v !== undefined && cell.v !== null) {
                     let strLen = cell.v.toString().length;
                     if (cell.t === 'n') {
-                        if (fmt === 'percent') strLen = 7; // e.g. "100.00%"
-                        if (fmt === 'currency') strLen += 6; // e.g. "S/ 12,345.67"
+                        if (fmt === 'percent') strLen = 7;
+                        if (fmt === 'currency') strLen += 6;
+                        if (fmt === 'kg') strLen += 3;
+                        if (fmt === 'unit_cost') strLen = Math.max(strLen, 8);
                     }
                     if (strLen > maxLen) maxLen = strLen;
                 }

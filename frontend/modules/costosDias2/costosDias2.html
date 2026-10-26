@@ -167,10 +167,20 @@
                     <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Detalle Familia/SubFamilia por Galpón</h2>
                     <p class="text-xs text-slate-500 mt-0.5">Matriz de Valor, Peso GLP y Costo Unitario (CU GLP) horizontal</p>
                 </div>
-                <div class="flex items-center gap-2 text-xs font-medium text-slate-500">
+                <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
                     <span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-md border border-blue-200/60">
                         <i class="fa-solid fa-table-cells"></i> Vista Horizontal Galpones
                     </span>
+                    <button id="btn-export-excel-costos2" type="button"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>Excel</span>
+                    </button>
+                    <button id="btn-export-pdf-costos2" type="button"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-300 rounded-lg transition-all cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <span>PDF</span>
+                    </button>
                 </div>
             </div>
 
@@ -206,8 +216,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
-    <script src="costosDias2.service.js?v=20260911_1"></script>
-    <script src="costosDias2.controller.js?v=20260911_1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="../../assets/utils-graficos/excel-export-helper.js?v=20261026_1"></script>
+    <script src="costosDias2.service.js?v=20261026_2"></script>
+    <script src="costosDias2.controller.js?v=20261026_3"></script>
 </body>
 
 </html>
