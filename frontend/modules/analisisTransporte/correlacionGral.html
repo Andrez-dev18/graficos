@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correlación General - Análisis de Transportes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .correlacion-scroll-x {
+            overflow-x: auto !important;
+            padding-bottom: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #64748b #e2e8f0;
+        }
+        .correlacion-scroll-x::-webkit-scrollbar { width: 7px; height: 7px; }
+        .correlacion-scroll-x::-webkit-scrollbar-track { background: #e2e8f0; }
+        .correlacion-scroll-x::-webkit-scrollbar-thumb { background: #64748b; border-radius: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen m-0 p-0 font-sans">
+    <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80">
+        <div class="flex flex-wrap items-center justify-between border-b border-slate-200/80">
+            <div class="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><i class="fa-solid fa-chart-column text-xl"></i></div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Correlación General</h1>
+                    <p class="text-xs text-slate-500">Ventas, transportes, eventos y mermas en una sola vista.</p>
+                </div>
+            </div>
+            <div class="px-3 py-2 sm:px-4">
+                <button id="btn-toggle-filtros" type="button" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
+                    <span id="label-toggle-filtros">Ocultar filtros</span>
+                    <i id="icon-toggle-filtros" class="fa-solid fa-chevron-up transition-transform duration-300"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="contenedor-filtros-contenido" class="p-4 sm:p-5 transition-all duration-300">
+            <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+                <div class="flex flex-col">
+                    <label for="select-tipo-grafico" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICO</label>
+                    <select id="select-tipo-grafico" class="bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm cursor-pointer min-w-[190px]">
+                        <option value="LiquidacionPlacas">LiquidacionPlacas</option>
+                        <option value="CorrelacionGral" selected>CorrelacionGral</option>
+                    </select>
+                </div>
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="flex flex-col">
+                        <label for="select-tipo-periodo" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO</label>
+                        <select id="select-tipo-periodo" class="bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm cursor-pointer">
+                            <option value="entre_fechas" selected>Entre fechas</option>
+                            <option value="por_fecha">Por fecha</option>
+                            <option value="ultima_semana">Última semana</option>
+                            <option value="por_mes">Por mes</option>
+                            <option value="entre_meses">Entre meses</option>
+                        </select>
+                    </div>
+                    <div id="contenedor-inputs-periodo" class="flex items-end gap-2"></div>
+                </div>
+
+                <div class="flex flex-col relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">LÍNEA</label>
+                    <div id="searchable-linea"></div>
+                </div>
+
+                <div class="flex flex-col relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TDOC</label>
+                    <button id="ms-tdoc-btn" type="button" class="flex items-center justify-between gap-2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 min-w-[150px]"><span id="ms-tdoc-label">(Todo)</span><i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i></button>
+                    <div id="ms-tdoc-dropdown" class="hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2">
+                        <input id="ms-tdoc-search" type="text" placeholder="Buscar..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg mb-2">
+                        <div id="ms-tdoc-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ZONA CORPORATIVO</label>
+                    <button id="ms-zona-btn" type="button" class="flex items-center justify-between gap-2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 min-w-[170px]"><span id="ms-zona-label">(Todo)</span><i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i></button>
+                    <div id="ms-zona-dropdown" class="hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2">
+                        <input id="ms-zona-search" type="text" placeholder="Buscar..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg mb-2">
+                        <div id="ms-zona-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">RUTA</label>
+                    <button id="ms-ruta-btn" type="button" class="flex items-center justify-between gap-2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 min-w-[150px]"><span id="ms-ruta-label">(Todo)</span><i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i></button>
+                    <div id="ms-ruta-dropdown" class="hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2">
+                        <input id="ms-ruta-search" type="text" placeholder="Buscar..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg mb-2">
+                        <div id="ms-ruta-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PLACA</label>
+                    <button id="ms-placa-btn" type="button" class="flex items-center justify-between gap-2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 min-w-[150px]"><span id="ms-placa-label">(Todo)</span><i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i></button>
+                    <div id="ms-placa-dropdown" class="hidden absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2">
+                        <input id="ms-placa-search" type="text" placeholder="Buscar placa..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg mb-2">
+                        <div id="ms-placa-options" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 ml-auto sm:ml-0">
+                    <button id="btn-cargar" type="button" class="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white font-bold text-sm rounded-lg"><i class="fa-solid fa-rotate"></i><span>Cargar</span></button>
+                    <button id="btn-limpiar" type="button" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200">Limpiar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contenedor-correlacion" class="mt-6 pb-12"></div>
+
+    <script src="../../core/config.js"></script>
+    <script src="../../assets/utils-graficos/periodo-helper.js?v=20261028_1"></script>
+    <script src="../../assets/utils-graficos/custom-multiselect.js?v=20261028_2"></script>
+    <script src="../../assets/utils-graficos/searchable-select.js?v=20261026_1"></script>
+    <script src="charts/correlacionGral.js?v=20261028_5"></script>
+    <script src="correlacionGral.service.js?v=20261028_5"></script>
+    <script src="correlacionGral.controller.js?v=20261028_5"></script>
+</body>
+</html>
