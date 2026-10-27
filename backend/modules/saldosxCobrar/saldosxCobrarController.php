@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/saldosxCobrarService.php';
+require_once __DIR__ . '/handlers/SalxCobrarCtaTablaHandler.php';
 
 class saldosxCobrarController
 {
@@ -11,7 +12,9 @@ class saldosxCobrarController
     public function __construct()
     {
         $database = new Database();
-        $this->db = $database->getConnection();
+        $db = $database->getConnection();
+        $tc = ($db instanceof SmartPDO) ? $db->getConnection('tc') : null;
+        $this->db = $tc ?: $db;
         $this->service = new saldosxCobrarService($this->db);
     }
 
@@ -246,6 +249,30 @@ class saldosxCobrarController
             echo json_encode([
                 'success' => false,
                 'message' => 'Error al obtener análisis corporativo: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    public function getGraficoCtaTabla()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true) ?? $_POST;
+
+            $handler = new SalxCobrarCtaTablaHandler($this->db);
+            $resultado = $handler->obtenerDatos($filtros);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener la tabla de saldos por cuenta: ' . $e->getMessage()
             ]);
         }
         exit;

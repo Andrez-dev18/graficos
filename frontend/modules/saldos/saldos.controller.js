@@ -844,6 +844,7 @@ class SaldosController {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
         const esBarras = tipoGrafico === 'saltosXcobrarXbarra';
         const esCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
+        const esCtaTabla = tipoGrafico === '16SalxCobrarxCtaTabla';
         const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs' || esCorporativosZona;
 
         const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
@@ -853,11 +854,11 @@ class SaldosController {
         const wrapperDisp = document.getElementById('wrapper-filtro-disposicion');
 
         if (wrapperCliente) {
-            wrapperCliente.classList.toggle('hidden', !esBarras);
+            wrapperCliente.classList.toggle('hidden', !(esBarras || esCtaTabla));
         }
 
         if (wrapperDisp) {
-            wrapperDisp.classList.toggle('hidden', esCorporativosZona);
+            wrapperDisp.classList.toggle('hidden', esCorporativosZona || esCtaTabla);
         }
 
         [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
@@ -894,6 +895,7 @@ class SaldosController {
         const esVistaAnticipos = tipoGrafico === '08IndAnticipos';
         const esVistaAnalisisCuentas = tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
         const esVistaCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
+        const esVistaCtaTabla = tipoGrafico === '16SalxCobrarxCtaTabla';
 
         LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
             titulo: 'Cargando gráficos de saldos...',
@@ -973,6 +975,31 @@ class SaldosController {
                         this.crearTarjetaYChartAnticipos(cuenta, this.cacheData[cuenta]);
                     }
                 });
+
+            } else if (esVistaCtaTabla) {
+                const totalClientesOpciones = this.msNomCliente.options.length;
+                const selectedClientes = this.msNomCliente.getSelectedValues();
+                const clientesPayload = (selectedClientes.length === totalClientesOpciones) ? [] : selectedClientes;
+
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    cuentas: selectedCuentas,
+                    clientes: clientesPayload
+                };
+
+                const res = await this.service.obtenerGraficoCtaTabla(payload);
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+
+                if (!res.success || !res.payload || !res.payload.data || res.payload.data.length === 0) {
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron registros de saldos por cuenta para los filtros seleccionados.'
+                    });
+                    return;
+                }
+
+                this.cacheData = res.payload;
+                window.SaldosCtaTablaView.render(contenedor, res.payload, this);
 
             } else if (esVistaZona) {
                 // PAYLOAD PARA GRÁFICO DE LÍNEAS POR ZONA

@@ -24,6 +24,8 @@ class saldosService {
         // Gráfico 18CorporativosZonaDeudores
         CORPORATIVOS_ZONA_DEUDORES: '/saldosxCobrar/corporativos-zona-deudores',
 
+        GRAFICO_CTA_TABLA: '/saldosxCobrar/grafico-cta-tabla',
+
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
 
@@ -276,6 +278,28 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error en saldosService.obtenerAnalisisCorporativos:', error);
+            throw error;
+        }
+    }
+
+    async obtenerGraficoCtaTabla(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.GRAFICO_CTA_TABLA}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar tabla por cuenta: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerGraficoCtaTabla:', error);
             throw error;
         }
     }
