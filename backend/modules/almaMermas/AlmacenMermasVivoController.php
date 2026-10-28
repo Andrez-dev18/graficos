@@ -156,6 +156,32 @@ class AlmacenMermasVivoController
     /**
      * Endpoint POST: Porcentaje de Merma Diaria por Fecha de Proceso segmentado por cliente
      */
+    /**
+     * Endpoint POST: Porcentaje de Merma Mensualizada por Fecha de Proceso y cliente
+     */
+    public function getPorcMermaDiariaProcesoMes()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            $resultado = $this->service->obtenerPorcMermaDiariaProcesoMes($data);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al procesar PorcMermaDiariaProcesoMes: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
     public function getPorcMermaDiariaProcesoCiente()
     {
         header('Content-Type: application/json; charset=utf-8');

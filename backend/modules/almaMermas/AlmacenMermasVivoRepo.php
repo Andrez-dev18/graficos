@@ -340,7 +340,50 @@ class AlmacenMermasVivoRepo
     /**
      * Consulta el porcentaje de merma diario agrupado por cliente y placa
      */
-    public function getPorcMermaDiariaClientePlaca(array $filtros): array
+        /**
+     * Consulta el porcentaje de merma mensualizado agrupado por cliente (PorcMermaDiariaProcesoMes)
+     */
+    public function getPorcMermaDiariaClienteMes(array $filtros): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
+        $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $dato        = trim($filtros['dato'] ?? 'Peso');
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "fechaproceso IS NOT NULL",
+            "cliente IS NOT NULL",
+            "TRIM(cliente) <> ''"
+        ];
+
+        if (!empty($dato) && strtoupper($dato) !== 'TODO') {
+            $where[] = "TRIM(dato) = :dato";
+            $params[':dato'] = $dato;
+        }
+
+        $whereStr = implode(' AND ', $where);
+
+        $sql = "SELECT 
+                    DATE_FORMAT(fechaproceso, '%Y-%m') AS periodo,
+                    TRIM(cliente) AS cliente,
+                    ROUND(COALESCE((SUM(mermatotal) / NULLIF(SUM(entrada), 0)) * 100, 0), 2) AS valor
+                FROM dmmermas
+                WHERE {$whereStr}
+                GROUP BY DATE_FORMAT(fechaproceso, '%Y-%m'), TRIM(cliente)
+                ORDER BY cliente ASC, periodo ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+public function getPorcMermaDiariaClientePlaca(array $filtros): array
     {
         $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
         $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');

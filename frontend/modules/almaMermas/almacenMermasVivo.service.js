@@ -10,6 +10,7 @@ class AlmacenMermasVivoService {
             PORC_MERMA_PROCESO_DIA_CLIENTE: '/almaMermas/porc-merma-proceso-dia-cliente',
             PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA: '/almaMermas/porc-merma-proceso-dia-cliente-zona',
             PORC_MERMA_DIARIA_PROCESO: '/almaMermas/porc-merma-diaria-proceso',
+            PORC_MERMA_DIARIA_PROCESO_MES: '/almaMermas/porc-merma-diaria-proceso-mes',
             PORC_MERMA_DIARIA_PROCESO_MES_ZONA: '/almaMermas/porc-merma-diaria-proceso-mes-zona',
             PORC_MERMA_DIARIA_PROCESO_CLIENTE: '/almaMermas/porc-merma-diaria-proceso-cliente',
             PORC_MERMA_DIARIA_PROCESO_CLIENTE_PLACA: '/almaMermas/porc-merma-diaria-proceso-cliente-placa',
@@ -32,6 +33,8 @@ class AlmacenMermasVivoService {
                 endpoint = this.ENDPOINTS.PORC_MERMA_PROCESO_DIA_CLIENTE_ZONA;
             } else if (tipoGrafico === 'PorcMermaDiariaProceso') {
                 endpoint = this.ENDPOINTS.PORC_MERMA_DIARIA_PROCESO;
+            } else if (tipoGrafico === 'PorcMermaDiariaProcesoMes') {
+                endpoint = this.ENDPOINTS.PORC_MERMA_DIARIA_PROCESO_MES;
             } else if (tipoGrafico === 'PorcMermaDiariaProcesoMesZona') {
                 endpoint = this.ENDPOINTS.PORC_MERMA_DIARIA_PROCESO_MES_ZONA;
             } else if (tipoGrafico === 'PorcMermaDiariaProcesoCiente') {

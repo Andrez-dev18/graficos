@@ -3,6 +3,7 @@
 require_once __DIR__ . '/AlmacenMermasVivoRepo.php';
 require_once __DIR__ . '/handlers/MermaDiariaClienteHandler.php';
 require_once __DIR__ . '/handlers/MermaDiariaClientePlacaHandler.php';
+require_once __DIR__ . '/handlers/MermaDiariaClienteMesHandler.php';
 
 class AlmacenMermasVivoService
 {
@@ -124,6 +125,12 @@ class AlmacenMermasVivoService
     public function obtenerPorcMermaDiariaProcesoMesZona(array $filtros): array
     {
         return $this->obtenerPorcMermaLinea($filtros, 'mes', false);
+    }
+
+    public function obtenerPorcMermaDiariaProcesoMes(array $filtros): array
+    {
+        $filasRaw = $this->repo->getPorcMermaDiariaClienteMes($filtros);
+        return MermaDiariaClienteMesHandler::formatear($filasRaw, $filtros);
     }
 
     public function obtenerPorcMermaDiariaProcesoCiente(array $filtros): array

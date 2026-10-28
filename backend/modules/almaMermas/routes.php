@@ -5,6 +5,7 @@ $this->post('/almaMermas/porc-merma-proceso-dia-cliente-placa', 'AlmacenMermasVi
 $this->post('/almaMermas/porc-merma-proceso-dia-cliente', 'AlmacenMermasVivoController@getPorcMermaProcesoDiaCliente');
 $this->post('/almaMermas/porc-merma-proceso-dia-cliente-zona', 'AlmacenMermasVivoController@getPorcMermaProcesoDiaClienteZona');
 $this->post('/almaMermas/porc-merma-diaria-proceso', 'AlmacenMermasVivoController@getPorcMermaDiariaProceso');
+$this->post('/almaMermas/porc-merma-diaria-proceso-mes', 'AlmacenMermasVivoController@getPorcMermaDiariaProcesoMes');
 $this->post('/almaMermas/porc-merma-diaria-proceso-mes-zona', 'AlmacenMermasVivoController@getPorcMermaDiariaProcesoMesZona');
 $this->post('/almaMermas/porc-merma-diaria-proceso-cliente', 'AlmacenMermasVivoController@getPorcMermaDiariaProcesoCiente');
 $this->post('/almaMermas/porc-merma-diaria-proceso-cliente-placa', 'AlmacenMermasVivoController@getPorcMermaDiariaProcesoCientePlaca');

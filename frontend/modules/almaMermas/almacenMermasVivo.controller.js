@@ -275,6 +275,11 @@ class AlmacenMermasVivoController {
             case 'PorcMermaDiariaProceso':
                 this.renderizarPorcMermaDiariaLinea(data, 'dia');
                 break;
+            case 'PorcMermaDiariaProcesoMes':
+                if (window.ChartAlmacenMermasMermaMensualCliente) {
+                    window.ChartAlmacenMermasMermaMensualCliente.render(this, data, 'contenedor-graficos-lista');
+                }
+                break;
             case 'PorcMermaDiariaProcesoMesZona':
                 this.renderizarPorcMermaDiariaLinea(data, 'mes');
                 break;
