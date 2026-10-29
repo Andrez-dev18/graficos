@@ -91,7 +91,10 @@ class CustomMultiSelect {
         const seleccionados = this.options.filter(o => o.selected);
         const total = this.options.length;
 
-        if (seleccionados.length === 0) {
+        if (total === 0) {
+            this.label.textContent = this.title ? `(Sin ${this.title.toLowerCase()}s)` : '(Sin opciones)';
+            this.label.className = 'truncate text-slate-400 font-normal';
+        } else if (seleccionados.length === 0) {
             this.label.textContent = 'Ninguno seleccionado';
             this.label.className = 'truncate text-slate-400 font-normal';
         } else if (seleccionados.length === total && total > 1) {
@@ -179,10 +182,10 @@ class CustomMultiSelect {
             const label = typeof item === 'object' ? String(item.label || item.id) : String(item);
 
             let isSelected = false;
-            if (previousSelected.length > 0) {
-                isSelected = previousSelected.includes(id);
-            } else if (wasAllSelected) {
+            if (wasAllSelected) {
                 isSelected = (typeof item === 'object' && item.selected !== undefined) ? Boolean(item.selected) : true;
+            } else if (previousSelected.length > 0) {
+                isSelected = previousSelected.includes(id);
             } else if (typeof item === 'object' && item.selected !== undefined) {
                 isSelected = Boolean(item.selected);
             } else if (defaultSelectFirst && idx === 0) {

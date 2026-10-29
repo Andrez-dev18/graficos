@@ -4,28 +4,97 @@ class CP08ComparativoGranjaGalponHandler
 {
     public static function handle(PDO $db, array $filtros): array
     {
-        // 1. Determinar Fecha de Consulta
-        $fechaConsulta = !empty($filtros['fecha_seleccionada']) ? trim($filtros['fecha_seleccionada']) : null;
-        if (!$fechaConsulta && !empty($filtros['fechahisto'])) {
-            $fechaConsulta = trim($filtros['fechahisto']);
+        // 1. Determinar Fecha o Rango de Consulta
+        $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : null;
+        $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : null;
+
+        if (!$fechaInicio && !empty($filtros['fecha_seleccionada'])) {
+            $fechaInicio = $fechaFin = trim($filtros['fecha_seleccionada']);
         }
-        if (!$fechaConsulta && !empty($filtros['por_fecha'])) {
-            $fechaConsulta = trim($filtros['por_fecha']);
+        if (!$fechaInicio && !empty($filtros['fechahisto'])) {
+            $fechaInicio = $fechaFin = trim($filtros['fechahisto']);
         }
-        if (!$fechaConsulta && !empty($filtros['fecha_fin'])) {
-            $fechaConsulta = trim($filtros['fecha_fin']);
+        if (!$fechaInicio && !empty($filtros['por_fecha'])) {
+            $fechaInicio = $fechaFin = trim($filtros['por_fecha']);
         }
-        if (!$fechaConsulta && !empty($filtros['fecha_inicio'])) {
-            $fechaConsulta = trim($filtros['fecha_inicio']);
+        if (!$fechaInicio && $fechaFin) {
+            $fechaInicio = $fechaFin;
+        }
+        if ($fechaInicio && !$fechaFin) {
+            $fechaFin = $fechaInicio;
         }
 
         // Obtener fechas disponibles de histodatosprodcompa
         $stmtFechas = $db->query("SELECT DISTINCT fechahisto FROM histodatosprodcompa ORDER BY fechahisto DESC LIMIT 180");
         $fechasDisponibles = $stmtFechas->fetchAll(PDO::FETCH_COLUMN);
 
-        $fechaProd = self::resolveFechaTable($db, 'histodatosprodcompa', $fechaConsulta, $fechasDisponibles);
-        $fechaLine = self::resolveFechaTable($db, 'histodatosalmalineacompa', $fechaConsulta, $fechasDisponibles);
-        $fechaAlma = self::resolveFechaTable($db, 'histodatosalmacompa', $fechaConsulta, $fechasDisponibles);
+        if (!$fechaInicio && !$fechaFin) {
+            $fechaInicio = $fechaFin = (!empty($fechasDisponibles) ? $fechasDisponibles[0] : '2026-09-14');
+        }
+
+        // Si fechaInicio > fechaFin por error, intercambiar
+        if (strtotime($fechaInicio) > strtotime($fechaFin)) {
+            $tmp = $fechaInicio;
+            $fechaInicio = $fechaFin;
+            $fechaFin = $tmp;
+        }
+
+        $fechaProd = self::resolveFechaTable($db, 'histodatosprodcompa', $fechaFin, $fechasDisponibles);
+        $fechaLine = self::resolveFechaTable($db, 'histodatosalmalineacompa', $fechaFin, $fechasDisponibles);
+        $fechaAlma = self::resolveFechaTable($db, 'histodatosalmacompa', $fechaFin, $fechasDisponibles);
+
+        $esFechaUnica = ($fechaInicio === $fechaFin);
+
+        // Condiciones de fecha para histodatosprodcompa
+        if ($esFechaUnica) {
+            $whereDateProd = "(fechahisto = :fec_prod OR fecha = :fec_prod_d)";
+            $paramsProd = [
+                ':fec_prod'   => $fechaProd,
+                ':fec_prod_d' => $fechaProd
+            ];
+            $whereDateLine = "(fechahisto = :fec_line OR DATE_FORMAT(fechahisto, '%Y-%m') = DATE_FORMAT(:fec_line_m, '%Y-%m'))";
+            $paramsLine = [
+                ':fec_line'   => $fechaLine,
+                ':fec_line_m' => $fechaLine
+            ];
+            $whereDateAlma = "(fechahisto = :fec_alma OR DATE_FORMAT(fechahisto, '%Y-%m') = DATE_FORMAT(:fec_alma_m, '%Y-%m'))";
+            $paramsAlma = [
+                ':fec_alma'   => $fechaAlma,
+                ':fec_alma_m' => $fechaAlma
+            ];
+        } else {
+            $whereDateProd = "(
+                fechahisto BETWEEN :fec_ini1 AND :fec_fin1 
+                OR fecha BETWEEN :fec_ini2 AND :fec_fin2
+                OR DATE_FORMAT(fechahisto, '%Y-%m') BETWEEN DATE_FORMAT(:fec_ini3, '%Y-%m') AND DATE_FORMAT(:fec_fin3, '%Y-%m')
+            )";
+            $paramsProd = [
+                ':fec_ini1' => $fechaInicio, ':fec_fin1' => $fechaFin,
+                ':fec_ini2' => $fechaInicio, ':fec_fin2' => $fechaFin,
+                ':fec_ini3' => $fechaInicio, ':fec_fin3' => $fechaFin
+            ];
+            $whereDateLine = "(
+                fechahisto BETWEEN :fec_line_ini AND :fec_line_fin 
+                OR DATE_FORMAT(fechahisto, '%Y-%m') BETWEEN DATE_FORMAT(:fec_line_m_ini, '%Y-%m') AND DATE_FORMAT(:fec_line_m_fin, '%Y-%m')
+            )";
+            $paramsLine = [
+                ':fec_line_ini'   => $fechaInicio, ':fec_line_fin'   => $fechaFin,
+                ':fec_line_m_ini' => $fechaInicio, ':fec_line_m_fin' => $fechaFin
+            ];
+            $whereDateAlma = "(
+                fechahisto BETWEEN :fec_alma_ini AND :fec_alma_fin 
+                OR DATE_FORMAT(fechahisto, '%Y-%m') BETWEEN DATE_FORMAT(:fec_alma_m_ini, '%Y-%m') AND DATE_FORMAT(:fec_alma_m_fin, '%Y-%m')
+            )";
+            $paramsAlma = [
+                ':fec_alma_ini'   => $fechaInicio, ':fec_alma_fin'   => $fechaFin,
+                ':fec_alma_m_ini' => $fechaInicio, ':fec_alma_m_fin' => $fechaFin
+            ];
+        }
+
+        // Si solo se solicitan los filtros disponibles (recarga rápida al cambiar fechas en UI)
+        if (!empty($filtros['solo_filtros'])) {
+            return self::obtenerFiltrosDisponibles($db, $esFechaUnica, $fechaProd, $fechaLine, $fechaInicio, $fechaFin);
+        }
 
         // 2. Procesar Filtros
         // Filtro Cencos / Granja
@@ -35,14 +104,8 @@ class CP08ComparativoGranjaGalponHandler
         }
 
         $whereCencosProd = "";
-        $whereCencosAlma = "";
-        $paramsProd = [':fec' => $fechaProd];
-        $paramsAlma = [':fec' => $fechaAlma];
-        $paramsLine = [':fec' => $fechaLine];
-
         if (!empty($cencosFiltro) && !in_array('TODOS', $cencosFiltro, true) && !in_array('(Todo)', $cencosFiltro, true)) {
             $cencosCondProd = [];
-            $cencosCondAlma = [];
             foreach ($cencosFiltro as $idx => $cenVal) {
                 $cenVal = trim($cenVal);
                 if ($cenVal !== '' && $cenVal !== '(Todo)' && $cenVal !== 'TODOS') {
@@ -51,59 +114,17 @@ class CP08ComparativoGranjaGalponHandler
                     $cencosCondProd[] = "(cencos = {$pCen1} OR nomcencos = {$pCen2})";
                     $paramsProd[$pCen1] = $cenVal;
                     $paramsProd[$pCen2] = $cenVal;
-
-                    $pCa1 = ":ca1_{$idx}";
-                    $pCa2 = ":ca2_{$idx}";
-                    $cencosCondAlma[] = "(cencos = {$pCa1} OR nomcencos = {$pCa2})";
-                    $paramsAlma[$pCa1] = $cenVal;
-                    $paramsAlma[$pCa2] = $cenVal;
-
-                    $pCl1 = ":cl1_{$idx}";
-                    $pCl2 = ":cl2_{$idx}";
-                    $paramsLine[$pCl1] = $cenVal;
-                    $paramsLine[$pCl2] = $cenVal;
                 }
             }
             if (!empty($cencosCondProd)) {
                 $whereCencosProd = " AND (" . implode(' OR ', $cencosCondProd) . ")";
-                $whereCencosAlma = " AND (" . implode(' OR ', $cencosCondAlma) . ")";
             }
         }
 
         // Filtro Clasificación
-        $whereClasifAlma = "";
-        $whereClasifLine = "";
         $clasifFiltro = !empty($filtros['clasificacion']) ? $filtros['clasificacion'] : null;
         if (is_string($clasifFiltro)) {
             $clasifFiltro = array_map('trim', explode(',', $clasifFiltro));
-        }
-
-        if (!empty($clasifFiltro) && !in_array('TODOS', $clasifFiltro, true) && !in_array('(Todo)', $clasifFiltro, true)) {
-            $clasifCondAlma = [];
-            $clasifCondLine = [];
-            foreach ($clasifFiltro as $idx => $cVal) {
-                $cVal = trim($cVal);
-                if ($cVal === 'NULL' || $cVal === '') {
-                    $clasifCondAlma[] = "(linea IS NULL OR TRIM(linea) = '')";
-                    $clasifCondLine[] = "(linea IS NULL OR TRIM(linea) = '')";
-                } else {
-                    $pKeyA1 = ":cla1_{$idx}";
-                    $pKeyA2 = ":cla2_{$idx}";
-                    $clasifCondAlma[] = "(TRIM(linea) = {$pKeyA1} OR CONCAT(TRIM(COALESCE(linea, '')), ' ', TRIM(COALESCE(nomlinea, ''))) = {$pKeyA2})";
-                    $paramsAlma[$pKeyA1] = $cVal;
-                    $paramsAlma[$pKeyA2] = $cVal;
-
-                    $pKeyL1 = ":cll1_{$idx}";
-                    $pKeyL2 = ":cll2_{$idx}";
-                    $clasifCondLine[] = "(TRIM(linea) = {$pKeyL1} OR CONCAT(TRIM(COALESCE(linea, '')), ' ', TRIM(COALESCE(nomlinea, ''))) = {$pKeyL2})";
-                    $paramsLine[$pKeyL1] = $cVal;
-                    $paramsLine[$pKeyL2] = $cVal;
-                }
-            }
-            if (!empty($clasifCondAlma)) {
-                $whereClasifAlma = " AND (" . implode(' OR ', $clasifCondAlma) . ")";
-                $whereClasifLine = " AND (" . implode(' OR ', $clasifCondLine) . ")";
-            }
         }
 
         // 3. TABLA 1: "Datos Productivos" (histodatosprodcompa)
@@ -118,7 +139,7 @@ class CP08ComparativoGranjaGalponHandler
                     SUM(pollosmuertos) AS pollosmuertos,
                     SUM(cargapollo) AS cargapollo
                   FROM histodatosprodcompa
-                  WHERE fechahisto = :fec
+                  WHERE {$whereDateProd}
                     {$whereCencosProd}
                   GROUP BY cencos, nomcencos, galpon
                   ORDER BY cencos ASC, CAST(galpon AS UNSIGNED) ASC";
@@ -258,10 +279,7 @@ class CP08ComparativoGranjaGalponHandler
         }
 
         // 5. TABLA 2: "Comparacion Linea" (histodatosalmalineacompa)
-        $paramsLineActivo = [
-            ':fec' => $fechaLine,
-            ':cen' => $cencosActivo
-        ];
+        $paramsLineActivo = array_merge($paramsLine, [':cen' => $cencosActivo]);
         $whereClasifLineActivo = "";
         if (!empty($clasifFiltro) && !in_array('TODOS', $clasifFiltro, true) && !in_array('(Todo)', $clasifFiltro, true)) {
             $clasifCondLineActivo = [];
@@ -287,7 +305,7 @@ class CP08ComparativoGranjaGalponHandler
                     SUM(valor) AS valor,
                     AVG(comodin) AS comodin
                   FROM histodatosalmalineacompa
-                  WHERE fechahisto = :fec
+                  WHERE {$whereDateLine}
                     AND cencos = :cen
                     {$whereClasifLineActivo}
                   GROUP BY linea, nomlinea, galpon
@@ -368,10 +386,7 @@ class CP08ComparativoGranjaGalponHandler
         unset($tG);
 
         // 6. TABLA 3: "Comparativo Detalle Productos" (histodatosalmacompa)
-        $paramsAlmaActivo = [
-            ':fec' => $fechaAlma,
-            ':cen' => $cencosActivo
-        ];
+        $paramsAlmaActivo = array_merge($paramsAlma, [':cen' => $cencosActivo]);
         $whereClasifAlmaActivo = "";
         if (!empty($clasifFiltro) && !in_array('TODOS', $clasifFiltro, true) && !in_array('(Todo)', $clasifFiltro, true)) {
             $clasifCondAlmaActivo = [];
@@ -400,7 +415,7 @@ class CP08ComparativoGranjaGalponHandler
                     SUM(peso) AS peso,
                     SUM(valor) AS valor
                   FROM histodatosalmacompa
-                  WHERE fechahisto = :fec
+                  WHERE {$whereDateAlma}
                     AND cencos = :cen
                     {$whereClasifAlmaActivo}
                   GROUP BY linea, codigo, nomcodigo, transaccion, galpon
@@ -501,36 +516,29 @@ class CP08ComparativoGranjaGalponHandler
         }
         unset($valG);
 
-        // 7. Filtros Disponibles
-        $sqlCencosDisp = "SELECT DISTINCT cencos, nomcencos 
-                          FROM histodatosprodcompa 
-                          WHERE fechahisto = :fec 
-                          ORDER BY cencos ASC";
-        $stmtCen = $db->prepare($sqlCencosDisp);
-        $stmtCen->execute([':fec' => $fechaProd]);
-        $cencosDisponibles = $stmtCen->fetchAll(PDO::FETCH_ASSOC);
+        // 7. Filtros Disponibles según el Rango de Fechas
+        $filtrosData = self::obtenerFiltrosDisponibles($db, $esFechaUnica, $fechaProd, $fechaLine, $fechaInicio, $fechaFin);
+        $cencosDisponibles = $filtrosData['filtros_disponibles']['cencos'];
+        $clasifDisponibles = $filtrosData['filtros_disponibles']['clasificaciones'];
 
-        $sqlClasifDisp = "SELECT 
-                            TRIM(linea) AS linea, 
-                            TRIM(COALESCE(nomlinea, '')) AS nomlinea, 
-                            TRIM(CONCAT(TRIM(COALESCE(linea, '')), ' ', TRIM(COALESCE(nomlinea, '')))) AS clasificacion
-                          FROM histodatosalmalineacompa
-                          WHERE fechahisto = :fec
-                          GROUP BY linea, nomlinea
-                          ORDER BY 
-                            CASE WHEN linea IS NULL OR TRIM(linea) = '' THEN 'ZZZ' ELSE linea END ASC";
-        $stmtC = $db->prepare($sqlClasifDisp);
-        $stmtC->execute([':fec' => $fechaLine]);
-        $clasifDisponibles = $stmtC->fetchAll(PDO::FETCH_ASSOC);
-
-        $fParts = explode('-', $fechaProd);
-        $fechaFormateada = (count($fParts) === 3) ? "{$fParts[2]}/{$fParts[1]}/{$fParts[0]}" : $fechaProd;
+        if ($esFechaUnica) {
+            $fParts = explode('-', $fechaProd);
+            $fechaFormateada = (count($fParts) === 3) ? "{$fParts[2]}/{$fParts[1]}/{$fParts[0]}" : $fechaProd;
+        } else {
+            $pIni = explode('-', $fechaInicio);
+            $pFin = explode('-', $fechaFin);
+            $fIniFmt = (count($pIni) === 3) ? "{$pIni[2]}/{$pIni[1]}/{$pIni[0]}" : $fechaInicio;
+            $fFinFmt = (count($pFin) === 3) ? "{$pFin[2]}/{$pFin[1]}/{$pFin[0]}" : $fechaFin;
+            $fechaFormateada = "{$fIniFmt} al {$fFinFmt}";
+        }
 
         return [
             'status'                   => 'success',
             'dashboard'                => 'CP08 ComparativoGranjaGalpon',
             'titulo'                   => 'Comparativo Granja Galpón',
-            'fecha'                    => $fechaProd,
+            'fecha'                    => $fechaFin,
+            'fecha_inicio'             => $fechaInicio,
+            'fecha_fin'                => $fechaFin,
             'fecha_formateada'         => $fechaFormateada,
             'fechas_disponibles'       => $fechasDisponibles,
             'cencos_activo'            => $cencosActivo,
@@ -586,5 +594,89 @@ class CP08ComparativoGranjaGalponHandler
         if ($res) return $res;
 
         return !empty($fechasDisponibles) ? $fechasDisponibles[0] : '2025-10-31';
+    }
+
+    public static function obtenerFiltrosDisponibles(PDO $db, bool $esFechaUnica, string $fechaProd, string $fechaLine, string $fechaInicio, string $fechaFin): array
+    {
+        if ($esFechaUnica) {
+            $sqlCencosDisp = "SELECT DISTINCT cencos, nomcencos 
+                              FROM histodatosprodcompa 
+                              WHERE fechahisto = :fec OR fecha = :fec_d
+                              ORDER BY cencos ASC";
+            $stmtCen = $db->prepare($sqlCencosDisp);
+            $stmtCen->execute([':fec' => $fechaProd, ':fec_d' => $fechaProd]);
+        } else {
+            $sqlCencosDisp = "SELECT DISTINCT cencos, nomcencos 
+                              FROM histodatosprodcompa 
+                              WHERE (
+                                  fechahisto BETWEEN :ini1 AND :fin1 
+                                  OR fecha BETWEEN :ini2 AND :fin2
+                                  OR DATE_FORMAT(fechahisto, '%Y-%m') BETWEEN DATE_FORMAT(:ini3, '%Y-%m') AND DATE_FORMAT(:fin3, '%Y-%m')
+                              )
+                              ORDER BY cencos ASC";
+            $stmtCen = $db->prepare($sqlCencosDisp);
+            $stmtCen->execute([
+                ':ini1' => $fechaInicio, ':fin1' => $fechaFin,
+                ':ini2' => $fechaInicio, ':fin2' => $fechaFin,
+                ':ini3' => $fechaInicio, ':fin3' => $fechaFin
+            ]);
+        }
+        $cencosDisponibles = $stmtCen->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($esFechaUnica) {
+            $sqlClasifDisp = "SELECT 
+                                TRIM(linea) AS linea, 
+                                TRIM(COALESCE(nomlinea, '')) AS nomlinea, 
+                                TRIM(CONCAT(TRIM(COALESCE(linea, '')), ' ', TRIM(COALESCE(nomlinea, '')))) AS clasificacion
+                              FROM histodatosalmalineacompa
+                              WHERE fechahisto = :fec OR DATE_FORMAT(fechahisto, '%Y-%m') = DATE_FORMAT(:fec_m, '%Y-%m')
+                              GROUP BY linea, nomlinea
+                              ORDER BY 
+                                CASE WHEN linea IS NULL OR TRIM(linea) = '' THEN 'ZZZ' ELSE linea END ASC";
+            $stmtC = $db->prepare($sqlClasifDisp);
+            $stmtC->execute([':fec' => $fechaLine, ':fec_m' => $fechaLine]);
+        } else {
+            $sqlClasifDisp = "SELECT 
+                                TRIM(linea) AS linea, 
+                                TRIM(COALESCE(nomlinea, '')) AS nomlinea, 
+                                TRIM(CONCAT(TRIM(COALESCE(linea, '')), ' ', TRIM(COALESCE(nomlinea, '')))) AS clasificacion
+                              FROM histodatosalmalineacompa
+                              WHERE (
+                                  fechahisto BETWEEN :ini1 AND :fin1 
+                                  OR DATE_FORMAT(fechahisto, '%Y-%m') BETWEEN DATE_FORMAT(:ini2, '%Y-%m') AND DATE_FORMAT(:fin2, '%Y-%m')
+                              )
+                              GROUP BY linea, nomlinea
+                              ORDER BY 
+                                CASE WHEN linea IS NULL OR TRIM(linea) = '' THEN 'ZZZ' ELSE linea END ASC";
+            $stmtC = $db->prepare($sqlClasifDisp);
+            $stmtC->execute([
+                ':ini1' => $fechaInicio, ':fin1' => $fechaFin,
+                ':ini2' => $fechaInicio, ':fin2' => $fechaFin
+            ]);
+        }
+        $clasifDisponibles = $stmtC->fetchAll(PDO::FETCH_ASSOC);
+
+        // Catálogo completo de granjas con rango de fechas para filtrado ultra-rápido en frontend
+        $sqlCat = "SELECT cencos, nomcencos, 
+                          MIN(COALESCE(fecha, fechahisto)) AS f_min, 
+                          MAX(COALESCE(fecha, fechahisto)) AS f_max,
+                          GROUP_CONCAT(DISTINCT fechahisto) AS fechas_histo
+                   FROM histodatosprodcompa 
+                   GROUP BY cencos, nomcencos 
+                   ORDER BY cencos ASC";
+        $stmtCat = $db->query($sqlCat);
+        $catalogoGranjas = $stmtCat ? $stmtCat->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        return [
+            'status'              => 'success',
+            'dashboard'           => 'CP08 ComparativoGranjaGalpon',
+            'fecha_inicio'        => $fechaInicio,
+            'fecha_fin'           => $fechaFin,
+            'filtros_disponibles' => [
+                'cencos'           => $cencosDisponibles,
+                'clasificaciones'  => $clasifDisponibles,
+                'granjas_catalogo' => $catalogoGranjas
+            ]
+        ];
     }
 }

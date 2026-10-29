@@ -49,8 +49,23 @@ class CostoDiarioController {
             selPeriodo.addEventListener('change', () => {
                 if (typeof PeriodoHelper !== 'undefined') {
                     PeriodoHelper.renderizarInputs();
+                    this.notifyFechasChanged();
                 }
             });
+        }
+
+        // Listener reactivo a cambios directos en los inputs de fecha (sin pulsar Cargar)
+        let debounceTimerFechas = null;
+        const contPeriodo = document.getElementById('contenedor-inputs-periodo');
+        if (contPeriodo) {
+            const handleFechaChange = () => {
+                if (debounceTimerFechas) clearTimeout(debounceTimerFechas);
+                debounceTimerFechas = setTimeout(() => {
+                    this.notifyFechasChanged();
+                }, 300);
+            };
+            contPeriodo.addEventListener('change', handleFechaChange);
+            contPeriodo.addEventListener('input', handleFechaChange);
         }
 
         // Selector de tipo de gráfico
@@ -196,6 +211,24 @@ class CostoDiarioController {
 
         const cardTabla = document.getElementById('card-tabla-metricas');
         if (cardTabla) cardTabla.classList.add('hidden');
+    }
+
+    notifyFechasChanged() {
+        if (typeof PeriodoHelper === 'undefined' || !PeriodoHelper.obtenerRangoFechas) return;
+        const rango = PeriodoHelper.obtenerRangoFechas();
+        const fIni = rango.fechaInicio || rango.inicio;
+        const fFin = rango.fechaFin || rango.fin;
+        if (!fIni || !fFin) return;
+        // Evitar disparar si la fecha está incompleta mientras se digita
+        if (fIni.length < 7 || fFin.length < 7) return;
+
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value;
+        if (tipoGrafico && window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
+            const mod = window.ChartRegistry[tipoGrafico];
+            if (typeof mod.onFechasChanged === 'function') {
+                mod.onFechasChanged(rango);
+            }
+        }
     }
 
     async limpiarFiltros() {

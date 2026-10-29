@@ -10,6 +10,7 @@
 
 window.ChartCP08ComparativoGranjaGalpon = {
     datosBackend: null,
+    catalogoGranjas: null,
     cencosActivo: null,
     nomcencosActivo: null,
     galponActivo: null,
@@ -22,6 +23,9 @@ window.ChartCP08ComparativoGranjaGalpon = {
             data = controller;
         }
         this.datosBackend = data || {};
+        if (data && data.filtros_disponibles && data.filtros_disponibles.granjas_catalogo) {
+            this.catalogoGranjas = data.filtros_disponibles.granjas_catalogo;
+        }
         this.cencosActivo = data.cencos_activo || (data.tabla1_datos_productivos?.granjas?.[0]?.cencos) || null;
         this.nomcencosActivo = data.nomcencos_activo || (data.tabla1_datos_productivos?.granjas?.[0]?.nomcencos) || '';
         this.galponActivo = null;
@@ -46,7 +50,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         if (this.multiGranja) {
             const granjas = this.multiGranja.getSelectedValues();
             if (granjas.length > 0 && granjas.length < this.multiGranja.options.length) {
-                filters.nomcencos = granjas;
+                filters.cencos = granjas;
             }
         }
         if (this.multiClasif) {
@@ -58,36 +62,75 @@ window.ChartCP08ComparativoGranjaGalpon = {
         return filters;
     },
 
+    aplicarOpcionesGranja(cencosList) {
+        const optGranja = (cencosList || []).map(c => {
+            const id = String(c.cencos).trim();
+            const label = `${c.cencos} ${c.nomcencos || ''}`.trim();
+            return { id: id, label: label, selected: true };
+        });
+
+        if (!this.multiGranja && typeof CustomMultiSelect !== 'undefined') {
+            this.multiGranja = new CustomMultiSelect({
+                btnId: 'btn-dropdown-granja-cp08',
+                dropdownId: 'dropdown-granja-cp08',
+                optionsContainerId: 'container-options-granja-cp08',
+                labelId: 'label-granja-cp08',
+                searchId: 'search-granja-cp08',
+                title: 'Granja',
+                options: optGranja,
+                onChange: () => {
+                    this.filtrarLocalmente();
+                }
+            });
+        } else if (this.multiGranja) {
+            this.multiGranja.setOptions(optGranja);
+        }
+
+        const labelGranja = document.getElementById('label-granja-cp08');
+        if (optGranja.length === 0 && labelGranja) {
+            labelGranja.textContent = '(Sin granjas en este período)';
+            labelGranja.className = 'truncate text-slate-400 font-normal';
+        }
+    },
+
+    actualizarGranjasDesdeCatalogo(fIni, fFin) {
+        if (!this.catalogoGranjas || !Array.isArray(this.catalogoGranjas) || this.catalogoGranjas.length === 0) {
+            return false;
+        }
+
+        const fIniStr = fIni.substring(0, 10);
+        const fFinStr = fFin.substring(0, 10);
+        const mIni = fIni.substring(0, 7);
+        const mFin = fFin.substring(0, 7);
+
+        const cencosFiltrados = this.catalogoGranjas.filter(g => {
+            if (g.fechas_histo) {
+                const arr = g.fechas_histo.split(',');
+                for (let i = 0; i < arr.length; i++) {
+                    const f = arr[i].trim();
+                    const fm = f.substring(0, 7);
+                    if ((f >= fIniStr && f <= fFinStr) || (fm >= mIni && fm <= mFin)) {
+                        return true;
+                    }
+                }
+            }
+            if (g.f_min && g.f_max) {
+                if (!(g.f_max < fIniStr || g.f_min > fFinStr)) return true;
+            }
+            return false;
+        });
+
+        this.aplicarOpcionesGranja(cencosFiltrados);
+        return true;
+    },
+
     setupFilters(data) {
         // Filtro Granja
         const contGranja = document.getElementById('contenedor-filtro-granja-cp08');
         if (contGranja) contGranja.classList.remove('hidden');
 
-        const cencosDisp = (data.filtros_disponibles && data.filtros_disponibles.cencos) || [];
-        if (typeof CustomMultiSelect !== 'undefined' && cencosDisp.length > 0) {
-            const optGranja = cencosDisp.map(c => {
-                const id = String(c.cencos).trim();
-                const label = `${c.cencos} ${c.nomcencos || ''}`.trim();
-                return { id: id, label: label, selected: true };
-            });
-
-            if (!this.multiGranja) {
-                this.multiGranja = new CustomMultiSelect({
-                    btnId: 'btn-dropdown-granja-cp08',
-                    dropdownId: 'dropdown-granja-cp08',
-                    optionsContainerId: 'container-options-granja-cp08',
-                    labelId: 'label-granja-cp08',
-                    searchId: 'search-granja-cp08',
-                    title: 'Granja',
-                    options: optGranja,
-                    onChange: () => {
-                        this.filtrarLocalmente();
-                    }
-                });
-            } else {
-                this.multiGranja.setOptions(optGranja);
-            }
-        }
+        const cencosDisp = (data && data.filtros_disponibles && data.filtros_disponibles.cencos) || [];
+        this.aplicarOpcionesGranja(cencosDisp);
 
         // Filtro Clasificación
         const contClasif = document.getElementById('contenedor-filtro-clasificacion-cp08');
@@ -115,6 +158,70 @@ window.ChartCP08ComparativoGranjaGalpon = {
                 });
             } else {
                 this.multiClasif.setOptions(optClasif);
+            }
+        }
+    },
+
+    async onFechasChanged(rango) {
+        if (!rango || (!rango.fechaInicio && !rango.fechaFin)) return;
+
+        const fIni = rango.fechaInicio || rango.inicio;
+        const fFin = rango.fechaFin || rango.fin;
+        if (!fIni || !fFin) return;
+
+        // 1. Filtrado instantáneo (0ms) en cliente si ya tenemos el catálogo
+        const filtradoInstantaneo = this.actualizarGranjasDesdeCatalogo(fIni, fFin);
+
+        const labelGranja = document.getElementById('label-granja-cp08');
+        const prevText = labelGranja ? labelGranja.textContent : '';
+
+        // Solo mostrar indicador sutil si no tenemos catálogo aún
+        if (!filtradoInstantaneo && labelGranja) {
+            labelGranja.textContent = 'Actualizando...';
+        }
+
+        try {
+            const baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.API && AppConfig.API.BASE_URL) 
+                ? AppConfig.API.BASE_URL 
+                : (window.costoDiarioController?.service?.baseUrl || '../../backend');
+            const url = `${baseUrl}/costoDiario/dashboard`;
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tipo_grafico: 'CP08 ComparativoGranjaGalpon',
+                    fecha_inicio: fIni,
+                    fecha_fin: fFin,
+                    solo_filtros: true
+                })
+            });
+
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            const dataRes = await res.json();
+            const data = dataRes.payload || dataRes.data || dataRes;
+
+            if (data && data.filtros_disponibles) {
+                if (data.filtros_disponibles.granjas_catalogo) {
+                    this.catalogoGranjas = data.filtros_disponibles.granjas_catalogo;
+                }
+
+                const cencosDisp = data.filtros_disponibles.cencos || [];
+                this.aplicarOpcionesGranja(cencosDisp);
+
+                const clasifsDisp = data.filtros_disponibles.clasificaciones || [];
+                if (typeof CustomMultiSelect !== 'undefined' && clasifsDisp.length > 0 && this.multiClasif) {
+                    const optClasif = clasifsDisp.map(c => {
+                        const id = (c.clasificacion || `${c.linea} ${c.nomlinea}`).trim();
+                        return { id: id, label: id, selected: true };
+                    });
+                    this.multiClasif.setOptions(optClasif);
+                }
+            }
+        } catch (err) {
+            console.error('Error al actualizar opciones de granja en CP08:', err);
+            if (!filtradoInstantaneo && labelGranja) {
+                labelGranja.textContent = prevText || '(Todo)';
             }
         }
     },
