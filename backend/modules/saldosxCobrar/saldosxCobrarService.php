@@ -96,11 +96,22 @@ class saldosxCobrarService
     {
         $cuentaventa = $params['cuentaventa'] ?? '';
         $fechacarga  = $params['fechacarga'] ?? '';
+        $fechacontable = $params['fechacontable'] ?? '';
+        $condicionpago = $params['condicionpago'] ?? '';
+        $zonafiscalParam = $params['zonafiscal'] ?? '';
         $nomcorp     = $params['nomcorporativo'] ?? '';
         $tipoGrafico = $params['tipo_grafico'] ?? '';
 
-        // Para gráficos estándar se requiere cuentaventa. Para 18CorporativosZonaDeudores se requiere nomcorporativo y fechacarga
-        if ($tipoGrafico === '18CorporativosZonaDeudores') {
+        if ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            if (empty($cuentaventa) || empty($fechacarga) || empty($fechacontable) || empty($condicionpago) || empty($zonafiscalParam)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Parámetros cuentaventa, fechacarga, fechacontable, condicionpago y zonafiscal son requeridos',
+                    'resumen' => null,
+                    'datos_completos' => []
+                ];
+            }
+        } elseif ($tipoGrafico === '18CorporativosZonaDeudores') {
             if (empty($nomcorp) || empty($fechacarga)) {
                 return [
                     'status' => 'error',
@@ -136,24 +147,42 @@ class saldosxCobrarService
             $ratio = ($saldoIni != 0.0) ? round(round($restaSaldo / $saldoIni, 2), 5) : 0.0;
 
             return [
-                'cuentaventa'    => $row['cuentaventa'],
-                'nomcuentaventa' => $row['nomcuentaventa'],
-                'zonafiscal'     => $row['zonafiscal'],
-                'fechacarga'     => $row['fechacarga'],
-                'codcliente'     => $row['codcliente'],
-                'nomcliente'     => $row['nomcliente'],
-                'condicionpago'  => $row['condicionpago'],
-                'numerodoc'      => $row['numerodoc'],
-                'decision'       => $row['decision'],
-                'observacion'    => $row['observacion'],
-                'vencimiento'    => $row['vencimiento'],
-                'saldofinal'     => $monto,
-                'saldoinicial'   => $saldoIni,
-                'resta_saldo'    => $restaSaldo,
-                'ratio_cobranza' => $ratio,
-                'fechacontable'  => $row['fechacontable'] ?? '',
-                'horacreacion'   => $row['horacreacion'] ?? '',
-                'nomcorporativo' => $row['nomcorporativo'] ?? ''
+                'cuentaventa'      => $row['cuentaventa'],
+                'nomcuentaventa'   => $row['nomcuentaventa'],
+                'zonafiscal'       => $row['zonafiscal'],
+                'fechacarga'       => $row['fechacarga'],
+                'codcliente'       => $row['codcliente'],
+                'nomcliente'       => $row['nomcliente'],
+                'codcondpago'      => $row['codcondpago'] ?? '',
+                'codcorporativo'   => $row['codcorporativo'] ?? '',
+                'coddoc'           => $row['coddoc'] ?? '',
+                'codzonaventa'     => $row['codzonaventa'] ?? '',
+                'condicionpago'    => $row['condicionpago'],
+                'decision'         => $row['decision'],
+                'fechacreacion'    => $row['fechacreacion'] ?? '',
+                'fechaproceso'     => $row['fechaproceso'] ?? '',
+                'fechavencimiento' => $row['fechavencimiento'] ?? '',
+                'nomdoc'           => $row['nomdoc'] ?? '',
+                'numdocref'        => $row['numdocref'] ?? '',
+                'numeroalfdoc'     => $row['numeroalfdoc'] ?? '',
+                'numerodoc'        => $row['numerodoc'],
+                'observacion'      => $row['observacion'],
+                'seriealfdoc'      => $row['seriealfdoc'] ?? '',
+                'seriealfref'      => $row['seriealfref'] ?? '',
+                'subzonaventa'     => $row['subzonaventa'] ?? '',
+                'tipdocref'        => $row['tipdocref'] ?? '',
+                'vencimiento'      => $row['vencimiento'],
+                'zonaventa'        => $row['zonaventa'] ?? '',
+                'diasporvencer'    => (float)($row['diasporvencer'] ?? 0),
+                'importe'          => (float)($row['importe'] ?? 0),
+                'saldofinal'       => $monto,
+                'saldoinicial'     => $saldoIni,
+                'resta_saldo'      => $restaSaldo,
+                'ratio_cobranza'   => $ratio,
+                'numero_registros' => 1,
+                'fechacontable'    => $row['fechacontable'] ?? '',
+                'horacreacion'     => $row['horacreacion'] ?? '',
+                'nomcorporativo'   => $row['nomcorporativo'] ?? ''
             ];
         }, $detalleRaw);
 
@@ -161,20 +190,31 @@ class saldosxCobrarService
         // En Tableau: ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinicial]), 2) y formateado a 6 decimales (ej. 0,430000)
         $ratioCobranza = ($totalSaldoinicial != 0.0) ? round(round($sumResta / $totalSaldoinicial, 2), 6) : 0.0;
 
+        if ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            foreach ($datosCompletos as &$fila) {
+                $fila['ratio_cobranza'] = $ratioCobranza;
+            }
+            unset($fila);
+        }
+
         return [
             'status' => 'success',
             'resumen' => [
                 'nomcorporativo' => $nomcorp ?: ($detalleRaw[0]['nomcorporativo'] ?? ''),
                 'cuentaventa'    => $cuentaventa,
                 'nomcuentaventa' => $detalleRaw[0]['nomcuentaventa'] ?? '',
-                'zonafiscal'     => $params['zonafiscal'] ?? ($detalleRaw[0]['zonafiscal'] ?? ''),
+                'condicionpago'  => $condicionpago ?: ($detalleRaw[0]['condicionpago'] ?? ''),
+                'zonafiscal'     => $zonafiscalParam ?: ($detalleRaw[0]['zonafiscal'] ?? ''),
                 'fechacarga'     => $fechacarga,
+                'fechacontable'  => $fechacontable ?: ($detalleRaw[0]['fechacontable'] ?? ''),
                 'saldofinal'     => round($totalSaldofinal, 2),
                 'saldoinicial'   => round($totalSaldoinicial, 2),
                 'resta_saldo'    => $sumResta,
                 'ratio_cobranza' => $ratioCobranza
             ],
             'total_filas' => count($datosCompletos),
+            'total_saldofinal' => round($totalSaldofinal, 2),
+            'total_saldoinicial' => round($totalSaldoinicial, 2),
             'datos_completos' => $datosCompletos
         ];
     }
@@ -233,6 +273,28 @@ class saldosxCobrarService
 
         // Reutiliza la misma consulta con filtros del modal
         $datos = $this->repo->getDetallePorCuentaYFecha($params);
+
+        $tipoGrafico = $params['tipo_grafico'] ?? '';
+        if ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            $totalSaldofinal = 0.0;
+            $totalSaldoinicial = 0.0;
+
+            foreach ($datos as $row) {
+                $totalSaldofinal += (float)($row['saldofinal'] ?? 0);
+                $totalSaldoinicial += (float)($row['saldoinicial'] ?? 0);
+            }
+
+            $sumResta = round($totalSaldoinicial - $totalSaldofinal, 2);
+            $ratioCobranza = ($totalSaldoinicial != 0.0)
+                ? round(round($sumResta / $totalSaldoinicial, 2), 6)
+                : 0.0;
+
+            foreach ($datos as &$row) {
+                $row['ratio_cobranza'] = $ratioCobranza;
+                $row['numero_registros'] = 1;
+            }
+            unset($row);
+        }
 
         $exportador = new SaldosExportExcel();
         $exportador->generarExcelDetalle($datos, $params);

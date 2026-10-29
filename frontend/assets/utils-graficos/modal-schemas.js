@@ -135,6 +135,58 @@ const ModalSchemas = {
             ]
         },
 
+        // 5.1 Gráfico 10IndSalxCobrarxCtaxFechaDocSegmentado
+        '10IndSalxCobrarxCtaxFechaDocSegmentado': {
+            resumen: [
+                { key: 'condicionpago', label: 'condicionpago', align: 'left', fontClass: 'font-semibold' },
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', format: 'fullDate' },
+                { key: 'dia_fechacontable', label: 'Día de fechacontable', align: 'left', format: 'fullDate' },
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'zonafiscal', label: 'zonafiscal', align: 'left' },
+                { key: 'ratio_cobranza', label: 'ROUND(1-(sum([saldofinal])/sum([saldoinicial])),2)', align: 'right', format: 'ratio6', fontClass: 'font-mono', headerWrap: true },
+                { key: 'ratio_cobranza_2', label: 'ROUND(1-(sum([saldofinal])/sum([saldoinicial])),2)', align: 'right', format: 'ratio6', fontClass: 'font-mono', headerWrap: true }
+            ],
+            detalle: [
+                { key: 'codcliente', label: 'codcliente', align: 'left', fontClass: 'font-mono text-slate-600' },
+                { key: 'codcondpago', label: 'codcondpago', align: 'left', fontClass: 'font-mono text-slate-600' },
+                { key: 'codcorporativo', label: 'codcorporativo', align: 'left', fontClass: 'font-mono text-slate-600' },
+                { key: 'coddoc', label: 'coddoc', align: 'left', fontClass: 'font-mono text-slate-600' },
+                { key: 'codzonaventa', label: 'codzonaventa', align: 'left', fontClass: 'font-mono text-slate-600' },
+                { key: 'condicionpago', label: 'condicionpago', align: 'left' },
+                { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'decision', label: 'decision', align: 'left' },
+                { key: 'fechacarga', label: 'fechacarga', align: 'left', format: 'shortDatePadded', nowrap: true },
+                { key: 'fechacontable', label: 'fechacontable', align: 'left', format: 'shortDatePadded', nowrap: true },
+                { key: 'fechacreacion', label: 'fechacreacion', align: 'left', format: 'shortDatePadded', nowrap: true },
+                { key: 'fechaproceso', label: 'fechaproceso', align: 'left', format: 'shortDatePadded', nowrap: true },
+                { key: 'fechavencimiento', label: 'fechavencimiento', align: 'left', format: 'shortDatePadded', nowrap: true },
+                { key: 'horacreacion', label: 'horacreacion', align: 'left', format: 'dateTimePadded', nowrap: true },
+                { key: 'nomcliente', label: 'nomcliente', align: 'left' },
+                { key: 'nomcorporativo', label: 'nomcorporativo', align: 'left' },
+                { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left' },
+                { key: 'nomdoc', label: 'nomdoc', align: 'left' },
+                { key: 'numdocref', label: 'numdocref', align: 'left', fontClass: 'font-mono' },
+                { key: 'numeroalfdoc', label: 'numeroalfdoc', align: 'left', fontClass: 'font-mono' },
+                { key: 'numerodoc', label: 'numerodoc', align: 'left', fontClass: 'font-mono' },
+                { key: 'observacion', label: 'observacion', align: 'left' },
+                { key: 'seriealfdoc', label: 'seriealfdoc', align: 'left', fontClass: 'font-mono' },
+                { key: 'seriealfref', label: 'seriealfref', align: 'left', fontClass: 'font-mono' },
+                { key: 'subzonaventa', label: 'subzonaventa', align: 'left' },
+                { key: 'tipdocref', label: 'tipdocref', align: 'left', fontClass: 'font-mono' },
+                { key: 'vencimiento', label: 'vencimiento', align: 'left' },
+                { key: 'zonafiscal', label: 'zonafiscal', align: 'left' },
+                { key: 'zonaventa', label: 'zonaventa', align: 'left' },
+                { key: 'diasporvencer', label: 'diasporvencer', align: 'right', format: 'currency' },
+                { key: 'importe', label: 'importe', align: 'right', format: 'currency' },
+                { key: 'numero_registros', label: 'Número de registros', align: 'right' },
+                { key: 'ratio_cobranza', label: 'ROUND(1-(sum([saldofinal])/sum([saldoinicial])),2)', align: 'right', format: 'ratio6', fontClass: 'font-mono', headerWrap: true },
+                { key: 'ratio_cobranza', label: 'ROUND(1-(sum([saldofinal])/sum([saldoinicial])),2)', align: 'right', format: 'ratio6', fontClass: 'font-mono', headerWrap: true },
+                { key: 'saldofinal', label: 'saldofinal', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' },
+                { key: 'saldoinicial', label: 'saldoinicial', align: 'right', format: 'currency', fontClass: 'font-bold text-slate-900' }
+            ]
+        },
+
         // 6. Gráfico 07VentasSacCoor (Ventas y Devoluciones Resumen / Completos)
         '07VentasSacCoor': {
             resumen: [
@@ -218,7 +270,7 @@ const ModalSchemas = {
                     const isLast = idx === columnas.length - 1;
                     const alignClass = col.align === 'right' ? 'text-right' : 'text-left';
                     const borderClass = isLast ? '' : 'border-r border-blue-500';
-                    return `<th class="px-4 py-3 ${alignClass} ${borderClass} bg-blue-600 whitespace-nowrap">${col.label}</th>`;
+                    return `<th class="px-4 py-3 ${alignClass} ${borderClass} bg-blue-600 ${col.headerWrap ? '' : 'whitespace-nowrap'}">${col.label}</th>`;
                 }).join('')}
             </tr>
         `;
@@ -239,6 +291,13 @@ const ModalSchemas = {
         }
         if (col.format === 'shortDate') {
             return helpers && helpers.formatearFechaCorta ? helpers.formatearFechaCorta(val) : (val || '');
+        }
+        if (col.format === 'shortDatePadded') {
+            return helpers && helpers.formatearFechaCortaPadded ? helpers.formatearFechaCortaPadded(val) : (val || '');
+        }
+        if (col.format === 'dateTimePadded') {
+            if (!val) return '';
+            return helpers && helpers.formatearFechaHoraPadded ? helpers.formatearFechaHoraPadded(val) : val;
         }
         if (col.format === 'fullDate') {
             return helpers && helpers.formatearFecha ? helpers.formatearFecha(val) : (val || '');
@@ -340,6 +399,49 @@ const ModalSchemas = {
                 <td class="px-4 py-3 text-right text-xs font-bold text-blue-700 whitespace-nowrap">
                     ${totalFormatted}
                 </td>
+            </tr>
+        `;
+    },
+
+    renderTfootDoble(tfootEl, columnas, totales, helpers) {
+        if (!tfootEl) return;
+
+        const totalCols = columnas.length;
+        const idxSaldoFinal = columnas.findIndex(col => col.key === 'saldofinal');
+        const idxSaldoInicial = columnas.findIndex(col => col.key === 'saldoinicial');
+        if (idxSaldoFinal < 0 || idxSaldoInicial < 0) return;
+
+        const firstTotal = Math.min(idxSaldoFinal, idxSaldoInicial);
+        const colspanLabel = Math.max(1, firstTotal);
+        const fmt = (valor) => helpers && helpers.formatearNumero ? helpers.formatearNumero(valor, true) : valor;
+
+        const celdas = [];
+        celdas.push(`<td colspan="${colspanLabel}" class="px-4 py-2 text-right uppercase tracking-wider text-[10px] text-slate-600 border-r border-slate-200">Totales:</td>`);
+
+        for (let i = firstTotal; i < totalCols; i++) {
+            const col = columnas[i];
+            if (col.key === 'saldofinal') {
+                celdas.push(`
+                    <td class="px-3 py-2 text-right whitespace-nowrap border-r border-slate-200">
+                        <span class="block text-[9px] font-semibold uppercase tracking-wider text-slate-500">Total Saldo Final</span>
+                        <span class="text-xs font-bold text-blue-700">${fmt(totales.saldofinal)}</span>
+                    </td>
+                `);
+            } else if (col.key === 'saldoinicial') {
+                celdas.push(`
+                    <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <span class="block text-[9px] font-semibold uppercase tracking-wider text-slate-500">Total Saldo Inicial</span>
+                        <span class="text-xs font-bold text-blue-700">${fmt(totales.saldoinicial)}</span>
+                    </td>
+                `);
+            } else {
+                celdas.push(`<td class="px-3 py-2 border-r border-slate-200"></td>`);
+            }
+        }
+
+        tfootEl.innerHTML = `
+            <tr class="sticky bottom-0 z-10 bg-slate-100 border-t-2 border-slate-300 shadow-md font-bold text-slate-800">
+                ${celdas.join('')}
             </tr>
         `;
     }

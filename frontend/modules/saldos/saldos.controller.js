@@ -282,17 +282,41 @@ class SaldosController {
         const modal = document.getElementById('modal-ver-datos');
         if (!modal || !this.puntoSeleccionado) return;
 
-        const { tipoGrafico, metrica, cuenta, nomcuentaventa, zona, nomcorporativo, fechaFormateada, saldofinal, saldoinicial, resta_saldo, ratioCobranza } = this.puntoSeleccionado;
+        document.getElementById('fd-tooltip')?.classList.add('hidden');
+
+        const {
+            tipoGrafico, metrica, cuenta, nomcuentaventa, zona, nomcorporativo,
+            fechaFormateada, saldofinal, saldoinicial, resta_saldo, ratioCobranza,
+            condicionpago, fechacarga, fecha, ratio
+        } = this.puntoSeleccionado;
         const tipoActivo = tipoGrafico || (this.msTipoGrafico ? this.msTipoGrafico.getSelectedValues()[0] : 'saltosXcobrarXbarra');
         const schema = ModalSchemas.getSchema(tipoActivo, metrica);
 
         const helpers = {
             formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
             formatearFechaCorta: (f) => this.formatearFechaCortaTableau(f),
-            formatearFecha: (f) => this.formatearFechaTableau(f)
+            formatearFechaCortaPadded: (f) => this.formatearFechaCortaPaddedTableau(f),
+            formatearFecha: (f) => this.formatearFechaTableau(f),
+            formatearFechaHoraPadded: (f) => this.formatearFechaHoraPaddedTableau(f)
         };
 
-        if (tipoActivo === '18CorporativosZonaDeudores') {
+        this.alternarBotonExportarExcel(true);
+
+        const modalContenedor = document.getElementById('modal-ver-datos-contenedor');
+        if (modalContenedor) {
+            modalContenedor.style.maxWidth = tipoActivo === '10IndSalxCobrarxCtaxFechaDocSegmentado' ? '96vw' : '';
+        }
+
+        const vistaResumenCompacta = document.getElementById('vista-tab-resumen');
+        if (vistaResumenCompacta) {
+            vistaResumenCompacta.classList.toggle('fd-summary-compact', tipoActivo === '10IndSalxCobrarxCtaxFechaDocSegmentado');
+        }
+
+        if (tipoActivo === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            document.getElementById('modal-titulo-vista').textContent = 'Ver datos: 10IndSalxCobrarxCtaxFechaDocSegmentado';
+            document.getElementById('modal-subtitulo-filas').textContent =
+                `Cuenta ${cuenta} - ${condicionpago} - ${zona} - Día de fechacontable: ${this.formatearFechaTableau(fecha)}`;
+        } else if (tipoActivo === '18CorporativosZonaDeudores') {
             document.getElementById('modal-titulo-vista').textContent = `Ver datos: 18CorporativosZonaDeudores (1 marca)`;
             document.getElementById('modal-subtitulo-filas').textContent = `${nomcorporativo} - Zona: ${zona}`;
         } else {
@@ -307,17 +331,32 @@ class SaldosController {
 
         ModalSchemas.renderThead(theadResumen, schema.resumen, false);
 
-        const dataResumen = {
-            nomcorporativo: nomcorporativo || '',
-            cuentaventa: cuenta || '',
-            nomcuentaventa: nomcuentaventa || '',
-            zonafiscal: zona || '',
-            dia_fechacarga: fechaFormateada,
-            saldofinal: saldofinal,
-            saldoinicial: saldoinicial || 0,
-            resta_saldo: resta_saldo || 0,
-            ratio_cobranza: ratioCobranza || 0
-        };
+        let dataResumen;
+        if (tipoActivo === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            const ratioValor = (ratio !== undefined && ratio !== null) ? ratio : (ratioCobranza || 0);
+            dataResumen = {
+                condicionpago: condicionpago || '',
+                cuentaventa: cuenta || '',
+                dia_fechacarga: fechacarga || '',
+                dia_fechacontable: fecha || '',
+                nomcuentaventa: nomcuentaventa || '',
+                zonafiscal: zona || '',
+                ratio_cobranza: ratioValor,
+                ratio_cobranza_2: ratioValor
+            };
+        } else {
+            dataResumen = {
+                nomcorporativo: nomcorporativo || '',
+                cuentaventa: cuenta || '',
+                nomcuentaventa: nomcuentaventa || '',
+                zonafiscal: zona || '',
+                dia_fechacarga: fechaFormateada,
+                saldofinal: saldofinal,
+                saldoinicial: saldoinicial || 0,
+                resta_saldo: resta_saldo || 0,
+                ratio_cobranza: ratioCobranza || 0
+            };
+        }
 
         ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumen, helpers);
 
@@ -365,7 +404,9 @@ class SaldosController {
         const helpers = {
             formatearNumero: (n, d) => this.formatearNumeroTableau(n, d),
             formatearFechaCorta: (f) => this.formatearFechaCortaTableau(f),
-            formatearFecha: (f) => this.formatearFechaTableau(f)
+            formatearFechaCortaPadded: (f) => this.formatearFechaCortaPaddedTableau(f),
+            formatearFecha: (f) => this.formatearFechaTableau(f),
+            formatearFechaHoraPadded: (f) => this.formatearFechaHoraPaddedTableau(f)
         };
 
         // Renderizar cabecera de datos completos dinámicamente con ModalSchemas
@@ -397,6 +438,14 @@ class SaldosController {
                 payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
                 payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
                 payloadDetalle.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+                payloadDetalle.fechacarga = this.puntoSeleccionado.fechacarga;
+                payloadDetalle.fechacontable = this.puntoSeleccionado.fecha;
+                payloadDetalle.condicionpago = this.puntoSeleccionado.condicionpago;
+                payloadDetalle.zonafiscal = this.puntoSeleccionado.zona;
+                payloadDetalle.nomcuentaventa = this.puntoSeleccionado.nomcuentaventa;
+                payloadDetalle.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadDetalle.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
             } else {
                 // FILTROS ESPECÍFICOS DE BARRAS
                 const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
@@ -410,8 +459,13 @@ class SaldosController {
 
             if (res.success && res.payload && res.payload.datos_completos) {
                 const filas = res.payload.datos_completos;
-                const subtituloZona = this.puntoSeleccionado.zona ? ` - Zona: ${this.puntoSeleccionado.zona}` : '';
-                document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada}${subtituloZona})`;
+                if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+                    document.getElementById('modal-subtitulo-filas').textContent =
+                        `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada} - ${this.puntoSeleccionado.condicionpago} - ${this.puntoSeleccionado.zona})`;
+                } else {
+                    const subtituloZona = this.puntoSeleccionado.zona ? ` - Zona: ${this.puntoSeleccionado.zona}` : '';
+                    document.getElementById('modal-subtitulo-filas').textContent = `${filas.length} filas encontradas (${this.puntoSeleccionado.fechaFormateada}${subtituloZona})`;
+                }
 
                 // Asignar día formateado a cada fila para la columna 'Día de fechacarga'
                 filas.forEach(f => {
@@ -434,23 +488,55 @@ class SaldosController {
                     ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumenActualizado, helpers);
                 }
 
+                if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado' && res.payload.resumen) {
+                    const r = res.payload.resumen;
+                    const dataResumenActualizado = {
+                        condicionpago: r.condicionpago || this.puntoSeleccionado.condicionpago,
+                        cuentaventa: r.cuentaventa || this.puntoSeleccionado.cuenta,
+                        dia_fechacarga: r.fechacarga || this.puntoSeleccionado.fechacarga,
+                        dia_fechacontable: r.fechacontable || this.puntoSeleccionado.fecha,
+                        nomcuentaventa: r.nomcuentaventa || this.puntoSeleccionado.nomcuentaventa,
+                        zonafiscal: r.zonafiscal || this.puntoSeleccionado.zona,
+                        ratio_cobranza: r.ratio_cobranza,
+                        ratio_cobranza_2: r.ratio_cobranza
+                    };
+                    const tbodyResumen = document.getElementById('tbody-modal-resumen');
+                    ModalSchemas.renderResumenTbody(tbodyResumen, schema.resumen, dataResumenActualizado, helpers);
+                }
+
                 const totalGeneral = filas.reduce((acc, curr) => acc + Number(curr.saldofinal || 0), 0);
+                const totalSaldoInicial = filas.reduce((acc, curr) => acc + Number(curr.saldoinicial || 0), 0);
 
                 // Renderizar tbody y tfoot dinámicamente con ModalSchemas
                 ModalSchemas.renderDetalleTbody(tbody, schema.detalle, filas, helpers);
-                ModalSchemas.renderTfoot(tfoot, schema.detalle, totalGeneral, helpers);
+                if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+                    ModalSchemas.renderTfootDoble(tfoot, schema.detalle, {
+                        saldofinal: res.payload.total_saldofinal !== undefined ? res.payload.total_saldofinal : totalGeneral,
+                        saldoinicial: res.payload.total_saldoinicial !== undefined ? res.payload.total_saldoinicial : totalSaldoInicial
+                    }, helpers);
+                } else {
+                    ModalSchemas.renderTfoot(tfoot, schema.detalle, totalGeneral, helpers);
+                }
 
                 tabla?.classList.remove('hidden');
             } else {
                 tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-slate-400">No se encontraron datos para este registro.</td></tr>`;
-                ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
+                if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+                    ModalSchemas.renderTfootDoble(tfoot, schema.detalle, { saldofinal: 0, saldoinicial: 0 }, helpers);
+                } else {
+                    ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
+                }
                 tabla?.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Error al cargar datos completos en el modal:', error);
             loader?.classList.add('hidden');
             tbody.innerHTML = `<tr><td colspan="${schema.detalle.length}" class="px-4 py-6 text-center text-rose-500">Error al cargar datos desde el servidor.</td></tr>`;
-            ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
+            if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+                ModalSchemas.renderTfootDoble(tfoot, schema.detalle, { saldofinal: 0, saldoinicial: 0 }, helpers);
+            } else {
+                ModalSchemas.renderTfoot(tfoot, schema.detalle, 0, helpers);
+            }
             tabla?.classList.remove('hidden');
         }
     }
@@ -502,6 +588,14 @@ class SaldosController {
                 payloadExcel.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
                 payloadExcel.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
                 payloadExcel.observaciones = this.msObservacion ? this.msObservacion.getSelectedValues() : [];
+            } else if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+                payloadExcel.fechacarga = this.puntoSeleccionado.fechacarga;
+                payloadExcel.fechacontable = this.puntoSeleccionado.fecha;
+                payloadExcel.condicionpago = this.puntoSeleccionado.condicionpago;
+                payloadExcel.zonafiscal = this.puntoSeleccionado.zona;
+                payloadExcel.nomcuentaventa = this.puntoSeleccionado.nomcuentaventa;
+                payloadExcel.vencimientos = this.msVencimiento ? this.msVencimiento.getSelectedValues() : [];
+                payloadExcel.decisiones = this.msDecision ? this.msDecision.getSelectedValues() : [];
             } else {
                 const totalClientesOpciones = this.msNomCliente ? this.msNomCliente.options.length : 0;
                 const selectedClientes = this.msNomCliente ? this.msNomCliente.getSelectedValues() : [];
@@ -802,6 +896,13 @@ class SaldosController {
     aplicarLayoutGrid() {
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (!contenedor) return;
+
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
+        if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            contenedor.className = 'flex flex-col gap-6 mt-6 pb-10 min-w-0';
+            return;
+        }
+
         const modoDisposicion = document.getElementById('select-disposicion-graficos')?.value || 'vertical';
 
         if (modoDisposicion === 'horizontal') {
@@ -832,6 +933,7 @@ class SaldosController {
         });
         this.chartsMap.clear();
         this.cacheData = {};
+        document.getElementById('fd-tooltip')?.remove();
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (contenedor) contenedor.innerHTML = '';
     }
@@ -845,25 +947,49 @@ class SaldosController {
         const esBarras = tipoGrafico === 'saltosXcobrarXbarra';
         const esCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
         const esCtaTabla = tipoGrafico === '16SalxCobrarxCtaTabla';
-        const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs' || esCorporativosZona;
+        const esCtaFechaDoc = tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado';
+        const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs' || esCorporativosZona || esCtaFechaDoc;
 
         const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
         const wrapperVenc = document.getElementById('wrapper-filtro-vencimiento');
         const wrapperDec = document.getElementById('wrapper-filtro-decision');
         const wrapperObs = document.getElementById('wrapper-filtro-observacion');
         const wrapperDisp = document.getElementById('wrapper-filtro-disposicion');
+        const wrapperFechaCorte = document.getElementById('wrapper-filtro-fechacorte');
 
         if (wrapperCliente) {
             wrapperCliente.classList.toggle('hidden', !(esBarras || esCtaTabla));
         }
 
         if (wrapperDisp) {
-            wrapperDisp.classList.toggle('hidden', esCorporativosZona || esCtaTabla);
+            wrapperDisp.classList.toggle('hidden', esCorporativosZona || esCtaTabla || esCtaFechaDoc);
         }
 
-        [wrapperVenc, wrapperDec, wrapperObs].forEach(el => {
+        [wrapperVenc, wrapperDec].forEach(el => {
             if (el) el.classList.toggle('hidden', !usaFiltrosDoc);
         });
+
+        if (wrapperObs) {
+            wrapperObs.classList.toggle('hidden', !usaFiltrosDoc || esCtaFechaDoc);
+        }
+
+        if (wrapperFechaCorte) {
+            wrapperFechaCorte.classList.toggle('hidden', !esCtaFechaDoc);
+
+            if (esCtaFechaDoc) {
+                const inputFechaCorte = document.getElementById('input-fechacorte');
+                if (inputFechaCorte && !inputFechaCorte.value && typeof PeriodoHelper !== 'undefined') {
+                    const rango = PeriodoHelper.obtenerRangoFechas();
+                    inputFechaCorte.value = rango.fechaFin || '';
+                }
+            }
+        }
+    }
+
+    alternarBotonExportarExcel(mostrar) {
+        const btn = document.getElementById('btn-exportar-excel-modal');
+        const wrapper = btn ? btn.closest('.pt-2') : null;
+        if (wrapper) wrapper.classList.toggle('hidden', !mostrar);
     }
 
     /**
@@ -896,6 +1022,7 @@ class SaldosController {
         const esVistaAnalisisCuentas = tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
         const esVistaCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
         const esVistaCtaTabla = tipoGrafico === '16SalxCobrarxCtaTabla';
+        const esVistaCtaFechaDoc = tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado';
 
         LoadingHelper.mostrarEnContenedor('contenedor-graficos-lista', {
             titulo: 'Cargando gráficos de saldos...',
@@ -1000,6 +1127,32 @@ class SaldosController {
 
                 this.cacheData = res.payload;
                 window.SaldosCtaTablaView.render(contenedor, res.payload, this);
+
+            } else if (esVistaCtaFechaDoc) {
+                const fechacargaInput = document.getElementById('input-fechacorte')?.value || fFin;
+
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    fechacarga: fechacargaInput,
+                    cuentas: selectedCuentas,
+                    vencimientos: this.msVencimiento ? this.msVencimiento.getSelectedValues() : [],
+                    decisiones: this.msDecision ? this.msDecision.getSelectedValues() : []
+                };
+
+                const res = await this.service.obtenerGraficoCtaFechaDocSegmentado(payload);
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+
+                if (!res.success || !res.payload || !res.payload.data || res.payload.data.length === 0) {
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: 'No se encontraron registros de indicadores por fecha de documento para los filtros seleccionados.'
+                    });
+                    return;
+                }
+
+                this.cacheData = res.payload;
+                contenedor.className = 'flex flex-col gap-6 mt-6 pb-10 min-w-0';
+                window.SaldosCtaFechaDocSegmentadoView.render(contenedor, res.payload, this);
 
             } else if (esVistaZona) {
                 // PAYLOAD PARA GRÁFICO DE LÍNEAS POR ZONA
@@ -1398,6 +1551,22 @@ class SaldosController {
         if (!fechaStr) return '';
         const [year, month, day] = fechaStr.split('-').map(Number);
         return `${day}/${month}/${year}`;
+    }
+
+    formatearFechaCortaPaddedTableau(fechaStr) {
+        if (!fechaStr) return '';
+        const [year, month, day] = String(fechaStr).slice(0, 10).split('-').map(Number);
+        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+    }
+
+    formatearFechaHoraPaddedTableau(fechaStr) {
+        if (!fechaStr) return '';
+        const partes = String(fechaStr).trim().split(' ');
+        if (partes.length === 2 && partes[0].includes('-')) {
+            const [year, month, day] = partes[0].split('-').map(Number);
+            return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year} ${partes[1]}`;
+        }
+        return fechaStr;
     }
 
     formatearFechaConDiaSemana(fechaStr) {

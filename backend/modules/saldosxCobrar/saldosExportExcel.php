@@ -62,6 +62,44 @@ class SaldosExportExcel
             ['key' => 'numerodoc',     'label' => 'numerodoc',      'type' => 'string'],
             ['key' => 'vencimiento',   'label' => 'vencimiento',    'type' => 'string'],
             ['key' => 'saldofinal',    'label' => 'saldofinal',     'type' => 'currency']
+        ],
+        '10IndSalxCobrarxCtaxFechaDocSegmentado' => [
+            ['key' => 'codcliente',       'label' => 'codcliente',       'type' => 'string'],
+            ['key' => 'codcondpago',      'label' => 'codcondpago',      'type' => 'string'],
+            ['key' => 'codcorporativo',   'label' => 'codcorporativo',   'type' => 'string'],
+            ['key' => 'coddoc',           'label' => 'coddoc',           'type' => 'string'],
+            ['key' => 'codzonaventa',     'label' => 'codzonaventa',     'type' => 'string'],
+            ['key' => 'condicionpago',    'label' => 'condicionpago',    'type' => 'string'],
+            ['key' => 'cuentaventa',      'label' => 'cuentaventa',      'type' => 'string'],
+            ['key' => 'decision',         'label' => 'decision',         'type' => 'string'],
+            ['key' => 'fechacarga',       'label' => 'fechacarga',       'type' => 'short_date_padded'],
+            ['key' => 'fechacontable',    'label' => 'fechacontable',    'type' => 'short_date_padded'],
+            ['key' => 'fechacreacion',    'label' => 'fechacreacion',    'type' => 'short_date_padded'],
+            ['key' => 'fechaproceso',     'label' => 'fechaproceso',     'type' => 'short_date_padded'],
+            ['key' => 'fechavencimiento', 'label' => 'fechavencimiento', 'type' => 'short_date_padded'],
+            ['key' => 'horacreacion',     'label' => 'horacreacion',     'type' => 'date_time_padded'],
+            ['key' => 'nomcliente',       'label' => 'nomcliente',       'type' => 'string'],
+            ['key' => 'nomcorporativo',   'label' => 'nomcorporativo',   'type' => 'string'],
+            ['key' => 'nomcuentaventa',   'label' => 'nomcuentaventa',   'type' => 'string'],
+            ['key' => 'nomdoc',           'label' => 'nomdoc',           'type' => 'string'],
+            ['key' => 'numdocref',        'label' => 'numdocref',        'type' => 'string'],
+            ['key' => 'numeroalfdoc',     'label' => 'numeroalfdoc',     'type' => 'string'],
+            ['key' => 'numerodoc',        'label' => 'numerodoc',        'type' => 'string'],
+            ['key' => 'observacion',      'label' => 'observacion',      'type' => 'string'],
+            ['key' => 'seriealfdoc',      'label' => 'seriealfdoc',      'type' => 'string'],
+            ['key' => 'seriealfref',      'label' => 'seriealfref',      'type' => 'string'],
+            ['key' => 'subzonaventa',     'label' => 'subzonaventa',     'type' => 'string'],
+            ['key' => 'tipdocref',        'label' => 'tipdocref',        'type' => 'string'],
+            ['key' => 'vencimiento',      'label' => 'vencimiento',      'type' => 'string'],
+            ['key' => 'zonafiscal',       'label' => 'zonafiscal',       'type' => 'string'],
+            ['key' => 'zonaventa',        'label' => 'zonaventa',        'type' => 'string'],
+            ['key' => 'diasporvencer',    'label' => 'diasporvencer',    'type' => 'currency'],
+            ['key' => 'importe',          'label' => 'importe',          'type' => 'currency'],
+            ['key' => 'numero_registros', 'label' => 'Número de registros', 'type' => 'integer'],
+            ['key' => 'ratio_cobranza',   'label' => 'ROUND(1-(sum([saldofinal])/sum([saldoinicial])),2)', 'type' => 'ratio6'],
+            ['key' => 'ratio_cobranza',   'label' => 'ROUND(1-(sum([saldofinal])/sum([saldoinicial])),2)', 'type' => 'ratio6'],
+            ['key' => 'saldofinal',       'label' => 'saldofinal',       'type' => 'currency'],
+            ['key' => 'saldoinicial',     'label' => 'saldoinicial',     'type' => 'currency']
         ]
     ];
 
@@ -124,10 +162,12 @@ class SaldosExportExcel
         // 2. Filas de datos
         $fila = 2;
         $totalSaldofinal = 0.0;
+        $totalSaldoinicial = 0.0;
 
         foreach ($datos as $row) {
             $monto = (float)($row['saldofinal'] ?? 0);
             $totalSaldofinal += $monto;
+            $totalSaldoinicial += (float)($row['saldoinicial'] ?? 0);
 
             foreach ($columnas as $i => $colDef) {
                 $colLetter = PHPExcel_Cell::stringFromColumnIndex($i);
@@ -155,6 +195,18 @@ class SaldosExportExcel
                         $sheet->getStyle($colLetter . $fila)->getNumberFormat()->setFormatCode('0.00000');
                         break;
 
+                    case 'ratio6':
+                        $valRatio = (float)($row[$key] ?? 0);
+                        $sheet->setCellValue($colLetter . $fila, $valRatio);
+                        $sheet->getStyle($colLetter . $fila)->getNumberFormat()->setFormatCode('0.000000');
+                        break;
+
+                    case 'integer':
+                        $valInt = (int)($row[$key] ?? 0);
+                        $sheet->setCellValue($colLetter . $fila, $valInt);
+                        $sheet->getStyle($colLetter . $fila)->getNumberFormat()->setFormatCode('0');
+                        break;
+
                     case 'dia_fechacarga':
                         $fechaBase = $row['fechacarga'] ?? ($params['fechacarga'] ?? '');
                         $sheet->setCellValue($colLetter . $fila, $this->formatearFechaLarga($fechaBase));
@@ -176,6 +228,16 @@ class SaldosExportExcel
                         }
                         break;
 
+                    case 'short_date_padded':
+                        $fechaBase = $row[$key] ?? '';
+                        $sheet->setCellValueExplicit($colLetter . $fila, $this->formatearFechaCortaPadded($fechaBase), PHPExcel_Cell_DataType::TYPE_STRING);
+                        break;
+
+                    case 'date_time_padded':
+                        $valDt = $row[$key] ?? '';
+                        $sheet->setCellValueExplicit($colLetter . $fila, $this->formatearFechaHoraPadded($valDt), PHPExcel_Cell_DataType::TYPE_STRING);
+                        break;
+
                     case 'string':
                         $val = $row[$key] ?? '';
                         $sheet->setCellValueExplicit($colLetter . $fila, (string)$val, PHPExcel_Cell_DataType::TYPE_STRING);
@@ -191,15 +253,31 @@ class SaldosExportExcel
         }
 
         // 3. Fila de Totalización dinámica
-        $colLabelTotal = PHPExcel_Cell::stringFromColumnIndex(max(0, $totalCols - 2));
-        $colMontoTotal = $colFinal;
+        if ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            $colLabelTotal = PHPExcel_Cell::stringFromColumnIndex(max(0, $totalCols - 3));
+            $colSaldoFinal = PHPExcel_Cell::stringFromColumnIndex($totalCols - 2);
+            $colSaldoInicial = PHPExcel_Cell::stringFromColumnIndex($totalCols - 1);
 
-        $sheet->setCellValue($colLabelTotal . $fila, 'TOTAL SALDO FINAL:');
-        $sheet->setCellValue($colMontoTotal . $fila, $totalSaldofinal);
+            $sheet->setCellValue($colLabelTotal . $fila, 'TOTALES:');
+            $sheet->setCellValue($colSaldoFinal . $fila, $totalSaldofinal);
+            $sheet->setCellValue($colSaldoInicial . $fila, $totalSaldoinicial);
 
-        $sheet->getStyle("{$colLabelTotal}{$fila}:{$colMontoTotal}{$fila}")->getFont()->setBold(true);
-        $sheet->getStyle("{$colMontoTotal}{$fila}")->getNumberFormat()->setFormatCode('#,##0.00');
-        $sheet->getStyle("{$colLabelTotal}{$fila}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("{$colLabelTotal}{$fila}:{$colSaldoInicial}{$fila}")->getFont()->setBold(true);
+            $sheet->getStyle("{$colSaldoFinal}{$fila}")->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle("{$colSaldoInicial}{$fila}")->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle("{$colLabelTotal}{$fila}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+        } else {
+            $colLabelTotal = PHPExcel_Cell::stringFromColumnIndex(max(0, $totalCols - 2));
+            $colMontoTotal = $colFinal;
+
+            $sheet->setCellValue($colLabelTotal . $fila, 'TOTAL SALDO FINAL:');
+            $sheet->setCellValue($colMontoTotal . $fila, $totalSaldofinal);
+
+            $sheet->getStyle("{$colLabelTotal}{$fila}:{$colMontoTotal}{$fila}")->getFont()->setBold(true);
+            $sheet->getStyle("{$colMontoTotal}{$fila}")->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle("{$colLabelTotal}{$fila}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+        }
+
         $sheet->getStyle("{$colInicial}{$fila}:{$colFinal}{$fila}")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('F1F5F9');
 
         // Bordes
@@ -225,6 +303,11 @@ class SaldosExportExcel
             $zonaNombre = !empty($params['zonafiscal']) ? '_' . preg_replace('/[^A-Za-z0-9]/', '', $params['zonafiscal']) : '';
             $fechaNombre = isset($params['fechacarga']) ? str_replace('-', '', $params['fechacarga']) : date('Ymd');
             $filename = "Detalle_Corporativo_{$corpNombre}{$zonaNombre}_{$fechaNombre}.xlsx";
+        } elseif ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+            $cuentaNombre = isset($params['cuentaventa']) ? $params['cuentaventa'] : 'cuenta';
+            $fechaContable = isset($params['fechacontable']) ? str_replace('-', '', $params['fechacontable']) : date('Ymd');
+            $fechaCarga = isset($params['fechacarga']) ? str_replace('-', '', $params['fechacarga']) : date('Ymd');
+            $filename = "Detalle_10IndSalxCobrarxCtaxFechaDocSegmentado_{$cuentaNombre}_{$fechaContable}_{$fechaCarga}.xlsx";
         } else {
             $tipoEtiqueta = ($tipoGrafico === '02SalxCobrarxZona') ? 'Zona' : (($tipoGrafico === '08IndAnticipos') ? 'Anticipos' : 'Cliente');
             $cuentaNombre = isset($params['cuentaventa']) ? $params['cuentaventa'] : 'cuenta';
@@ -272,5 +355,25 @@ class SaldosExportExcel
             return (int)$partes[2] . '/' . (int)$partes[1] . '/' . $partes[0];
         }
         return $fechaStr;
+    }
+
+    private function formatearFechaCortaPadded($fechaStr)
+    {
+        if (empty($fechaStr)) return '';
+        $partes = explode('-', substr((string)$fechaStr, 0, 10));
+        if (count($partes) === 3) {
+            return str_pad($partes[2], 2, '0', STR_PAD_LEFT) . '/' . str_pad($partes[1], 2, '0', STR_PAD_LEFT) . '/' . $partes[0];
+        }
+        return $fechaStr;
+    }
+
+    private function formatearFechaHoraPadded($fechaStr)
+    {
+        if (empty($fechaStr)) return '';
+        $partes = explode(' ', trim((string)$fechaStr));
+        if (count($partes) === 2) {
+            return $this->formatearFechaCortaPadded($partes[0]) . ' ' . $partes[1];
+        }
+        return $this->formatearFechaCortaPadded($fechaStr);
     }
 }

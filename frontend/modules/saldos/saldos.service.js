@@ -25,6 +25,7 @@ class saldosService {
         CORPORATIVOS_ZONA_DEUDORES: '/saldosxCobrar/corporativos-zona-deudores',
 
         GRAFICO_CTA_TABLA: '/saldosxCobrar/grafico-cta-tabla',
+        GRAFICO_CTA_FECHA_DOC_SEGMENTADO: '/saldosxCobrar/grafico-cta-fecha-doc-segmentado',
 
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
@@ -300,6 +301,28 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error en saldosService.obtenerGraficoCtaTabla:', error);
+            throw error;
+        }
+    }
+
+    async obtenerGraficoCtaFechaDocSegmentado(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.GRAFICO_CTA_FECHA_DOC_SEGMENTADO}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar indicadores por fecha de documento: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerGraficoCtaFechaDocSegmentado:', error);
             throw error;
         }
     }

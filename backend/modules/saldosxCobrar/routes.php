@@ -20,4 +20,6 @@ $this->post('/saldosxCobrar/analisis-corporativos', 'saldosxCobrarController@get
 $this->post('/saldosxCobrar/corporativos-zona-deudores', 'saldosxCobrarController@getCorporativosZonaDeudores');
 $this->post('/saldosxCobrar/grafico-cta-tabla', 'saldosxCobrarController@getGraficoCtaTabla');
 
+$this->post('/saldosxCobrar/grafico-cta-fecha-doc-segmentado', 'saldosxCobrarController@getGraficoCtaFechaDocSegmentado');
+
 ?>

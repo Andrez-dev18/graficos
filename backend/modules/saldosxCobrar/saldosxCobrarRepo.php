@@ -121,6 +121,16 @@ class saldosxCobrarRepo
             $params[':cuentaventa'] = $filtros['cuentaventa'];
         }
 
+        if (!empty($filtros['fechacontable'])) {
+            $where[] = "fechacontable = :fechacontable";
+            $params[':fechacontable'] = $filtros['fechacontable'];
+        }
+
+        if (!empty($filtros['condicionpago'])) {
+            $where[] = "condicionpago = :condicionpago";
+            $params[':condicionpago'] = $filtros['condicionpago'];
+        }
+
         // Filtro opcional por Corporativo (para 18CorporativosZonaDeudores)
         if (!empty($filtros['nomcorporativo'])) {
             $where[] = "nomcorporativo = :nomcorporativo";
@@ -132,6 +142,10 @@ class saldosxCobrarRepo
         if ($tipoGrafico === 'saltosXcobrarXbarra' || $tipoGrafico === '02SalxCobrarxZona' || $tipoGrafico === '18CorporativosZonaDeudores') {
             $where[] = "COALESCE(saldofinal, 0) > 0";
         }
+
+        $orderBy = ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado')
+            ? 'codcliente ASC, numerodoc ASC'
+            : 'numerodoc ASC';
 
         // Filtro opcional por Zona Fiscal (cuando el clic viene de líneas o corporativos)
         if (!empty($filtros['zonafiscal'])) {
@@ -195,11 +209,28 @@ class saldosxCobrarRepo
                     fechacarga,
                     codcliente,
                     COALESCE(nomcliente, 'SIN NOMBRE') AS nomcliente,
+                    COALESCE(codcondpago, '') AS codcondpago,
+                    COALESCE(codcorporativo, '') AS codcorporativo,
+                    COALESCE(coddoc, '') AS coddoc,
+                    COALESCE(codzonaventa, '') AS codzonaventa,
                     COALESCE(condicionpago, '-') AS condicionpago,
-                    COALESCE(numerodoc, '-') AS numerodoc,
                     COALESCE(decision, 'NINGUNA') AS decision,
+                    COALESCE(fechacreacion, '') AS fechacreacion,
+                    COALESCE(fechaproceso, '') AS fechaproceso,
+                    COALESCE(fechavencimiento, '') AS fechavencimiento,
+                    COALESCE(nomdoc, '') AS nomdoc,
+                    COALESCE(numdocref, '') AS numdocref,
+                    COALESCE(numeroalfdoc, '') AS numeroalfdoc,
+                    COALESCE(numerodoc, '-') AS numerodoc,
                     COALESCE(observacion, 'NINGUNA') AS observacion,
+                    COALESCE(seriealfdoc, '') AS seriealfdoc,
+                    COALESCE(seriealfref, '') AS seriealfref,
+                    COALESCE(subzonaventa, '') AS subzonaventa,
+                    COALESCE(tipdocref, '') AS tipdocref,
                     COALESCE(vencimiento, '-') AS vencimiento,
+                    COALESCE(zonaventa, '') AS zonaventa,
+                    COALESCE(diasporvencer, 0) AS diasporvencer,
+                    ROUND(COALESCE(importe, 0), 2) AS importe,
                     ROUND(COALESCE(saldoinicial, 0), 2) AS saldoinicial,
                     ROUND(COALESCE(saldofinal, 0), 2) AS saldofinal,
                     COALESCE(fechacontable, '') AS fechacontable,
@@ -207,7 +238,7 @@ class saldosxCobrarRepo
                     COALESCE(nomcorporativo, '') AS nomcorporativo
                 FROM dmdocventas2
                 WHERE " . implode(' AND ', $where) . "
-                ORDER BY numerodoc ASC";
+                ORDER BY {$orderBy}";
 
         $stmt = $this->conn->prepare($sql);
         foreach ($params as $key => $val) {

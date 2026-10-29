@@ -39,6 +39,12 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        .fd-summary-compact table th,
+        .fd-summary-compact table td {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
     </style>
 
 </head>
@@ -129,6 +135,14 @@
                     </div>
                 </div>
 
+                <div id="wrapper-filtro-fechacorte" class="hidden flex-col">
+                    <label for="input-fechacorte"
+                        class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">FECHA DE
+                        CORTE</label>
+                    <input type="date" id="input-fechacorte"
+                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                </div>
+
                 <!-- 2. SELECT TIPO DE GRÁFICO (SELECCIÓN ÚNICA) -->
                 <div class="flex flex-col">
                     <label for="select-tipo-grafico"
@@ -138,6 +152,7 @@
                         class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
                         <option value="02SalxCobrarxZona" selected>02SalxCobrarxZona</option>
                         <option value="08IndAnticipos">08IndAnticipos</option>
+                        <option value="10IndSalxCobrarxCtaxFechaDocSegmentado">10IndSalxCobrarxCtaxFechaDocSegmentado</option>
                         <option value="saltosXcobrarXbarra">14SalxCobrarxCtaBarra</option>
                         <option value="16SalxCobrarxCtaTabla">16SalxCobrarxCtaTabla</option>
                         <option value="18CorporativosZonaDeudores">18CorporativosZonaDeudores</option>
@@ -331,7 +346,7 @@
 
     <!-- POPUP MENÚ FLOTANTE AL HACER CLIC EN UNA BARRA (ESTILO TABLEAU) -->
     <div id="popup-menu-barra"
-        class="hidden fixed z-50 bg-white border border-slate-200/90 rounded-xl shadow-xl p-2 min-w-[170px] flex flex-col gap-1 transition-all">
+        class="hidden fixed z-[100] bg-white border border-slate-200/90 rounded-xl shadow-xl p-2 min-w-[170px] flex flex-col gap-1 transition-all">
         <button id="btn-abrir-ver-datos" type="button"
             class="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer text-left">
             <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,8 +369,8 @@
 
     <!-- MODAL "VER DATOS" DE TABLEAU -->
     <div id="modal-ver-datos"
-        class="hidden fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-        <div
+        class="hidden fixed inset-0 z-[100] overflow-hidden bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div id="modal-ver-datos-contenedor"
             class="bg-white w-full max-w-[130vh] max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in duration-200">
 
             <!-- HEADER DEL MODAL -->
@@ -614,11 +629,12 @@
     <script src="../../assets/utils-graficos/custom-multiselect.js"></script>
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
     <script src="../../assets/utils-graficos/loading-helper.js"></script>
-    <script src="../../assets/utils-graficos/modal-schemas.js"></script>
+    <script src="../../assets/utils-graficos/modal-schemas.js?v=20261029_3"></script>
 
-    <script src="saldos.service.js?v=20261028_1"></script>
+    <script src="saldos.service.js?v=20261029_1"></script>
     <script src="charts/salxCobrarCtaTabla.js?v=20261028_3"></script>
-    <script src="saldos.controller.js?v=20261028_1"></script>
+    <script src="charts/salxCobrarCtaFechaDocSegmentado.js?v=20261029_3"></script>
+    <script src="saldos.controller.js?v=20261029_4"></script>
 
 
 </body>
