@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/CostosDiasService.php';
+require_once __DIR__ . '/CostosDiasPdf.php';
 
 class CostosDiasController
 {
@@ -34,6 +35,24 @@ class CostosDiasController
             echo json_encode([
                 'success' => false,
                 'message' => 'Error al cargar Dashboard Costos Tradicional Día: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    public function exportarPdf()
+    {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $payload = json_decode($rawInput, true) ?? $_POST;
+
+            CostosDiasPdf::generar($payload);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al generar PDF: ' . $e->getMessage()
             ]);
         }
         exit;

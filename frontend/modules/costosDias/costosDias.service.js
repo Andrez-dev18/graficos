@@ -5,7 +5,8 @@ class CostosDiasService {
     constructor() {
         this.baseUrl = AppConfig.API.BASE_URL;
         this.ENDPOINTS = {
-            DASHBOARD: '/costosDias/dashboard'
+            DASHBOARD: '/costosDias/dashboard',
+            EXPORTAR_PDF: '/costosDias/exportar-pdf'
         };
     }
 
@@ -37,5 +38,34 @@ class CostosDiasService {
                 payload: null
             };
         }
+    }
+
+    async exportarPdf(payload) {
+        const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.EXPORTAR_PDF}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/pdf'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let mensaje = `Error HTTP: ${response.status}`;
+            try {
+                const data = await response.json();
+                mensaje = data.message || mensaje;
+            } catch (e) {
+                // Respuesta no JSON
+            }
+            throw new Error(mensaje);
+        }
+
+        const contentType = response.headers.get('Content-Type') || '';
+        if (!contentType.includes('application/pdf')) {
+            throw new Error('El servidor no devolvió un archivo PDF válido.');
+        }
+
+        return await response.blob();
     }
 }

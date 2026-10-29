@@ -7,6 +7,7 @@ class CostosDiasController {
         this.service = new CostosDiasService();
         this.chartInstances = [];
         this.datosDashboard = null;
+        this.ultimosFiltros = null;
 
         this.init();
     }
@@ -61,6 +62,11 @@ class CostosDiasController {
         // Botón Limpiar
         document.getElementById('btn-limpiar')?.addEventListener('click', async () => {
             await this.limpiarFiltros();
+        });
+
+        // Botón Exportar PDF
+        document.getElementById('btn-exportar-pdf')?.addEventListener('click', () => {
+            this.exportarPdf();
         });
     }
 
@@ -139,6 +145,7 @@ class CostosDiasController {
                 fecha_inicio: rango.fechaInicio || rango.inicio || '2025-01-01',
                 fecha_fin: rango.fechaFin || rango.fin || '2025-12-31'
             };
+            this.ultimosFiltros = payloadFiltros;
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
 
@@ -157,6 +164,98 @@ class CostosDiasController {
                 btnCargar.disabled = false;
                 btnCargar.classList.remove('opacity-75', 'cursor-not-allowed');
                 btnCargar.innerHTML = originalBtnHtml;
+            }
+        }
+    }
+
+    async exportarPdf() {
+        if (!this.datosDashboard) {
+            alert('Primero debe cargar los datos.');
+            return;
+        }
+        if (typeof html2canvas === 'undefined') {
+            alert('No se encontró la librería para capturar el gráfico.');
+            return;
+        }
+
+        const ventanaPdf = window.open('', '_blank');
+        if (!ventanaPdf) {
+            alert('El navegador bloqueó la nueva pestaña. Habilita las ventanas emergentes para este sitio.');
+            return;
+        }
+
+        ventanaPdf.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head><meta charset="UTF-8"><title>Generando PDF...</title></head>
+            <body style="font-family:Segoe UI,sans-serif;background:#f8fafc;color:#334155;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+                <div style="text-align:center;">
+                    <div style="width:34px;height:34px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;margin:0 auto 14px;animation:spin 0.8s linear infinite;"></div>
+                    <p style="font-size:14px;font-weight:600;">Generando PDF...</p>
+                </div>
+                <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+            </body>
+            </html>
+        `);
+
+        const btn = document.getElementById('btn-exportar-pdf');
+        const htmlOriginal = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = `
+                <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>Generando...</span>
+            `;
+        }
+
+        try {
+            document.getElementById('tooltip-tableau-costos')?.classList.add('hidden');
+
+            const card = document.getElementById('card-grafica-costo');
+            if (!card) {
+                throw new Error('No se encontró la tarjeta del gráfico.');
+            }
+
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+            const canvas = await html2canvas(card, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                logging: false
+            });
+            const chartImage = canvas.toDataURL('image/png');
+
+            const rango = (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas)
+                ? PeriodoHelper.obtenerRangoFechas()
+                : {};
+            const filtros = this.ultimosFiltros || {
+                fecha_inicio: rango.fechaInicio || rango.inicio || '',
+                fecha_fin: rango.fechaFin || rango.fin || ''
+            };
+
+            const blob = await this.service.exportarPdf({
+                chartImage: chartImage,
+                datos: this.datosDashboard,
+                filtros: filtros
+            });
+
+            const url = window.URL.createObjectURL(blob);
+            ventanaPdf.location.href = url;
+            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        } catch (error) {
+            try { ventanaPdf.close(); } catch (e) { /* Ignorar */ }
+            console.error('Error al exportar PDF:', error);
+            alert(error.message || 'No se pudo generar el PDF.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btn.innerHTML = htmlOriginal;
             }
         }
     }
