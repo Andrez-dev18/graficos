@@ -275,6 +275,13 @@ class saldosxCobrarService
         $datos = $this->repo->getDetallePorCuentaYFecha($params);
 
         $tipoGrafico = $params['tipo_grafico'] ?? '';
+
+        if ($tipoGrafico === '18CorporativosZonaDeudores' && ($params['export_mode'] ?? '') === 'zonas') {
+            $exportador = new SaldosExportExcel();
+            $exportador->generarExcelDetallePorZonas($datos, $params);
+            return;
+        }
+
         if ($tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
             $totalSaldofinal = 0.0;
             $totalSaldoinicial = 0.0;

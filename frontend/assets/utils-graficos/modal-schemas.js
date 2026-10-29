@@ -39,6 +39,7 @@ const ModalSchemas = {
             detalle: [
                 { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-medium' },
                 { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'nomcliente', label: 'nomcliente', align: 'left', fontClass: 'font-semibold text-slate-700' },
                 { key: 'zonafiscal', label: 'zonafiscal', align: 'left', fontClass: 'font-semibold text-slate-700' },
                 { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', nowrap: true },
                 { key: 'decision', label: 'decision', align: 'left', nowrap: true, fontClass: 'text-slate-600' },
@@ -60,6 +61,7 @@ const ModalSchemas = {
                 { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
                 { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', nowrap: true },
                 { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'nomcliente', label: 'nomcliente', align: 'left', fontClass: 'font-semibold text-slate-800' },
                 { key: 'fechacarga', label: 'fechacarga', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
                 { key: 'resta_saldo', label: 'ROUND((sum([saldoinicial])-sum([saldofinal])),2)', align: 'right', format: 'currency', fontClass: 'font-mono' },
                 { key: 'ratio_cobranza', label: 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', align: 'right', format: 'ratio5', fontClass: 'font-mono' },
@@ -82,6 +84,7 @@ const ModalSchemas = {
                 { key: 'nomcuentaventa', label: 'nomcuentaventa', align: 'left', fontClass: 'font-semibold text-slate-800' },
                 { key: 'dia_fechacarga', label: 'Día de fechacarga', align: 'left', nowrap: true },
                 { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
+                { key: 'nomcliente', label: 'nomcliente', align: 'left', fontClass: 'font-semibold text-slate-800' },
                 { key: 'fechacarga', label: 'fechacarga', align: 'left', nowrap: true, format: 'shortDate', fontClass: 'text-slate-500' },
                 { key: 'resta_saldo', label: 'ROUND((sum([saldoinicial])-sum([saldofinal])),2)', align: 'right', format: 'currency', fontClass: 'font-mono' },
                 { key: 'ratio_cobranza', label: 'ROUND((sum([saldoinicial])-sum([saldofinal]))/sum([saldoinici...', align: 'right', format: 'ratio5', fontClass: 'font-mono' },
@@ -125,6 +128,7 @@ const ModalSchemas = {
             ],
             detalle: [
                 { key: 'nomcorporativo', label: 'nomcorporativo', align: 'left', fontClass: 'font-semibold text-slate-800' },
+                { key: 'nomcliente', label: 'nomcliente', align: 'left', fontClass: 'font-semibold text-slate-700' },
                 { key: 'zonafiscal', label: 'zonafiscal', align: 'left', fontClass: 'font-semibold text-slate-700' },
                 { key: 'cuentaventa', label: 'cuentaventa', align: 'left', fontClass: 'font-mono' },
                 { key: 'decision', label: 'decision', align: 'left', nowrap: true, fontClass: 'text-slate-600' },

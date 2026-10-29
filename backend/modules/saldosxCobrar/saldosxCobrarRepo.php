@@ -148,7 +148,15 @@ class saldosxCobrarRepo
             : 'numerodoc ASC';
 
         // Filtro opcional por Zona Fiscal (cuando el clic viene de líneas o corporativos)
-        if (!empty($filtros['zonafiscal'])) {
+        if (!empty($filtros['zonas']) && is_array($filtros['zonas'])) {
+            $zonasPhs = [];
+            foreach ($filtros['zonas'] as $i => $zona) {
+                $ph = ':zona_' . $i;
+                $zonasPhs[] = $ph;
+                $params[$ph] = $zona;
+            }
+            $where[] = "zonafiscal IN (" . implode(', ', $zonasPhs) . ")";
+        } elseif (!empty($filtros['zonafiscal'])) {
             $where[] = "zonafiscal = :zonafiscal";
             $params[':zonafiscal'] = $filtros['zonafiscal'];
         }
