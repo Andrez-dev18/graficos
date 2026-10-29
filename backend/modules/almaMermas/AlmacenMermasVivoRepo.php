@@ -536,4 +536,58 @@ public function getPorcMermaDiariaClientePlaca(array $filtros): array
             'causales' => $causales
         ];
     }
+
+    /**
+     * Consulta las sumas diarias de merma total y sus detalles para TendenciaMermas.
+     */
+    public function getTendenciaMermas(array $filtros): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-01');
+        $fechaFin = $filtros['fecha_fin'] ?? date('Y-m-d');
+        $dato = trim($filtros['dato'] ?? 'Peso');
+        $cliente = trim($filtros['cliente'] ?? 'TODO');
+
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "fechaproceso IS NOT NULL"
+        ];
+
+        if ($dato !== '' && strtoupper($dato) !== 'TODO') {
+            $where[] = "TRIM(dato) = :dato";
+            $params[':dato'] = $dato;
+        }
+
+        if ($cliente !== '' && strtoupper($cliente) !== 'TODO') {
+            $where[] = "TRIM(cliente) = :cliente";
+            $params[':cliente'] = $cliente;
+        }
+
+        $whereStr = implode(' AND ', $where);
+
+        $sql = "SELECT
+                    DATE_FORMAT(fechaproceso, '%Y-%m-%d') AS periodo,
+                    SUM(COALESCE(entrada, 0)) AS entrada,
+                    SUM(COALESCE(mermatotal, 0)) AS mermatotal,
+                    SUM(COALESCE(mermaalmacenaje, 0)) AS mermaalmacenaje,
+                    SUM(COALESCE(mermamuertodistribucion, 0)) AS mermamuertodistribucion,
+                    SUM(COALESCE(mermamuertotransporte, 0)) AS mermamuertotransporte,
+                    SUM(COALESCE(mermanoapto, 0)) AS mermanoapto,
+                    SUM(COALESCE(mermatransporte, 0)) AS mermatransporte,
+                    SUM(COALESCE(mermatransbenemanual, 0)) AS mermatransbenemanual,
+                    SUM(COALESCE(mermatransbenemecani, 0)) AS mermatransbenemecani
+                FROM dmmermas
+                WHERE {$whereStr}
+                GROUP BY DATE_FORMAT(fechaproceso, '%Y-%m-%d')
+                ORDER BY periodo ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

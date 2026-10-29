@@ -125,18 +125,42 @@ class AlmacenMermasVivoController {
         });
 
         document.getElementById('select-tipo-grafico')?.addEventListener('change', () => {
+            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
+            if (tipoGrafico === 'TendenciaMermas') {
+                this.aplicarPeriodoTendencia();
+                this.aplicarClienteTendencia();
+            }
             this.actualizarVisibilidadFiltros();
         });
+    }
+
+    aplicarPeriodoTendencia() {
+        const select = document.getElementById('select-tipo-periodo');
+        if (select) select.value = 'por_mes';
+
+        if (typeof PeriodoHelper !== 'undefined' && typeof PeriodoHelper.renderizarInputs === 'function') {
+            PeriodoHelper.renderizarInputs();
+        }
+    }
+
+    aplicarClienteTendencia() {
+        if (!this.searchCliente) return;
+        const opciones = Array.isArray(this.searchCliente.options) ? this.searchCliente.options : [];
+        if (opciones.some(opcion => opcion.value === 'AQP-BENE')) {
+            this.searchCliente.setValue('AQP-BENE', false);
+        }
     }
 
     actualizarVisibilidadFiltros() {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
         const esDash = tipoGrafico === 'DashPrueba1';
         const esMatriz = tipoGrafico === 'PorcMermaDiariaProcesoCientePlaca';
+        const esTendencia = tipoGrafico === 'TendenciaMermas';
+        const requiereCliente = esMatriz || esTendencia;
         const ocultarDato = ['PorcMermaDiariaProceso', 'PorcMermaDiariaProcesoCiente', 'PorcMermaDiariaProcesoCientePlaca'].includes(tipoGrafico);
 
         document.getElementById('wrapper-filtro-placa')?.classList.toggle('hidden', !esDash);
-        document.getElementById('wrapper-filtro-cliente')?.classList.toggle('hidden', !esMatriz);
+        document.getElementById('wrapper-filtro-cliente')?.classList.toggle('hidden', !requiereCliente);
         document.getElementById('wrapper-filtro-placa-matriz')?.classList.toggle('hidden', !esMatriz);
         document.getElementById('wrapper-filtro-dato')?.classList.toggle('hidden', ocultarDato);
     }
@@ -162,6 +186,11 @@ class AlmacenMermasVivoController {
             if (data && data.success && data.payload) {
                 this.searchCliente?.setOptions(data.payload.clientes || []);
                 this.searchPlacaMatriz?.setOptions(data.payload.placas || []);
+
+                const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
+                if (tipoGrafico === 'TendenciaMermas') {
+                    this.aplicarClienteTendencia();
+                }
             }
         } catch (error) {
             console.error('No se pudieron cargar los filtros de mermas:', error);
@@ -182,7 +211,9 @@ class AlmacenMermasVivoController {
 
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'PorcMermaProcesoDiaClientePlaca';
         const esMatriz = tipoGrafico === 'PorcMermaDiariaProcesoCientePlaca';
-        const cliente = esMatriz && this.searchCliente ? this.searchCliente.getValue() : '';
+        const esTendencia = tipoGrafico === 'TendenciaMermas';
+        const requiereCliente = esMatriz || esTendencia;
+        const cliente = requiereCliente && this.searchCliente ? this.searchCliente.getValue() : '';
         const placa = esMatriz
             ? (this.searchPlacaMatriz ? this.searchPlacaMatriz.getValue() : '')
             : (document.getElementById('select-filtro-placa')?.value || 'TODO');
@@ -295,6 +326,9 @@ class AlmacenMermasVivoController {
                 break;
             case 'DashPrueba1':
                 this.renderizarDashPrueba1(data);
+                break;
+            case 'TendenciaMermas':
+                window.ChartAlmacenMermasTendenciaMermas.render(this, data, 'contenedor-graficos-lista');
                 break;
             default:
                 console.warn(`Vista no reconocida: ${tipoGrafico}`);

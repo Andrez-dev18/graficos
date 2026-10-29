@@ -4,14 +4,17 @@ require_once __DIR__ . '/AlmacenMermasVivoRepo.php';
 require_once __DIR__ . '/handlers/MermaDiariaClienteHandler.php';
 require_once __DIR__ . '/handlers/MermaDiariaClientePlacaHandler.php';
 require_once __DIR__ . '/handlers/MermaDiariaClienteMesHandler.php';
+require_once __DIR__ . '/handlers/TendenciaMermasHandler.php';
 
 class AlmacenMermasVivoService
 {
     private $repo;
+    private $tendenciaMermas;
 
     public function __construct($db)
     {
         $this->repo = new AlmacenMermasVivoRepo($db);
+        $this->tendenciaMermas = new TendenciaMermasHandler($this->repo);
     }
 
     public function obtenerPorcMermaProcesoDiaClientePlaca(array $filtros): array
@@ -143,6 +146,11 @@ class AlmacenMermasVivoService
     {
         $filasRaw = $this->repo->getPorcMermaDiariaClientePlaca($filtros);
         return MermaDiariaClientePlacaHandler::formatear($filasRaw, $filtros);
+    }
+
+    public function obtenerTendenciaMermas(array $filtros): array
+    {
+        return $this->tendenciaMermas->obtenerTendenciaMermas($filtros);
     }
 
     public function obtenerFiltrosMerma(): array

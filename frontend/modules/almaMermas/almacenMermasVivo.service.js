@@ -16,7 +16,8 @@ class AlmacenMermasVivoService {
             PORC_MERMA_DIARIA_PROCESO_CLIENTE_PLACA: '/almaMermas/porc-merma-diaria-proceso-cliente-placa',
             FILTROS_MERMA: '/almaMermas/filtros-merma',
             DASH_PRUEBA_1: '/almaMermas/merma-proceso-placa-objetivo',
-            DETALLE_PLACA_RUTA_CAUSALES: '/almaMermas/detalle-placa-ruta-causales'
+            DETALLE_PLACA_RUTA_CAUSALES: '/almaMermas/detalle-placa-ruta-causales',
+            TENDENCIA_MERMAS: '/almaMermas/tendencia-mermas'
         };
     }
 
@@ -43,6 +44,8 @@ class AlmacenMermasVivoService {
                 endpoint = this.ENDPOINTS.PORC_MERMA_DIARIA_PROCESO_CLIENTE_PLACA;
             } else if (tipoGrafico === 'DashPrueba1') {
                 endpoint = this.ENDPOINTS.DASH_PRUEBA_1;
+            } else if (tipoGrafico === 'TendenciaMermas') {
+                endpoint = this.ENDPOINTS.TENDENCIA_MERMAS;
             }
 
             const response = await fetch(`${this.baseUrl}${endpoint}`, {

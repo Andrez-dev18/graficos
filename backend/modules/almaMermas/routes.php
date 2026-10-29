@@ -12,3 +12,4 @@ $this->post('/almaMermas/porc-merma-diaria-proceso-cliente-placa', 'AlmacenMerma
 $this->get('/almaMermas/filtros-merma', 'AlmacenMermasVivoController@getFiltrosMerma');
 $this->post('/almaMermas/merma-proceso-placa-objetivo', 'AlmacenMermasVivoController@getMermaProcesoPlacaObjetivo');
 $this->post('/almaMermas/detalle-placa-ruta-causales', 'AlmacenMermasVivoController@getDetallePlacaRutaCausales');
+$this->post('/almaMermas/tendencia-mermas', 'AlmacenMermasVivoController@getTendenciaMermas');
