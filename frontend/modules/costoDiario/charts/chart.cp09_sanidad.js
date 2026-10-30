@@ -12,6 +12,37 @@ window.CP09SanidadChart = {
     multiGalpon: null,
     multiClasif: null,
     eventsBound: false,
+    LINEAS_DEFECTO: ['001', '002', '003', '004', '005', '006', '007', '008', '010', '011'],
+
+    esLineaDefecto(linea, nomlinea) {
+        const linStr = String(linea || '').trim();
+        const linPadded = linStr.padStart(3, '0');
+        if (this.LINEAS_DEFECTO.includes(linStr) || this.LINEAS_DEFECTO.includes(linPadded)) {
+            return true;
+        }
+        const nombresDefecto = [
+            'pollo bb', 'alimento balanceado', 'vacunas', 'vacuna en pta.incubac.',
+            'suministro para vacuna', 'antibiótico', 'antibiotico', 'mucolíticos', 'mucoliticos',
+            'vitaminas y energéticos', 'vitaminas y energeticos', 'agua', 'gas'
+        ];
+        const nomStr = String(nomlinea || '').trim().toLowerCase();
+        return nombresDefecto.some(n => nomStr === n || nomStr.startsWith(n));
+    },
+
+    resetearClasificacionesDefecto() {
+        if (!this.multiClasif) return;
+        this.multiClasif.options.forEach(o => {
+            o.selected = this.esLineaDefecto(o.id, o.label);
+        });
+        this.multiClasif.updateLabel(true);
+        this.multiClasif.render();
+    },
+
+    resetFiltros() {
+        if (this.multiGranja) this.multiGranja.selectAll(false);
+        if (this.multiGalpon) this.multiGalpon.selectAll(false);
+        this.resetearClasificacionesDefecto();
+    },
 
     render(controller, data) {
         if (!data && controller && controller.tabla1_datos_productivos) {
@@ -96,6 +127,8 @@ window.CP09SanidadChart = {
             if (clasifs.length > 0 && clasifs.length < (this.multiClasif.options ? this.multiClasif.options.length : 999)) {
                 filters.clasificacion = clasifs;
             }
+        } else {
+            filters.clasificacion = [...this.LINEAS_DEFECTO];
         }
         return filters;
     },
@@ -167,10 +200,11 @@ window.CP09SanidadChart = {
         if (typeof CustomMultiSelect !== 'undefined' && clasifsDisp.length > 0) {
             const optClasif = clasifsDisp.map(c => {
                 const label = c.label || `${c.linea} ${c.nomlinea || ''}`.trim();
+                const isSelected = this.esLineaDefecto(c.linea, c.nomlinea);
                 return {
                     id: String(c.linea).trim(),
                     label: label,
-                    selected: true
+                    selected: isSelected
                 };
             });
 

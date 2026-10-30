@@ -38,11 +38,93 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const cardTabla = document.getElementById('card-tabla-metricas');
         if (cardTabla) cardTabla.classList.add('hidden');
 
+        // Mostrar botón de exportación a PDF exclusivo de CP08
+        const btnPdf = document.getElementById('btn-exportar-pdf-cp08');
+        if (btnPdf) btnPdf.classList.remove('hidden');
+
         // 2. Configurar Filtros Superiores
         this.setupFilters(data);
 
         // 3. Renderizar Layout Visual
         this.renderLayout();
+    },
+
+    destroy() {
+        const btnPdf = document.getElementById('btn-exportar-pdf-cp08');
+        if (btnPdf) btnPdf.classList.add('hidden');
+    },
+
+    async exportarPdf(controller) {
+        if (!this.datosBackend || !this.datosBackend.tabla1_datos_productivos) {
+            alert('Primero debe cargar los datos del gráfico.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-exportar-pdf-cp08');
+        const originalHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Generando PDF...</span>
+            `;
+        }
+
+        const ventanaPdf = window.open('', '_blank');
+
+        try {
+            let rango = {};
+            if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
+                rango = PeriodoHelper.obtenerRangoFechas();
+            }
+
+            const payload = {
+                datos: this.datosBackend,
+                seleccion: {
+                    cencosActivo: this.cencosActivo,
+                    nomcencosActivo: this.nomcencosActivo,
+                    galponActivo: this.galponActivo,
+                    lineaSeleccionada: this.lineaSeleccionada,
+                    selectedGranjas: this.multiGranja ? this.multiGranja.getSelectedValues() : [],
+                    selectedClasif: this.multiClasif ? this.multiClasif.getSelectedValues() : []
+                },
+                filtros: {
+                    fecha_inicio: rango.fechaInicio || rango.inicio || '',
+                    fecha_fin: rango.fechaFin || rango.fin || '',
+                    fecha_formateada: this.datosBackend.fecha_formateada || `${rango.fechaInicio || ''} al ${rango.fechaFin || ''}`
+                }
+            };
+
+            const service = (controller && controller.service) || window.costoDiarioController?.service || new CostoDiarioService();
+            const blob = await service.exportarPdfCP08(payload);
+
+            const url = window.URL.createObjectURL(blob);
+            if (ventanaPdf) {
+                ventanaPdf.location.href = url;
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `CP08_ComparativoGranjaGalpon_${Date.now()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        } catch (error) {
+            console.error('Error al exportar PDF CP08:', error);
+            if (ventanaPdf) try { ventanaPdf.close(); } catch (e) {}
+            alert(error.message || 'No se pudo generar el PDF de CP08.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btn.innerHTML = originalHtml;
+            }
+        }
     },
 
     getSelectedFilters() {

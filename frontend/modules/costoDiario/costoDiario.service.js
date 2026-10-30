@@ -71,4 +71,33 @@ class CostoDiarioService {
             };
         }
     }
+
+    /**
+     * Genera y descarga el PDF institucional de CP08 con las 3 tablas en formato A4 apaisado
+     * @param {Object} payload { datos, seleccion, filtros }
+     */
+    async exportarPdfCP08(payload) {
+        const url = `${this.baseUrl}/costoDiario/exportar-pdf-cp08`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/pdf'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let mensaje = `Error HTTP: ${response.status}`;
+            try {
+                const data = await response.json();
+                mensaje = data.message || mensaje;
+            } catch (e) {
+                // Not JSON
+            }
+            throw new Error(mensaje);
+        }
+
+        return await response.blob();
+    }
 }

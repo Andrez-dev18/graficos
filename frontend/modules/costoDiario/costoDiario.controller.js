@@ -95,6 +95,13 @@ class CostoDiarioController {
             await this.onCargarClick();
         });
 
+        // Botón Exportar PDF (CP08)
+        document.getElementById('btn-exportar-pdf-cp08')?.addEventListener('click', async () => {
+            if (window.ChartCP08ComparativoGranjaGalpon && typeof window.ChartCP08ComparativoGranjaGalpon.exportarPdf === 'function') {
+                await window.ChartCP08ComparativoGranjaGalpon.exportarPdf(this);
+            }
+        });
+
         // Botón Limpiar
         document.getElementById('btn-limpiar')?.addEventListener('click', async () => {
             await this.limpiarFiltros();
@@ -188,6 +195,7 @@ class CostoDiarioController {
         document.getElementById('contenedor-filtro-galpon-cp09')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-clasificacion-cp09')?.classList.add('hidden');
         document.getElementById('contenedor-filtro-mes-cp10')?.classList.add('hidden');
+        document.getElementById('btn-exportar-pdf-cp08')?.classList.add('hidden');
     }
 
     renderEstadoInicial(tipoGrafico, filtros) {
@@ -239,13 +247,17 @@ class CostoDiarioController {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'CP01 CostosGeneralesPorDia';
         if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
             const mod = window.ChartRegistry[tipoGrafico];
-            if (mod.multiClasif) mod.multiClasif.selectAll(true);
-            if (mod.multiTipo) mod.multiTipo.selectAll(true);
-            if (mod.multiTrans) mod.multiTrans.selectAll(true);
-            if (mod.multiItem) mod.multiItem.selectAll(true);
-            if (mod.multiInsumo) mod.multiInsumo.selectAll(true);
-            if (mod.multiCodalim) mod.multiCodalim.selectAll(true);
-            if (mod.multiGranja) mod.multiGranja.selectAll(true);
+            if (typeof mod.resetFiltros === 'function') {
+                mod.resetFiltros();
+            } else {
+                if (mod.multiClasif) mod.multiClasif.selectAll(true);
+                if (mod.multiTipo) mod.multiTipo.selectAll(true);
+                if (mod.multiTrans) mod.multiTrans.selectAll(true);
+                if (mod.multiItem) mod.multiItem.selectAll(true);
+                if (mod.multiInsumo) mod.multiInsumo.selectAll(true);
+                if (mod.multiCodalim) mod.multiCodalim.selectAll(true);
+                if (mod.multiGranja) mod.multiGranja.selectAll(true);
+            }
         }
 
         await this.onCargarClick();

@@ -62,4 +62,23 @@ class CostoDiarioController
         }
         exit;
     }
+
+    public function exportarPdfCP08()
+    {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true) ?? $_POST;
+
+            require_once __DIR__ . '/CP08Pdf.php';
+            CP08Pdf::generar($data);
+        } catch (Exception $e) {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al generar PDF CP08: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
 }
