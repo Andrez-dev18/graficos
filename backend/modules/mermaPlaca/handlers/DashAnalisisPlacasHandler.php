@@ -50,6 +50,29 @@ class DashAnalisisPlacasHandler
         $placaSeleccionada = !empty($filtros['placa_seleccionada']) ? trim($filtros['placa_seleccionada']) : null;
         $fecProcesoSeleccionada = !empty($filtros['fecproceso_seleccionada']) ? trim($filtros['fecproceso_seleccionada']) : null;
 
+        $incluirLiquidacion = true;
+        if (array_key_exists('incluir_liquidacion', $filtros)) {
+            $flag = $filtros['incluir_liquidacion'];
+            $incluirLiquidacion = !($flag === false || $flag === 'false' || $flag === 0 || $flag === '0');
+        }
+
+        $soloVentas = !empty($filtros['solo_ventas']);
+        if ($soloVentas) {
+            $incluirLiquidacion = false;
+        }
+
+        $paginadoVentas = !empty($filtros['paginado_ventas']);
+        $pageVentas = max(1, (int)($filtros['page_ventas'] ?? 1));
+        $pageSizeVentas = (int)($filtros['page_size'] ?? 50);
+        if ($pageSizeVentas < 1) $pageSizeVentas = 50;
+        if ($pageSizeVentas > 200) $pageSizeVentas = 200;
+
+        $maxFilasSeccion = 50000;
+
+        $seccionLiquidacion = null;
+        $placasEncontradas = [];
+
+        if ($incluirLiquidacion) {
         // -------------------------------------------------------------
         // 1. SECCIÓN 1: LIQUIDACIÓN DE PLACAS (LiqPlacas)
         // -------------------------------------------------------------
@@ -143,12 +166,19 @@ class DashAnalisisPlacasHandler
             }
         }
 
-        // Si no se especificó placa para master-detail, usar C8B727 o la primera disponible
-        if ($placaSeleccionada === null) {
-            $placaSeleccionada = isset($placasEncontradas['C8B727']) ? 'C8B727' : ($primeraPlaca ?? 'C8B727');
-            $fecProcesoSeleccionada = $placasEncontradas[$placaSeleccionada] ?? $fechaInicio;
-        } elseif ($fecProcesoSeleccionada === null) {
-            $fecProcesoSeleccionada = $placasEncontradas[$placaSeleccionada] ?? $fechaInicio;
+        // Validación defensiva de la placa y fecha seleccionada
+        if ($placaSeleccionada !== null && $placaSeleccionada !== '' && $placaSeleccionada !== '(Todas)') {
+            if (!isset($placasEncontradas[$placaSeleccionada])) {
+                // La placa enviada no existe en este rango de fechas: descartar y mostrar modo general
+                $placaSeleccionada = null;
+                $fecProcesoSeleccionada = null;
+            } elseif ($fecProcesoSeleccionada === null || $fecProcesoSeleccionada < $fechaInicio || $fecProcesoSeleccionada > $fechaFin) {
+                // La fecha enviada no es válida para este rango, usar la fecha registrada de la placa
+                $fecProcesoSeleccionada = $placasEncontradas[$placaSeleccionada] ?? $fechaInicio;
+            }
+        } else {
+            $placaSeleccionada = null;
+            $fecProcesoSeleccionada = null;
         }
 
         // Ordenar columnas de transacciones
@@ -274,14 +304,47 @@ class DashAnalisisPlacasHandler
             'total_general' => [
                 'placa' => 'Total general',
                 'transacciones' => $totalGeneralTransacciones
-            ]
+            ],
+            'completo' => true
         ];
+        }
 
         // -------------------------------------------------------------
         // 2. SECCIÓN 2: ANÁLISIS DE VENTAS (Ventas)
         // -------------------------------------------------------------
+        $whereVentas = ["s.tline = '601'"];
+        $paramsVentas = [];
+
+        if ($placaSeleccionada !== null && $placaSeleccionada !== '') {
+            $cleanPlaca = str_replace('-', '', $placaSeleccionada);
+            if ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '') {
+                $whereVentas[] = "s.tfecfac = :fec_proceso";
+                $paramsVentas[':fec_proceso'] = $fecProcesoSeleccionada;
+            } else {
+                $whereVentas[] = "s.tfecfac BETWEEN :fec_ini AND :fec_fin";
+                $paramsVentas[':fec_ini'] = $fechaInicio;
+                $paramsVentas[':fec_fin'] = $fechaFin;
+            }
+            $whereVentas[] = "(s.placa = :placa OR REPLACE(s.placa, '-', '') = :placa_clean)";
+            $paramsVentas[':placa'] = $placaSeleccionada;
+            $paramsVentas[':placa_clean'] = $cleanPlaca;
+        } else {
+            $whereVentas[] = "s.tfecfac BETWEEN :fec_ini AND :fec_fin";
+            $paramsVentas[':fec_ini'] = $fechaInicio;
+            $paramsVentas[':fec_fin'] = $fechaFin;
+        }
+
+        $whereVentasSql = implode(' AND ', $whereVentas);
+
+        $ventasSelectPrefix = $paginadoVentas ? 'SQL_CALC_FOUND_ROWS ' : '';
+        $ventasLimit = '';
+        if ($paginadoVentas) {
+            $offsetVentas = ($pageVentas - 1) * $pageSizeVentas;
+            $ventasLimit = " LIMIT {$offsetVentas}, {$pageSizeVentas}";
+        }
+
         $sqlVentas = "
-            SELECT 
+            SELECT {$ventasSelectPrefix}
                 DATE_FORMAT(s.tfecfac, '%Y/%m/%d') as fecproceso_fmt,
                 s.tfecfac as fecproceso,
                 s.placa,
@@ -302,31 +365,48 @@ class DashAnalisisPlacasHandler
             FROM sale s
             INNER JOIN ccte c ON s.tprocli = c.codigo
             LEFT JOIN ccte c1 ON c.ruc = c1.codigo
-            WHERE s.tline = '601'
-              AND s.tfecfac = :fec_proceso
-              AND (s.placa = :placa OR REPLACE(s.placa, '-', '') = :placa_clean)
+            WHERE {$whereVentasSql}
             GROUP BY s.tfecfac, s.placa, s.tdate, c1.nombre, c.codigo, c.nombre, c1.rutacomer, s.tdoc, s.tnumfac, s.tcodigo
             ORDER BY 
+                s.tfecfac ASC,
                 s.tdate ASC, 
                 MIN(s.ttime) ASC, 
                 c.codigo ASC, 
                 s.tdoc ASC, 
                 s.tnumfac ASC,
-                CAST(s.tcodigo AS UNSIGNED) ASC
+                CAST(s.tcodigo AS UNSIGNED) ASC{$ventasLimit}
         ";
 
-        $cleanPlaca = str_replace('-', '', $placaSeleccionada);
         $stmtVentas = $db->prepare($sqlVentas);
-        $stmtVentas->execute([
-            ':fec_proceso' => $fecProcesoSeleccionada,
-            ':placa' => $placaSeleccionada,
-            ':placa_clean' => $cleanPlaca
-        ]);
+        $stmtVentas->execute($paramsVentas);
         $ventasRows = $stmtVentas->fetchAll(PDO::FETCH_ASSOC);
 
         $totVentasCant = 0.0;
         $totVentasPeso = 0.0;
         $totVentasVal  = 0.0;
+        $ventasTotalRegistros = 0;
+
+        if ($paginadoVentas) {
+            $stmtFound = $db->query("SELECT FOUND_ROWS() as total_registros");
+            $ventasTotalRegistros = (int)($stmtFound->fetch(PDO::FETCH_ASSOC)['total_registros'] ?? 0);
+
+            $sqlTotVentas = "
+                SELECT
+                    SUM(s.tcantid) as tc,
+                    SUM(s.tespeci) as tp,
+                    SUM(s.timport) as tv
+                FROM sale s
+                INNER JOIN ccte c ON s.tprocli = c.codigo
+                LEFT JOIN ccte c1 ON c.ruc = c1.codigo
+                WHERE {$whereVentasSql}
+            ";
+            $stmtTotVentas = $db->prepare($sqlTotVentas);
+            $stmtTotVentas->execute($paramsVentas);
+            $totRow = $stmtTotVentas->fetch(PDO::FETCH_ASSOC) ?: [];
+            $totVentasCant = (float)($totRow['tc'] ?? 0);
+            $totVentasPeso = (float)($totRow['tp'] ?? 0);
+            $totVentasVal  = (float)($totRow['tv'] ?? 0);
+        }
 
         foreach ($ventasRows as &$vr) {
             $cant = (float)$vr['cantidad'];
@@ -339,17 +419,37 @@ class DashAnalisisPlacasHandler
             $vr['peso_prom_venta']   = abs($cant) > 0.0001 ? ($peso / $cant) : 0.0;
             $vr['precio_prom_venta'] = abs($peso) > 0.0001 ? ($val / $peso) : 0.0;
 
-            $totVentasCant += $cant;
-            $totVentasPeso += $peso;
-            $totVentasVal  += $val;
+            if (!$paginadoVentas) {
+                $totVentasCant += $cant;
+                $totVentasPeso += $peso;
+                $totVentasVal  += $val;
+            }
         }
         unset($vr);
 
+        if (!$paginadoVentas) {
+            $ventasTotalRegistros = count($ventasRows);
+        }
+
+        $fecprocesoFmt = ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '')
+            ? date('Y/m/d', strtotime($fecProcesoSeleccionada))
+            : (date('Y/m/d', strtotime($fechaInicio)) . ' al ' . date('Y/m/d', strtotime($fechaFin)));
+
+        $ventasCompleto = !$paginadoVentas && count($ventasRows) <= $maxFilasSeccion;
+        if (!$paginadoVentas && !$ventasCompleto) {
+            $ventasRows = array_slice($ventasRows, 0, $maxFilasSeccion);
+        }
+
         $seccionVentas = [
-            'placa' => $placaSeleccionada,
-            'fecproceso' => $fecProcesoSeleccionada,
-            'fecproceso_formateada' => date('Y/m/d', strtotime($fecProcesoSeleccionada)),
+            'placa' => $placaSeleccionada ?? '(Todas)',
+            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'fecproceso_formateada' => $fecprocesoFmt,
             'filas' => $ventasRows,
+            'completo' => $ventasCompleto,
+            'paginado' => $paginadoVentas,
+            'page' => $paginadoVentas ? $pageVentas : 1,
+            'page_size' => $paginadoVentas ? $pageSizeVentas : count($ventasRows),
+            'total_registros' => $ventasTotalRegistros,
             'total' => [
                 'cantidad' => $totVentasCant,
                 'peso' => $totVentasPeso,
@@ -359,12 +459,43 @@ class DashAnalisisPlacasHandler
             ]
         ];
 
+        if ($soloVentas) {
+            $seccionTiemposRuta = null;
+            $seccionAgcausal = null;
+            $seccionCumplimiento = null;
+        } else {
+
         // -------------------------------------------------------------
         // 3. SECCIÓN 3: TIEMPOS DE RUTA (TiemposRutas)
         // -------------------------------------------------------------
+        $whereRutas = [
+            "r.evento IN ('INGRESO A C.D.', 'INGRESO A GALPON', 'INGRESO A GARITA', 'SALIDA DE GALPON', 'SALIDA DE GARITA', 'SALIDA DE P.B.')"
+        ];
+        $paramsRutas = [];
+
+        if ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '') {
+            $whereRutas[] = "r.fechaproceso = :fec_proceso";
+            $paramsRutas[':fec_proceso'] = $fecProcesoSeleccionada;
+        } else {
+            $whereRutas[] = "r.fechaproceso BETWEEN :fec_ini AND :fec_fin";
+            $paramsRutas[':fec_ini'] = $fechaInicio;
+            $paramsRutas[':fec_fin'] = $fechaFin;
+        }
+
+        if ($placaSeleccionada !== null && $placaSeleccionada !== '') {
+            $cleanPlaca = str_replace('-', '', $placaSeleccionada);
+            $whereRutas[] = "(r.placa = :placa OR REPLACE(r.placa, '-', '') = :placa_clean)";
+            $paramsRutas[':placa'] = $placaSeleccionada;
+            $paramsRutas[':placa_clean'] = $cleanPlaca;
+        }
+
+        $whereRutasSql = implode(' AND ', $whereRutas);
         $sqlRutas = "
             SELECT 
+                r.placa,
                 r.numeroruta,
+                r.fechaproceso,
+                DATE_FORMAT(r.fechaproceso, '%Y/%m/%d') as fechaproceso_formateada,
                 r.fecha,
                 DATE_FORMAT(r.fecha, '%Y/%m/%d') as fecha_formateada,
                 r.hora,
@@ -372,29 +503,57 @@ class DashAnalisisPlacasHandler
                 r.localizacion,
                 r.arearesponsable
             FROM dmruta r
-            WHERE (r.placa = :placa OR REPLACE(r.placa, '-', '') = :placa_clean)
-              AND r.fechaproceso BETWEEN :fec_ini AND :fec_fin
-              AND r.evento IN ('INGRESO A C.D.', 'INGRESO A GALPON', 'INGRESO A GARITA', 'SALIDA DE GALPON', 'SALIDA DE GARITA', 'SALIDA DE P.B.')
-            ORDER BY CAST(r.numeroruta AS UNSIGNED) ASC, r.fecha ASC, r.hora ASC
+            WHERE {$whereRutasSql}
+            ORDER BY r.placa ASC, CAST(r.numeroruta AS UNSIGNED) ASC, r.fecha ASC, r.hora ASC
         ";
 
         $stmtRutas = $db->prepare($sqlRutas);
-        $stmtRutas->execute([
-            ':placa' => $placaSeleccionada,
-            ':placa_clean' => $cleanPlaca,
-            ':fec_ini' => $fechaInicio,
-            ':fec_fin' => $fechaFin
-        ]);
+        $stmtRutas->execute($paramsRutas);
         $rutasRows = $stmtRutas->fetchAll(PDO::FETCH_ASSOC);
 
+        $rutasCompleto = count($rutasRows) <= $maxFilasSeccion;
+        if (!$rutasCompleto) {
+            $rutasRows = array_slice($rutasRows, 0, $maxFilasSeccion);
+        }
+
+        $rutasFecFmt = ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '')
+            ? date('Y/m/d', strtotime($fecProcesoSeleccionada))
+            : (date('Y/m/d', strtotime($fechaInicio)) . ' al ' . date('Y/m/d', strtotime($fechaFin)));
+
         $seccionTiemposRuta = [
-            'placa' => $placaSeleccionada,
-            'filas' => $rutasRows
+            'placa' => $placaSeleccionada ?? '(Todas)',
+            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'fecproceso_formateada' => $rutasFecFmt,
+            'filas' => $rutasRows,
+            'completo' => $rutasCompleto
         ];
 
         // -------------------------------------------------------------
         // 4. SECCIÓN 4: AGENTE CAUSAL (Agcausal)
         // -------------------------------------------------------------
+        $whereAg = [];
+        $paramsAg = [];
+
+        if ($placaSeleccionada !== null && $placaSeleccionada !== '') {
+            $cleanPlaca = str_replace('-', '', $placaSeleccionada);
+            if ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '') {
+                $whereAg[] = "a.fechaproceso = :fec_proceso";
+                $paramsAg[':fec_proceso'] = $fecProcesoSeleccionada;
+            } else {
+                $whereAg[] = "a.fechaproceso BETWEEN :fec_ini AND :fec_fin";
+                $paramsAg[':fec_ini'] = $fechaInicio;
+                $paramsAg[':fec_fin'] = $fechaFin;
+            }
+            $whereAg[] = "(a.placa = :placa OR REPLACE(a.placa, '-', '') = :placa_clean)";
+            $paramsAg[':placa'] = $placaSeleccionada;
+            $paramsAg[':placa_clean'] = $cleanPlaca;
+        } else {
+            $whereAg[] = "a.fechaproceso BETWEEN :fec_ini AND :fec_fin";
+            $paramsAg[':fec_ini'] = $fechaInicio;
+            $paramsAg[':fec_fin'] = $fechaFin;
+        }
+
+        $whereAgSql = implode(' AND ', $whereAg);
         $sqlAgcausal = "
             SELECT 
                 DATE_FORMAT(a.fechaproceso, '%Y/%m/%d') as fecproceso_fmt,
@@ -409,30 +568,57 @@ class DashAnalisisPlacasHandler
                 a.horaregistro,
                 a.descripcion
             FROM dmagentescausalesmermas a
-            WHERE a.fechaproceso = :fec_proceso
-              AND (a.placa = :placa OR REPLACE(a.placa, '-', '') = :placa_clean)
-            ORDER BY a.area ASC, a.codigoconta ASC, a.fecharegistro ASC, a.horaregistro ASC
+            WHERE {$whereAgSql}
+            ORDER BY a.fechaproceso ASC, a.placa ASC, a.area ASC, a.codigoconta ASC, a.fecharegistro ASC, a.horaregistro ASC
         ";
 
         $stmtAgcausal = $db->prepare($sqlAgcausal);
-        $stmtAgcausal->execute([
-            ':fec_proceso' => $fecProcesoSeleccionada,
-            ':placa' => $placaSeleccionada,
-            ':placa_clean' => $cleanPlaca
-        ]);
+        $stmtAgcausal->execute($paramsAg);
         $agcausalRows = $stmtAgcausal->fetchAll(PDO::FETCH_ASSOC);
 
+        $agcausalCompleto = count($agcausalRows) <= $maxFilasSeccion;
+        if (!$agcausalCompleto) {
+            $agcausalRows = array_slice($agcausalRows, 0, $maxFilasSeccion);
+        }
+
         $seccionAgcausal = [
-            'placa' => $placaSeleccionada,
-            'fecproceso' => $fecProcesoSeleccionada,
-            'fecproceso_formateada' => date('Y/m/d', strtotime($fecProcesoSeleccionada)),
-            'filas' => $agcausalRows
+            'placa' => $placaSeleccionada ?? '(Todas)',
+            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'fecproceso_formateada' => $fecprocesoFmt,
+            'filas' => $agcausalRows,
+            'completo' => $agcausalCompleto
         ];
 
         // -------------------------------------------------------------
         // 5. SECCIÓN 5: CUMPLIMIENTO OBJETIVO (Mermas + MermasCodigo)
         // -------------------------------------------------------------
         // Tabla Placa General
+        $whereMermas = [
+            "m.dato = 'Peso'",
+            "m.zonaorigen IN ('JOYA', 'MOLLENDO')"
+        ];
+        $paramsMermas = [];
+
+        if ($placaSeleccionada !== null && $placaSeleccionada !== '') {
+            $cleanPlaca = str_replace('-', '', $placaSeleccionada);
+            if ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '') {
+                $whereMermas[] = "m.fechaproceso = :fec_proceso";
+                $paramsMermas[':fec_proceso'] = $fecProcesoSeleccionada;
+            } else {
+                $whereMermas[] = "m.fechaproceso BETWEEN :fec_ini AND :fec_fin";
+                $paramsMermas[':fec_ini'] = $fechaInicio;
+                $paramsMermas[':fec_fin'] = $fechaFin;
+            }
+            $whereMermas[] = "(m.placa = :placa OR REPLACE(m.placa, '-', '') = :placa_clean)";
+            $paramsMermas[':placa'] = $placaSeleccionada;
+            $paramsMermas[':placa_clean'] = $cleanPlaca;
+        } else {
+            $whereMermas[] = "m.fechaproceso BETWEEN :fec_ini AND :fec_fin";
+            $paramsMermas[':fec_ini'] = $fechaInicio;
+            $paramsMermas[':fec_fin'] = $fechaFin;
+        }
+
+        $whereMermasSql = implode(' AND ', $whereMermas);
         $sqlMermasPlaca = "
             SELECT 
                 DATE_FORMAT(m.fechaproceso, '%Y/%m/%d') as fecproceso_fmt,
@@ -444,20 +630,13 @@ class DashAnalisisPlacasHandler
                 SUM(m.entrada) as entrada,
                 SUM(m.mermatotal) as mermatotal
             FROM dmmermas m
-            WHERE m.fechaproceso = :fec_proceso
-              AND (m.placa = :placa OR REPLACE(m.placa, '-', '') = :placa_clean)
-              AND m.dato = 'Peso'
-              AND m.zonaorigen IN ('JOYA', 'MOLLENDO')
+            WHERE {$whereMermasSql}
             GROUP BY m.fechaproceso, m.zonaorigen, m.cliente, m.placa
-            ORDER BY m.zonaorigen ASC, m.cliente ASC
+            ORDER BY m.fechaproceso ASC, m.zonaorigen ASC, m.cliente ASC, m.placa ASC
         ";
 
         $stmtMPlaca = $db->prepare($sqlMermasPlaca);
-        $stmtMPlaca->execute([
-            ':fec_proceso' => $fecProcesoSeleccionada,
-            ':placa' => $placaSeleccionada,
-            ':placa_clean' => $cleanPlaca
-        ]);
+        $stmtMPlaca->execute($paramsMermas);
         $mermasPlacaRows = $stmtMPlaca->fetchAll(PDO::FETCH_ASSOC);
 
         $tablaPlaca = [];
@@ -469,6 +648,8 @@ class DashAnalisisPlacasHandler
             $dif  = $real - $obj;
 
             $tablaPlaca[] = [
+                'fecproceso' => $mr['fechaproceso'],
+                'fecproceso_fmt' => $mr['fecproceso_fmt'],
                 'zonaorigen' => $mr['zonaorigen'],
                 'cliente' => $mr['cliente'],
                 'placa' => $mr['placa'],
@@ -493,20 +674,13 @@ class DashAnalisisPlacasHandler
                 SUM(m.entrada) as entrada,
                 SUM(m.mermatotal) as mermatotal
             FROM dmmermas m
-            WHERE m.fechaproceso = :fec_proceso
-              AND (m.placa = :placa OR REPLACE(m.placa, '-', '') = :placa_clean)
-              AND m.dato = 'Peso'
-              AND m.zonaorigen IN ('JOYA', 'MOLLENDO')
+            WHERE {$whereMermasSql}
             GROUP BY m.fechaproceso, m.zonaorigen, m.cliente, m.placa, m.codigo
-            ORDER BY m.zonaorigen ASC, m.cliente ASC, CAST(m.codigo AS UNSIGNED) ASC
+            ORDER BY m.fechaproceso ASC, m.zonaorigen ASC, m.cliente ASC, m.placa ASC, CAST(m.codigo AS UNSIGNED) ASC
         ";
 
         $stmtMCod = $db->prepare($sqlMermasCod);
-        $stmtMCod->execute([
-            ':fec_proceso' => $fecProcesoSeleccionada,
-            ':placa' => $placaSeleccionada,
-            ':placa_clean' => $cleanPlaca
-        ]);
+        $stmtMCod->execute($paramsMermas);
         $mermasCodRows = $stmtMCod->fetchAll(PDO::FETCH_ASSOC);
 
         $tablaCodigoFilas = [];
@@ -522,6 +696,8 @@ class DashAnalisisPlacasHandler
             $dif  = $real - $obj;
 
             $tablaCodigoFilas[] = [
+                'fecproceso' => $mr['fechaproceso'],
+                'fecproceso_fmt' => $mr['fecproceso_fmt'],
                 'zonaorigen' => $mr['zonaorigen'],
                 'cliente' => $mr['cliente'],
                 'placa' => $mr['placa'],
@@ -543,13 +719,23 @@ class DashAnalisisPlacasHandler
         $realTotal = $totEntCod > 0 ? ($totMerCod / $totEntCod) : 0.0;
         $difTotal = $realTotal - $avgObjTotal;
 
+        $cumpCompleto = (count($tablaPlaca) <= $maxFilasSeccion) && (count($tablaCodigoFilas) <= $maxFilasSeccion);
+        if (count($tablaPlaca) > $maxFilasSeccion) {
+            $tablaPlaca = array_slice($tablaPlaca, 0, $maxFilasSeccion);
+        }
+        if (count($tablaCodigoFilas) > $maxFilasSeccion) {
+            $tablaCodigoFilas = array_slice($tablaCodigoFilas, 0, $maxFilasSeccion);
+        }
+
         $seccionCumplimiento = [
-            'placa' => $placaSeleccionada,
-            'fecproceso' => $fecProcesoSeleccionada,
-            'fecproceso_formateada' => date('Y/m/d', strtotime($fecProcesoSeleccionada)),
+            'placa' => $placaSeleccionada ?? '(Todas)',
+            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'fecproceso_formateada' => $fecprocesoFmt,
+            'completo' => $cumpCompleto,
             'tabla_placa' => $tablaPlaca,
             'tabla_codigo' => [
                 'filas' => $tablaCodigoFilas,
+                'completo' => $cumpCompleto,
                 'total' => [
                     'objetivo' => round($avgObjTotal * 100, 2),
                     'real' => round($realTotal * 100, 2),
@@ -559,6 +745,8 @@ class DashAnalisisPlacasHandler
                 ]
             ]
         ];
+
+        }
 
         return [
             'status' => 'success',

@@ -17,6 +17,9 @@ class MermaPlacaController {
         if (tt) {
             tt.classList.add('hidden');
             tt.style.display = 'none';
+            tt.style.transform = 'none';
+            tt.style.left = '';
+            tt.style.top = '';
             tt.innerHTML = '';
         }
         if (this.chartTipoActual && window.ChartRegistry && window.ChartRegistry[this.chartTipoActual] && typeof window.ChartRegistry[this.chartTipoActual].destroy === 'function') {
@@ -85,8 +88,8 @@ class MermaPlacaController {
                 if (selTipoGrafico.value === 'DashAnalisisPlacas') {
                     const inputIni = document.getElementById('input-fecha-inicio');
                     const inputFin = document.getElementById('input-fecha-fin');
-                    if (inputIni) inputIni.value = '2026-03-30';
-                    if (inputFin) inputFin.value = '2026-03-31';
+                    if (inputIni && !inputIni.value) inputIni.value = '2026-03-30';
+                    if (inputFin && !inputFin.value) inputFin.value = '2026-03-31';
                 }
                 await this.onCargarClick();
             });
@@ -108,6 +111,10 @@ class MermaPlacaController {
 
         // Botón Cargar
         document.getElementById('btn-cargar')?.addEventListener('click', async () => {
+            const tipoGrafico = document.getElementById('select-tipo-grafico')?.value;
+            if (tipoGrafico && window.ChartRegistry && window.ChartRegistry[tipoGrafico] && typeof window.ChartRegistry[tipoGrafico].resetSelection === 'function') {
+                window.ChartRegistry[tipoGrafico].resetSelection();
+            }
             await this.onCargarClick();
         });
 
@@ -155,6 +162,12 @@ class MermaPlacaController {
                 tipo_grafico: tipoGrafico,
                 ...extraFilters
             };
+
+            if (tipoGrafico === 'DashAnalisisPlacas' && !payloadFiltros.placa_seleccionada) {
+                payloadFiltros.paginado_ventas = true;
+                payloadFiltros.page_size = 50;
+                payloadFiltros.page_ventas = 1;
+            }
 
             const res = await this.service.obtenerDashboard(payloadFiltros);
 

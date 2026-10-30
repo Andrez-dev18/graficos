@@ -797,12 +797,13 @@ window.DashAnalisisMermaEscalableChart = {
     },
 
     positionTooltip(e, tooltipEl) {
-        const offset = 12;
+        if (!tooltipEl) return;
+        const offset = 14;
         let x = e.clientX + offset;
         let y = e.clientY + offset;
 
-        const ttWidth = tooltipEl.offsetWidth || 220;
-        const ttHeight = tooltipEl.offsetHeight || 100;
+        const ttWidth = tooltipEl.offsetWidth || 240;
+        const ttHeight = tooltipEl.offsetHeight || 110;
         const winWidth = window.innerWidth;
         const winHeight = window.innerHeight;
 
@@ -813,8 +814,9 @@ window.DashAnalisisMermaEscalableChart = {
             y = e.clientY - ttHeight - offset;
         }
 
-        tooltipEl.style.left = `${Math.max(10, x)}px`;
-        tooltipEl.style.top = `${Math.max(10, y)}px`;
+        tooltipEl.style.left = '0px';
+        tooltipEl.style.top = '0px';
+        tooltipEl.style.transform = `translate3d(${Math.max(10, x)}px, ${Math.max(10, y)}px, 0)`;
     },
 
     hideTooltip() {
@@ -822,6 +824,9 @@ window.DashAnalisisMermaEscalableChart = {
         if (tooltipEl) {
             tooltipEl.classList.add('hidden');
             tooltipEl.style.display = 'none';
+            tooltipEl.style.transform = 'none';
+            tooltipEl.style.left = '';
+            tooltipEl.style.top = '';
             tooltipEl.innerHTML = '';
         }
     },
