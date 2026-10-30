@@ -22,6 +22,48 @@
         .dash-table .col-fija-sombra { box-shadow: 2px 0 3px rgba(15, 23, 42, .06); }
         .dash-table tbody tr:hover td { background-color: #f8fafc; }
         .dash-table tbody tr:hover td.col-fija { background-color: #f8fafc; }
+
+        /* Alineación vertical entre Proyección Diaria e Indicadores Semanales */
+        .dash-align thead tr,
+        .dash-align thead th { height: 44px; }
+        .dash-align thead th {
+            vertical-align: middle;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            line-height: 1.15;
+        }
+        .dash-align tbody tr,
+        .dash-align tbody td { height: 32px; }
+        .dash-align tbody td { padding-top: 0; padding-bottom: 0; vertical-align: middle; }
+        .dash-align tbody tr.dash-dia-inicio td { border-top: 2px solid #cbd5e1; }
+        .dash-align tfoot tr,
+        .dash-align tfoot td { height: 32px; }
+        .dash-align tfoot td {
+            padding-top: 0;
+            padding-bottom: 0;
+            vertical-align: middle;
+            position: sticky;
+            bottom: 0;
+            z-index: 40;
+            background: #f8fafc;
+            border-top: 1px solid #cbd5e1;
+        }
+        .dash-align.dash-fixed { table-layout: fixed; }
+        .dash-align tfoot td.col-fija { z-index: 60; }
+        .dash-align tfoot td.variacion-pos { background: #ecfdf5; }
+        .dash-align tfoot td.variacion-neg { background: #fff1f2; }
+        .dash-align tfoot td.variacion-cero { background: #f8fafc; }
+        .dash-align .dash-indicador {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 20px;
+            line-height: 20px;
+            padding-top: 0;
+            padding-bottom: 0;
+            font-size: 10px;
+            font-weight: 700;
+        }
         .variacion-pos { background: #ecfdf5; color: #047857; font-weight: 700; }
         .variacion-neg { background: #fff1f2; color: #be123c; font-weight: 700; }
         .variacion-cero { background: #f8fafc; color: #64748b; }
@@ -129,7 +171,7 @@
     <script src="../../assets/utils-graficos/custom-multiselect.js?v=20261028_1"></script>
     <script src="../../assets/utils-graficos/loading-helper.js?v=20261028_1"></script>
     <script src="tomasDescisiones.service.js?v=20261028_4"></script>
-    <script src="charts/dashProyectadoVentasIndicador.js?v=20261028_3"></script>
+    <script src="charts/dashProyectadoVentasIndicador.js?v=20261030_3"></script>
     <script src="charts/dashTasasdeInteres.js?v=20261028_2"></script>
     <script src="charts/dashGraficasProyectadosVSReal.js?v=20261028_5"></script>
     <script src="charts/dashGraficasProyectadosDias.js?v=20261028_7"></script>

@@ -245,6 +245,27 @@ window.DashProyectadoVentasIndicadorView = {
         `;
 
         this.bindTooltips(contenedor);
+        this.bindResumenScroll();
+    },
+
+    bindResumenScroll() {
+        const body = document.getElementById('resumen-semanal-scroll');
+        const footerWrap = document.getElementById('resumen-semanal-footer-wrap');
+        if (!body || !footerWrap) return;
+
+        if (this._resumenScrollHandler) {
+            body.removeEventListener('scroll', this._resumenScrollHandler);
+        }
+
+        const sincronizar = () => {
+            footerWrap.scrollLeft = body.scrollLeft;
+        };
+        this._resumenScrollHandler = sincronizar;
+        body.addEventListener('scroll', sincronizar);
+
+        const scrollbarWidth = Math.max(0, body.offsetWidth - body.clientWidth);
+        footerWrap.style.paddingRight = `${scrollbarWidth}px`;
+        sincronizar();
     },
 
     renderTop(payload) {
@@ -301,7 +322,7 @@ window.DashProyectadoVentasIndicadorView = {
             });
 
             procesosDia.forEach((item, indice) => {
-                filas += '<tr>';
+                filas += `<tr class="${indice === 0 ? 'dash-dia-inicio' : ''}">`;
 
                 if (indice === 0) {
                     filas += `
@@ -351,7 +372,7 @@ window.DashProyectadoVentasIndicadorView = {
                     <span class="text-xs font-bold text-slate-800">Semana ${this.esc(semana)}</span>
                     <span class="text-[10px] text-slate-400">${dias.length} días</span>
                 </div>
-                <table class="dash-table text-[11px]">
+                <table class="dash-table text-[11px] dash-align">
                     <thead>
                         <tr>
                             <th class="px-2 py-2 text-left text-[10px] font-bold text-white"
@@ -405,30 +426,29 @@ window.DashProyectadoVentasIndicadorView = {
                         && medidas.varpprom !== undefined
                         && medidas.varpprom !== '';
                     const peso = tienePeso ? medidas.varpprom : null;
-                    const bordeDia = indice === 0 ? 'border-t-2 border-slate-300' : '';
 
                     filas += `
-                        <tr data-tip="indicador"
+                        <tr class="${indice === 0 ? 'dash-dia-inicio' : ''}" data-tip="indicador"
                             data-proceso="${this.esc(item.proceso)}"
                             data-semana="${this.esc(semana)}"
                             data-fecha="${this.esc(dia.fecha)}"
                             data-varprecio="${this.esc(precio === null || precio === undefined ? '' : precio)}"
                             data-varpprom="${this.esc(tienePeso ? peso : '')}"
                             data-vpprom-valido="${tienePeso ? '1' : '0'}">
-                            <td class="px-2 py-1.5 text-left text-[11px] font-medium text-slate-700 whitespace-nowrap ${bordeDia}"
+                            <td class="px-2 py-1.5 text-left text-[11px] font-medium text-slate-700 whitespace-nowrap"
                                 style="min-width:110px;max-width:110px;">${this.esc(item.proceso)}</td>
-                            <td class="px-1.5 py-1.5 text-center align-middle ${bordeDia}">
-                                <span class="inline-flex items-center justify-center min-w-[68px] px-2 py-1 rounded text-[10px] font-bold ${this.claseIndicador(precio)}">
+                            <td class="px-1.5 py-1.5 text-center align-middle">
+                                <span class="dash-indicador inline-flex items-center justify-center min-w-[68px] px-2 py-0 rounded text-[10px] font-bold ${this.claseIndicador(precio)}">
                                     ${this.moneda(precio, 3)}
                                 </span>
                             </td>
-                            <td class="px-1.5 py-1.5 text-center align-middle ${bordeDia}">
+                            <td class="px-1.5 py-1.5 text-center align-middle">
                                 ${tienePeso ? `
-                                    <span class="inline-flex items-center justify-center min-w-[68px] px-2 py-1 rounded text-[10px] font-bold ${this.claseIndicador(peso)}">
+                                    <span class="dash-indicador inline-flex items-center justify-center min-w-[68px] px-2 py-0 rounded text-[10px] font-bold ${this.claseIndicador(peso)}">
                                         ${this.numero(peso, 3)}
                                     </span>
                                 ` : `
-                                    <span class="inline-flex items-center justify-center min-w-[68px] px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-400">&nbsp;</span>
+                                    <span class="dash-indicador inline-flex items-center justify-center min-w-[68px] px-2 py-0 rounded text-[10px] font-bold bg-slate-100 text-slate-400">&nbsp;</span>
                                 `}
                             </td>
                         </tr>
@@ -442,7 +462,7 @@ window.DashProyectadoVentasIndicadorView = {
                         <span class="text-xs font-bold text-slate-800">Semana ${this.esc(semana)}</span>
                         <span class="text-[10px] text-slate-400">${diasSemana.length} días</span>
                     </div>
-                    <table class="dash-table text-[11px]">
+                    <table class="dash-table text-[11px] dash-align">
                         <thead>
                             <tr>
                                 <th class="px-2 py-2 text-left text-[10px] font-bold text-white"
@@ -519,7 +539,7 @@ window.DashProyectadoVentasIndicadorView = {
             });
         });
 
-        filas += `
+        const totalGeneralRow = `
             <tr class="font-bold">
                 <td colspan="2" class="col-fija sticky left-0 z-30 px-2 py-2 text-[11px] text-slate-900"
                     style="background:#f8fafc;min-width:240px;">Total general</td>
@@ -532,14 +552,24 @@ window.DashProyectadoVentasIndicadorView = {
             </tr>
         `;
 
+        const colsResumen = `
+            <colgroup>
+                <col style="width:110px;">
+                <col style="width:130px;">
+                ${this.MEDIDAS.map(() => '<col style="width:88px;">').join('')}
+            </colgroup>
+        `;
+        const alturaBody = 44 + procesos.length * 32;
+
         return `
             <section class="dash-card flex flex-col">
                 <header class="px-4 py-3 border-b border-slate-200 shrink-0">
                     <h2 class="text-sm font-bold text-slate-900 underline underline-offset-4 uppercase tracking-wide">Resumen Semanal</h2>
                     <p class="text-[11px] text-slate-500 mt-0.5">Totales por semana y total general</p>
                 </header>
-                <div class="overflow-auto custom-scrollbar">
-                    <table class="dash-table text-[11px]">
+                <div id="resumen-semanal-scroll" class="overflow-auto custom-scrollbar" style="height:${alturaBody}px;">
+                    <table class="dash-table text-[11px] dash-align dash-fixed">
+                        ${colsResumen}
                         <thead>
                             <tr>
                                 <th class="col-fija sticky top-0 left-0 z-50 px-2 py-2 text-left text-[10px] font-bold text-white"
@@ -552,29 +582,53 @@ window.DashProyectadoVentasIndicadorView = {
                         <tbody>${filas}</tbody>
                     </table>
                 </div>
+                <div id="resumen-semanal-footer-wrap" class="custom-scrollbar" style="height:32px;overflow-x:hidden;overflow-y:hidden;">
+                    <table class="dash-table text-[11px] dash-align dash-fixed">
+                        ${colsResumen}
+                        <tfoot>${totalGeneralRow}</tfoot>
+                    </table>
+                </div>
             </section>
         `;
     },
 
     renderIndicadoresTotales(payload) {
         const indicadores = payload.indicadoresTotales || [];
+        const totalGeneral = payload.totalGeneral && payload.totalGeneral.medidas ? payload.totalGeneral.medidas : {};
 
         const filas = indicadores.map(item => `
             <tr>
                 <td class="col-fija sticky left-0 z-20 px-2 py-2 text-[11px] font-semibold text-slate-700 whitespace-nowrap"
                     style="background:#fff;min-width:120px;">${this.esc(item.proceso)}</td>
                 <td class="px-1.5 py-2 text-center">
-                    <span class="inline-flex items-center justify-center min-w-[70px] px-2 py-1 rounded text-[10px] font-bold ${this.claseIndicador(item.varprecio)}">
+                    <span class="dash-indicador inline-flex items-center justify-center min-w-[70px] px-2 py-0 rounded text-[10px] font-bold ${this.claseIndicador(item.varprecio)}">
                         ${this.moneda(item.varprecio, 3)}
                     </span>
                 </td>
                 <td class="px-1.5 py-2 text-center">
-                    <span class="inline-flex items-center justify-center min-w-[70px] px-2 py-1 rounded text-[10px] font-bold ${this.claseIndicador(item.varpprom)}">
+                    <span class="dash-indicador inline-flex items-center justify-center min-w-[70px] px-2 py-0 rounded text-[10px] font-bold ${this.claseIndicador(item.varpprom)}">
                         ${this.numero(item.varpprom, 3)}
                     </span>
                 </td>
             </tr>
         `).join('');
+
+        const totalRow = `
+            <tr class="font-bold">
+                <td class="col-fija sticky left-0 z-20 px-2 py-2 text-[11px] text-slate-900 whitespace-nowrap"
+                    style="background:#f8fafc;min-width:120px;">Total general</td>
+                <td class="px-1.5 py-2 text-center">
+                    <span class="dash-indicador inline-flex items-center justify-center min-w-[70px] px-2 py-0 rounded text-[10px] font-bold ${this.claseIndicador(totalGeneral.varprecio)}">
+                        ${this.moneda(totalGeneral.varprecio, 3)}
+                    </span>
+                </td>
+                <td class="px-1.5 py-2 text-center">
+                    <span class="dash-indicador inline-flex items-center justify-center min-w-[70px] px-2 py-0 rounded text-[10px] font-bold ${this.claseIndicador(totalGeneral.varpprom)}">
+                        ${this.numero(totalGeneral.varpprom, 3)}
+                    </span>
+                </td>
+            </tr>
+        `;
 
         return `
             <section class="dash-card flex flex-col">
@@ -583,7 +637,7 @@ window.DashProyectadoVentasIndicadorView = {
                     <p class="text-[11px] text-slate-500 mt-0.5">Variación de todas las semanas seleccionadas</p>
                 </header>
                 <div class="overflow-auto custom-scrollbar">
-                    <table class="dash-table text-[11px]">
+                    <table class="dash-table text-[11px] dash-align">
                         <thead>
                             <tr>
                                 <th class="col-fija sticky top-0 left-0 z-50 px-2 py-2 text-left text-[10px] font-bold text-white"
@@ -593,6 +647,7 @@ window.DashProyectadoVentasIndicadorView = {
                             </tr>
                         </thead>
                         <tbody>${filas}</tbody>
+                        <tfoot>${totalRow}</tfoot>
                     </table>
                 </div>
             </section>
