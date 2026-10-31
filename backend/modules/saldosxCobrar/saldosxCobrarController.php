@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/saldosxCobrarService.php';
 require_once __DIR__ . '/handlers/SalxCobrarCtaTablaHandler.php';
 require_once __DIR__ . '/handlers/SalxCobrarCtaFechaDocSegmentadoHandler.php';
+require_once __DIR__ . '/handlers/SalxCobrarListadoPendientesHandler.php';
 
 class saldosxCobrarController
 {
@@ -324,6 +325,51 @@ class saldosxCobrarController
             echo json_encode([
                 'success' => false,
                 'message' => 'Error al obtener la tabla por fecha de documento: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    public function getFiltrosListado()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $handler = new SalxCobrarListadoPendientesHandler($this->db);
+            $resultado = $handler->obtenerFiltros();
+
+            echo json_encode([
+                'success' => true,
+                'data' => $resultado
+            ]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener filtros del listado: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    public function getGraficoListadoPendientes()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $rawInput = file_get_contents('php://input');
+            $filtros = json_decode($rawInput, true) ?? $_POST;
+
+            $handler = new SalxCobrarListadoPendientesHandler($this->db);
+            $resultado = $handler->obtenerDatos($filtros);
+
+            echo json_encode([
+                'success' => true,
+                'payload' => $resultado
+            ]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error al obtener el listado de pendientes: ' . $e->getMessage()
             ]);
         }
         exit;

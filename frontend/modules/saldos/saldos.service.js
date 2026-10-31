@@ -27,6 +27,10 @@ class saldosService {
         GRAFICO_CTA_TABLA: '/saldosxCobrar/grafico-cta-tabla',
         GRAFICO_CTA_FECHA_DOC_SEGMENTADO: '/saldosxCobrar/grafico-cta-fecha-doc-segmentado',
 
+        // Gráfico 21DashListado (Análisis de Pendientes por Día)
+        FILTROS_LISTADO: '/saldosxCobrar/filtros-listado',
+        GRAFICO_LISTADO_PENDIENTES: '/saldosxCobrar/grafico-listado-pendientes',
+
         EXPORTAR_EXCEL: '/saldosxCobrar/exportar-detalle-excel'
     };
 
@@ -349,6 +353,49 @@ class saldosService {
             return await response.json();
         } catch (error) {
             console.error('Error en saldosService.obtenerCorporativosZonaDeudores:', error);
+            throw error;
+        }
+    }
+
+    async obtenerFiltrosListado() {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.FILTROS_LISTADO}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar filtros del listado: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerFiltrosListado:', error);
+            throw error;
+        }
+    }
+
+    async obtenerGraficoListadoPendientes(payload) {
+        try {
+            const response = await fetch(`${this.baseUrl}${this.ENDPOINTS.GRAFICO_LISTADO_PENDIENTES}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP al consultar el listado de pendientes: ${response.status} - ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en saldosService.obtenerGraficoListadoPendientes:', error);
             throw error;
         }
     }

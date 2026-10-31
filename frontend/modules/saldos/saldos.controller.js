@@ -14,6 +14,10 @@ class SaldosController {
         this.msDecision = null;
         this.msObservacion = null;
 
+        this.msCondicionPago = null;
+        this.msNomDoc = null;
+        this.filtrosListado = null;
+
         this.paletaColores = [
             { bar: '#4e79a7', hover: '#3b5f88', bgBadge: 'bg-blue-50', textBadge: 'text-blue-600', borderBadge: 'border-blue-100' },
             { bar: '#f28e2b', hover: '#c96f1b', bgBadge: 'bg-amber-50', textBadge: 'text-amber-600', borderBadge: 'border-amber-100' },
@@ -144,6 +148,32 @@ class SaldosController {
             placeholder: 'Todas las observaciones',
             options: []
         });
+
+        // 7. Condición de pago (21DashListado)
+        this.msCondicionPago = new CustomMultiSelect({
+            btnId: 'ms-condicionpago-btn',
+            labelId: 'ms-condicionpago-label',
+            dropdownId: 'ms-condicionpago-dropdown',
+            searchId: 'ms-condicionpago-search',
+            optionsContainerId: 'ms-condicionpago-options',
+            selectAllId: 'ms-condicionpago-select-all',
+            clearId: 'ms-condicionpago-clear',
+            placeholder: 'Todas las condiciones',
+            options: []
+        });
+
+        // 8. Nombre de documento (21DashListado)
+        this.msNomDoc = new CustomMultiSelect({
+            btnId: 'ms-nomdoc-btn',
+            labelId: 'ms-nomdoc-label',
+            dropdownId: 'ms-nomdoc-dropdown',
+            searchId: 'ms-nomdoc-search',
+            optionsContainerId: 'ms-nomdoc-options',
+            selectAllId: 'ms-nomdoc-select-all',
+            clearId: 'ms-nomdoc-clear',
+            placeholder: 'Todos los documentos',
+            options: []
+        });
     }
 
     setupEventListeners() {
@@ -187,6 +217,22 @@ class SaldosController {
             this.msNomCliente?.selectAll();
             this.msDecision?.selectAll();
             this.msObservacion?.selectAll();
+            this.msCondicionPago?.selectAll();
+            this.msNomDoc?.selectAll();
+
+            const selZona = document.getElementById('select-zonafiscal');
+            if (selZona) selZona.value = '';
+
+            const inputFechaCarga = document.getElementById('input-fechacarga');
+            if (inputFechaCarga && this.filtrosListado?.max_fechacarga) {
+                inputFechaCarga.value = this.filtrosListado.max_fechacarga;
+            }
+
+            const tipoActual = document.getElementById('select-tipo-grafico')?.value;
+            if (tipoActual === '21DashListado' && window.SaldosListadoPendientesView && typeof window.SaldosListadoPendientesView.resetSaldoFilter === 'function') {
+                window.SaldosListadoPendientesView.resetSaldoFilter();
+            }
+
             this.limpiarGraficos();
         });
 
@@ -885,6 +931,46 @@ class SaldosController {
                 })));
             }
 
+            // 3. Cargar filtros del listado de pendientes (21DashListado)
+            try {
+                const resListado = await this.service.obtenerFiltrosListado();
+                if (resListado && resListado.success && resListado.data) {
+                    this.filtrosListado = resListado.data;
+                    const d = resListado.data;
+
+                    const selZona = document.getElementById('select-zonafiscal');
+                    if (selZona) {
+                        selZona.innerHTML = '';
+                        selZona.add(new Option('(Todo)', ''));
+                        (d.zonafiscal || []).forEach(z => selZona.add(new Option(z, z)));
+                        selZona.value = '';
+                    }
+
+                    if (this.msCondicionPago) {
+                        this.msCondicionPago.setOptions((d.condicionpago || []).map(v => ({
+                            id: v,
+                            label: v,
+                            selected: true
+                        })));
+                    }
+
+                    if (this.msNomDoc) {
+                        this.msNomDoc.setOptions((d.nomdoc || []).map(v => ({
+                            id: v,
+                            label: v,
+                            selected: true
+                        })));
+                    }
+
+                    const inputFechaCarga = document.getElementById('input-fechacarga');
+                    if (inputFechaCarga && !inputFechaCarga.value && d.max_fechacarga) {
+                        inputFechaCarga.value = d.max_fechacarga;
+                    }
+                }
+            } catch (errorFiltrosListado) {
+                console.warn('No se pudieron cargar los filtros del listado:', errorFiltrosListado);
+            }
+
             // Aplicar visibilidad inicial de los filtros según lo que esté marcado
             this.alternarVisibilidadFiltrosSegunTipo();
 
@@ -898,7 +984,7 @@ class SaldosController {
         if (!contenedor) return;
 
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
-        if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado') {
+        if (tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado' || tipoGrafico === '21DashListado') {
             contenedor.className = 'flex flex-col gap-6 mt-6 pb-10 min-w-0';
             return;
         }
@@ -933,7 +1019,11 @@ class SaldosController {
         });
         this.chartsMap.clear();
         this.cacheData = {};
+        if (window.SaldosListadoPendientesView && typeof window.SaldosListadoPendientesView.destroy === 'function') {
+            window.SaldosListadoPendientesView.destroy();
+        }
         document.getElementById('fd-tooltip')?.remove();
+        document.getElementById('slp-tooltip')?.remove();
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (contenedor) contenedor.innerHTML = '';
     }
@@ -948,33 +1038,47 @@ class SaldosController {
         const esCorporativosZona = tipoGrafico === '18CorporativosZonaDeudores';
         const esCtaTabla = tipoGrafico === '16SalxCobrarxCtaTabla';
         const esCtaFechaDoc = tipoGrafico === '10IndSalxCobrarxCtaxFechaDocSegmentado';
+        const esListado = tipoGrafico === '21DashListado';
         const usaFiltrosDoc = tipoGrafico === '02SalxCobrarxZona' || tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs' || esCorporativosZona || esCtaFechaDoc;
 
+        const wrapperCuenta = document.getElementById('wrapper-filtro-cuentaventa');
         const wrapperCliente = document.getElementById('wrapper-filtro-nomcliente');
         const wrapperVenc = document.getElementById('wrapper-filtro-vencimiento');
         const wrapperDec = document.getElementById('wrapper-filtro-decision');
         const wrapperObs = document.getElementById('wrapper-filtro-observacion');
         const wrapperDisp = document.getElementById('wrapper-filtro-disposicion');
         const wrapperFechaCorte = document.getElementById('wrapper-filtro-fechacorte');
+        const wrapperFechaCarga = document.getElementById('wrapper-filtro-fechacarga');
+        const wrapperZonaFiscal = document.getElementById('wrapper-filtro-zonafiscal');
+        const wrapperCondicionPago = document.getElementById('wrapper-filtro-condicionpago');
+        const wrapperNomDoc = document.getElementById('wrapper-filtro-nomdoc');
+        const wrapperSaldo = document.getElementById('wrapper-filtro-saldo');
+
+        if (wrapperCuenta) {
+            wrapperCuenta.classList.toggle('hidden', esListado);
+        }
 
         if (wrapperCliente) {
-            wrapperCliente.classList.toggle('hidden', !(esBarras || esCtaTabla));
+            wrapperCliente.classList.toggle('hidden', !(esBarras || esCtaTabla) || esListado);
         }
 
         if (wrapperDisp) {
-            wrapperDisp.classList.toggle('hidden', esCorporativosZona || esCtaTabla || esCtaFechaDoc);
+            wrapperDisp.classList.toggle('hidden', esCorporativosZona || esCtaTabla || esCtaFechaDoc || esListado);
         }
 
-        [wrapperVenc, wrapperDec].forEach(el => {
-            if (el) el.classList.toggle('hidden', !usaFiltrosDoc);
-        });
+        if (wrapperVenc) {
+            wrapperVenc.classList.toggle('hidden', !(usaFiltrosDoc || esListado));
+        }
+        if (wrapperDec) {
+            wrapperDec.classList.toggle('hidden', !usaFiltrosDoc || esListado);
+        }
 
         if (wrapperObs) {
-            wrapperObs.classList.toggle('hidden', !usaFiltrosDoc || esCtaFechaDoc);
+            wrapperObs.classList.toggle('hidden', !usaFiltrosDoc || esCtaFechaDoc || esListado);
         }
 
         if (wrapperFechaCorte) {
-            wrapperFechaCorte.classList.toggle('hidden', !esCtaFechaDoc);
+            wrapperFechaCorte.classList.toggle('hidden', !esCtaFechaDoc || esListado);
 
             if (esCtaFechaDoc) {
                 const inputFechaCorte = document.getElementById('input-fechacorte');
@@ -984,6 +1088,21 @@ class SaldosController {
                 }
             }
         }
+
+        if (wrapperFechaCarga) {
+            wrapperFechaCarga.classList.toggle('hidden', !esListado);
+
+            if (esListado) {
+                const inputFechaCarga = document.getElementById('input-fechacarga');
+                if (inputFechaCarga && !inputFechaCarga.value && this.filtrosListado?.max_fechacarga) {
+                    inputFechaCarga.value = this.filtrosListado.max_fechacarga;
+                }
+            }
+        }
+
+        [wrapperZonaFiscal, wrapperCondicionPago, wrapperNomDoc, wrapperSaldo].forEach(el => {
+            if (el) el.classList.toggle('hidden', !esListado);
+        });
     }
 
     alternarBotonExportarExcel(mostrar) {
@@ -1007,8 +1126,11 @@ class SaldosController {
         const { fechaInicio: fInicio, fechaFin: fFin } = rango;
         this.currentPeriodo = { inicio: fInicio, fin: fFin };
 
+        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
+        const esVistaListado = tipoGrafico === '21DashListado';
         const selectedCuentas = this.msCuentaVenta.getSelectedValues();
-        if (selectedCuentas.length === 0) {
+
+        if (selectedCuentas.length === 0 && !esVistaListado) {
             LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
                 mensaje: 'No hay cuentas seleccionadas para consultar.'
             });
@@ -1016,7 +1138,6 @@ class SaldosController {
             return;
         }
 
-        const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'saltosXcobrarXbarra';
         const esVistaZona = tipoGrafico === '02SalxCobrarxZona';
         const esVistaAnticipos = tipoGrafico === '08IndAnticipos';
         const esVistaAnalisisCuentas = tipoGrafico === '20DashAnalisisCtasMaxDeudoresDocs';
@@ -1153,6 +1274,47 @@ class SaldosController {
                 this.cacheData = res.payload;
                 contenedor.className = 'flex flex-col gap-6 mt-6 pb-10 min-w-0';
                 window.SaldosCtaFechaDocSegmentadoView.render(contenedor, res.payload, this);
+
+            } else if (esVistaListado) {
+                const fechacargaInput = document.getElementById('input-fechacarga')?.value
+                    || this.filtrosListado?.max_fechacarga
+                    || fFin;
+
+                const totalCondiciones = this.msCondicionPago ? this.msCondicionPago.options.length : 0;
+                const seleccionCondiciones = this.msCondicionPago ? this.msCondicionPago.getSelectedValues() : [];
+                const condicionPayload = (totalCondiciones > 0 && seleccionCondiciones.length === totalCondiciones)
+                    ? []
+                    : seleccionCondiciones;
+
+                const totalNomDocs = this.msNomDoc ? this.msNomDoc.options.length : 0;
+                const seleccionNomDocs = this.msNomDoc ? this.msNomDoc.getSelectedValues() : [];
+                const nomDocPayload = (totalNomDocs > 0 && seleccionNomDocs.length === totalNomDocs)
+                    ? []
+                    : seleccionNomDocs;
+
+                const payload = {
+                    fecha_inicio: fInicio,
+                    fecha_fin: fFin,
+                    fechacarga: fechacargaInput,
+                    vencimientos: this.msVencimiento ? this.msVencimiento.getSelectedValues() : [],
+                    zonafiscal: document.getElementById('select-zonafiscal')?.value || '',
+                    condicionpago: condicionPayload,
+                    nomdoc: nomDocPayload
+                };
+
+                const res = await this.service.obtenerGraficoListadoPendientes(payload);
+                LoadingHelper.ocultarEnContenedor('contenedor-graficos-lista');
+
+                if (!res.success || !res.payload || !res.payload.data || res.payload.data.length === 0) {
+                    LoadingHelper.mostrarVacio('contenedor-graficos-lista', {
+                        mensaje: res.payload?.message || 'No se encontraron pendientes para los filtros seleccionados.'
+                    });
+                    return;
+                }
+
+                this.cacheData = res.payload;
+                contenedor.className = 'flex flex-col gap-6 mt-6 pb-10 min-w-0';
+                window.SaldosListadoPendientesView.render(contenedor, res.payload, this);
 
             } else if (esVistaZona) {
                 // PAYLOAD PARA GRÁFICO DE LÍNEAS POR ZONA

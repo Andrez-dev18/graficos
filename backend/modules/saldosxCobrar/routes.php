@@ -22,4 +22,8 @@ $this->post('/saldosxCobrar/grafico-cta-tabla', 'saldosxCobrarController@getGraf
 
 $this->post('/saldosxCobrar/grafico-cta-fecha-doc-segmentado', 'saldosxCobrarController@getGraficoCtaFechaDocSegmentado');
 
+// Rutas para 21DashListado (Análisis de Pendientes por Día)
+$this->post('/saldosxCobrar/filtros-listado', 'saldosxCobrarController@getFiltrosListado');
+$this->post('/saldosxCobrar/grafico-listado-pendientes', 'saldosxCobrarController@getGraficoListadoPendientes');
+
 ?>
