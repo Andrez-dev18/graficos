@@ -63,10 +63,7 @@ class MermaPlacaController {
                 selPeriodo.value = 'entre_fechas';
             }
             PeriodoHelper.renderizarInputs();
-            const inputIni = document.getElementById('input-fecha-inicio');
-            const inputFin = document.getElementById('input-fecha-fin');
-            if (inputIni) inputIni.value = '2026-06-01';
-            if (inputFin) inputFin.value = '2026-07-31';
+            
         }
     }
 
