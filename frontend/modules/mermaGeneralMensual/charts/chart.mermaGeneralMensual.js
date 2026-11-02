@@ -51,7 +51,7 @@ window.MermaGeneralMensualChart = {
                 pointBorderColor: '#ffffff',
                 pointBorderWidth: 1.5,
                 fill: 'origin',
-                tension: 0.25,
+                tension: 0,
                 spanGaps: false,
                 order: 2
             }
