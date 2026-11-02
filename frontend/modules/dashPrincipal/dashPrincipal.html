@@ -175,218 +175,499 @@
         </div>
 
         <!-- =========================================================
-             3. ACCESOS RÁPIDOS PERSONALIZADOS (SMART LAUNCHPAD)
+             3. CUADRÍCULA DE ACCESOS RÁPIDOS (12 ESPACIOS PERSONALIZABLES)
              ========================================================= -->
-        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                <div>
-                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fas fa-star text-amber-400"></i> Tus Dashboards Habituales (Accesos Rápidos)
-                    </h2>
-                    <p class="text-xs text-slate-500">Ingresa con 1 solo clic a los dashboards que más consultas en tu jornada</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[11px] font-semibold text-slate-400">Recientes:</span>
-                    <span onclick="navegarAModulo('modules/ventasResumen/ventasResumen.html', 'Análisis Venta Resumen')"
-                        class="cursor-pointer text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md transition">
-                        Ventas Resumen
-                    </span>
-                    <span onclick="navegarAModulo('modules/tomasDescisiones/tomasDescisiones.html', 'LIMA 1 TomasDecisiones')"
-                        class="cursor-pointer text-[11px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition">
-                        Tomas Decisiones
-                    </span>
-                </div>
-            </div>
-
-            <!-- Grilla de Cards de Acceso Rápido -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-                <!-- Card 1 -->
-                <div onclick="navegarAModulo('modules/ventasResumen/ventasResumen.html', 'Análisis Venta Resumen')"
-                    class="group p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:shadow-sm hover:bg-blue-50/20 transition cursor-pointer flex flex-col justify-between">
+        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200/80">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg shrink-0 border border-amber-200/60">
+                        <i class="fas fa-star"></i>
+                    </div>
                     <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
-                                <i class="fas fa-chart-line text-sm"></i>
-                            </div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Comercial</span>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">Configuración de Accesos Rápidos</h2>
+                            <span id="badgeConteoAsignados" class="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                                8 / 12 Asignados
+                            </span>
                         </div>
-                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition">Ventas y Devoluciones</h3>
-                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Comparativo Plan vs Real, devoluciones por motivo, clientes y desglose por línea.</p>
-                    </div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Tu módulo más visitado</span>
-                        <span class="font-bold text-blue-600 group-hover:translate-x-1 transition flex items-center gap-1">
-                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
-                        </span>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Personaliza hasta 12 accesos directos para tu panel principal. Haz clic en una casilla para abrir o asignar un nuevo destino.
+                        </p>
                     </div>
                 </div>
 
-                <!-- Card 2 -->
-                <div onclick="navegarAModulo('modules/tomasDescisiones/tomasDescisiones.html', 'LIMA 1 TomasDecisiones')"
-                    class="group p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:shadow-sm hover:bg-indigo-50/20 transition cursor-pointer flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
-                                <i class="fas fa-chess-knight text-sm"></i>
-                            </div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">Gerencia</span>
-                        </div>
-                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition">Tomas de Decisiones</h3>
-                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Proyecciones diarias de ventas, indicadores semanales, tasas y análisis de días.</p>
-                    </div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Alta frecuencia</span>
-                        <span class="font-bold text-indigo-600 group-hover:translate-x-1 transition flex items-center gap-1">
-                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Card 3 -->
-                <div onclick="navegarAModulo('modules/saldos/saldos.html', 'Cuentas por Cobrar')"
-                    class="group p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:shadow-sm hover:bg-emerald-50/20 transition cursor-pointer flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
-                                <i class="fas fa-wallet text-sm"></i>
-                            </div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Finanzas</span>
-                        </div>
-                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition">Cuentas por Cobrar</h3>
-                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Saldos por cuenta y cliente, cartera morosa, estados de cobranza y vencimientos.</p>
-                    </div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Frecuente</span>
-                        <span class="font-bold text-emerald-600 group-hover:translate-x-1 transition flex items-center gap-1">
-                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Card 4 -->
-                <div onclick="navegarAModulo('modules/mermaPlaca/mermaPlaca.html', 'Análisis Mermas por Placa')"
-                    class="group p-4 rounded-xl border border-slate-200 hover:border-purple-500 hover:shadow-sm hover:bg-purple-50/20 transition cursor-pointer flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
-                                <i class="fas fa-truck-ramp-box text-sm"></i>
-                            </div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">Operaciones</span>
-                        </div>
-                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition">Mermas por Placa</h3>
-                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Control de mermas de transporte de pollo en pie, camiones, peso granja vs planta.</p>
-                    </div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Frecuente</span>
-                        <span class="font-bold text-purple-600 group-hover:translate-x-1 transition flex items-center gap-1">
-                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
-                        </span>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- =========================================================
-             4. TELEMETRÍA Y ADOPCIÓN DEL SISTEMA (GRÁFICOS DE USO)
-             ========================================================= -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-            <!-- Gráfico 1: Franja Horaria de Consultas -->
-            <div class="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 flex flex-col justify-between">
-                <div>
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-                        <div>
-                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fas fa-chart-area text-blue-600"></i> Tráfico de Consultas por Hora
-                            </h2>
-                            <p class="text-xs text-slate-500">Distribución de accesos de los colaboradores durante el día</p>
-                        </div>
-                        <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">
-                            Pico: 09:00 - 11:30 AM
-                        </span>
-                    </div>
-                    <div class="h-[250px] w-full">
-                        <canvas id="chartTraficoHoras"></canvas>
-                    </div>
-                </div>
-                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                    <span>Métrica de concurrencia y disponibilidad del servidor</span>
-                    <span class="text-emerald-600 font-semibold"><i class="fas fa-circle text-[8px] mr-1"></i> 100% Uptime</span>
-                </div>
-            </div>
-
-            <!-- Gráfico 2: Top Dashboards Más Consultados en la Organización -->
-            <div class="lg:col-span-5 bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 flex flex-col justify-between">
-                <div>
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-                        <div>
-                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fas fa-ranking-star text-amber-500"></i> Módulos Más Vistos (Top 5)
-                            </h2>
-                            <p class="text-xs text-slate-500">Ranking global de adopción de la plataforma</p>
-                        </div>
-                        <span class="text-xs font-bold text-slate-400">Mes actual</span>
-                    </div>
-                    <div class="h-[250px] w-full">
-                        <canvas id="chartTopModulos"></canvas>
-                    </div>
-                </div>
-                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                    <span>Basado en el historial de navegación de Core BI</span>
-                    <button onclick="abrirBuscadorPadre()" class="text-blue-600 font-bold hover:underline">
-                        Ver todos &rarr;
+                <!-- Botones de Acción de la Cuadrícula -->
+                <div class="flex items-center gap-2 self-start sm:self-center">
+                    <button id="btnModoEdicion" onclick="toggleModoEdicion()"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition">
+                        <i class="fas fa-pen-to-square text-[11px]"></i>
+                        <span id="lblModoEdicion">Modo Configuración</span>
+                    </button>
+                    <button onclick="restablecerAccesosPorDefecto()" title="Restablecer cuadrícula por defecto"
+                        class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200/60 transition">
+                        <i class="fas fa-rotate-left"></i>
+                        <span class="hidden sm:inline">Restablecer</span>
                     </button>
                 </div>
             </div>
 
-        </div>
-
-        <!-- =========================================================
-             5. GUÍA RÁPIDA / TIPS DE PRODUCTIVIDAD
-             ========================================================= -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-
-            <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex items-start gap-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 text-sm font-bold">
-                    <i class="fas fa-keyboard"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800">Atajo de Búsqueda</h4>
-                    <p class="text-slate-500 mt-0.5">Presiona <kbd class="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold text-slate-700">Ctrl + K</kbd> en cualquier ventana para abrir el buscador global de dashboards.</p>
-                </div>
+            <!-- Grilla de 12 Casillas (4 columnas x 3 filas) -->
+            <div id="contenedorCuadricula12" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Se llena dinámicamente con JavaScript -->
             </div>
-
-            <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex items-start gap-3">
-                <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 text-sm font-bold">
-                    <i class="fas fa-file-excel"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800">Exportaciones Limpias</h4>
-                    <p class="text-slate-500 mt-0.5">Todos los reportes cuentan con descarga a Excel respetando tus filtros aplicados de fecha y cliente.</p>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex items-start gap-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 text-sm font-bold">
-                    <i class="fas fa-maximize"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800">Mayor Espacio Visual</h4>
-                    <p class="text-slate-500 mt-0.5">Usa el botón de menú en la barra superior para fijar o colapsar el menú lateral según el ancho de tu monitor.</p>
-                </div>
-            </div>
-
         </div>
 
     </div>
 
     <!-- =========================================================
-         SCRIPTS: CHART.JS & NAVEGACIÓN CONTEXTUAL
+         MODAL DE SELECCIÓN DE DASHBOARD (ASIGNACIÓN A CASILLA)
+         ========================================================= -->
+    <div id="modalSeleccionarDashboard" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-[fadeIn_0.2s_ease-out]">
+            
+            <!-- Cabecera del modal -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm shadow-xs">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-slate-900">
+                            Asignar Dashboard al Espacio <span id="lblModalNumeroCasilla" class="text-blue-600 font-extrabold">#1</span>
+                        </h3>
+                        <p class="text-xs text-slate-500">Selecciona el módulo que deseas tener a la mano en esta casilla</p>
+                    </div>
+                </div>
+                <button onclick="cerrarModalSeleccion()" class="text-slate-400 hover:text-red-500 w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <!-- Buscador y Filtro por Categoría -->
+            <div class="p-4 border-b border-slate-100 bg-white space-y-3">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="inputBuscarDashboardModal" oninput="filtrarCatalogoModulos()"
+                        placeholder="Buscar entre los más de 20 dashboards disponibles..."
+                        class="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                </div>
+
+                <!-- Filtros de categoría -->
+                <div class="flex flex-wrap items-center gap-1.5 text-xs" id="filtrosCategoriasModal">
+                    <button type="button" onclick="filtrarPorCategoriaModal('TODOS', this)" class="cat-pill active px-2.5 py-1 rounded-lg font-semibold text-xs bg-blue-600 text-white transition">Todos</button>
+                    <button type="button" onclick="filtrarPorCategoriaModal('Comercial', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Comercial</button>
+                    <button type="button" onclick="filtrarPorCategoriaModal('Contabilidad', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Contabilidad</button>
+                    <button type="button" onclick="filtrarPorCategoriaModal('Operaciones', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Operaciones</button>
+                    <button type="button" onclick="filtrarPorCategoriaModal('Mercados ASO', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Mercados ASO</button>
+                </div>
+            </div>
+
+            <!-- Lista de Dashboards Disponibles -->
+            <div id="listaDashboardsModal" class="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-2 max-h-[380px]">
+                <!-- Se inyecta dinámicamente con JS -->
+            </div>
+
+            <!-- Footer del Modal -->
+            <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                <button id="btnQuitarAsignacion" type="button" onclick="quitarAsignacionCasillaActual()"
+                    class="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg font-semibold transition border border-transparent hover:border-red-200">
+                    <i class="fas fa-trash-can mr-1"></i> Dejar Casilla Libre
+                </button>
+                <button type="button" onclick="cerrarModalSeleccion()"
+                    class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         SCRIPTS: GESTIÓN DE ACCESOS DIRECTOS Y 12 CASILLAS
          ========================================================= -->
     <script>
-        // 1. Obtener información del usuario desde la sesión de Core BI
+        // Catálogo maestro de Dashboards disponibles en Core BI
+        const CATALOGO_DASHBOARDS = [
+            // Comercial
+            { id: 'ventasResumen', nombre: 'Ventas y Devoluciones', categoria: 'Comercial', icono: 'fa-chart-line', bgIcon: 'bg-blue-600', url: 'modules/ventasResumen/ventasResumen.html', desc: 'Plan vs Real, devoluciones por motivo, clientes y desglose por línea.' },
+            { id: 'tomasDescisiones', nombre: 'Tomas de Decisiones', categoria: 'Comercial', icono: 'fa-chess-knight', bgIcon: 'bg-indigo-600', url: 'modules/tomasDescisiones/tomasDescisiones.html', desc: 'Proyecciones diarias, tasas, ventas e indicadores semanales.' },
+            { id: 'controlClientes', nombre: 'Control de Clientes', categoria: 'Comercial', icono: 'fa-users', bgIcon: 'bg-blue-700', url: 'modules/controlClientes/controlClientes.html', desc: 'Gestión y seguimiento comercial de clientes.' },
+            { id: 'ventas2025', nombre: 'Ventas 2025', categoria: 'Comercial', icono: 'fa-calendar-days', bgIcon: 'bg-blue-600', url: 'modules/Ventas2025/Ventas2025.html', desc: 'Reportes y comparativos anuales de ventas 2025.' },
+
+            // Contabilidad y Finanzas
+            { id: 'saldos', nombre: 'Cuentas por Cobrar', categoria: 'Contabilidad', icono: 'fa-wallet', bgIcon: 'bg-emerald-600', url: 'modules/saldos/saldos.html', desc: 'Saldos por cuenta y cliente, cartera morosa y cobranzas.' },
+            { id: 'costoDiario', nombre: 'Costos Diarios de Granja', categoria: 'Contabilidad', icono: 'fa-calculator', bgIcon: 'bg-emerald-700', url: 'modules/costoDiario/costoDiario.html', desc: 'Costo por kilo, evolución productiva y costo de fórmulas.' },
+            { id: 'costosTradicionales', nombre: 'Costos Tradicionales', categoria: 'Contabilidad', icono: 'fa-file-invoice', bgIcon: 'bg-teal-600', url: 'modules/costosTradicionales/costosTradicionales.html', desc: 'Estructura contable tradicional de costos.' },
+            { id: 'eeggypp', nombre: 'Ganancias y Pérdidas (EEGGyPP)', categoria: 'Contabilidad', icono: 'fa-file-invoice-dollar', bgIcon: 'bg-emerald-800', url: 'modules/EEGGyPP/EEGGyPP.html', desc: 'Estado financiero de Ganancias y Pérdidas de Lima.' },
+            { id: 'analisisPrecios', nombre: 'Análisis de Precios', categoria: 'Contabilidad', icono: 'fa-tags', bgIcon: 'bg-emerald-600', url: 'modules/analisisPrecios/analisisPrecios.html', desc: 'Análisis de precios y márgenes contables.' },
+            { id: 'presupuestosPAB', nombre: 'Presupuestos PAB', categoria: 'Contabilidad', icono: 'fa-coins', bgIcon: 'bg-emerald-700', url: 'modules/presupuestosPAB/presupuestosPAB.html', desc: 'Presupuesto PAB y proyecciones de planta.' },
+
+            // Operaciones, Logística y Producción
+            { id: 'mermaPlaca', nombre: 'Mermas por Placa', categoria: 'Operaciones', icono: 'fa-truck-ramp-box', bgIcon: 'bg-purple-600', url: 'modules/mermaPlaca/mermaPlaca.html', desc: 'Control de mermas de transporte en vivo por camión y chofer.' },
+            { id: 'almaMermas', nombre: 'Almacén Mermas Vivo', categoria: 'Operaciones', icono: 'fa-warehouse', bgIcon: 'bg-purple-700', url: 'modules/almaMermas/almaMermas.html', desc: 'Control de almacén y mermas de ave viva.' },
+            { id: 'analisisTransporte', nombre: 'Análisis de Transportes', categoria: 'Operaciones', icono: 'fa-truck-fast', bgIcon: 'bg-purple-600', url: 'modules/analisisTransporte/analisisTransporte.html', desc: 'Costos de fletes, rutas y correlación de transporte.' },
+            { id: 'analisisPT0', nombre: 'Planta Beneficio (PT0)', categoria: 'Operaciones', icono: 'fa-boxes-stacked', bgIcon: 'bg-violet-600', url: 'modules/AnalisisPT0/AnalisisPT0.html', desc: 'Producto terminado y rendimientos de faenado.' },
+            { id: 'tempTransporte', nombre: 'Temperatura Transporte BB', categoria: 'Operaciones', icono: 'fa-temperature-half', bgIcon: 'bg-amber-600', url: 'modules/tempTransporte/tempTransporte.html', desc: 'Dataloggers de temperatura y humedad en transporte de pollito.' },
+            { id: 'tempDataLogger', nombre: 'Temperatura Ambiental', categoria: 'Operaciones', icono: 'fa-temperature-arrow-up', bgIcon: 'bg-amber-700', url: 'modules/tempDataLogger/tempDataLogger.html', desc: 'Monitoreo ambiental en galpones y granjas.' },
+            { id: 'trazabilidad', nombre: 'Trazabilidad Laboratorio', categoria: 'Operaciones', icono: 'fa-vial-circle-check', bgIcon: 'bg-cyan-700', url: 'modules/trazabilidad/trazabilidad.html', desc: 'Trazabilidad de resultados de laboratorio y sanidad.' },
+
+            // Mercados ASO
+            { id: 'infoMercados', nombre: 'Información de Mercados ASO', categoria: 'Mercados ASO', icono: 'fa-shop', bgIcon: 'bg-amber-600', url: 'modules/InfoMercados/InfoMercados.html', desc: 'Precios en mercados mayoristas Lima y Arequipa.' },
+            { id: 'infoMercado2', nombre: 'Información de Mercados 2', categoria: 'Mercados ASO', icono: 'fa-store', bgIcon: 'bg-amber-700', url: 'modules/InfoMercado2/InfoMercado2.html', desc: 'Precios de aves vivas y faenadas en mercados.' },
+            { id: 'criadorEmpre', nombre: 'Criadores Emprendedores', categoria: 'Mercados ASO', icono: 'fa-user-group', bgIcon: 'bg-orange-600', url: 'modules/CriadorEmpre/CriadorEmpre.html', desc: 'Comparativo de criadores y empresas del sector.' },
+            { id: 'ingEmpLima', nombre: 'Ingreso Empresas Lima', categoria: 'Mercados ASO', icono: 'fa-city', bgIcon: 'bg-orange-700', url: 'modules/IngEmpLima/IngEmpLima.html', desc: 'Oferta y volumen de ingreso de empresas avícolas a Lima.' },
+            { id: 'asoGallina', nombre: 'Mercado de Gallina', categoria: 'Mercados ASO', icono: 'fa-egg', bgIcon: 'bg-amber-600', url: 'modules/AsoGallina/AsoGallina.html', desc: 'Precios y comportamiento del mercado de gallinas.' },
+            { id: 'productoSusti', nombre: 'Productos Sustitutos', categoria: 'Mercados ASO', icono: 'fa-drumstick-bite', bgIcon: 'bg-rose-600', url: 'modules/productoSusti/productoSusti.html', desc: 'Precios de carne de res, cerdo y pescado en mercados.' }
+        ];
+
+        // Estado de los 12 espacios (inicialmente 8 asignados y 4 libres)
+        const ACCESOS_POR_DEFECTO = [
+            'ventasResumen',
+            'tomasDescisiones',
+            'saldos',
+            'mermaPlaca',
+            'infoMercados',
+            'costoDiario',
+            'tempTransporte',
+            'eeggypp',
+            null, // Espacio 9 Libre
+            null, // Espacio 10 Libre
+            null, // Espacio 11 Libre
+            null  // Espacio 12 Libre
+        ];
+
+        let misAccesos12 = [];
+        let modoEdicionActivo = false;
+        let casillaSeleccionadaIndex = null;
+        let categoriaFiltroActual = 'TODOS';
+
+        // 1. Inicializar la cuadrícula desde localStorage o defecto
+        function initAccesosDirectos() {
+            const guardados = localStorage.getItem('corebi_accesos_directos_12');
+            if (guardados) {
+                try {
+                    misAccesos12 = JSON.parse(guardados);
+                } catch (e) {
+                    misAccesos12 = [...ACCESOS_POR_DEFECTO];
+                }
+            } else {
+                misAccesos12 = [...ACCESOS_POR_DEFECTO];
+            }
+
+            // Asegurar que siempre tenga 12 casillas
+            while (misAccesos12.length < 12) {
+                misAccesos12.push(null);
+            }
+            if (misAccesos12.length > 12) {
+                misAccesos12 = misAccesos12.slice(0, 12);
+            }
+
+            renderizarCuadricula();
+        }
+
+        // 2. Renderizar las 12 casillas en el DOM
+        function renderizarCuadricula() {
+            const contenedor = document.getElementById('contenedorCuadricula12');
+            if (!contenedor) return;
+
+            let html = '';
+            let conteoAsignados = 0;
+
+            misAccesos12.forEach((moduloId, index) => {
+                const numeroCasilla = index + 1;
+                const modulo = moduloId ? CATALOGO_DASHBOARDS.find(m => m.id === moduloId) : null;
+
+                if (modulo) {
+                    conteoAsignados++;
+                    // CASILLA ASIGNADA (ESTILO INSPIRADO EN SISTEMA GRS)
+                    html += `
+                        <div onclick="clickEnCasilla(${index})"
+                            class="bg-white rounded-2xl p-4 sm:p-5 border border-blue-200/80 hover:border-blue-500 shadow-xs hover:shadow-md transition-all group flex flex-col items-center text-center justify-between min-h-[175px] relative cursor-pointer">
+                            
+                            <!-- Header de la Casilla -->
+                            <div class="w-full flex items-center justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-400">#${numeroCasilla}</span>
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full truncate max-w-[100px]">
+                                    ${modulo.categoria}
+                                </span>
+                            </div>
+
+                            <!-- Icono Circular Grande (Estilo GRS) -->
+                            <div class="w-13 h-13 rounded-full ${modulo.bgIcon || 'bg-blue-600'} text-white flex items-center justify-center text-xl shadow-xs group-hover:scale-105 transition shrink-0 my-1">
+                                <i class="fas ${modulo.icono}"></i>
+                            </div>
+
+                            <!-- Nombre del Dashboard -->
+                            <h4 class="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-blue-600 transition line-clamp-2 leading-tight my-1">
+                                ${modulo.nombre}
+                            </h4>
+
+                            <!-- Pie de Casilla: Cambiar o Abrir -->
+                            <div class="w-full pt-2 mt-auto border-t border-slate-100 flex items-center justify-center">
+                                ${modoEdicionActivo ? `
+                                    <button onclick="abrirModalSeleccion(${index}); event.stopPropagation();"
+                                        class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md">
+                                        <i class="fas fa-pen text-[10px]"></i> Cambiar
+                                    </button>
+                                ` : `
+                                    <span class="text-[11px] font-semibold text-slate-400 group-hover:text-blue-600 transition flex items-center gap-1">
+                                        Abrir <i class="fas fa-chevron-right text-[9px]"></i>
+                                    </span>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // CASILLA DISPONIBLE / LIBRE
+                    html += `
+                        <div onclick="abrirModalSeleccion(${index})"
+                            class="bg-slate-50/70 rounded-2xl p-4 sm:p-5 border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/20 transition-all flex flex-col items-center justify-between text-center min-h-[175px] cursor-pointer group">
+                            
+                            <!-- Header de la Casilla Libre -->
+                            <div class="w-full flex items-center justify-between">
+                                <span class="text-[10px] font-bold text-slate-300">#${numeroCasilla}</span>
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                    Disponible
+                                </span>
+                            </div>
+
+                            <!-- Icono Circular con Plus -->
+                            <div class="w-12 h-12 rounded-full bg-white border border-slate-200 text-slate-400 group-hover:border-blue-400 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition shadow-2xs my-1">
+                                <i class="fas fa-plus text-base"></i>
+                            </div>
+
+                            <!-- Texto -->
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-500 group-hover:text-blue-600 transition">
+                                    Asignar Dashboard
+                                </h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Espacio libre</p>
+                            </div>
+
+                            <div class="w-full pt-2 mt-auto border-t border-slate-200/60">
+                                <span class="text-[11px] font-semibold text-blue-500 group-hover:underline">
+                                    + Elegir destino
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            contenedor.innerHTML = html;
+
+            // Actualizar badge de conteo
+            const badge = document.getElementById('badgeConteoAsignados');
+            if (badge) {
+                badge.textContent = `${conteoAsignados} / 12 Asignados`;
+            }
+        }
+
+        // 3. Click en una casilla
+        function clickEnCasilla(index) {
+            if (modoEdicionActivo) {
+                abrirModalSeleccion(index);
+                return;
+            }
+
+            const moduloId = misAccesos12[index];
+            if (!moduloId) {
+                abrirModalSeleccion(index);
+                return;
+            }
+
+            const modulo = CATALOGO_DASHBOARDS.find(m => m.id === moduloId);
+            if (modulo) {
+                navegarAModulo(modulo.url, modulo.nombre);
+            }
+        }
+
+        // 4. Alternar Modo Configuración / Edición
+        function toggleModoEdicion() {
+            modoEdicionActivo = !modoEdicionActivo;
+            const btn = document.getElementById('btnModoEdicion');
+            const lbl = document.getElementById('lblModoEdicion');
+
+            if (modoEdicionActivo) {
+                btn.classList.remove('bg-slate-100', 'text-slate-700');
+                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                lbl.textContent = 'Listo (Finalizar)';
+            } else {
+                btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                btn.classList.add('bg-slate-100', 'text-slate-700');
+                lbl.textContent = 'Modo Configuración';
+            }
+
+            renderizarCuadricula();
+        }
+
+        // 5. Modal de Selección
+        function abrirModalSeleccion(index) {
+            casillaSeleccionadaIndex = index;
+            document.getElementById('lblModalNumeroCasilla').textContent = `#${index + 1}`;
+
+            // Si la casilla ya tenía un módulo, mostrar botón de eliminar
+            const btnQuitar = document.getElementById('btnQuitarAsignacion');
+            if (misAccesos12[index]) {
+                btnQuitar.classList.remove('hidden');
+            } else {
+                btnQuitar.classList.add('hidden');
+            }
+
+            // Limpiar buscador y resetear categoría
+            document.getElementById('inputBuscarDashboardModal').value = '';
+            categoriaFiltroActual = 'TODOS';
+            document.querySelectorAll('#filtrosCategoriasModal .cat-pill').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'active');
+                btn.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            const primerBtn = document.querySelector('#filtrosCategoriasModal .cat-pill');
+            if (primerBtn) {
+                primerBtn.classList.add('bg-blue-600', 'text-white', 'active');
+                primerBtn.classList.remove('bg-slate-100', 'text-slate-600');
+            }
+
+            renderizarCatalogoEnModal();
+            document.getElementById('modalSeleccionarDashboard').classList.remove('hidden');
+        }
+
+        function cerrarModalSeleccion() {
+            document.getElementById('modalSeleccionarDashboard').classList.add('hidden');
+            casillaSeleccionadaIndex = null;
+        }
+
+        // 6. Renderizar catálogo dentro del modal
+        function renderizarCatalogoEnModal() {
+            const contenedor = document.getElementById('listaDashboardsModal');
+            const busqueda = (document.getElementById('inputBuscarDashboardModal').value || '').toLowerCase().trim();
+
+            const filtrados = CATALOGO_DASHBOARDS.filter(mod => {
+                const matchCat = (categoriaFiltroActual === 'TODOS') || (mod.categoria === categoriaFiltroActual);
+                const matchBusqueda = mod.nombre.toLowerCase().includes(busqueda) ||
+                                      mod.desc.toLowerCase().includes(busqueda) ||
+                                      mod.categoria.toLowerCase().includes(busqueda);
+                return matchCat && matchBusqueda;
+            });
+
+            if (filtrados.length === 0) {
+                contenedor.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        <i class="fas fa-search text-2xl mb-2 text-slate-300"></i>
+                        <p>No se encontraron dashboards que coincidan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            filtrados.forEach(mod => {
+                // Verificar si ya está asignado en otra casilla
+                const casillaOcupadaIndex = misAccesos12.indexOf(mod.id);
+                const estaAsignadoAqui = casillaSeleccionadaIndex !== null && misAccesos12[casillaSeleccionadaIndex] === mod.id;
+
+                html += `
+                    <div onclick="asignarModuloACasilla('${mod.id}')"
+                        class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition cursor-pointer flex items-center justify-between gap-3 group">
+                        
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-xl ${mod.bgIcon || 'bg-blue-600'} text-white flex items-center justify-center shrink-0 text-sm shadow-xs">
+                                <i class="fas ${mod.icono}"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 truncate transition">
+                                        ${mod.nombre}
+                                    </h4>
+                                    <span class="text-[9px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                        ${mod.categoria}
+                                    </span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 truncate mt-0.5">${mod.desc}</p>
+                            </div>
+                        </div>
+
+                        <div class="shrink-0">
+                            ${estaAsignadoAqui ? `
+                                <span class="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-200">
+                                    <i class="fas fa-check mr-1"></i> Asignado aquí
+                                </span>
+                            ` : casillaOcupadaIndex !== -1 ? `
+                                <span class="px-2.5 py-1 text-[11px] font-semibold text-slate-400 bg-slate-50 rounded-lg">
+                                    En casilla #${casillaOcupadaIndex + 1}
+                                </span>
+                            ` : `
+                                <button type="button" class="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-600 group-hover:text-white rounded-lg transition">
+                                    Seleccionar
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+
+            contenedor.innerHTML = html;
+        }
+
+        function filtrarCatalogoModulos() {
+            renderizarCatalogoEnModal();
+        }
+
+        function filtrarPorCategoriaModal(categoria, btn) {
+            categoriaFiltroActual = categoria;
+            document.querySelectorAll('#filtrosCategoriasModal .cat-pill').forEach(b => {
+                b.classList.remove('bg-blue-600', 'text-white', 'active');
+                b.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            btn.classList.add('bg-blue-600', 'text-white', 'active');
+            btn.classList.remove('bg-slate-100', 'text-slate-600');
+
+            renderizarCatalogoEnModal();
+        }
+
+        // 7. Guardar Asignación en la casilla
+        function asignarModuloACasilla(moduloId) {
+            if (casillaSeleccionadaIndex === null) return;
+
+            misAccesos12[casillaSeleccionadaIndex] = moduloId;
+            guardarAccesosDirectos();
+            renderizarCuadricula();
+            cerrarModalSeleccion();
+        }
+
+        // 8. Quitar asignación (dejar libre)
+        function quitarAsignacionCasillaActual() {
+            if (casillaSeleccionadaIndex === null) return;
+
+            misAccesos12[casillaSeleccionadaIndex] = null;
+            guardarAccesosDirectos();
+            renderizarCuadricula();
+            cerrarModalSeleccion();
+        }
+
+        // 9. Restablecer accesos directos por defecto
+        function restablecerAccesosPorDefecto() {
+            misAccesos12 = [...ACCESOS_POR_DEFECTO];
+            guardarAccesosDirectos();
+            renderizarCuadricula();
+        }
+
+        function guardarAccesosDirectos() {
+            localStorage.setItem('corebi_accesos_directos_12', JSON.stringify(misAccesos12));
+        }
+
+        // 10. Navegación hacia los dashboards (conecta con index.html)
+        function navegarAModulo(url, titulo) {
+            if (window.parent && typeof window.parent.loadDashboardAndData === 'function') {
+                window.parent.loadDashboardAndData(url, '', titulo);
+                if (window.parent.menuPrincipal) {
+                    window.parent.menuPrincipal.seleccionarModuloPorUrl(url);
+                }
+            } else {
+                console.log("Navegando a:", url, titulo);
+                window.location.href = `../../${url}`;
+            }
+        }
+
+        // 11. Cargar usuario de la sesión
         function cargarDatosUsuario() {
             try {
                 const userRaw = sessionStorage.getItem('usuario');
@@ -400,7 +681,6 @@
                     }
                 }
 
-                // Fecha actual en español
                 const ahora = new Date();
                 const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 const fechaStr = ahora.toLocaleDateString('es-ES', opciones);
@@ -408,142 +688,14 @@
                 document.getElementById('lblFechaActual').textContent = fechaCap;
 
             } catch (e) {
-                console.warn('No se pudo cargar info de usuario en dashPrincipal:', e);
+                console.warn('Error cargando usuario:', e);
             }
-        }
-
-        // 2. Navegación fluida dentro del sistema (usando el iframe padre)
-        function navegarAModulo(url, titulo) {
-            if (window.parent && typeof window.parent.loadDashboardAndData === 'function') {
-                window.parent.loadDashboardAndData(url, '', titulo);
-                if (window.parent.menuPrincipal) {
-                    window.parent.menuPrincipal.seleccionarModuloPorUrl(url);
-                }
-            } else {
-                console.log("Navegando a:", url, titulo);
-                window.location.href = `../../${url}`;
-            }
-        }
-
-        // 3. Abrir el modal buscador global de index.html
-        function abrirBuscadorPadre() {
-            if (window.parent && typeof window.parent.openSearchModal === 'function') {
-                window.parent.openSearchModal();
-            }
-        }
-
-        // 4. Gráfico 1: Tráfico por Hora
-        let chartTrafico = null;
-        function initChartTrafico() {
-            const ctx = document.getElementById('chartTraficoHoras').getContext('2d');
-            const horas = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-            const consultas = [12, 65, 142, 178, 155, 92, 38, 115, 148, 125, 78, 24];
-
-            chartTrafico = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: horas,
-                    datasets: [{
-                        label: 'Consultas por hora',
-                        data: consultas,
-                        borderColor: '#2563eb', // Blue 600
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                        borderWidth: 2.5,
-                        fill: true,
-                        tension: 0.35,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#2563eb',
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => `${ctx.parsed.y} consultas realizadas`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { font: { size: 10 } },
-                            grid: { color: '#f1f5f9' }
-                        },
-                        x: {
-                            ticks: { font: { size: 10 } },
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-
-        // 5. Gráfico 2: Top Dashboards Más Consultados (Ranking horizontal)
-        let chartTop = null;
-        function initChartTop() {
-            const ctx = document.getElementById('chartTopModulos').getContext('2d');
-            const modulos = [
-                'Ventas y Devoluciones',
-                'Tomas de Decisiones',
-                'Cuentas por Cobrar',
-                'Info Mercados ASO',
-                'Mermas por Placa'
-            ];
-            const visitas = [1420, 1180, 850, 640, 490];
-
-            chartTop = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: modulos,
-                    datasets: [{
-                        label: 'Visitas este mes',
-                        data: visitas,
-                        backgroundColor: [
-                            '#2563eb', // Blue 600
-                            '#4f46e5', // Indigo 600
-                            '#059669', // Emerald 600
-                            '#d97706', // Amber 600
-                            '#9333ea'  // Purple 600
-                        ],
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    indexAxis: 'y', // Barra horizontal
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => `${ctx.parsed.x} visitas registradas`
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            ticks: { font: { size: 10 } },
-                            grid: { color: '#f1f5f9' }
-                        },
-                        y: {
-                            ticks: { font: { size: 11, weight: '500' } },
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
         }
 
         // Inicializar al cargar el DOM
         document.addEventListener('DOMContentLoaded', () => {
             cargarDatosUsuario();
-            initChartTrafico();
-            initChartTop();
+            initAccesosDirectos();
         });
     </script>
 </body>
