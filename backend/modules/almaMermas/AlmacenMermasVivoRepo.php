@@ -10,6 +10,39 @@ class AlmacenMermasVivoRepo
     }
 
     /**
+     * Agrega los filtros de dimensiones (cliente, placa y zonaorigen) a la consulta.
+     * Los valores vacíos o 'TODO' se ignoran.
+     */
+    private function agregarFiltrosDimensiones(array $filtros, array &$where, array &$params, bool $incluirPlaca = true, bool $incluirZona = true): void
+    {
+        $cliente = trim((string)($filtros['cliente'] ?? 'TODO'));
+        if ($cliente !== '' && strtoupper($cliente) !== 'TODO') {
+            $where[] = "TRIM(cliente) = :filtro_cliente";
+            $params[':filtro_cliente'] = $cliente;
+        }
+
+        if ($incluirPlaca) {
+            $placa = trim((string)($filtros['placa'] ?? 'TODO'));
+            if ($placa !== '' && strtoupper($placa) !== 'TODO') {
+                $where[] = "TRIM(placa) = :filtro_placa";
+                $params[':filtro_placa'] = $placa;
+            }
+        }
+
+        if ($incluirZona) {
+            $zona = trim((string)($filtros['zonaorigen'] ?? 'TODO'));
+            if ($zona !== '' && strtoupper($zona) !== 'TODO') {
+                if (strtoupper($zona) === 'SIN ZONA') {
+                    $where[] = "COALESCE(TRIM(zonaorigen), '') = ''";
+                } else {
+                    $where[] = "COALESCE(TRIM(zonaorigen), '') = :filtro_zona";
+                    $params[':filtro_zona'] = $zona;
+                }
+            }
+        }
+    }
+
+    /**
      * Consulta Porcentaje de Merma Diaria por Fecha de Proceso / Cliente / Placa
      */
     public function getPorcMermaProcesoDiaClientePlaca(array $filtros): array
@@ -28,6 +61,8 @@ class AlmacenMermasVivoRepo
             "cliente IS NOT NULL AND cliente != ''",
             "placa IS NOT NULL AND TRIM(placa) != ''"
         ];
+
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, true, false);
 
         $groupBy = "fechaproceso, TRIM(cliente), TRIM(placa)";
         $selectDato = "'TODO' AS dato";
@@ -90,6 +125,8 @@ class AlmacenMermasVivoRepo
             "cliente IS NOT NULL AND cliente != ''"
         ];
 
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, true, false);
+
         $groupBy = "fechaproceso, TRIM(cliente)";
         $selectDato = "'TODO' AS dato";
 
@@ -149,6 +186,8 @@ class AlmacenMermasVivoRepo
             "fechaproceso BETWEEN :f_ini AND :f_fin",
             "cliente IS NOT NULL AND cliente != ''"
         ];
+
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, true, true);
 
         $groupBy = "fechaproceso, COALESCE(TRIM(zonaorigen), ''), TRIM(cliente)";
         $selectDato = "'TODO' AS dato";
@@ -227,6 +266,8 @@ class AlmacenMermasVivoRepo
             "TRIM(dato) = :dato"
         ];
 
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, false, true);
+
         if (!empty($placaFiltro) && strtoupper($placaFiltro) !== 'TODO') {
             $where[] = "REPLACE(TRIM(placa), '-', '') = :placa_filtro";
             $params[':placa_filtro'] = str_replace('-', '', $placaFiltro);
@@ -283,6 +324,8 @@ class AlmacenMermasVivoRepo
             "fechaproceso IS NOT NULL"
         ];
 
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, false, true);
+
         if ($forzarPeso) {
             $where[] = "TRIM(dato) = 'Peso'";
         } elseif (!empty($dato) && strtoupper($dato) !== 'TODO') {
@@ -315,24 +358,34 @@ class AlmacenMermasVivoRepo
         $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d');
         $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
 
+        $params = [
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ];
+
+        $where = [
+            "fechaproceso BETWEEN :f_ini AND :f_fin",
+            "fechaproceso IS NOT NULL",
+            "TRIM(dato) = 'Peso'",
+            "cliente IS NOT NULL",
+            "TRIM(cliente) <> ''"
+        ];
+
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, false, true);
+
+        $whereStr = implode(' AND ', $where);
+
         $sql = "SELECT 
                     DATE_FORMAT(fechaproceso, '%Y-%m-%d') AS periodo,
                     TRIM(cliente) AS cliente,
                     ROUND(COALESCE((SUM(mermatotal) / NULLIF(SUM(entrada), 0)) * 100, 0), 2) AS valor
                 FROM dmmermas
-                WHERE fechaproceso BETWEEN :f_ini AND :f_fin
-                  AND fechaproceso IS NOT NULL
-                  AND TRIM(dato) = 'Peso'
-                  AND cliente IS NOT NULL
-                  AND TRIM(cliente) <> ''
+                WHERE {$whereStr}
                 GROUP BY DATE_FORMAT(fechaproceso, '%Y-%m-%d'), TRIM(cliente)
                 ORDER BY cliente ASC, periodo ASC";
 
         $stmt = $this->conn->prepare($sql);
-        $stmt->execute([
-            ':f_ini' => $fechaInicio,
-            ':f_fin' => $fechaFin
-        ]);
+        $stmt->execute($params);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -360,6 +413,8 @@ class AlmacenMermasVivoRepo
             "cliente IS NOT NULL",
             "TRIM(cliente) <> ''"
         ];
+
+        $this->agregarFiltrosDimensiones($filtros, $where, $params, false, true);
 
         if (!empty($dato) && strtoupper($dato) !== 'TODO') {
             $where[] = "TRIM(dato) = :dato";
@@ -460,9 +515,21 @@ public function getPorcMermaDiariaClientePlaca(array $filtros): array
             }
         }
 
+        $zonas = [];
+        $sqlZonas = "SELECT DISTINCT COALESCE(NULLIF(TRIM(zonaorigen), ''), 'SIN ZONA') AS nombre
+                     FROM dmmermas
+                     ORDER BY nombre ASC";
+        foreach ($this->conn->query($sqlZonas)->fetchAll(PDO::FETCH_ASSOC) as $fila) {
+            $nombre = trim((string)($fila['nombre'] ?? ''));
+            if ($nombre !== '') {
+                $zonas[] = ['value' => $nombre, 'label' => $nombre];
+            }
+        }
+
         return [
             'clientes' => $clientes,
-            'placas'   => $placas
+            'placas'   => $placas,
+            'zonas'    => $zonas
         ];
     }
 

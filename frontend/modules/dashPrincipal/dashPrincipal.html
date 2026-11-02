@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Principal | Core BI</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* Scrollbar personalizada suave */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Animación suave de entrada */
+        .fade-in {
+            animation: fadeIn 0.35s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="space-y-6 fade-in">
+
+        <!-- =========================================================
+             1. HEADER BIENVENIDA (DISEÑO LIMPIO Y CORPORATIVO)
+             ========================================================= -->
+        <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shrink-0 border border-blue-100/80">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                        Bienvenido, <span id="lblNombreUsuario" class="text-blue-600 font-extrabold">Usuario</span>
+                    </h1>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Panel de accesos rápidos y estadísticas de uso de Core BI
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+                <div class="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5">
+                    <i class="far fa-calendar-alt text-slate-400"></i>
+                    <span id="lblFechaActual">Sábado, 31 de octubre de 2026</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5">
+                    <i class="fas fa-user-circle text-blue-500"></i>
+                    <span id="lblCodigoUsuario" class="font-medium text-slate-700">Administrador</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             2. KPIS DE TELEMETRÍA Y ADOPCIÓN DEL SISTEMA (SEGUROS PARA CUALQUIER ROL)
+             ========================================================= -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            <!-- KPI 1: Dashboards Disponibles -->
+            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Dashboards Asignados</span>
+                        <h3 class="text-2xl font-black text-slate-900 mt-1" id="kpiTotalModulos">24 Módulos</h3>
+                        <p class="text-xs text-slate-500 font-medium">Habilitados para tu perfil de usuario</p>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                </div>
+                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span class="text-emerald-600 font-semibold"><i class="fas fa-shield-halved mr-1"></i> Permisos verificados</span>
+                    <span class="text-slate-400">Rol activo</span>
+                </div>
+            </div>
+
+            <!-- KPI 2: Tus Consultas Realizadas -->
+            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tus Accesos Hoy</span>
+                        <h3 class="text-2xl font-black text-slate-900 mt-1">14 Consultas</h3>
+                        <p class="text-xs text-slate-500 font-medium">Dashboards revisados en tu sesión</p>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                        <i class="fas fa-clock-rotate-left"></i>
+                    </div>
+                </div>
+                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span class="text-indigo-600 font-semibold"><i class="fas fa-bolt mr-1"></i> Sesión fluida</span>
+                    <span class="text-slate-400">Sin demoras</span>
+                </div>
+            </div>
+
+            <!-- KPI 3: Último Dashboard Consultado (Continuar donde te quedaste) -->
+            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition flex flex-col justify-between">
+                <div class="flex items-start justify-between">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Último Consultado</span>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 mt-1 truncate" title="Análisis Mermas por Placa">
+                            Mermas por Placa
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Hace 45 minutos</p>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg shrink-0">
+                        <i class="fas fa-history"></i>
+                    </div>
+                </div>
+                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span class="text-purple-600 font-semibold"><i class="fas fa-arrow-rotate-right text-[10px] mr-1"></i> Continuar donde estabas</span>
+                    <button onclick="navegarAModulo('modules/mermaPlaca/mermaPlaca.html', 'Análisis Mermas por Placa')" class="text-purple-600 hover:text-purple-800 font-bold transition flex items-center gap-0.5">
+                        Reanudar <i class="fas fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI 4: Tu Módulo Más Frecuente (Favorito personal) -->
+            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition flex flex-col justify-between">
+                <div class="flex items-start justify-between">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tu #1 Más Frecuente</span>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 mt-1 truncate" title="Ventas y Devoluciones">
+                            Ventas Resumen
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">42 consultas este mes</p>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg shrink-0">
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span class="text-amber-600 font-semibold"><i class="fas fa-chart-pie text-[10px] mr-1"></i> 35% de tu actividad</span>
+                    <button onclick="navegarAModulo('modules/ventasResumen/ventasResumen.html', 'Análisis Venta Resumen')" class="text-amber-600 hover:text-amber-800 font-bold transition flex items-center gap-0.5">
+                        Abrir <i class="fas fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- =========================================================
+             3. ACCESOS RÁPIDOS PERSONALIZADOS (SMART LAUNCHPAD)
+             ========================================================= -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fas fa-star text-amber-400"></i> Tus Dashboards Habituales (Accesos Rápidos)
+                    </h2>
+                    <p class="text-xs text-slate-500">Ingresa con 1 solo clic a los dashboards que más consultas en tu jornada</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-semibold text-slate-400">Recientes:</span>
+                    <span onclick="navegarAModulo('modules/ventasResumen/ventasResumen.html', 'Análisis Venta Resumen')"
+                        class="cursor-pointer text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md transition">
+                        Ventas Resumen
+                    </span>
+                    <span onclick="navegarAModulo('modules/tomasDescisiones/tomasDescisiones.html', 'LIMA 1 TomasDecisiones')"
+                        class="cursor-pointer text-[11px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition">
+                        Tomas Decisiones
+                    </span>
+                </div>
+            </div>
+
+            <!-- Grilla de Cards de Acceso Rápido -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                <!-- Card 1 -->
+                <div onclick="navegarAModulo('modules/ventasResumen/ventasResumen.html', 'Análisis Venta Resumen')"
+                    class="group p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:shadow-sm hover:bg-blue-50/20 transition cursor-pointer flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
+                                <i class="fas fa-chart-line text-sm"></i>
+                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Comercial</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition">Ventas y Devoluciones</h3>
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Comparativo Plan vs Real, devoluciones por motivo, clientes y desglose por línea.</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Tu módulo más visitado</span>
+                        <span class="font-bold text-blue-600 group-hover:translate-x-1 transition flex items-center gap-1">
+                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div onclick="navegarAModulo('modules/tomasDescisiones/tomasDescisiones.html', 'LIMA 1 TomasDecisiones')"
+                    class="group p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:shadow-sm hover:bg-indigo-50/20 transition cursor-pointer flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
+                                <i class="fas fa-chess-knight text-sm"></i>
+                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">Gerencia</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition">Tomas de Decisiones</h3>
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Proyecciones diarias de ventas, indicadores semanales, tasas y análisis de días.</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Alta frecuencia</span>
+                        <span class="font-bold text-indigo-600 group-hover:translate-x-1 transition flex items-center gap-1">
+                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div onclick="navegarAModulo('modules/saldos/saldos.html', 'Cuentas por Cobrar')"
+                    class="group p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:shadow-sm hover:bg-emerald-50/20 transition cursor-pointer flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
+                                <i class="fas fa-wallet text-sm"></i>
+                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Finanzas</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition">Cuentas por Cobrar</h3>
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Saldos por cuenta y cliente, cartera morosa, estados de cobranza y vencimientos.</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Frecuente</span>
+                        <span class="font-bold text-emerald-600 group-hover:translate-x-1 transition flex items-center gap-1">
+                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div onclick="navegarAModulo('modules/mermaPlaca/mermaPlaca.html', 'Análisis Mermas por Placa')"
+                    class="group p-4 rounded-xl border border-slate-200 hover:border-purple-500 hover:shadow-sm hover:bg-purple-50/20 transition cursor-pointer flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-xs">
+                                <i class="fas fa-truck-ramp-box text-sm"></i>
+                            </div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">Operaciones</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition">Mermas por Placa</h3>
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">Control de mermas de transporte de pollo en pie, camiones, peso granja vs planta.</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-[11px] text-slate-400 font-medium"><i class="fas fa-eye text-[10px] mr-1"></i> Frecuente</span>
+                        <span class="font-bold text-purple-600 group-hover:translate-x-1 transition flex items-center gap-1">
+                            Abrir <i class="fas fa-chevron-right text-[10px]"></i>
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- =========================================================
+             4. TELEMETRÍA Y ADOPCIÓN DEL SISTEMA (GRÁFICOS DE USO)
+             ========================================================= -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Gráfico 1: Franja Horaria de Consultas -->
+            <div class="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fas fa-chart-area text-blue-600"></i> Tráfico de Consultas por Hora
+                            </h2>
+                            <p class="text-xs text-slate-500">Distribución de accesos de los colaboradores durante el día</p>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">
+                            Pico: 09:00 - 11:30 AM
+                        </span>
+                    </div>
+                    <div class="h-[250px] w-full">
+                        <canvas id="chartTraficoHoras"></canvas>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>Métrica de concurrencia y disponibilidad del servidor</span>
+                    <span class="text-emerald-600 font-semibold"><i class="fas fa-circle text-[8px] mr-1"></i> 100% Uptime</span>
+                </div>
+            </div>
+
+            <!-- Gráfico 2: Top Dashboards Más Consultados en la Organización -->
+            <div class="lg:col-span-5 bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fas fa-ranking-star text-amber-500"></i> Módulos Más Vistos (Top 5)
+                            </h2>
+                            <p class="text-xs text-slate-500">Ranking global de adopción de la plataforma</p>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400">Mes actual</span>
+                    </div>
+                    <div class="h-[250px] w-full">
+                        <canvas id="chartTopModulos"></canvas>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>Basado en el historial de navegación de Core BI</span>
+                    <button onclick="abrirBuscadorPadre()" class="text-blue-600 font-bold hover:underline">
+                        Ver todos &rarr;
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- =========================================================
+             5. GUÍA RÁPIDA / TIPS DE PRODUCTIVIDAD
+             ========================================================= -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+
+            <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 text-sm font-bold">
+                    <i class="fas fa-keyboard"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800">Atajo de Búsqueda</h4>
+                    <p class="text-slate-500 mt-0.5">Presiona <kbd class="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold text-slate-700">Ctrl + K</kbd> en cualquier ventana para abrir el buscador global de dashboards.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 text-sm font-bold">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800">Exportaciones Limpias</h4>
+                    <p class="text-slate-500 mt-0.5">Todos los reportes cuentan con descarga a Excel respetando tus filtros aplicados de fecha y cliente.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 text-sm font-bold">
+                    <i class="fas fa-maximize"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800">Mayor Espacio Visual</h4>
+                    <p class="text-slate-500 mt-0.5">Usa el botón de menú en la barra superior para fijar o colapsar el menú lateral según el ancho de tu monitor.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================================
+         SCRIPTS: CHART.JS & NAVEGACIÓN CONTEXTUAL
+         ========================================================= -->
+    <script>
+        // 1. Obtener información del usuario desde la sesión de Core BI
+        function cargarDatosUsuario() {
+            try {
+                const userRaw = sessionStorage.getItem('usuario');
+                if (userRaw) {
+                    const u = JSON.parse(userRaw);
+                    if (u.nombre) {
+                        document.getElementById('lblNombreUsuario').textContent = u.nombre;
+                    }
+                    if (u.usuario) {
+                        document.getElementById('lblCodigoUsuario').textContent = `${u.usuario} • ${u.rol_comercial || 'Usuario'}`;
+                    }
+                }
+
+                // Fecha actual en español
+                const ahora = new Date();
+                const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const fechaStr = ahora.toLocaleDateString('es-ES', opciones);
+                const fechaCap = fechaStr.charAt(0).toUpperCase() + fechaStr.slice(1);
+                document.getElementById('lblFechaActual').textContent = fechaCap;
+
+            } catch (e) {
+                console.warn('No se pudo cargar info de usuario en dashPrincipal:', e);
+            }
+        }
+
+        // 2. Navegación fluida dentro del sistema (usando el iframe padre)
+        function navegarAModulo(url, titulo) {
+            if (window.parent && typeof window.parent.loadDashboardAndData === 'function') {
+                window.parent.loadDashboardAndData(url, '', titulo);
+                if (window.parent.menuPrincipal) {
+                    window.parent.menuPrincipal.seleccionarModuloPorUrl(url);
+                }
+            } else {
+                console.log("Navegando a:", url, titulo);
+                window.location.href = `../../${url}`;
+            }
+        }
+
+        // 3. Abrir el modal buscador global de index.html
+        function abrirBuscadorPadre() {
+            if (window.parent && typeof window.parent.openSearchModal === 'function') {
+                window.parent.openSearchModal();
+            }
+        }
+
+        // 4. Gráfico 1: Tráfico por Hora
+        let chartTrafico = null;
+        function initChartTrafico() {
+            const ctx = document.getElementById('chartTraficoHoras').getContext('2d');
+            const horas = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+            const consultas = [12, 65, 142, 178, 155, 92, 38, 115, 148, 125, 78, 24];
+
+            chartTrafico = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: horas,
+                    datasets: [{
+                        label: 'Consultas por hora',
+                        data: consultas,
+                        borderColor: '#2563eb', // Blue 600
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#2563eb',
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.y} consultas realizadas`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            ticks: { font: { size: 10 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 5. Gráfico 2: Top Dashboards Más Consultados (Ranking horizontal)
+        let chartTop = null;
+        function initChartTop() {
+            const ctx = document.getElementById('chartTopModulos').getContext('2d');
+            const modulos = [
+                'Ventas y Devoluciones',
+                'Tomas de Decisiones',
+                'Cuentas por Cobrar',
+                'Info Mercados ASO',
+                'Mermas por Placa'
+            ];
+            const visitas = [1420, 1180, 850, 640, 490];
+
+            chartTop = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: modulos,
+                    datasets: [{
+                        label: 'Visitas este mes',
+                        data: visitas,
+                        backgroundColor: [
+                            '#2563eb', // Blue 600
+                            '#4f46e5', // Indigo 600
+                            '#059669', // Emerald 600
+                            '#d97706', // Amber 600
+                            '#9333ea'  // Purple 600
+                        ],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Barra horizontal
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.x} visitas registradas`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            ticks: { font: { size: 11, weight: '500' } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Inicializar al cargar el DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarDatosUsuario();
+            initChartTrafico();
+            initChartTop();
+        });
+    </script>
+</body>
+
+</html>

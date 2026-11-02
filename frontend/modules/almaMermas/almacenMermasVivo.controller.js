@@ -6,11 +6,24 @@ class AlmacenMermasVivoController {
         this.cachePayload = null;
         this.activeCharts = [];
         this.searchCliente = null;
-        this.searchPlacaMatriz = null;
+        this.searchPlaca = null;
+        this.searchZona = null;
         this.filtrosMermaCargados = false;
 
-        // Estado del combo de placas y modal DashPrueba1
-        this.todasLasPlacas = [];
+        // Visibilidad de filtros por tipo de gráfico
+        this.filtrosPorGrafico = {
+            PorcMermaProcesoDiaClientePlaca: { cliente: true, placa: true, zona: false },
+            PorcMermaProcesoDiaCliente: { cliente: true, placa: true, zona: false },
+            PorcMermaProcesoDiaClienteZona: { cliente: true, placa: true, zona: true },
+            PorcMermaDiariaProcesoMes: { cliente: true, placa: false, zona: true },
+            PorcMermaDiariaProcesoMesZona: { cliente: true, placa: false, zona: true },
+            PorcMermaDiariaProcesoCiente: { cliente: true, placa: false, zona: true },
+            PorcMermaDiariaProcesoCientePlaca: { cliente: true, placa: true, zona: false },
+            DashPrueba1: { cliente: true, placa: true, zona: true },
+            TendenciaMermas: { cliente: true, placa: false, zona: false }
+        };
+
+        // Estado del modal DashPrueba1
         this.modalDashState = {
             fechaproceso: '',
             fechaTxt: '',
@@ -153,15 +166,12 @@ class AlmacenMermasVivoController {
 
     actualizarVisibilidadFiltros() {
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
-        const esDash = tipoGrafico === 'DashPrueba1';
-        const esMatriz = tipoGrafico === 'PorcMermaDiariaProcesoCientePlaca';
-        const esTendencia = tipoGrafico === 'TendenciaMermas';
-        const requiereCliente = esMatriz || esTendencia;
+        const config = this.filtrosPorGrafico[tipoGrafico] || {};
         const ocultarDato = ['PorcMermaDiariaProceso', 'PorcMermaDiariaProcesoCiente', 'PorcMermaDiariaProcesoCientePlaca'].includes(tipoGrafico);
 
-        document.getElementById('wrapper-filtro-placa')?.classList.toggle('hidden', !esDash);
-        document.getElementById('wrapper-filtro-cliente')?.classList.toggle('hidden', !requiereCliente);
-        document.getElementById('wrapper-filtro-placa-matriz')?.classList.toggle('hidden', !esMatriz);
+        document.getElementById('wrapper-filtro-cliente')?.classList.toggle('hidden', !config.cliente);
+        document.getElementById('wrapper-filtro-placa')?.classList.toggle('hidden', !config.placa);
+        document.getElementById('wrapper-filtro-zona')?.classList.toggle('hidden', !config.zona);
         document.getElementById('wrapper-filtro-dato')?.classList.toggle('hidden', ocultarDato);
     }
 
@@ -175,9 +185,15 @@ class AlmacenMermasVivoController {
             options: []
         });
 
-        this.searchPlacaMatriz = new SearchableSelect({
-            containerId: 'searchable-filtro-placa-matriz',
+        this.searchPlaca = new SearchableSelect({
+            containerId: 'searchable-filtro-placa',
             title: 'Placa',
+            options: []
+        });
+
+        this.searchZona = new SearchableSelect({
+            containerId: 'searchable-filtro-zona',
+            title: 'Zona',
             options: []
         });
 
@@ -185,7 +201,8 @@ class AlmacenMermasVivoController {
             const data = await this.service.obtenerFiltrosMerma();
             if (data && data.success && data.payload) {
                 this.searchCliente?.setOptions(data.payload.clientes || []);
-                this.searchPlacaMatriz?.setOptions(data.payload.placas || []);
+                this.searchPlaca?.setOptions(data.payload.placas || []);
+                this.searchZona?.setOptions(data.payload.zonas || []);
 
                 const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || '';
                 if (tipoGrafico === 'TendenciaMermas') {
@@ -210,19 +227,17 @@ class AlmacenMermasVivoController {
         this.currentPeriodo = { inicio: fechaInicio, fin: fechaFin };
 
         const tipoGrafico = document.getElementById('select-tipo-grafico')?.value || 'PorcMermaProcesoDiaClientePlaca';
-        const esMatriz = tipoGrafico === 'PorcMermaDiariaProcesoCientePlaca';
-        const esTendencia = tipoGrafico === 'TendenciaMermas';
-        const requiereCliente = esMatriz || esTendencia;
-        const cliente = requiereCliente && this.searchCliente ? this.searchCliente.getValue() : '';
-        const placa = esMatriz
-            ? (this.searchPlacaMatriz ? this.searchPlacaMatriz.getValue() : '')
-            : (document.getElementById('select-filtro-placa')?.value || 'TODO');
+        const config = this.filtrosPorGrafico[tipoGrafico] || {};
+        const cliente = config.cliente && this.searchCliente ? this.searchCliente.getValue() : '';
+        const placa = config.placa && this.searchPlaca ? this.searchPlaca.getValue() : '';
+        const zonaorigen = config.zona && this.searchZona ? this.searchZona.getValue() : '';
 
         return {
             tipo_grafico: tipoGrafico,
             dato: document.getElementById('select-filtro-dato')?.value || 'TODO',
             cliente: cliente || 'TODO',
             placa: placa || 'TODO',
+            zonaorigen: zonaorigen || 'TODO',
             fecha_inicio: fechaInicio,
             fecha_fin: fechaFin
         };
@@ -264,7 +279,6 @@ class AlmacenMermasVivoController {
                 this.cacheData = res.payload.data;
                 this.cachePayload = res.payload;
                 this.enrutarRenderizado(filtros.tipo_grafico, this.cacheData);
-                this.poblarSelectPlacas(this.cacheData);
             } else {
                 this.cacheData = null;
                 this.cachePayload = null;
@@ -1320,12 +1334,12 @@ class AlmacenMermasVivoController {
         if (selDato) selDato.value = 'Valor';
 
         this.searchCliente?.reset();
-        this.searchPlacaMatriz?.reset();
+        this.searchPlaca?.reset();
+        this.searchZona?.reset();
         this.actualizarVisibilidadFiltros();
         this.destruirGraficos();
         this.cacheData = null;
         this.cachePayload = null;
-        this.todasLasPlacas = [];
         const contenedor = document.getElementById('contenedor-graficos-lista');
         if (contenedor) contenedor.innerHTML = '';
 
@@ -1358,32 +1372,6 @@ class AlmacenMermasVivoController {
                 modalDash?.classList.add('hidden');
             }
         });
-    }
-
-    poblarSelectPlacas(filas) {
-        const selPlaca = document.getElementById('select-filtro-placa');
-        if (!selPlaca) return;
-
-        const valorActual = selPlaca.value;
-
-        // Solo repoblamos el universo de placas cuando se consulta sin filtro individual
-        if (valorActual === 'TODO' || this.todasLasPlacas.length === 0) {
-            const placasSet = new Set();
-            filas.forEach(f => {
-                if (f.placa) placasSet.add(f.placa.trim());
-            });
-            this.todasLasPlacas = Array.from(placasSet).sort();
-
-            let optionsHtml = `<option value="TODO" selected>(Todo)</option>`;
-            this.todasLasPlacas.forEach(p => {
-                optionsHtml += `<option value="${p}">${p}</option>`;
-            });
-            selPlaca.innerHTML = optionsHtml;
-        }
-
-        if (valorActual && valorActual !== 'TODO') {
-            selPlaca.value = valorActual;
-        }
     }
 
     renderizarDashPrueba1(filas) {

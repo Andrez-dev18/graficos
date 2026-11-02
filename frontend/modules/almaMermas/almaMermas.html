@@ -157,26 +157,22 @@
                     </select>
                 </div>
 
-                <!-- FILTRO PLACA (VISIBLE PARA DASHPRUEBA1) -->
-                <div id="wrapper-filtro-placa" class="flex flex-col hidden">
-                    <label for="select-filtro-placa"
-                        class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PLACA</label>
-                    <select id="select-filtro-placa"
-                        class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3.5 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[150px]">
-                        <option value="TODO" selected>(Todo)</option>
-                    </select>
-                </div>
-
-                <!-- FILTRO CLIENTE (VISIBLE PARA PORCMERMADIARIAPROCESOCLIENTEPLACA) -->
+                <!-- FILTRO CLIENTE -->
                 <div id="wrapper-filtro-cliente" class="flex flex-col hidden relative">
                     <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">CLIENTE</label>
                     <div id="searchable-filtro-cliente"></div>
                 </div>
 
-                <!-- FILTRO PLACA BUSCABLE (VISIBLE PARA PORCMERMADIARIAPROCESOCLIENTEPLACA) -->
-                <div id="wrapper-filtro-placa-matriz" class="flex flex-col hidden relative">
+                <!-- FILTRO PLACA -->
+                <div id="wrapper-filtro-placa" class="flex flex-col hidden relative">
                     <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PLACA</label>
-                    <div id="searchable-filtro-placa-matriz"></div>
+                    <div id="searchable-filtro-placa"></div>
+                </div>
+
+                <!-- FILTRO ZONAORIGEN -->
+                <div id="wrapper-filtro-zona" class="flex flex-col hidden relative">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ZONAORIGEN</label>
+                    <div id="searchable-filtro-zona"></div>
                 </div>
 
                 <!-- BOTONES DE ACCIÓN -->
@@ -365,8 +361,8 @@
     <script src="charts/chart.mermaMensualCliente.js?v=20261028_1"></script>
     <script src="charts/chart.tendenciaMermas.js?v=20261028_4"></script>
 
-    <script src="almacenMermasVivo.service.js?v=20261028_2"></script>
-    <script src="almacenMermasVivo.controller.js?v=20261028_6"></script>
+    <script src="almacenMermasVivo.service.js?v=20261102_1"></script>
+    <script src="almacenMermasVivo.controller.js?v=20261102_1"></script>
 
 </body>
 

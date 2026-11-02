@@ -159,7 +159,8 @@ class AlmacenMermasVivoService
         return [
             'status'   => 'success',
             'clientes' => $filtros['clientes'],
-            'placas'   => $filtros['placas']
+            'placas'   => $filtros['placas'],
+            'zonas'    => $filtros['zonas']
         ];
     }
 
