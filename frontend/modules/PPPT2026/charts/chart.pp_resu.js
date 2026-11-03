@@ -13,6 +13,7 @@ window.ChartPPResu = {
     controllerRef: null,
     datosBackend: null,
     filasCompletas: [],
+    filasFiltradas: [],
     multiActividad: null,
     maxLimiteGlobal: 411759.44,
     scaleMaxTotal: 2500000.00,
@@ -54,6 +55,8 @@ window.ChartPPResu = {
                 _g9: g9, _g10: g10, _g11: g11, _g12: g12
             };
         });
+
+        this.filasFiltradas = this.filasCompletas;
 
         // Límite fijado exacto de Tableau: 411,759.44
         this.maxLimiteGlobal = 411759.44;
@@ -279,6 +282,7 @@ window.ChartPPResu = {
             }
         }
 
+        this.filasFiltradas = filtradas;
         this.datosBackend.filas = filtradas;
         this.datosBackend.totales = totales;
 
@@ -519,7 +523,7 @@ window.ChartPPResu = {
         btnExport.parentNode.replaceChild(newBtn, btnExport);
 
         newBtn.addEventListener('click', () => {
-            const filas = (this.datosBackend && this.datosBackend.filas) ? this.datosBackend.filas : [];
+            const filas = this.filasFiltradas || [];
             if (!filas.length) {
                 alert('No hay datos disponibles para exportar.');
                 return;
