@@ -98,6 +98,17 @@ class Database {
                 'password' => defined('DB_PASSWORD_JOYA') ? DB_PASSWORD_JOYA : (defined('DB_PASSWORD_AQP_JOYA') ? DB_PASSWORD_AQP_JOYA : $this->password)
             ];
         }
+
+        // 7. BD Joya Tableau / Producción Merma de Agua
+        $dbNameJoyaTableau = defined('DB_NAME_JOYA_TABLEAU') ? DB_NAME_JOYA_TABLEAU : '';
+        if (!empty($dbNameJoyaTableau)) {
+            $this->secondaryConnections['joya_tableau'] = [
+                'host'     => defined('DB_HOST_JOYA_TABLEAU') ? DB_HOST_JOYA_TABLEAU : (defined('DB_HOST_JOYA') ? DB_HOST_JOYA : $this->host),
+                'db_name'  => $dbNameJoyaTableau,
+                'username' => defined('DB_USER_JOYA_TABLEAU') ? DB_USER_JOYA_TABLEAU : (defined('DB_USER_JOYA') ? DB_USER_JOYA : $this->username),
+                'password' => defined('DB_PASSWORD_JOYA_TABLEAU') ? DB_PASSWORD_JOYA_TABLEAU : (defined('DB_PASSWORD_JOYA') ? DB_PASSWORD_JOYA : $this->password)
+            ];
+        }
     }
 
     private function loadLocalConfig($localEnvFile) {
@@ -151,6 +162,15 @@ class Database {
                 'db_name'  => $env['DB_NAME_JOYA'],
                 'username' => isset($env['DB_USER_JOYA']) ? $env['DB_USER_JOYA'] : (isset($env['DB_USER']) ? $env['DB_USER'] : $this->username),
                 'password' => isset($env['DB_PASS_JOYA']) ? $env['DB_PASS_JOYA'] : (isset($env['DB_PASS']) ? $env['DB_PASS'] : $this->password)
+            ];
+        }
+
+        if (!empty($env['DB_NAME_JOYA_TABLEAU'])) {
+            $this->secondaryConnections['joya_tableau'] = [
+                'host'     => isset($env['DB_HOST_JOYA_TABLEAU']) ? $env['DB_HOST_JOYA_TABLEAU'] : (isset($env['DB_HOST_JOYA']) ? $env['DB_HOST_JOYA'] : $this->host),
+                'db_name'  => $env['DB_NAME_JOYA_TABLEAU'],
+                'username' => isset($env['DB_USER_JOYA_TABLEAU']) ? $env['DB_USER_JOYA_TABLEAU'] : (isset($env['DB_USER_JOYA']) ? $env['DB_USER_JOYA'] : $this->username),
+                'password' => isset($env['DB_PASSWORD_JOYA_TABLEAU']) ? $env['DB_PASSWORD_JOYA_TABLEAU'] : (isset($env['DB_PASS_JOYA_TABLEAU']) ? $env['DB_PASS_JOYA_TABLEAU'] : (isset($env['DB_PASS_JOYA']) ? $env['DB_PASS_JOYA'] : $this->password))
             ];
         }
     }
