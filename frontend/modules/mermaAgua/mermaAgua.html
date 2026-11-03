@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merma de Agua</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f8fafc;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen m-0 p-0 font-sans">
+    <main class="w-full">
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                        <i class="fa-solid fa-droplet text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Merma de Agua</h1>
+                        <p class="text-xs text-slate-500">Gráfica de control GRS · Vista por proceso</p>
+                    </div>
+                </div>
+
+                <button id="btn-toggle-filtros" type="button"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-lg border border-slate-200/80 transition-all shadow-2xs focus:outline-none cursor-pointer">
+                    <span id="label-toggle-filtros">Ocultar filtros</span>
+                    <svg id="icon-toggle-filtros" class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="contenedor-filtros-contenido" class="px-4 pb-3 sm:px-5 border-t border-slate-100">
+                <div class="flex flex-wrap items-end gap-2.5 pt-3">
+                    <div class="flex flex-col">
+                        <label for="select-tipo-grafico" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE GRÁFICO</label>
+                        <select id="select-tipo-grafico"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[170px]">
+                            <option value="VistaProceso" selected>VistaProceso</option>
+                            <option value="TablaDatos">TablaDatos</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-tipo-periodo" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERÍODO</label>
+                        <select id="select-tipo-periodo"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[170px]">
+                            <option value="entre_meses" selected>Entre meses</option>
+                            <option value="por_mes">Por mes</option>
+                            <option value="por_fecha">Por fecha</option>
+                            <option value="entre_fechas">Entre fechas</option>
+                            <option value="ultima_semana">Última semana</option>
+                            <option value="entre_semanas">Entre semanas</option>
+                        </select>
+                    </div>
+
+                    <div id="contenedor-inputs-periodo" class="flex items-end gap-2"></div>
+
+                    <div class="flex flex-col">
+                        <label for="select-ubicacion" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">UBICACIÓN</label>
+                        <select id="select-ubicacion"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[170px]"></select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-dato" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">TIPO DE DATO</label>
+                        <select id="select-dato"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[140px]"></select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-nomcencos" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">NOMBRE CENCOS</label>
+                        <select id="select-nomcencos"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[230px]"></select>
+                    </div>
+
+                    <div class="relative flex flex-col">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PROCESO</label>
+                        <button id="btn-dropdown-proceso" type="button"
+                            class="flex items-center justify-between gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[180px]">
+                            <span id="label-proceso" class="truncate text-left select-none">(Todo)</span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="dropdown-proceso"
+                            class="custom-multiselect-dropdown hidden absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 flex flex-col gap-2">
+                            <input id="search-proceso" type="text" placeholder="Buscar proceso..."
+                                class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-normal">
+                            <div id="container-options-proceso" class="max-h-52 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button id="btn-aplicar" type="button"
+                            class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Cargar</span>
+                        </button>
+                        <button id="btn-limpiar" type="button"
+                            class="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-200 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                            <span>Limpiar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="contenedor-grafico" class="mt-3 pb-8"></div>
+    </main>
+
+    <script src="../../core/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../../assets/utils-graficos/periodo-helper.js?v=20260918_3"></script>
+    <script src="../../assets/utils-graficos/custom-multiselect.js?v=20260918_3"></script>
+    <script src="charts/chart.vistaProceso.js?v=20261102_6"></script>
+    <script src="charts/chart.tablaDatos.js?v=20261102_3"></script>
+    <script src="mermaAgua.service.js?v=20261102_1"></script>
+    <script src="mermaAgua.controller.js?v=20261102_3"></script>
+</body>
+
+</html>
+
