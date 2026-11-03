@@ -27,6 +27,12 @@ class MermaGeneralMensualController {
             this.toggleFiltros();
         });
 
+        document.getElementById('toggle-hitos')?.addEventListener('change', (event) => {
+            if (window.MermaGeneralMensualChart?.setHitosVisible) {
+                window.MermaGeneralMensualChart.setHitosVisible(event.target.checked);
+            }
+        });
+
         this.toggleFiltros(false);
         this.cargar({});
     }

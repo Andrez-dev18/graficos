@@ -20,9 +20,11 @@ class MermaAguaService
     private function resolverConexion(PDO $principal): array
     {
         if ($principal instanceof SmartPDO) {
-            $joya = $principal->getConnection('joya');
-            if ($joya instanceof PDO && $this->tablaActualizada($joya)) {
-                return [$joya, 'joya'];
+            foreach (['joya_tableau', 'joya'] as $clave) {
+                $conexion = $principal->getConnection($clave);
+                if ($conexion instanceof PDO && $this->tablaActualizada($conexion)) {
+                    return [$conexion, $clave];
+                }
             }
         }
 

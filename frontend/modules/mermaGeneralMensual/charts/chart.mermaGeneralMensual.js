@@ -1,12 +1,58 @@
 window.MermaGeneralMensualChart = {
     chart: null,
     datos: null,
+    hitosEl: null,
+    hitosVisibles: [],
+    mostrarHitos: true,
+    hitos: [
+        {
+            fecha: '2025-03',
+            fechaLabel: 'Mar-25',
+            titulo: 'Proyecto Almacén Comercial',
+            icono: 'fa-warehouse',
+            color: '#dc2626',
+            fondo: '#fef2f2'
+        },
+        {
+            fecha: '2025-06',
+            fechaLabel: 'Jun-25',
+            titulo: 'Planificador de U.T. Planificador de distribución por cliente',
+            icono: 'fa-clipboard-list',
+            color: '#d97706',
+            fondo: '#fffbeb'
+        },
+        {
+            fecha: '2025-10',
+            fechaLabel: 'Oct-25',
+            titulo: 'Codificación de Agentes Causales',
+            icono: 'fa-magnifying-glass-chart',
+            color: '#16a34a',
+            fondo: '#f0fdf4'
+        },
+        {
+            fecha: '2026-03',
+            fechaLabel: 'Mar-26',
+            titulo: 'Bloqueo de ruta Huega de Transportistas',
+            icono: 'fa-route',
+            color: '#2563eb',
+            fondo: '#eff6ff'
+        },
+        {
+            rango: ['2026-06', '2026-08'],
+            fechaLabel: 'Jun a Ago-26',
+            titulo: 'Evento sanitario',
+            icono: 'fa-people-group',
+            color: '#2563eb',
+            fondo: '#eff6ff'
+        }
+    ],
 
     render(contenedor, data) {
         if (!contenedor) return;
 
         this.destroy();
         this.datos = data || {};
+        this.mostrarHitos = document.getElementById('toggle-hitos')?.checked !== false;
 
         const meses = Array.isArray(this.datos.meses) ? this.datos.meses : [];
         if (!meses.length) {
@@ -88,6 +134,8 @@ window.MermaGeneralMensualChart = {
         }
 
         const self = this;
+        this.hitosVisibles = this.calcularHitosVisibles(meses);
+
         const fases = [
             {
                 desde: '2025-01',
@@ -213,6 +261,52 @@ window.MermaGeneralMensualChart = {
             }
         };
 
+        const hitosPlugin = {
+            id: 'mermaGeneralMensualHitos',
+            afterDatasetsDraw: (chart) => {
+                if (!self.mostrarHitos || !self.hitosVisibles.length) return;
+
+                const chartArea = chart.chartArea;
+                const xScale = chart.scales.x;
+                if (!chartArea || !xScale) return;
+
+                const ctx = chart.ctx;
+                ctx.save();
+
+                self.hitosVisibles.forEach((hito) => {
+                    const inicioX = xScale.getPixelForValue(hito.startIndex);
+                    const finX = xScale.getPixelForValue(hito.endIndex);
+                    const posiciones = finX !== inicioX ? [inicioX, finX] : [inicioX];
+
+                    ctx.strokeStyle = hito.color;
+                    ctx.globalAlpha = 0.42;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 4]);
+
+                    posiciones.forEach((x) => {
+                        if (x < chartArea.left || x > chartArea.right) return;
+                        ctx.beginPath();
+                        ctx.moveTo(x, chartArea.top);
+                        ctx.lineTo(x, chartArea.bottom);
+                        ctx.stroke();
+                    });
+
+                    ctx.globalAlpha = 1;
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = hito.color;
+
+                    posiciones.forEach((x) => {
+                        if (x < chartArea.left || x > chartArea.right) return;
+                        ctx.beginPath();
+                        ctx.arc(x, chartArea.bottom, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                });
+
+                ctx.restore();
+            }
+        };
+
         const breakpointPlugin = {
             id: 'mermaGeneralMensualBreakpoint',
             afterDatasetsDraw: (chart) => {
@@ -314,6 +408,9 @@ window.MermaGeneralMensualChart = {
                     mode: 'index',
                     intersect: false
                 },
+                onResize: () => {
+                    if (self.chart) self.posicionarHitos();
+                },
                 layout: {
                     padding: {
                         top: 46,
@@ -399,8 +496,148 @@ window.MermaGeneralMensualChart = {
                     }
                 }
             },
-            plugins: [phaseBandsPlugin, valueLabelsPlugin, breakpointPlugin]
+            plugins: [phaseBandsPlugin, valueLabelsPlugin, breakpointPlugin, hitosPlugin]
         });
+
+        this.renderHitos(meses);
+    },
+
+    calcularHitosVisibles(meses) {
+        const visibles = [];
+
+        (this.hitos || []).forEach((hito) => {
+            const indices = [];
+
+            meses.forEach((mes, index) => {
+                const clave = mes.mes;
+                if (hito.rango) {
+                    if (clave >= hito.rango[0] && clave <= hito.rango[1]) {
+                        indices.push(index);
+                    }
+                } else if (clave === hito.fecha) {
+                    indices.push(index);
+                }
+            });
+
+            if (!indices.length) return;
+
+            visibles.push({
+                ...hito,
+                startIndex: indices[0],
+                endIndex: indices[indices.length - 1]
+            });
+        });
+
+        return visibles;
+    },
+
+    renderHitos(meses) {
+        this.hitosEl = document.getElementById('hitos-merma-general');
+        if (!this.hitosEl) return;
+
+        if (!this.hitosVisibles.length) {
+            this.hitosEl.innerHTML = '';
+            this.hitosEl.classList.add('hidden');
+            return;
+        }
+
+        this.hitosEl.innerHTML = this.hitosVisibles.map((hito, index) => {
+            const esRango = hito.endIndex > hito.startIndex;
+            return `
+                <div class="hito-item absolute pointer-events-none" data-hito-index="${index}" style="left:0;top:0;">
+                    ${esRango ? `<div class="hito-bracket absolute left-0 top-0 w-full border-t border-dashed" style="border-color:${hito.color};"></div>` : ''}
+                    <div class="hito-card inline-flex items-start gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 shadow-sm max-w-[190px] ${esRango ? 'mt-2' : ''}">
+                        <span class="inline-flex items-center justify-center w-6 h-6 rounded shrink-0" style="color:${hito.color}; background:${hito.fondo};">
+                            <i class="fa-solid ${hito.icono} text-[11px]"></i>
+                        </span>
+                        <div class="text-[10px] leading-tight text-slate-600">
+                            <div class="font-bold" style="color:${hito.color};">${this.escapeHtml(hito.fechaLabel)}</div>
+                            <div>${this.escapeHtml(hito.titulo)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        this.hitosEl.classList.toggle('hidden', !this.mostrarHitos);
+        this.posicionarHitos();
+    },
+
+    posicionarHitos() {
+        if (!this.hitosEl || !this.chart) return;
+
+        const xScale = this.chart.scales.x;
+        if (!xScale) return;
+
+        const items = Array.from(this.hitosEl.querySelectorAll('.hito-item'));
+        const ocupados = [];
+
+        items.forEach((item, index) => {
+            const hito = this.hitosVisibles[index];
+            if (!hito) return;
+
+            const inicioX = xScale.getPixelForValue(hito.startIndex);
+            const finX = xScale.getPixelForValue(hito.endIndex);
+            const esRango = hito.endIndex > hito.startIndex;
+            const card = item.querySelector('.hito-card');
+
+            if (esRango) {
+                const left = Math.min(inicioX, finX);
+                const right = Math.max(inicioX, finX);
+                item.style.left = `${left}px`;
+                item.style.width = `${Math.max(20, right - left)}px`;
+                item.style.transform = 'none';
+                if (card) {
+                    card.style.position = 'relative';
+                    card.style.left = '50%';
+                    card.style.transform = 'translateX(-50%)';
+                }
+            } else {
+                item.style.left = `${inicioX}px`;
+                item.style.width = 'auto';
+                item.style.transform = 'translateX(-50%)';
+                if (card) {
+                    card.style.position = '';
+                    card.style.left = '';
+                    card.style.transform = '';
+                }
+            }
+
+            item.style.top = '0px';
+            const rect = item.getBoundingClientRect();
+            let lane = 0;
+
+            while (lane < 3 && ocupados.some((box) => {
+                return box.lane === lane && !(rect.right < box.left || rect.left > box.right);
+            })) {
+                lane++;
+            }
+
+            item.style.top = `${lane * 74}px`;
+            ocupados.push({ lane, left: rect.left, right: rect.right });
+        });
+
+        const maxLane = ocupados.reduce((max, box) => Math.max(max, box.lane), 0);
+        this.hitosEl.style.height = `${maxLane * 74 + 64}px`;
+    },
+
+    setHitosVisible(visible) {
+        this.mostrarHitos = Boolean(visible);
+
+        if (!this.hitosEl) return;
+
+        if (this.mostrarHitos) {
+            this.renderHitos(this.datos?.meses || []);
+        } else {
+            this.hitosEl.classList.add('hidden');
+        }
+
+        if (this.chart) {
+            this.chart.update('none');
+            if (this.mostrarHitos) {
+                requestAnimationFrame(() => this.posicionarHitos());
+            }
+        }
     },
 
     buildLayout(data, meses) {
@@ -459,6 +696,7 @@ window.MermaGeneralMensualChart = {
                     <div class="relative w-full" style="height: 480px;">
                         <canvas id="canvas-merma-general-mensual" role="img" aria-label="Evolución mensual de merma general"></canvas>
                     </div>
+                    <div id="hitos-merma-general" class="relative w-full mt-1 hidden" style="height: 120px;"></div>
                 </div>
 
                 <div class="px-4 sm:px-6 py-2.5 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400">
@@ -549,5 +787,8 @@ window.MermaGeneralMensualChart = {
             this.chart.destroy();
             this.chart = null;
         }
+
+        this.hitosEl = null;
+        this.hitosVisibles = [];
     }
 };

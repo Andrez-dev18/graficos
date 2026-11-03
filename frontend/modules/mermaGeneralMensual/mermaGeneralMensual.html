@@ -136,6 +136,14 @@
                         </div>
                     </div>
 
+                    <div class="flex items-center gap-2 pb-2.5">
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input id="toggle-hitos" type="checkbox" class="sr-only peer" checked>
+                            <span class="relative w-9 h-5 bg-slate-300 rounded-full transition-colors peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:shadow-sm after:transition-transform peer-checked:after:translate-x-4"></span>
+                            <span class="text-[11px] font-semibold text-slate-600">Etiquetas</span>
+                        </label>
+                    </div>
+
                     <div class="flex items-center gap-2 ml-auto">
                         <button id="btn-aplicar" type="button"
                             class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
@@ -157,9 +165,9 @@
     <script src="../../core/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../../assets/utils-graficos/custom-multiselect.js?v=20260918_3"></script>
-    <script src="charts/chart.mermaGeneralMensual.js?v=20261102_5"></script>
+    <script src="charts/chart.mermaGeneralMensual.js?v=20261102_6"></script>
     <script src="mermaGeneralMensual.service.js?v=20261102_2"></script>
-    <script src="mermaGeneralMensual.controller.js?v=20261102_2"></script>
+    <script src="mermaGeneralMensual.controller.js?v=20261102_3"></script>
 </body>
 
 </html>
