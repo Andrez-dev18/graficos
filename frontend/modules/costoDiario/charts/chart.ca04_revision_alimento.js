@@ -21,25 +21,122 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
     filtroCruzadoActivo: null,
     factorCF: 0.127,
     FACTOR_CM: 0.013,
+    factoresPorMes: {},
+    periodos: [],
+    fechasRaw: [],
+    periodosFechas: [],
+    periodoEditando: null,
 
     destroy() {
         this.destruirCharts();
         this.hideTooltip();
+        document.getElementById('popover-config-cf-ca04')?.classList.add('hidden');
+        this.factoresPorMes = {};
+        this.periodos = [];
+        this.fechasRaw = [];
+        this.periodosFechas = [];
+        this.periodoEditando = null;
     },
 
-    toggleModalCF(e) {
+    formatearPeriodo(periodo) {
+        const partes = String(periodo || '').split('-').map(Number);
+        if (partes.length !== 2 || partes.some(n => isNaN(n))) return String(periodo || '');
+        const fecha = new Date(partes[0], partes[1] - 1, 1);
+        const mes = new Intl.DateTimeFormat('es-PE', { month: 'short' }).format(fecha).replace('.', '').toLowerCase();
+        return `${mes} ${partes[0]}`;
+    },
+
+    obtenerFactorSeleccionado() {
+        const periodo = this.periodoEditando
+            || (this.periodos.length ? this.periodos[this.periodos.length - 1] : this.periodoActual);
+        const factor = this.factoresPorMes[periodo];
+        if (factor) return factor;
+
+        return {
+            periodo,
+            factor_cf: Number(this.factorCF) || 0.127,
+            factor_cm: this.FACTOR_CM,
+            factor_total: Number((((Number(this.factorCF) || 0.127) + this.FACTOR_CM)).toFixed(3))
+        };
+    },
+
+    renderBadgesFactor() {
+        const periodos = Array.isArray(this.periodos) ? this.periodos : [];
+
+        if (periodos.length <= 1) {
+            const periodo = periodos[0] || this.periodoActual;
+            const factor = this.factoresPorMes[periodo] || { factor_cf: 0.127 };
+            return `
+                <button id="btn-ajustar-cf-ca04" type="button"
+                    class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-all cursor-pointer shadow-2xs"
+                    onclick="window.ChartRegistry['CA04 RevisionAlimento'].toggleModalCF(event, '${periodo}')">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <span>CF: <strong id="badge-val-cf-ca04">${Number(factor.factor_cf).toFixed(3)}</strong></span>
+                </button>
+            `;
+        }
+
+        return `
+            <div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar max-w-full py-0.5">
+                ${periodos.map(periodo => {
+                    const factor = this.factoresPorMes[periodo] || { factor_cf: 0.127 };
+                    return `
+                        <button type="button" data-periodo-cf="${periodo}"
+                            class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+                            onclick="window.ChartRegistry['CA04 RevisionAlimento'].toggleModalCF(event, '${periodo}')">
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span>CF ${this.formatearPeriodo(periodo)}: <strong data-cf-value="${periodo}">${Number(factor.factor_cf).toFixed(3)}</strong></span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    },
+
+    actualizarBadgesFactor() {
+        const badgeUnico = document.getElementById('badge-val-cf-ca04');
+        if (badgeUnico) {
+            const factor = this.factoresPorMes[this.periodoEditando] || this.obtenerFactorSeleccionado();
+            badgeUnico.textContent = Number(factor.factor_cf).toFixed(3);
+        }
+
+        document.querySelectorAll('[data-cf-value]').forEach(el => {
+            const periodo = el.getAttribute('data-cf-value');
+            const factor = this.factoresPorMes[periodo];
+            if (factor) {
+                el.textContent = Number(factor.factor_cf).toFixed(3);
+            }
+        });
+    },
+
+    toggleModalCF(e, periodo = null) {
         if (e) e.stopPropagation();
         const popover = document.getElementById('popover-config-cf-ca04');
         if (!popover) return;
+
         const isHidden = popover.classList.contains('hidden');
-        if (isHidden) {
-            popover.classList.remove('hidden');
+        const nuevoPeriodo = periodo
+            || this.periodoEditando
+            || (this.periodos.length ? this.periodos[this.periodos.length - 1] : this.periodoActual);
+
+        if (isHidden || nuevoPeriodo !== this.periodoEditando) {
+            this.periodoEditando = nuevoPeriodo;
+            const factor = this.obtenerFactorSeleccionado();
             const input = document.getElementById('input-factor-cf-ca04');
             if (input) {
-                input.value = this.factorCF.toFixed(3);
+                input.value = Number(factor.factor_cf).toFixed(3);
                 input.focus();
                 input.select();
             }
+            const labelPeriodo = document.getElementById('label-periodo-cf-ca04');
+            if (labelPeriodo) labelPeriodo.textContent = `Valor CF (${this.periodoEditando}):`;
+            popover.classList.remove('hidden');
             this.updatePreviewCF();
         } else {
             popover.classList.add('hidden');
@@ -66,32 +163,46 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
             return;
         }
 
-        this.factorCF = nuevoCF;
+        const periodo = this.periodoEditando
+            || (this.periodos.length ? this.periodos[this.periodos.length - 1] : this.periodoActual);
 
         // 1. Persistir en Backend (Base de datos tabla conf_factor_alimento)
         if (this.controller && this.controller.service && typeof this.controller.service.guardarFactorAlimento === 'function') {
             try {
-                await this.controller.service.guardarFactorAlimento({
-                    periodo: this.periodoActual || '2026-08',
-                    factor_cf: this.factorCF
+                const respuesta = await this.controller.service.guardarFactorAlimento({
+                    periodo: periodo,
+                    factor_cf: nuevoCF
                 });
+                if (respuesta && respuesta.success === false) {
+                    alert(respuesta.message || 'No se pudo guardar el factor CF en el servidor.');
+                    return;
+                }
             } catch (err) {
-                console.warn('Error al guardar factor CF en backend:', err);
+                console.error('Error al guardar factor CF en backend:', err);
+                alert('No se pudo guardar el factor CF en el servidor.');
+                return;
             }
         }
 
-        // 2. Actualizar Badge y Label del eje
-        const badge = document.getElementById('badge-val-cf-ca04');
-        if (badge) badge.textContent = this.factorCF.toFixed(3);
+        // 2. Actualizar el estado local del período seleccionado
+        this.factoresPorMes[periodo] = {
+            periodo: periodo,
+            factor_cf: nuevoCF,
+            factor_cm: this.FACTOR_CM,
+            factor_total: Number((nuevoCF + this.FACTOR_CM).toFixed(3))
+        };
+        this.factorCF = nuevoCF;
 
+        // 3. Actualizar Badges y etiqueta del eje
+        this.actualizarBadgesFactor();
         const labelEje = document.getElementById('label-eje-con-factor-ca04');
-        if (labelEje) labelEje.textContent = `PU + CF (${this.factorCF.toFixed(3)}) + CM(0.013)`;
+        if (labelEje) labelEje.textContent = 'PU + CF + CM';
 
-        // 3. Cerrar Popover
+        // 4. Cerrar Popover
         const popover = document.getElementById('popover-config-cf-ca04');
         if (popover) popover.classList.add('hidden');
 
-        // 4. Recalcular y actualizar la gráfica inferior reactivamente
+        // 5. Recalcular y actualizar la gráfica inferior reactivamente
         this.recalcularGraficaConFactor();
     },
 
@@ -102,13 +213,29 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
         await this.aplicarFactorCF();
     },
 
+    calcularDataConFactor(dataSin) {
+        const data = this.getData();
+        const fechas = (this.fechasRaw && this.fechasRaw.length === dataSin.length)
+            ? this.fechasRaw
+            : ((Array.isArray(data.fechas) && data.fechas.length === dataSin.length) ? data.fechas : []);
+
+        const periodoFallback = this.periodoEditando
+            || (this.periodos.length ? this.periodos[this.periodos.length - 1] : this.periodoActual);
+
+        return dataSin.map((valor, indice) => {
+            const periodo = fechas[indice] ? String(fechas[indice]).slice(0, 7) : periodoFallback;
+            const factor = this.factoresPorMes[periodo];
+            const totalFactor = factor ? Number(factor.factor_total) : (0.127 + this.FACTOR_CM);
+            return Number((Number(valor) + totalFactor).toFixed(3));
+        });
+    },
+
     recalcularGraficaConFactor() {
         if (!this.chartGeneralCon) return;
 
         const dataSrc = this.getData();
         const dataSin = dataSrc.generalSinFactor || [];
-        const totalFactor = this.factorCF + this.FACTOR_CM;
-        const dataCon = dataSin.map(v => Number((v + totalFactor).toFixed(3)));
+        const dataCon = this.calcularDataConFactor(dataSin);
 
         const minVal = dataCon.length ? Math.min(...dataCon) : 1.7;
         const maxVal = dataCon.length ? Math.max(...dataCon) : 1.8;
@@ -126,9 +253,16 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                 return (p0Val >= avgCon || p1Val >= avgCon) ? '#e15759' : '#59a14f';
             }
         };
-        this.chartGeneralCon.options.scales.y.min = Math.floor((minVal - 0.01) * 100) / 100;
-        this.chartGeneralCon.options.scales.y.max = Math.ceil((maxVal + 0.01) * 100) / 100;
+        if (this.chartGeneralCon.options.scales.y) {
+            this.chartGeneralCon.options.scales.y.min = Math.floor((minVal - 0.01) * 100) / 100;
+            this.chartGeneralCon.options.scales.y.max = Math.ceil((maxVal + 0.01) * 100) / 100;
+        }
         this.chartGeneralCon.update('active');
+        this.renderEjeFijo('con', this.chartGeneralCon);
+
+        if (this.datosDashboard) {
+            this.datosDashboard.generalConFactor = dataCon;
+        }
     },
 
     destruirCharts() {
@@ -237,12 +371,63 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
         this.datosDashboard = data || {};
         this.filtroCruzadoActivo = null;
 
-        // Cargar factor CF y periodo recibidos del backend
+        // Cargar factor CF y período recibidos del backend
         if (data && data.factor_cf !== undefined && data.factor_cf !== null) {
             this.factorCF = parseFloat(data.factor_cf);
         }
         if (data && data.periodo) {
             this.periodoActual = data.periodo;
+        }
+
+        // Normalizar factores por mes y datos auxiliares para el rango multi-mes
+        const factoresEntrantes = (data && data.factoresPorMes && typeof data.factoresPorMes === 'object')
+            ? data.factoresPorMes
+            : {};
+
+        this.factoresPorMes = {};
+        Object.keys(factoresEntrantes).forEach(periodo => {
+            const factor = factoresEntrantes[periodo] || {};
+            const cf = Number(factor.factor_cf !== undefined ? factor.factor_cf : this.factorCF);
+            const cm = Number(factor.factor_cm !== undefined ? factor.factor_cm : this.FACTOR_CM);
+            const total = Number(
+                factor.factor_total !== undefined && factor.factor_total !== null
+                    ? factor.factor_total
+                    : (cf + cm)
+            );
+            this.factoresPorMes[periodo] = {
+                periodo: periodo,
+                factor_cf: isNaN(cf) ? 0.127 : cf,
+                factor_cm: isNaN(cm) ? this.FACTOR_CM : cm,
+                factor_total: isNaN(total) ? 0.14 : Number(total.toFixed(3))
+            };
+        });
+
+        this.periodos = Array.isArray(data?.periodos) ? data.periodos.slice() : Object.keys(this.factoresPorMes);
+
+        if (this.periodos.length === 0) {
+            const periodo = this.periodoActual || '2026-08';
+            const cf = Number(this.factorCF) || 0.127;
+            this.factoresPorMes[periodo] = {
+                periodo: periodo,
+                factor_cf: cf,
+                factor_cm: this.FACTOR_CM,
+                factor_total: Number((cf + this.FACTOR_CM).toFixed(3))
+            };
+            this.periodos = [periodo];
+        }
+
+        this.fechasRaw = Array.isArray(data?.fechas) ? data.fechas.slice() : [];
+        this.periodosFechas = Array.isArray(data?.periodosFechas) ? data.periodosFechas.slice() : [];
+        this.periodoEditando = this.periodos[this.periodos.length - 1] || this.periodoActual;
+
+        if (this.factoresPorMes[this.periodoEditando]) {
+            this.factorCF = Number(this.factoresPorMes[this.periodoEditando].factor_cf);
+        }
+
+        if (this.datosDashboard) {
+            this.datosDashboard.factoresPorMes = this.factoresPorMes;
+            this.datosDashboard.periodos = this.periodos;
+            this.datosDashboard.fechas = this.fechasRaw;
         }
 
         // 1. Título principal
@@ -282,6 +467,10 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
         if (!contenedorGrafica) return;
 
         const dataSrc = this.getData();
+        const totalFechas = (dataSrc.fechasLabels || []).length;
+        const anchoMinimo = Math.max(320, totalFechas * 30);
+        const anchoMinimoIndividuales = Math.max(420, (totalFechas * 24) + 250);
+        const factorSel = this.obtenerFactorSeleccionado();
 
         contenedorGrafica.className = "flex flex-col w-full p-2 gap-4 bg-slate-50/50";
         contenedorGrafica.innerHTML = `
@@ -293,17 +482,9 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                     <div class="flex items-center justify-between px-4 py-2 bg-slate-100/90 border-b border-slate-300">
                         <h2 class="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">Costo Formula / Costo mas Factor</h2>
 
-                        <!-- BOTÓN MODAL / POPOVER CONFIGURACIÓN FACTOR CF -->
-                        <div class="relative">
-                            <button id="btn-ajustar-cf-ca04" type="button"
-                                class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-all cursor-pointer shadow-2xs"
-                                onclick="window.ChartRegistry['CA04 RevisionAlimento'].toggleModalCF(event)">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                                <span>CF: <strong id="badge-val-cf-ca04">${this.factorCF.toFixed(3)}</strong></span>
-                            </button>
+                        <!-- BADGES DE FACTOR CF POR MES + POPOVER -->
+                        <div class="relative flex items-center justify-end min-w-0">
+                            ${this.renderBadgesFactor()}
 
                             <!-- POPOVER COMPACTO DE CONFIGURACIÓN -->
                             <div id="popover-config-cf-ca04"
@@ -311,19 +492,19 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                                 onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
                                     <span class="text-xs font-bold text-slate-800">Ajustar Factor CF</span>
-                                    <span class="text-[10px] text-slate-400 font-mono">CM = 0.013</span>
+                                    <span class="text-[10px] text-slate-400 font-mono">CM = ${this.FACTOR_CM.toFixed(3)}</span>
                                 </div>
 
                                 <div class="flex flex-col gap-1">
-                                    <label for="input-factor-cf-ca04" class="text-[10px] font-bold text-slate-600 uppercase">Valor CF (${this.periodoActual}):</label>
-                                    <input id="input-factor-cf-ca04" type="number" step="0.001" min="0" max="10" value="${this.factorCF.toFixed(3)}"
+                                    <label for="input-factor-cf-ca04" id="label-periodo-cf-ca04" class="text-[10px] font-bold text-slate-600 uppercase">Valor CF (${this.periodoEditando}):</label>
+                                    <input id="input-factor-cf-ca04" type="number" step="0.001" min="0" max="10" value="${Number(factorSel.factor_cf).toFixed(3)}"
                                         class="w-full text-xs font-mono font-bold text-blue-900 px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         oninput="window.ChartRegistry['CA04 RevisionAlimento'].updatePreviewCF()">
                                 </div>
 
                                 <div class="bg-blue-50/70 p-2 rounded-lg text-[10.5px] text-blue-900 font-medium">
-                                    Factor Total: <strong id="preview-factor-total-ca04" class="font-mono font-bold text-blue-700">+${(this.factorCF + this.FACTOR_CM).toFixed(3)}</strong>
-                                    <span class="block text-[9.5px] text-slate-500 mt-0.5">PU + CF (<span id="preview-val-cf-ca04">${this.factorCF.toFixed(3)}</span>) + CM (0.013)</span>
+                                    Factor Total: <strong id="preview-factor-total-ca04" class="font-mono font-bold text-blue-700">+${Number(factorSel.factor_total).toFixed(3)}</strong>
+                                    <span class="block text-[9.5px] text-slate-500 mt-0.5">PU + CF (<span id="preview-val-cf-ca04">${Number(factorSel.factor_cf).toFixed(3)}</span>) + CM (${this.FACTOR_CM.toFixed(3)})</span>
                                 </div>
 
                                 <div class="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100">
@@ -343,26 +524,34 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                     </div>
 
                     <div class="flex flex-col p-2 gap-2 flex-1 justify-center">
-                        <!-- Sub-panel Superior: PU -->
-                        <div class="w-full flex items-center">
-                            <div class="w-[50px] shrink-0 text-center font-bold text-[10px] text-slate-700">
-                                PU
-                            </div>
-                            <div class="flex-1 relative h-[145px]">
-                                <canvas id="canvas-ca04-general-sin"></canvas>
-                            </div>
-                        </div>
+                        <div class="flex items-stretch w-full">
+                            <!-- EJE Y FIJO: no se desplaza con el scroll horizontal -->
+                            <div class="w-[86px] shrink-0 bg-white border-r border-slate-300 relative z-20">
+                                <div class="relative h-[145px] border-b border-slate-200">
+                                    <div class="absolute left-0 top-0 bottom-0 w-[32px] flex items-center justify-center text-[10px] font-bold text-slate-700">
+                                        PU
+                                    </div>
+                                    <div id="eje-fijo-ca04-sin" class="absolute left-[32px] right-0 top-0 bottom-0"></div>
+                                </div>
 
-                        <!-- Línea Divisoria Clara -->
-                        <div class="w-full border-b border-slate-200 my-0.5"></div>
-
-                        <!-- Sub-panel Inferior: PU + CF(xxx) + CM(0.013) -->
-                        <div class="w-full flex items-center">
-                            <div id="label-eje-con-factor-ca04" class="w-[50px] shrink-0 text-center font-bold text-[9px] text-slate-700 leading-tight px-0.5">
-                                PU + CF (${this.factorCF.toFixed(3)}) + CM(0.013)
+                                <div class="relative h-[170px]">
+                                    <div id="label-eje-con-factor-ca04" class="absolute left-0 top-0 bottom-0 w-[32px] flex items-center justify-center text-[9px] font-bold text-slate-700 text-center leading-[1.1] px-0.5">
+                                        PU + CF + CM
+                                    </div>
+                                    <div id="eje-fijo-ca04-con" class="absolute left-[32px] right-0 top-0 bottom-0"></div>
+                                </div>
                             </div>
-                            <div class="flex-1 relative h-[170px]">
-                                <canvas id="canvas-ca04-general-con"></canvas>
+
+                            <!-- ÁREA DESPLAZABLE HORIZONTALMENTE -->
+                            <div class="flex-1 min-w-0 overflow-x-auto custom-scrollbar pb-1">
+                                <div class="flex flex-col" style="min-width: ${anchoMinimo}px;">
+                                    <div class="relative h-[145px] border-b border-slate-200">
+                                        <canvas id="canvas-ca04-general-sin"></canvas>
+                                    </div>
+                                    <div class="relative h-[170px]">
+                                        <canvas id="canvas-ca04-general-con"></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -375,8 +564,10 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                     </div>
 
                     <!-- Contenedor Scrollable de Series por Alimento -->
-                    <div id="contenedor-ca04-individuales" class="flex-1 p-3 flex flex-col gap-2 overflow-y-auto max-h-[350px] custom-scrollbar">
-                        ${this.renderRowsIndividuales(dataSrc.seriesIndividuales)}
+                    <div id="contenedor-ca04-individuales" class="flex-1 p-3 overflow-auto max-h-[350px] custom-scrollbar">
+                        <div class="flex flex-col gap-2" style="min-width: ${anchoMinimoIndividuales}px;">
+                            ${this.renderRowsIndividuales(dataSrc.seriesIndividuales)}
+                        </div>
                     </div>
                 </div>
 
@@ -456,9 +647,9 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
         series.forEach((s, idx) => {
             const isLast = idx === series.length - 1;
             html += `
-                <div class="flex items-center w-full border-b border-slate-200 pb-1.5 pt-0.5 hover:bg-slate-50/50 transition-colors">
+                <div class="flex items-center w-full bg-white border-b border-slate-200 pb-1.5 pt-0.5 hover:bg-slate-50 transition-colors">
                     <!-- Label Izquierda -->
-                    <div class="w-[180px] sm:w-[210px] shrink-0 text-left pr-2 flex flex-col justify-center border-r border-slate-200">
+                    <div class="w-[180px] sm:w-[210px] shrink-0 text-left pr-2 flex flex-col justify-center border-r border-slate-200 sticky left-0 z-10 bg-white">
                         <span class="text-[10.5px] font-bold text-slate-800 leading-tight truncate" title="${s.item_label}">${s.item_label}</span>
                         <div class="flex items-center gap-2 mt-0.5">
                             <span class="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-slate-100 text-slate-700 rounded border border-slate-200">${s.coditem}</span>
@@ -467,13 +658,28 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                     </div>
 
                     <!-- Canvas Mini Line Chart -->
-                    <div class="flex-1 relative ${isLast ? 'h-[85px]' : 'h-[72px]'} px-2">
+                    <div class="flex-1 relative bg-white ${isLast ? 'h-[85px]' : 'h-[72px]'} px-2">
                         <canvas id="canvas-ca04-indiv-${idx}"></canvas>
                     </div>
                 </div>
             `;
         });
         return html;
+    },
+
+    renderEjeFijo(tipo, chart) {
+        const contenedor = document.getElementById(`eje-fijo-ca04-${tipo}`);
+        if (!contenedor || !chart || !chart.scales || !chart.scales.y) return;
+
+        const escala = chart.scales.y;
+        const ticks = Array.isArray(escala.ticks) ? escala.ticks : [];
+
+        contenedor.innerHTML = ticks.map(tick => {
+            const top = escala.getPixelForValue(tick.value);
+            const label = Number(tick.value).toFixed(2).replace('.', ',');
+            return `<span class="absolute right-1 -translate-y-1/2 text-[10px] font-semibold text-slate-600 whitespace-nowrap tabular-nums"
+                          style="top:${top}px;">${label}</span>`;
+        }).join('');
     },
 
     renderChartsGenerales(dataSrc) {
@@ -483,9 +689,13 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
 
         const labels = dataSrc.fechasLabels || [];
         const dataSin = dataSrc.generalSinFactor || [];
-        const dataCon = dataSrc.generalConFactor || [];
+        let dataCon = dataSrc.generalConFactor || [];
 
         if (dataSin.length === 0) return;
+
+        if (!Array.isArray(dataCon) || dataCon.length !== dataSin.length) {
+            dataCon = this.calcularDataConFactor(dataSin);
+        }
 
         // Calcular promedio de PU (Sin Factor) para definir semáforo Tableau (>= Promedio: Rojo, < Promedio: Verde)
         const sumSin = dataSin.reduce((acc, v) => acc + v, 0);
@@ -526,7 +736,8 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 3),
+                onResize: (chart) => self.renderEjeFijo('sin', chart),
                 layout: { padding: { top: 18, bottom: 2, left: 5, right: 12 } },
                 plugins: {
                     legend: { display: false },
@@ -577,11 +788,10 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                     y: {
                         min: Math.floor((minSin - 0.01) * 100) / 100,
                         max: Math.ceil((maxSin + 0.01) * 100) / 100,
-                        grid: { color: '#f1f5f9' },
-                        ticks: {
-                            font: { size: 8.5, family: 'system-ui, -apple-system, sans-serif' },
-                            callback: v => Number(v).toFixed(2).replace('.', ',')
-                        }
+                        grid: { color: '#f1f5f9', drawTicks: false },
+                        border: { display: false },
+                        ticks: { display: false },
+                        title: { display: false }
                     }
                 }
             },
@@ -624,7 +834,8 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+                devicePixelRatio: Math.max(window.devicePixelRatio || 1, 3),
+                onResize: (chart) => self.renderEjeFijo('con', chart),
                 layout: { padding: { top: 18, bottom: 2, left: 5, right: 12 } },
                 plugins: {
                     legend: { display: false },
@@ -673,25 +884,29 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                         grid: { display: true, color: '#f8fafc' },
                         ticks: {
                             display: true,
+                            autoSkip: false,
                             maxRotation: 90,
                             minRotation: 90,
-                            font: { size: 8.5, family: 'system-ui, -apple-system, sans-serif' },
-                            color: '#475569'
+                            padding: 6,
+                            font: { size: 10.5, weight: '600', family: '"Segoe UI", system-ui, -apple-system, sans-serif' },
+                            color: '#1e293b'
                         }
                     },
                     y: {
                         min: Math.floor((minCon - 0.01) * 100) / 100,
                         max: Math.ceil((maxCon + 0.01) * 100) / 100,
-                        grid: { color: '#f1f5f9' },
-                        ticks: {
-                            font: { size: 8.5, family: 'system-ui, -apple-system, sans-serif' },
-                            callback: v => Number(v).toFixed(2).replace('.', ',')
-                        }
+                        grid: { color: '#f1f5f9', drawTicks: false },
+                        border: { display: false },
+                        ticks: { display: false },
+                        title: { display: false }
                     }
                 }
             },
             plugins: [ChartDataLabels]
         });
+
+        this.renderEjeFijo('sin', this.chartGeneralSin);
+        this.renderEjeFijo('con', this.chartGeneralCon);
     },
 
     renderChartsIndividuales(dataSrc) {
@@ -770,6 +985,8 @@ window.ChartRegistry['CA04 RevisionAlimento'] = {
                             display: true,
                             align: 'top',
                             offset: 3,
+                            clamp: true,
+                            clip: true,
                             font: { size: 8.5, weight: 'bold', family: 'system-ui, -apple-system, sans-serif' },
                             color: '#1e293b',
                             formatter: (v) => {

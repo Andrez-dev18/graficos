@@ -2,10 +2,191 @@
 date_default_timezone_set('America/Lima');
 class CA04RevisionAlimentoHandler
 {
+    /**
+     * Genera la lista de períodos (YYYY-MM) comprendidos entre dos fechas.
+     */
+    private static function obtenerPeriodosRango(string $fechaInicio, string $fechaFin): array
+    {
+        $inicio = (new DateTimeImmutable($fechaInicio))->modify('first day of this month')->setTime(0, 0);
+        $fin = (new DateTimeImmutable($fechaFin))->modify('first day of this month')->setTime(0, 0);
+
+        if ($inicio > $fin) {
+            $tmp = $inicio;
+            $inicio = $fin;
+            $fin = $tmp;
+        }
+
+        $periodos = [];
+        $cursor = $inicio;
+        while ($cursor <= $fin) {
+            $periodos[] = $cursor->format('Y-m');
+            $cursor = $cursor->modify('+1 month');
+        }
+
+        return $periodos;
+    }
+
+    /**
+     * Obtiene un snapshot (fechahisto) por cada mes del rango solicitado.
+     */
+    private static function obtenerRangosHistoricos(PDO $db, string $fechaInicio, string $fechaFin, ?string $fechahistoForzado = null): array
+    {
+        if (!empty($fechahistoForzado)) {
+            return [[
+                'periodo'      => substr($fechahistoForzado, 0, 7),
+                'fechahisto'   => $fechahistoForzado,
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin'    => $fechaFin
+            ]];
+        }
+
+        $inicio = (new DateTimeImmutable($fechaInicio))->modify('first day of this month')->setTime(0, 0);
+        $fin = (new DateTimeImmutable($fechaFin))->modify('first day of this month')->setTime(0, 0);
+
+        if ($inicio > $fin) {
+            $tmp = $inicio;
+            $inicio = $fin;
+            $fin = $tmp;
+        }
+
+        $stmt = $db->prepare("
+            SELECT MAX(fechahisto)
+            FROM histcostdiaalim2
+            WHERE fechahisto BETWEEN :mes_inicio AND :mes_fin
+        ");
+
+        $rangos = [];
+        $cursor = $inicio;
+        while ($cursor <= $fin) {
+            $mesInicio = $cursor->format('Y-m-01');
+            $mesFin = $cursor->format('Y-m-t');
+            $finEfectivo = $mesFin < $fechaFin ? $mesFin : $fechaFin;
+
+            if ($finEfectivo < $mesInicio) {
+                $cursor = $cursor->modify('+1 month');
+                continue;
+            }
+
+            $stmt->execute([
+                ':mes_inicio' => $mesInicio,
+                ':mes_fin'    => $finEfectivo
+            ]);
+            $fechahisto = $stmt->fetchColumn();
+
+            if ($fechahisto) {
+                $rangos[] = [
+                    'periodo'      => $cursor->format('Y-m'),
+                    'fechahisto'   => $fechahisto,
+                    'fecha_inicio' => $mesInicio > $fechaInicio ? $mesInicio : $fechaInicio,
+                    'fecha_fin'    => $finEfectivo
+                ];
+            }
+
+            $cursor = $cursor->modify('+1 month');
+        }
+
+        if (empty($rangos)) {
+            $stmtFallback = $db->prepare("
+                SELECT fechahisto
+                FROM histcostdiaalim2
+                WHERE fechahisto <= :fec_fin
+                ORDER BY fechahisto DESC
+                LIMIT 1
+            ");
+            $stmtFallback->execute([':fec_fin' => $fechaFin]);
+            $fechahisto = $stmtFallback->fetchColumn();
+
+            if (!$fechahisto) {
+                $fechahisto = $db->query("SELECT fechahisto FROM histcostdiaalim2 ORDER BY fechahisto DESC LIMIT 1")->fetchColumn();
+            }
+
+            if ($fechahisto) {
+                $rangos[] = [
+                    'periodo'      => substr($fechahisto, 0, 7),
+                    'fechahisto'   => $fechahisto,
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin'    => $fechaFin
+                ];
+            }
+        }
+
+        return $rangos;
+    }
+
+    /**
+     * Construye el WHERE para combinar varios snapshots mensuales.
+     */
+    private static function construirWhereHistoricos(array $rangos, array &$params): string
+    {
+        if (empty($rangos)) {
+            return '1 = 0';
+        }
+
+        $partes = [];
+        foreach ($rangos as $i => $rango) {
+            $prefix = ':h' . $i;
+            $partes[] = "(fechahisto = {$prefix}_fh AND fecha BETWEEN {$prefix}_fi AND {$prefix}_ff)";
+            $params["{$prefix}_fh"] = $rango['fechahisto'];
+            $params["{$prefix}_fi"] = $rango['fecha_inicio'];
+            $params["{$prefix}_ff"] = $rango['fecha_fin'];
+        }
+
+        return '(' . implode(' OR ', $partes) . ')';
+    }
+
+    /**
+     * Obtiene el factor CF de cada período. Si no existe, usa 0.127.
+     */
+    private static function obtenerFactoresPorMes(PDO $db, array $periodos): array
+    {
+        $factorCM = 0.013;
+        $factorCFDefault = 0.127;
+        $factores = [];
+
+        foreach ($periodos as $periodo) {
+            $factores[$periodo] = [
+                'periodo'      => $periodo,
+                'factor_cf'    => $factorCFDefault,
+                'factor_cm'    => $factorCM,
+                'factor_total' => round($factorCFDefault + $factorCM, 3)
+            ];
+        }
+
+        if (empty($periodos)) {
+            return $factores;
+        }
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($periodos), '?'));
+            $stmt = $db->prepare("SELECT periodo, factor_cf FROM conf_factor_alimento WHERE periodo IN ({$placeholders})");
+            $stmt->execute(array_values($periodos));
+
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $periodo = (string)$row['periodo'];
+                if (!isset($factores[$periodo])) {
+                    continue;
+                }
+                $cf = (float)$row['factor_cf'];
+                $factores[$periodo]['factor_cf'] = $cf;
+                $factores[$periodo]['factor_total'] = round($cf + $factorCM, 3);
+            }
+        } catch (Exception $e) {
+            // Mantener los valores por defecto si la tabla no existe o falla.
+        }
+
+        return $factores;
+    }
+
     public static function handle(PDO $db, array $filtros): array
     {
         $fechaInicio = !empty($filtros['fecha_inicio']) ? trim($filtros['fecha_inicio']) : '2026-08-01';
         $fechaFin    = !empty($filtros['fecha_fin']) ? trim($filtros['fecha_fin']) : '2026-08-31';
+
+        if ($fechaInicio > $fechaFin) {
+            $tmp = $fechaInicio;
+            $fechaInicio = $fechaFin;
+            $fechaFin = $tmp;
+        }
 
         // Si se envía fecha_inicio igual a fecha_fin (ej. '2026-08-27'),
         // se ajusta fechaInicio al 1er día del mes (ej. '2026-08-01') actuando fechaFin como fecha de corte
@@ -13,45 +194,31 @@ class CA04RevisionAlimentoHandler
             $fechaInicio = date('Y-m-01', strtotime($fechaFin));
         }
 
-        // 1. Determinar el fechahisto adecuado en histcostdiaalim2
-        $fechahisto = null;
-        if (!empty($filtros['fechahisto'])) {
-            $fechahisto = trim($filtros['fechahisto']);
-        } else {
-            $sqlFecha = "SELECT fechahisto 
-                         FROM histcostdiaalim2 
-                         WHERE fechahisto <= :fec_fin 
-                         ORDER BY fechahisto DESC 
-                         LIMIT 1";
-            $stmtF = $db->prepare($sqlFecha);
-            $stmtF->execute([':fec_fin' => $fechaFin]);
-            $fechahisto = $stmtF->fetchColumn();
+        // 1. Obtener un snapshot (fechahisto) por cada mes del rango
+        $fechahistoForzado = !empty($filtros['fechahisto']) ? trim($filtros['fechahisto']) : null;
+        $rangosHistoricos = self::obtenerRangosHistoricos($db, $fechaInicio, $fechaFin, $fechahistoForzado);
 
-            if (!$fechahisto) {
-                $sqlFirst = "SELECT fechahisto FROM histcostdiaalim2 ORDER BY fechahisto DESC LIMIT 1";
-                $fechahisto = $db->query($sqlFirst)->fetchColumn() ?: $fechaFin;
+        // 2. Determinar los períodos y factores CF de cada mes
+        $periodosRango = self::obtenerPeriodosRango($fechaInicio, $fechaFin);
+        if (!empty($fechahistoForzado)) {
+            $periodoForzado = substr($fechahistoForzado, 0, 7);
+            if (!in_array($periodoForzado, $periodosRango, true)) {
+                $periodosRango[] = $periodoForzado;
             }
         }
+        $factoresPorMes = self::obtenerFactoresPorMes($db, $periodosRango);
 
-        // 2. Determinar el período (YYYY-MM) para el factor CF
-        $periodo = substr($fechahisto, 0, 7); // ej: '2026-08'
-
-        // 3. Obtener el factor CF desde la tabla de configuración conf_factor_alimento
-        $factorCF = 0.127; // Valor por defecto
-        try {
-            $stmtCF = $db->prepare("SELECT factor_cf FROM conf_factor_alimento WHERE periodo = :periodo LIMIT 1");
-            $stmtCF->execute([':periodo' => $periodo]);
-            $cfVal = $stmtCF->fetchColumn();
-            if ($cfVal !== false && $cfVal !== null) {
-                $factorCF = (float)$cfVal;
-            }
-        } catch (Exception $e) {
-            // Si la tabla no existe o error, mantener valor por defecto
-            $factorCF = 0.127;
-        }
+        $periodo = !empty($periodosRango) ? $periodosRango[count($periodosRango) - 1] : date('Y-m');
+        $fechahisto = !empty($rangosHistoricos) ? $rangosHistoricos[count($rangosHistoricos) - 1]['fechahisto'] : $fechaFin;
 
         $factorCM = 0.013; // Fijo constante
-        $factorTotal = $factorCF + $factorCM;
+        $factorCF = isset($factoresPorMes[$periodo]) ? (float)$factoresPorMes[$periodo]['factor_cf'] : 0.127;
+        $factorTotal = isset($factoresPorMes[$periodo]) ? (float)$factoresPorMes[$periodo]['factor_total'] : ($factorCF + $factorCM);
+        $factorTotalDefault = round(0.127 + $factorCM, 3);
+
+        // 3. Construir el filtro que combina todos los snapshots mensuales
+        $paramsHist = [];
+        $whereHist = self::construirWhereHistoricos($rangosHistoricos, $paramsHist);
 
         // 4. Mapeo de meses y días en español
         $diasSemana = [
@@ -76,26 +243,30 @@ class CA04RevisionAlimentoHandler
                             SUM(valor) AS sum_valor,
                             (SUM(valor) / NULLIF(SUM(peso), 0)) AS pu
                        FROM histcostdiaalim2
-                       WHERE fechahisto = :fechahisto AND fecha BETWEEN :fec_ini AND :fec_fin
+                       WHERE {$whereHist}
                        GROUP BY fecha
                        ORDER BY fecha ASC";
 
         $stmtGen = $db->prepare($sqlGeneral);
-        $stmtGen->execute([
-            ':fechahisto' => $fechahisto,
-            ':fec_ini'    => $fechaInicio,
-            ':fec_fin'    => $fechaFin
-        ]);
+        $stmtGen->execute($paramsHist);
         $rawGeneral = $stmtGen->fetchAll(PDO::FETCH_ASSOC);
 
         $fechasLabels = [];
         $fechasAsc = [];
         $generalSinFactor = [];
         $generalConFactor = [];
+        $periodosPorFecha = [];
 
         foreach ($rawGeneral as $row) {
             $fec = $row['fecha'];
             $fechasAsc[] = $fec;
+
+            $periodoFecha = substr($fec, 0, 7);
+            $periodosPorFecha[] = $periodoFecha;
+            $factorTotalFecha = isset($factoresPorMes[$periodoFecha])
+                ? (float)$factoresPorMes[$periodoFecha]['factor_total']
+                : $factorTotalDefault;
+
             $ts = strtotime($fec);
             $dNum = (int)date('j', $ts);
             $mNum = (int)date('n', $ts);
@@ -104,7 +275,7 @@ class CA04RevisionAlimentoHandler
 
             $pu = $row['pu'] !== null ? round((float)$row['pu'], 3) : 0;
             $generalSinFactor[] = $pu;
-            $generalConFactor[] = round($pu + $factorTotal, 3);
+            $generalConFactor[] = round($pu + $factorTotalFecha, 3);
         }
 
         // 6. Consultar Series Individuales por Alimento (Gráfico Superior Derecho)
@@ -117,16 +288,12 @@ class CA04RevisionAlimentoHandler
                             SUM(valor) AS valor,
                             (SUM(valor) / NULLIF(SUM(peso), 0)) AS pu
                           FROM histcostdiaalim2
-                          WHERE fechahisto = :fechahisto AND fecha BETWEEN :fec_ini AND :fec_fin
+                          WHERE {$whereHist}
                           GROUP BY coditem, nomitem, fecha
                           ORDER BY coditem ASC, fecha ASC";
 
         $stmtIndiv = $db->prepare($sqlIndividual);
-        $stmtIndiv->execute([
-            ':fechahisto' => $fechahisto,
-            ':fec_ini'    => $fechaInicio,
-            ':fec_fin'    => $fechaFin
-        ]);
+        $stmtIndiv->execute($paramsHist);
         $rawIndiv = $stmtIndiv->fetchAll(PDO::FETCH_ASSOC);
 
         // Agrupar puntos por coditem
@@ -197,16 +364,12 @@ class CA04RevisionAlimentoHandler
                             SUM(valor) AS total_valor,
                             (SUM(valor) / NULLIF(SUM(peso), 0)) AS total_pu
                        FROM histcostdiaalim2
-                       WHERE fechahisto = :fechahisto AND fecha BETWEEN :fec_ini AND :fec_fin
+                       WHERE {$whereHist}
                        GROUP BY tipo, coditem, nomitem
                        ORDER BY tipo ASC, coditem ASC";
 
         $stmtTotItem = $db->prepare($sqlTotItem);
-        $stmtTotItem->execute([
-            ':fechahisto' => $fechahisto,
-            ':fec_ini'    => $fechaInicio,
-            ':fec_fin'    => $fechaFin
-        ]);
+        $stmtTotItem->execute($paramsHist);
         $rawTotItem = $stmtTotItem->fetchAll(PDO::FETCH_ASSOC);
 
         // 8.2 Datos Diarios por Item
@@ -218,16 +381,12 @@ class CA04RevisionAlimentoHandler
                             SUM(valor) AS valor,
                             (SUM(valor) / NULLIF(SUM(peso), 0)) AS pu
                        FROM histcostdiaalim2
-                       WHERE fechahisto = :fechahisto AND fecha BETWEEN :fec_ini AND :fec_fin
+                       WHERE {$whereHist}
                        GROUP BY tipo, coditem, fecha
                        ORDER BY tipo ASC, coditem ASC, fecha DESC";
 
         $stmtDiaItem = $db->prepare($sqlDiaItem);
-        $stmtDiaItem->execute([
-            ':fechahisto' => $fechahisto,
-            ':fec_ini'    => $fechaInicio,
-            ':fec_fin'    => $fechaFin
-        ]);
+        $stmtDiaItem->execute($paramsHist);
         $rawDiaItem = $stmtDiaItem->fetchAll(PDO::FETCH_ASSOC);
 
         $mapaDiaItem = [];
@@ -248,16 +407,12 @@ class CA04RevisionAlimentoHandler
                             SUM(valor) AS total_valor,
                             (SUM(valor) / NULLIF(SUM(peso), 0)) AS total_pu
                       FROM histcostdiaalim2
-                      WHERE fechahisto = :fechahisto AND fecha BETWEEN :fec_ini AND :fec_fin
+                      WHERE {$whereHist}
                       GROUP BY tipo
                       ORDER BY tipo ASC";
 
         $stmtSubTot = $db->prepare($sqlSubTot);
-        $stmtSubTot->execute([
-            ':fechahisto' => $fechahisto,
-            ':fec_ini'    => $fechaInicio,
-            ':fec_fin'    => $fechaFin
-        ]);
+        $stmtSubTot->execute($paramsHist);
         $rawSubTot = $stmtSubTot->fetchAll(PDO::FETCH_ASSOC);
 
         $mapaSubTot = [];
@@ -278,16 +433,12 @@ class CA04RevisionAlimentoHandler
                             SUM(valor) AS valor,
                             (SUM(valor) / NULLIF(SUM(peso), 0)) AS pu
                       FROM histcostdiaalim2
-                      WHERE fechahisto = :fechahisto AND fecha BETWEEN :fec_ini AND :fec_fin
+                      WHERE {$whereHist}
                       GROUP BY tipo, fecha
                       ORDER BY tipo ASC, fecha DESC";
 
         $stmtSubDia = $db->prepare($sqlSubDia);
-        $stmtSubDia->execute([
-            ':fechahisto' => $fechahisto,
-            ':fec_ini'    => $fechaInicio,
-            ':fec_fin'    => $fechaFin
-        ]);
+        $stmtSubDia->execute($paramsHist);
         $rawSubDia = $stmtSubDia->fetchAll(PDO::FETCH_ASSOC);
 
         $mapaSubDia = [];
@@ -336,12 +487,17 @@ class CA04RevisionAlimentoHandler
         return [
             'tipo_grafico'        => 'CA04 RevisionAlimento',
             'fechahisto'          => $fechahisto,
+            'fechahistos'         => array_column($rangosHistoricos, 'fechahisto'),
             'periodo'             => $periodo,
+            'periodos'            => $periodosRango,
+            'factoresPorMes'      => $factoresPorMes,
             'factor_cf'           => $factorCF,
             'factor_cm'           => $factorCM,
             'factor_total'        => $factorTotal,
             'fecha_inicio'        => $fechaInicio,
             'fecha_fin'           => $fechaFin,
+            'fechas'              => $fechasAsc,
+            'periodosFechas'      => $periodosPorFecha,
             'fechasLabels'        => $fechasLabels,
             'generalSinFactor'    => $generalSinFactor,
             'generalConFactor'    => $generalConFactor,
