@@ -25,6 +25,38 @@ class CostosTradicionalesController {
             }
             this.chartInstance = null;
         }
+
+        // Destruir cualquier instancia de Chart.js que haya quedado en el contenedor
+        const contenedor = document.getElementById('contenedor-grafica-costo');
+        if (contenedor && typeof Chart !== 'undefined' && typeof Chart.getChart === 'function') {
+            contenedor.querySelectorAll('canvas').forEach(canvas => {
+                const instancia = Chart.getChart(canvas);
+                if (instancia) {
+                    try {
+                        instancia.destroy();
+                    } catch (e) {
+                        console.warn('Error al destruir gráfico residual:', e);
+                    }
+                }
+            });
+        }
+    }
+
+    resetContenedorGrafica() {
+        const contenedor = document.getElementById('contenedor-grafica-costo');
+        if (contenedor) {
+            contenedor.className = 'relative w-full h-[400px] p-4';
+            contenedor.innerHTML = '<canvas id="chart-costo-produccion" style="image-rendering: -webkit-optimize-contrast;"></canvas>';
+        }
+
+        const badges = document.getElementById('contenedor-badges-grafica');
+        if (badges) badges.innerHTML = '';
+
+        const cardTabla = document.getElementById('card-tabla-metricas');
+        if (cardTabla) cardTabla.classList.add('hidden');
+
+        const tooltip = document.getElementById('tooltip-tableau-costos');
+        if (tooltip) tooltip.classList.add('hidden');
     }
 
     async init() {
@@ -238,10 +270,13 @@ class CostosTradicionalesController {
                 const data = res.payload || res.data || res;
                 this.datosDashboard = data;
 
+                // Limpiar la vista anterior antes de montar la nueva
+                this.destruirGraficaActual();
+                this.resetContenedorGrafica();
+
                 // Despacho Modular automático mediante ChartRegistry para gráficos nuevos
                 if (window.ChartRegistry && window.ChartRegistry[tipoGrafico]) {
                     this.chartTipoActual = tipoGrafico;
-                    this.destruirGraficaActual();
                     window.ChartRegistry[tipoGrafico].render(this, data);
                 } else if (tipoGrafico === 'CP08 TendenciaInsumos' || tipoGrafico === 'CP08') {
                     this.configurarVistaCP08(data);
@@ -1083,13 +1118,36 @@ class CostosTradicionalesController {
             maxAlim = Math.max(2.74, Math.ceil((maxV + 0.04) * 100) / 100);
         }
 
-        const getSmartAlignment = (datasetIdx, dataIdx) => {
+        const getSmartAlignment = (datasetIdx, context) => {
+            const dataIdx = context.dataIndex;
             const prodVal = valoresProd[dataIdx];
             const alimVal = valoresAlim[dataIdx];
 
             const normProd = (prodVal - minProd) / (maxProd - minProd || 1);
             const normAlim = (alimVal - minAlim) / (maxAlim - minAlim || 1);
             const diff = normProd - normAlim;
+
+            let yProd = null;
+            let yAlim = null;
+            try {
+                const chart = context.chart;
+                if (chart && chart.scales && chart.scales.y && chart.scales.y1) {
+                    yProd = chart.scales.y.getPixelForValue(prodVal);
+                    yAlim = chart.scales.y1.getPixelForValue(alimVal);
+                }
+            } catch (e) {
+                yProd = null;
+                yAlim = null;
+            }
+
+            // Si los puntos están muy cerca en pantalla, separar etiquetas arriba/abajo
+            if (yProd !== null && yAlim !== null && Math.abs(yProd - yAlim) < 26) {
+                const prodArriba = yProd < yAlim;
+                if (datasetIdx === 0) {
+                    return prodArriba ? 'top' : 'bottom';
+                }
+                return prodArriba ? 'bottom' : 'top';
+            }
 
             if (datasetIdx === 0) {
                 if (diff < 0.12 || (dataIdx > 0 && prodVal < valoresProd[dataIdx - 1] && dataIdx < valoresProd.length - 1 && prodVal < valoresProd[dataIdx + 1])) {
@@ -1118,8 +1176,12 @@ class CostosTradicionalesController {
             pointBorderColor: '#ffffff',
             pointBorderWidth: 1.5,
             datalabels: {
-                align: (context) => getSmartAlignment(0, context.dataIndex),
-                offset: 6,
+                align: (context) => getSmartAlignment(0, context),
+                offset: 10,
+                clamp: true,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: 3,
+                padding: { top: 1, bottom: 1, left: 3, right: 3 },
                 color: '#2b5c8f',
                 font: {
                     family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -1144,8 +1206,12 @@ class CostosTradicionalesController {
             pointBorderColor: '#ffffff',
             pointBorderWidth: 1.5,
             datalabels: {
-                align: (context) => getSmartAlignment(1, context.dataIndex),
-                offset: 6,
+                align: (context) => getSmartAlignment(1, context),
+                offset: 10,
+                clamp: true,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: 3,
+                padding: { top: 1, bottom: 1, left: 3, right: 3 },
                 color: '#c0392b',
                 font: {
                     family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -1175,7 +1241,7 @@ class CostosTradicionalesController {
                 maintainAspectRatio: false,
                 devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
-                    padding: { top: 28, bottom: 12, left: 12, right: 12 }
+                    padding: { top: 32, bottom: 18, left: 20, right: 40 }
                 },
                 interaction: {
                     mode: 'index',
@@ -1402,6 +1468,7 @@ class CostosTradicionalesController {
                         return 'top';
                     },
                     offset: 6,
+                    clamp: true,
                     color: paleta.texto,
                     font: {
                         family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -1432,7 +1499,7 @@ class CostosTradicionalesController {
                 maintainAspectRatio: false,
                 devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
-                    padding: { top: 28, bottom: 12, left: 12, right: 12 }
+                    padding: { top: 32, bottom: 16, left: 20, right: 40 }
                 },
                 interaction: {
                     mode: 'index',
@@ -2828,6 +2895,7 @@ class CostosTradicionalesController {
                 anchor: 'center',
                 align: 'top',
                 offset: 8,
+                clamp: true,
                 color: (ctx) => {
                     const val = valoresPU[ctx.dataIndex];
                     return getColorPorValor(val);
@@ -2860,7 +2928,7 @@ class CostosTradicionalesController {
                 maintainAspectRatio: false,
                 devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
-                    padding: { top: 32, bottom: 8, left: 10, right: 10 }
+                    padding: { top: 32, bottom: 16, left: 20, right: 40 }
                 },
                 interaction: {
                     mode: 'index',
@@ -3106,6 +3174,7 @@ class CostosTradicionalesController {
                     anchor: 'center',
                     align: 'top',
                     offset: 6,
+                    clamp: true,
                     color: color,
                     font: {
                         family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -3136,7 +3205,7 @@ class CostosTradicionalesController {
                 maintainAspectRatio: false,
                 devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
-                    padding: { top: 32, bottom: 8, left: 10, right: 10 }
+                    padding: { top: 32, bottom: 16, left: 20, right: 40 }
                 },
                 interaction: {
                     mode: 'index',

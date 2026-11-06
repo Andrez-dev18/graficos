@@ -58,6 +58,23 @@ window.ChartRegistry['CP05 CAABBvsICA'] = {
         const dataCostoXKg = puntos.map(p => Number(p.costo_x_kg || 0));
         const dataICA = puntos.map(p => Number(p.ica || 0));
 
+        const getSmartAlignment = (datasetIdx, context) => {
+            const idx = context.dataIndex;
+            try {
+                const chart = context.chart;
+                if (chart && chart.scales && chart.scales.y && chart.scales.y1) {
+                    const yCosto = chart.scales.y.getPixelForValue(dataCostoXKg[idx]);
+                    const yICA = chart.scales.y1.getPixelForValue(dataICA[idx]);
+                    const costoArriba = yCosto < yICA;
+                    if (datasetIdx === 0) return costoArriba ? 'top' : 'bottom';
+                    return costoArriba ? 'bottom' : 'top';
+                }
+            } catch (e) {
+                return 'top';
+            }
+            return 'top';
+        };
+
         // Calcular escalas mínimas y máximas dinámicas
         const minCosto = Math.min(...dataCostoXKg);
         const maxCosto = Math.max(...dataCostoXKg);
@@ -103,8 +120,12 @@ window.ChartRegistry['CP05 CAABBvsICA'] = {
                         pointBorderWidth: 1.5,
                         yAxisID: 'y',
                         datalabels: {
-                            align: 'top',
-                            offset: 6,
+                            align: (context) => getSmartAlignment(0, context),
+                            offset: 10,
+                            clamp: true,
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            borderRadius: 3,
+                            padding: { top: 1, bottom: 1, left: 3, right: 3 },
                             color: '#2b5c8f',
                             font: { size: 11, weight: 'bold' },
                             formatter: (v) => Number(v).toFixed(3).replace('.', ',')
@@ -124,8 +145,12 @@ window.ChartRegistry['CP05 CAABBvsICA'] = {
                         pointBorderWidth: 1.5,
                         yAxisID: 'y1',
                         datalabels: {
-                            align: 'top',
-                            offset: 6,
+                            align: (context) => getSmartAlignment(1, context),
+                            offset: 10,
+                            clamp: true,
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            borderRadius: 3,
+                            padding: { top: 1, bottom: 1, left: 3, right: 3 },
                             color: '#d97706',
                             font: { size: 11, weight: 'bold' },
                             formatter: (v) => Number(v).toFixed(3).replace('.', ',')
@@ -138,7 +163,7 @@ window.ChartRegistry['CP05 CAABBvsICA'] = {
                 maintainAspectRatio: false,
                 devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
                 layout: {
-                    padding: { top: 25, bottom: 5, left: 10, right: 10 }
+                    padding: { top: 32, bottom: 16, left: 20, right: 40 }
                 },
                 interaction: {
                     mode: 'index',
