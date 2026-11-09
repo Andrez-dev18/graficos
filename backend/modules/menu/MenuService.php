@@ -10,13 +10,13 @@ class MenuService
         $this->repo = new MenuRepository($db);
     }
 
-    public function obtenerMenuJerarquico($usuarioCodigo, $epre)
+    public function obtenerMenuJerarquico($usuarioCodigo, $epre, $idPrograma = '5')
     {
         if (empty($usuarioCodigo) || empty($epre)) {
             throw new Exception("Faltan datos de identificación del usuario.");
         }
 
-        $modulosPlanos = $this->repo->getMenuPermitido($usuarioCodigo, $epre, '5');
+        $modulosPlanos = $this->repo->getMenuPermitido($usuarioCodigo, $epre, $idPrograma);
 
         return $this->construirArbol($modulosPlanos);
     }

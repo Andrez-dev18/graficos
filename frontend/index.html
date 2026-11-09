@@ -554,7 +554,7 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar rounded-r-2xl">
         <!-- Logo/Header -->
-        <div class="p-6 border-b border-blue-700 sidebar-header-container">
+        <div class="p-6 border-b border-blue-700 sidebar-header-container shrink-0">
             <div class="flex items-center justify-between sidebar-brand-row">
                 <div class="flex items-center gap-4 sidebar-brand-content">
                     <div class="w-12 h-15 bg-transparent rounded-lg flex items-center justify-center shrink-0">
@@ -609,11 +609,13 @@
                     </div>
                 </details>
             </div>
+
+            <div id="accesoDirectoContainer" class="mt-6"></div>
         </div>
 
         <!-- Menu -->
         <!-- Navbar actualizado -->
-        <nav id="navMenuPrincipal" class="p-4 space-y-2 overflow-y-auto" style="max-height: calc(100vh - 130px);"></nav>
+        <nav id="navMenuPrincipal" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-2"></nav>
 
 
 
@@ -864,12 +866,13 @@
             const lastUrl = sessionStorage.getItem('last_dashboard_url');
             const lastTipo = sessionStorage.getItem('last_dashboard_tipo');
             const lastTitle = sessionStorage.getItem('last_dashboard_title');
+            const lastCodMod = sessionStorage.getItem('last_dashboard_cod_mod');
 
             if (lastUrl) {
                 window.restauracionActiva = true;
 
                 setTimeout(() => {
-                    loadDashboardAndData(lastUrl, lastTipo, lastTitle);
+                    loadDashboardAndData(lastUrl, lastTipo, lastTitle, lastCodMod);
 
                     document.querySelectorAll('.menu-link').forEach(link => {
                         if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(lastUrl)) {
@@ -965,7 +968,7 @@
             document.getElementById('loadingIndicator').classList.add('hidden');
         }
 
-        function loadDashboardAndData(dashboardUrl, tipo, title) {
+        function loadDashboardAndData(dashboardUrl, tipo, title, codMod = null) {
             const defaultUrl = window.moduloInicialPorDefecto ? window.moduloInicialPorDefecto.url : 'principal.html';
 
             // ESCUDO: Bloquea regreso involuntario al inicio si estamos restaurando tras F5 o enrutando
@@ -978,14 +981,30 @@
                 sessionStorage.setItem('last_dashboard_url', dashboardUrl);
                 sessionStorage.setItem('last_dashboard_tipo', tipo);
                 sessionStorage.setItem('last_dashboard_title', title);
+                sessionStorage.setItem('last_dashboard_cod_mod', codMod || '');
             } else {
                 sessionStorage.removeItem('last_dashboard_url');
                 sessionStorage.removeItem('last_dashboard_tipo');
                 sessionStorage.removeItem('last_dashboard_title');
+                sessionStorage.removeItem('last_dashboard_cod_mod');
             }
 
             const frame = document.getElementById('dashboardFrame');
             const titulo = document.getElementById('dashboardTitle');
+
+            const esDashboardPrincipal = codMod === 'sg-dash-principal' || (dashboardUrl || '').includes('dashPrincipal/dashPrincipal.html');
+            const esRestauracion = window.restauracionActiva || window.enrutamientoActivo;
+            const yaCargado = dashboardUrl ? (frame.src || '').includes(dashboardUrl) : false;
+            const debeRegistrar = dashboardUrl &&
+                dashboardUrl !== defaultUrl &&
+                dashboardUrl !== 'principal.html' &&
+                !esDashboardPrincipal &&
+                !esRestauracion &&
+                !yaCargado;
+
+            if (debeRegistrar) {
+                registrarAccesoDashboard(dashboardUrl, codMod, title);
+            }
 
             titulo.textContent = title || 'Dashboard';
             showLoading();
@@ -1000,7 +1019,7 @@
                 }
             };
 
-            if (frame.src.includes(dashboardUrl)) {
+            if (yaCargado) {
                 run();
             } else {
                 frame.onload = run;
@@ -1013,14 +1032,31 @@
             }
         }
 
+        function registrarAccesoDashboard(url, codMod, titulo) {
+            if (!window.AppConfig || !AppConfig.API || !AppConfig.API.BASE_URL) return;
+
+            fetch(`${AppConfig.API.BASE_URL}/dashboardPrincipal/acceso`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                keepalive: true,
+                body: JSON.stringify({
+                    cod_mod: codMod || null,
+                    url: url,
+                    titulo: titulo || ''
+                })
+            }).catch(() => { });
+        }
+
         function volverAlInicio() {
             sessionStorage.removeItem('last_dashboard_url');
             sessionStorage.removeItem('last_dashboard_tipo');
             sessionStorage.removeItem('last_dashboard_title');
+            sessionStorage.removeItem('last_dashboard_cod_mod');
 
             if (window.moduloInicialPorDefecto) {
                 const m = window.moduloInicialPorDefecto;
-                loadDashboardAndData(m.url, m.tipo_param || '', m.titulo || m.nom_mod);
+                loadDashboardAndData(m.url, m.tipo_param || '', m.titulo || m.nom_mod, m.cod_mod);
                 if (window.menuPrincipal && m.tipo !== 'main') {
                     window.menuPrincipal.seleccionarModuloPorUrl(m.url);
                 }
@@ -1152,9 +1188,9 @@
             markActiveElement(element);
         }
 
-        function activateAndLoad(buttonOrLink, dashboardUrl, tipo, title) {
+        function activateAndLoad(buttonOrLink, dashboardUrl, tipo, title, codMod = null) {
             markActiveElement(buttonOrLink);
-            loadDashboardAndData(dashboardUrl, tipo, title);
+            loadDashboardAndData(dashboardUrl, tipo, title, codMod);
         }
 
         function togglePasswordVisibility(inputId, btnEl) {
@@ -1220,6 +1256,8 @@
     <script src="modules/auth/auth.service.js"></script>
     <script src="modules/menu/modulosControl.service.js"></script>
     <script src="modules/menu/menuNav.controller.js"></script>
+    <script src="modules/menu/accesoRapido.service.js"></script>
+    <script src="modules/menu/accesoRapido.controller.js"></script>
     <script src="modules/menu/cambiarContra.controller.js"></script>
     <script src="core/session.controller.js"></script>
     <script src="core/utils/sessionUtils.js"></script>

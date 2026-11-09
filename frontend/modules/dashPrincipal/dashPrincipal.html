@@ -6,17 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Principal | Core BI</title>
 
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
     <style>
-        /* Scrollbar personalizada suave */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -35,669 +28,225 @@
             background: #94a3b8;
         }
 
-        /* Animación suave de entrada */
         .fade-in {
-            animation: fadeIn 0.35s ease-in-out;
+            animation: fadeIn 0.25s ease-out;
         }
 
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(4px);
+                transform: translateY(3px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
+
+        .acceso-eliminar {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+            transition-delay: 0ms;
+        }
+
+        .group:hover .acceso-eliminar {
+            opacity: 1;
+            pointer-events: auto;
+            transition-delay: 500ms;
+        }
+
+        .acceso-eliminar:focus {
+            opacity: 1;
+            pointer-events: auto;
+            transition-delay: 0ms;
+        }
     </style>
 </head>
 
 <body class="bg-slate-50 text-slate-800">
+    <div class="space-y-5 fade-in">
 
-    <div class="space-y-6 fade-in">
-
-        <!-- =========================================================
-             1. HEADER BIENVENIDA (DISEÑO LIMPIO Y CORPORATIVO)
-             ========================================================= -->
-        <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shrink-0 border border-blue-100/80">
-                    <i class="fas fa-chart-pie"></i>
+        <!-- Encabezado -->
+        <header class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <i class="fa-solid fa-chart-pie"></i>
                 </div>
                 <div>
-                    <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                        Bienvenido, <span id="lblNombreUsuario" class="text-blue-600 font-extrabold">Usuario</span>
+                    <h1 class="text-base font-semibold leading-tight text-slate-900 sm:text-lg">
+                        Bienvenido, <span id="lblNombreUsuario" class="text-blue-600">Usuario</span>
                     </h1>
-                    <p class="text-xs text-slate-500 mt-0.5">
+                    <p class="mt-0.5 text-xs text-slate-500">
                         Panel de accesos rápidos y estadísticas de uso de Core BI
                     </p>
                 </div>
             </div>
+        </header>
 
-            <div class="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
-                <div class="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5">
-                    <i class="far fa-calendar-alt text-slate-400"></i>
-                    <span id="lblFechaActual">Sábado, 31 de octubre de 2026</span>
-                </div>
-                <div class="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5">
-                    <i class="fas fa-user-circle text-blue-500"></i>
-                    <span id="lblCodigoUsuario" class="font-medium text-slate-700">Administrador</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- =========================================================
-             2. KPIS DE TELEMETRÍA Y ADOPCIÓN DEL SISTEMA (SEGUROS PARA CUALQUIER ROL)
-             ========================================================= -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-            <!-- KPI 1: Dashboards Disponibles -->
-            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition">
-                <div class="flex items-start justify-between">
+        <!-- KPIs -->
+        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                <div class="flex items-start justify-between gap-3">
                     <div>
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Dashboards Asignados</span>
-                        <h3 class="text-2xl font-black text-slate-900 mt-1" id="kpiTotalModulos">24 Módulos</h3>
-                        <p class="text-xs text-slate-500 font-medium">Habilitados para tu perfil de usuario</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dashboards asignados</p>
+                        <p class="mt-1 text-xl font-bold text-slate-900" id="kpiTotalModulos">0 módulos</p>
+                        <p class="mt-0.5 text-xs text-slate-500">Habilitados para tu perfil</p>
                     </div>
-                    <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
-                        <i class="fas fa-layer-group"></i>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-sm text-blue-500">
+                        <i class="fa-solid fa-layer-group"></i>
                     </div>
                 </div>
-                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                    <span class="text-emerald-600 font-semibold"><i class="fas fa-shield-halved mr-1"></i> Permisos verificados</span>
+                <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px]">
+                    <span class="font-medium text-emerald-600"><i class="fa-solid fa-shield-halved mr-1"></i>Permisos verificados</span>
                     <span class="text-slate-400">Rol activo</span>
                 </div>
             </div>
 
-            <!-- KPI 2: Tus Consultas Realizadas -->
-            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition">
-                <div class="flex items-start justify-between">
+            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                <div class="flex items-start justify-between gap-3">
                     <div>
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tus Accesos Hoy</span>
-                        <h3 class="text-2xl font-black text-slate-900 mt-1">14 Consultas</h3>
-                        <p class="text-xs text-slate-500 font-medium">Dashboards revisados en tu sesión</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tus accesos hoy</p>
+                        <p class="mt-1 text-xl font-bold text-slate-900" id="kpiConsultasHoy">0 consultas</p>
+                        <p class="mt-0.5 text-xs text-slate-500">Dashboards abiertos durante el día</p>
                     </div>
-                    <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
-                        <i class="fas fa-clock-rotate-left"></i>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-sm text-indigo-500">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
                     </div>
                 </div>
-                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                    <span class="text-indigo-600 font-semibold"><i class="fas fa-bolt mr-1"></i> Sesión fluida</span>
+                <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px]">
+                    <span class="font-medium text-slate-500"><i class="fa-solid fa-bolt mr-1"></i>Sesión fluida</span>
                     <span class="text-slate-400">Sin demoras</span>
                 </div>
             </div>
 
-            <!-- KPI 3: Último Dashboard Consultado (Continuar donde te quedaste) -->
-            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition flex flex-col justify-between">
-                <div class="flex items-start justify-between">
-                    <div class="min-w-0 flex-1 pr-2">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Último Consultado</span>
-                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 mt-1 truncate" title="Análisis Mermas por Placa">
-                            Mermas por Placa
-                        </h3>
-                        <p class="text-xs text-slate-500 font-medium">Hace 45 minutos</p>
+            <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Último consultado</p>
+                        <p class="mt-1 truncate text-sm font-semibold text-slate-900" id="kpiUltimoNombre" title="">
+                            Sin actividad reciente
+                        </p>
+                        <p class="mt-0.5 text-xs text-slate-500" id="kpiUltimoTiempo">—</p>
                     </div>
-                    <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg shrink-0">
-                        <i class="fas fa-history"></i>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-sm text-purple-500">
+                        <i class="fa-solid fa-history"></i>
                     </div>
                 </div>
-                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span class="text-purple-600 font-semibold"><i class="fas fa-arrow-rotate-right text-[10px] mr-1"></i> Continuar donde estabas</span>
-                    <button onclick="navegarAModulo('modules/mermaPlaca/mermaPlaca.html', 'Análisis Mermas por Placa')" class="text-purple-600 hover:text-purple-800 font-bold transition flex items-center gap-0.5">
-                        Reanudar <i class="fas fa-chevron-right text-[10px]"></i>
+                <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px]">
+                    <span class="font-medium text-slate-500" id="kpiUltimoFooter">
+                        <i class="fa-solid fa-arrow-rotate-right mr-1 text-[10px]"></i>Aún no has abierto ningún dashboard
+                    </span>
+                    <button id="kpiUltimoBtn" onclick="window.dashPrincipalController.abrirUltimoConsultado()"
+                        class="hidden items-center gap-0.5 font-medium text-blue-600 transition hover:text-blue-700">
+                        Reanudar <i class="fa-solid fa-chevron-right text-[10px]"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- KPI 4: Tu Módulo Más Frecuente (Favorito personal) -->
-            <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200 hover:shadow-md transition flex flex-col justify-between">
-                <div class="flex items-start justify-between">
-                    <div class="min-w-0 flex-1 pr-2">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tu #1 Más Frecuente</span>
-                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 mt-1 truncate" title="Ventas y Devoluciones">
-                            Ventas Resumen
-                        </h3>
-                        <p class="text-xs text-slate-500 font-medium">42 consultas este mes</p>
+            <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tu #1 más frecuente</p>
+                        <p class="mt-1 truncate text-sm font-semibold text-slate-900" id="kpiFrecuenteNombre" title="">
+                            Sin actividad este mes
+                        </p>
+                        <p class="mt-0.5 text-xs text-slate-500" id="kpiFrecuenteDetalle">—</p>
                     </div>
-                    <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg shrink-0">
-                        <i class="fas fa-star"></i>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-sm text-amber-500">
+                        <i class="fa-solid fa-star"></i>
                     </div>
                 </div>
-                <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span class="text-amber-600 font-semibold"><i class="fas fa-chart-pie text-[10px] mr-1"></i> 35% de tu actividad</span>
-                    <button onclick="navegarAModulo('modules/ventasResumen/ventasResumen.html', 'Análisis Venta Resumen')" class="text-amber-600 hover:text-amber-800 font-bold transition flex items-center gap-0.5">
-                        Abrir <i class="fas fa-chevron-right text-[10px]"></i>
+                <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px]">
+                    <span class="font-medium text-slate-500" id="kpiFrecuenteActividad">
+                        <i class="fa-solid fa-chart-pie mr-1 text-[10px]"></i>Sin visitas registradas
+                    </span>
+                    <button id="kpiFrecuenteBtn" onclick="window.dashPrincipalController.abrirMasFrecuente()"
+                        class="hidden items-center gap-0.5 font-medium text-blue-600 transition hover:text-blue-700">
+                        Abrir <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Accesos directos -->
+        <section class="rounded-lg border border-slate-200 bg-white">
+            <div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-900">Accesos directos</h2>
+                    <p class="mt-0.5 text-xs text-slate-500">Selecciona hasta 12 módulos para abrirlos con un clic.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <span id="badgeConteoAsignados" class="text-xs text-slate-500">0 de 12 asignados</span>
+                    <button id="btnModoEdicion" onclick="window.dashPrincipalController.toggleModoEdicion()"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50">
+                        <i class="fa-solid fa-pen text-[10px]"></i>
+                        <span id="lblModoEdicion">Editar</span>
                     </button>
                 </div>
             </div>
 
-        </div>
+            <div id="contenedorCuadricula12"
+                class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div class="col-span-full py-8 text-center text-sm text-slate-400">
+                    Cargando módulos...
+                </div>
+            </div>
+        </section>
 
-        <!-- =========================================================
-             3. CUADRÍCULA DE ACCESOS RÁPIDOS (12 ESPACIOS PERSONALIZABLES)
-             ========================================================= -->
-        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200/80">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg shrink-0 border border-amber-200/60">
-                        <i class="fas fa-star"></i>
-                    </div>
+    </div>
+
+    <!-- Modal de selección -->
+    <div id="modalSeleccionarDashboard" class="fixed inset-0 z-50 hidden bg-slate-900/40 p-4">
+        <div class="flex h-full items-center justify-center">
+            <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+
+                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                     <div>
-                        <div class="flex items-center gap-2">
-                            <h2 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">Configuración de Accesos Rápidos</h2>
-                            <span id="badgeConteoAsignados" class="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
-                                8 / 12 Asignados
-                            </span>
-                        </div>
-                        <p class="text-xs text-slate-500 mt-0.5">
-                            Personaliza hasta 12 accesos directos para tu panel principal. Haz clic en una casilla para abrir o asignar un nuevo destino.
+                        <h3 class="text-sm font-semibold text-slate-900">Seleccionar módulo</h3>
+                        <p class="mt-0.5 text-xs text-slate-500">
+                            Casilla <span id="lblModalNumeroCasilla" class="font-medium text-slate-700">#1</span>
                         </p>
                     </div>
-                </div>
-
-                <!-- Botones de Acción de la Cuadrícula -->
-                <div class="flex items-center gap-2 self-start sm:self-center">
-                    <button id="btnModoEdicion" onclick="toggleModoEdicion()"
-                        class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition">
-                        <i class="fas fa-pen-to-square text-[11px]"></i>
-                        <span id="lblModoEdicion">Modo Configuración</span>
-                    </button>
-                    <button onclick="restablecerAccesosPorDefecto()" title="Restablecer cuadrícula por defecto"
-                        class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200/60 transition">
-                        <i class="fas fa-rotate-left"></i>
-                        <span class="hidden sm:inline">Restablecer</span>
+                    <button onclick="window.dashPrincipalController.cerrarModalSeleccion()" aria-label="Cerrar"
+                        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-            </div>
 
-            <!-- Grilla de 12 Casillas (4 columnas x 3 filas) -->
-            <div id="contenedorCuadricula12" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                <!-- Se llena dinámicamente con JavaScript -->
-            </div>
-        </div>
-
-    </div>
-
-    <!-- =========================================================
-         MODAL DE SELECCIÓN DE DASHBOARD (ASIGNACIÓN A CASILLA)
-         ========================================================= -->
-    <div id="modalSeleccionarDashboard" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-[fadeIn_0.2s_ease-out]">
-            
-            <!-- Cabecera del modal -->
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm shadow-xs">
-                        <i class="fas fa-star"></i>
+                <div class="border-b border-slate-100 p-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                        <input type="text" id="inputBuscarDashboardModal" oninput="window.dashPrincipalController.filtrarCatalogoModulos()"
+                            placeholder="Buscar módulo"
+                            class="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                     </div>
-                    <div>
-                        <h3 class="text-sm sm:text-base font-bold text-slate-900">
-                            Asignar Dashboard al Espacio <span id="lblModalNumeroCasilla" class="text-blue-600 font-extrabold">#1</span>
-                        </h3>
-                        <p class="text-xs text-slate-500">Selecciona el módulo que deseas tener a la mano en esta casilla</p>
-                    </div>
-                </div>
-                <button onclick="cerrarModalSeleccion()" class="text-slate-400 hover:text-red-500 w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition">
-                    <i class="fas fa-times text-base"></i>
-                </button>
-            </div>
 
-            <!-- Buscador y Filtro por Categoría -->
-            <div class="p-4 border-b border-slate-100 bg-white space-y-3">
-                <div class="relative">
-                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="inputBuscarDashboardModal" oninput="filtrarCatalogoModulos()"
-                        placeholder="Buscar entre los más de 20 dashboards disponibles..."
-                        class="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                    <div class="mt-3 flex flex-wrap items-center gap-1.5" id="filtrosCategoriasModal"></div>
                 </div>
 
-                <!-- Filtros de categoría -->
-                <div class="flex flex-wrap items-center gap-1.5 text-xs" id="filtrosCategoriasModal">
-                    <button type="button" onclick="filtrarPorCategoriaModal('TODOS', this)" class="cat-pill active px-2.5 py-1 rounded-lg font-semibold text-xs bg-blue-600 text-white transition">Todos</button>
-                    <button type="button" onclick="filtrarPorCategoriaModal('Comercial', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Comercial</button>
-                    <button type="button" onclick="filtrarPorCategoriaModal('Contabilidad', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Contabilidad</button>
-                    <button type="button" onclick="filtrarPorCategoriaModal('Operaciones', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Operaciones</button>
-                    <button type="button" onclick="filtrarPorCategoriaModal('Mercados ASO', this)" class="cat-pill px-2.5 py-1 rounded-lg font-semibold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Mercados ASO</button>
+                <div id="listaDashboardsModal" class="custom-scrollbar flex-1 space-y-1 overflow-y-auto p-3" style="max-height: 380px;">
+                    <!-- Se inyecta dinámicamente con JS -->
                 </div>
-            </div>
 
-            <!-- Lista de Dashboards Disponibles -->
-            <div id="listaDashboardsModal" class="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-2 max-h-[380px]">
-                <!-- Se inyecta dinámicamente con JS -->
-            </div>
-
-            <!-- Footer del Modal -->
-            <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-                <button id="btnQuitarAsignacion" type="button" onclick="quitarAsignacionCasillaActual()"
-                    class="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg font-semibold transition border border-transparent hover:border-red-200">
-                    <i class="fas fa-trash-can mr-1"></i> Dejar Casilla Libre
-                </button>
-                <button type="button" onclick="cerrarModalSeleccion()"
-                    class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition">
-                    Cerrar
-                </button>
+                <div class="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3">
+                    <button id="btnQuitarAsignacion" type="button" onclick="window.dashPrincipalController.quitarAsignacionCasillaActual()"
+                        class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50">
+                        <i class="fa-solid fa-trash-can text-[10px]"></i> Dejar casilla libre
+                    </button>
+                    <button type="button" onclick="window.dashPrincipalController.cerrarModalSeleccion()"
+                        class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100">
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- =========================================================
-         SCRIPTS: GESTIÓN DE ACCESOS DIRECTOS Y 12 CASILLAS
-         ========================================================= -->
-    <script>
-        // Catálogo maestro de Dashboards disponibles en Core BI
-        const CATALOGO_DASHBOARDS = [
-            // Comercial
-            { id: 'ventasResumen', nombre: 'Ventas y Devoluciones', categoria: 'Comercial', icono: 'fa-chart-line', bgIcon: 'bg-blue-600', url: 'modules/ventasResumen/ventasResumen.html', desc: 'Plan vs Real, devoluciones por motivo, clientes y desglose por línea.' },
-            { id: 'tomasDescisiones', nombre: 'Tomas de Decisiones', categoria: 'Comercial', icono: 'fa-chess-knight', bgIcon: 'bg-indigo-600', url: 'modules/tomasDescisiones/tomasDescisiones.html', desc: 'Proyecciones diarias, tasas, ventas e indicadores semanales.' },
-            { id: 'controlClientes', nombre: 'Control de Clientes', categoria: 'Comercial', icono: 'fa-users', bgIcon: 'bg-blue-700', url: 'modules/controlClientes/controlClientes.html', desc: 'Gestión y seguimiento comercial de clientes.' },
-            { id: 'ventas2025', nombre: 'Ventas 2025', categoria: 'Comercial', icono: 'fa-calendar-days', bgIcon: 'bg-blue-600', url: 'modules/Ventas2025/Ventas2025.html', desc: 'Reportes y comparativos anuales de ventas 2025.' },
-
-            // Contabilidad y Finanzas
-            { id: 'saldos', nombre: 'Cuentas por Cobrar', categoria: 'Contabilidad', icono: 'fa-wallet', bgIcon: 'bg-emerald-600', url: 'modules/saldos/saldos.html', desc: 'Saldos por cuenta y cliente, cartera morosa y cobranzas.' },
-            { id: 'costoDiario', nombre: 'Costos Diarios de Granja', categoria: 'Contabilidad', icono: 'fa-calculator', bgIcon: 'bg-emerald-700', url: 'modules/costoDiario/costoDiario.html', desc: 'Costo por kilo, evolución productiva y costo de fórmulas.' },
-            { id: 'costosTradicionales', nombre: 'Costos Tradicionales', categoria: 'Contabilidad', icono: 'fa-file-invoice', bgIcon: 'bg-teal-600', url: 'modules/costosTradicionales/costosTradicionales.html', desc: 'Estructura contable tradicional de costos.' },
-            { id: 'eeggypp', nombre: 'Ganancias y Pérdidas (EEGGyPP)', categoria: 'Contabilidad', icono: 'fa-file-invoice-dollar', bgIcon: 'bg-emerald-800', url: 'modules/EEGGyPP/EEGGyPP.html', desc: 'Estado financiero de Ganancias y Pérdidas de Lima.' },
-            { id: 'analisisPrecios', nombre: 'Análisis de Precios', categoria: 'Contabilidad', icono: 'fa-tags', bgIcon: 'bg-emerald-600', url: 'modules/analisisPrecios/analisisPrecios.html', desc: 'Análisis de precios y márgenes contables.' },
-            { id: 'presupuestosPAB', nombre: 'Presupuestos PAB', categoria: 'Contabilidad', icono: 'fa-coins', bgIcon: 'bg-emerald-700', url: 'modules/presupuestosPAB/presupuestosPAB.html', desc: 'Presupuesto PAB y proyecciones de planta.' },
-
-            // Operaciones, Logística y Producción
-            { id: 'mermaPlaca', nombre: 'Mermas por Placa', categoria: 'Operaciones', icono: 'fa-truck-ramp-box', bgIcon: 'bg-purple-600', url: 'modules/mermaPlaca/mermaPlaca.html', desc: 'Control de mermas de transporte en vivo por camión y chofer.' },
-            { id: 'almaMermas', nombre: 'Almacén Mermas Vivo', categoria: 'Operaciones', icono: 'fa-warehouse', bgIcon: 'bg-purple-700', url: 'modules/almaMermas/almaMermas.html', desc: 'Control de almacén y mermas de ave viva.' },
-            { id: 'analisisTransporte', nombre: 'Análisis de Transportes', categoria: 'Operaciones', icono: 'fa-truck-fast', bgIcon: 'bg-purple-600', url: 'modules/analisisTransporte/analisisTransporte.html', desc: 'Costos de fletes, rutas y correlación de transporte.' },
-            { id: 'analisisPT0', nombre: 'Planta Beneficio (PT0)', categoria: 'Operaciones', icono: 'fa-boxes-stacked', bgIcon: 'bg-violet-600', url: 'modules/AnalisisPT0/AnalisisPT0.html', desc: 'Producto terminado y rendimientos de faenado.' },
-            { id: 'tempTransporte', nombre: 'Temperatura Transporte BB', categoria: 'Operaciones', icono: 'fa-temperature-half', bgIcon: 'bg-amber-600', url: 'modules/tempTransporte/tempTransporte.html', desc: 'Dataloggers de temperatura y humedad en transporte de pollito.' },
-            { id: 'tempDataLogger', nombre: 'Temperatura Ambiental', categoria: 'Operaciones', icono: 'fa-temperature-arrow-up', bgIcon: 'bg-amber-700', url: 'modules/tempDataLogger/tempDataLogger.html', desc: 'Monitoreo ambiental en galpones y granjas.' },
-            { id: 'trazabilidad', nombre: 'Trazabilidad Laboratorio', categoria: 'Operaciones', icono: 'fa-vial-circle-check', bgIcon: 'bg-cyan-700', url: 'modules/trazabilidad/trazabilidad.html', desc: 'Trazabilidad de resultados de laboratorio y sanidad.' },
-
-            // Mercados ASO
-            { id: 'infoMercados', nombre: 'Información de Mercados ASO', categoria: 'Mercados ASO', icono: 'fa-shop', bgIcon: 'bg-amber-600', url: 'modules/InfoMercados/InfoMercados.html', desc: 'Precios en mercados mayoristas Lima y Arequipa.' },
-            { id: 'infoMercado2', nombre: 'Información de Mercados 2', categoria: 'Mercados ASO', icono: 'fa-store', bgIcon: 'bg-amber-700', url: 'modules/InfoMercado2/InfoMercado2.html', desc: 'Precios de aves vivas y faenadas en mercados.' },
-            { id: 'criadorEmpre', nombre: 'Criadores Emprendedores', categoria: 'Mercados ASO', icono: 'fa-user-group', bgIcon: 'bg-orange-600', url: 'modules/CriadorEmpre/CriadorEmpre.html', desc: 'Comparativo de criadores y empresas del sector.' },
-            { id: 'ingEmpLima', nombre: 'Ingreso Empresas Lima', categoria: 'Mercados ASO', icono: 'fa-city', bgIcon: 'bg-orange-700', url: 'modules/IngEmpLima/IngEmpLima.html', desc: 'Oferta y volumen de ingreso de empresas avícolas a Lima.' },
-            { id: 'asoGallina', nombre: 'Mercado de Gallina', categoria: 'Mercados ASO', icono: 'fa-egg', bgIcon: 'bg-amber-600', url: 'modules/AsoGallina/AsoGallina.html', desc: 'Precios y comportamiento del mercado de gallinas.' },
-            { id: 'productoSusti', nombre: 'Productos Sustitutos', categoria: 'Mercados ASO', icono: 'fa-drumstick-bite', bgIcon: 'bg-rose-600', url: 'modules/productoSusti/productoSusti.html', desc: 'Precios de carne de res, cerdo y pescado en mercados.' }
-        ];
-
-        // Estado de los 12 espacios (inicialmente 8 asignados y 4 libres)
-        const ACCESOS_POR_DEFECTO = [
-            'ventasResumen',
-            'tomasDescisiones',
-            'saldos',
-            'mermaPlaca',
-            'infoMercados',
-            'costoDiario',
-            'tempTransporte',
-            'eeggypp',
-            null, // Espacio 9 Libre
-            null, // Espacio 10 Libre
-            null, // Espacio 11 Libre
-            null  // Espacio 12 Libre
-        ];
-
-        let misAccesos12 = [];
-        let modoEdicionActivo = false;
-        let casillaSeleccionadaIndex = null;
-        let categoriaFiltroActual = 'TODOS';
-
-        // 1. Inicializar la cuadrícula desde localStorage o defecto
-        function initAccesosDirectos() {
-            const guardados = localStorage.getItem('corebi_accesos_directos_12');
-            if (guardados) {
-                try {
-                    misAccesos12 = JSON.parse(guardados);
-                } catch (e) {
-                    misAccesos12 = [...ACCESOS_POR_DEFECTO];
-                }
-            } else {
-                misAccesos12 = [...ACCESOS_POR_DEFECTO];
-            }
-
-            // Asegurar que siempre tenga 12 casillas
-            while (misAccesos12.length < 12) {
-                misAccesos12.push(null);
-            }
-            if (misAccesos12.length > 12) {
-                misAccesos12 = misAccesos12.slice(0, 12);
-            }
-
-            renderizarCuadricula();
-        }
-
-        // 2. Renderizar las 12 casillas en el DOM
-        function renderizarCuadricula() {
-            const contenedor = document.getElementById('contenedorCuadricula12');
-            if (!contenedor) return;
-
-            let html = '';
-            let conteoAsignados = 0;
-
-            misAccesos12.forEach((moduloId, index) => {
-                const numeroCasilla = index + 1;
-                const modulo = moduloId ? CATALOGO_DASHBOARDS.find(m => m.id === moduloId) : null;
-
-                if (modulo) {
-                    conteoAsignados++;
-                    // CASILLA ASIGNADA (ESTILO INSPIRADO EN SISTEMA GRS)
-                    html += `
-                        <div onclick="clickEnCasilla(${index})"
-                            class="bg-white rounded-2xl p-4 sm:p-5 border border-blue-200/80 hover:border-blue-500 shadow-xs hover:shadow-md transition-all group flex flex-col items-center text-center justify-between min-h-[175px] relative cursor-pointer">
-                            
-                            <!-- Header de la Casilla -->
-                            <div class="w-full flex items-center justify-between mb-2">
-                                <span class="text-[10px] font-bold text-slate-400">#${numeroCasilla}</span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full truncate max-w-[100px]">
-                                    ${modulo.categoria}
-                                </span>
-                            </div>
-
-                            <!-- Icono Circular Grande (Estilo GRS) -->
-                            <div class="w-13 h-13 rounded-full ${modulo.bgIcon || 'bg-blue-600'} text-white flex items-center justify-center text-xl shadow-xs group-hover:scale-105 transition shrink-0 my-1">
-                                <i class="fas ${modulo.icono}"></i>
-                            </div>
-
-                            <!-- Nombre del Dashboard -->
-                            <h4 class="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-blue-600 transition line-clamp-2 leading-tight my-1">
-                                ${modulo.nombre}
-                            </h4>
-
-                            <!-- Pie de Casilla: Cambiar o Abrir -->
-                            <div class="w-full pt-2 mt-auto border-t border-slate-100 flex items-center justify-center">
-                                ${modoEdicionActivo ? `
-                                    <button onclick="abrirModalSeleccion(${index}); event.stopPropagation();"
-                                        class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md">
-                                        <i class="fas fa-pen text-[10px]"></i> Cambiar
-                                    </button>
-                                ` : `
-                                    <span class="text-[11px] font-semibold text-slate-400 group-hover:text-blue-600 transition flex items-center gap-1">
-                                        Abrir <i class="fas fa-chevron-right text-[9px]"></i>
-                                    </span>
-                                `}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // CASILLA DISPONIBLE / LIBRE
-                    html += `
-                        <div onclick="abrirModalSeleccion(${index})"
-                            class="bg-slate-50/70 rounded-2xl p-4 sm:p-5 border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/20 transition-all flex flex-col items-center justify-between text-center min-h-[175px] cursor-pointer group">
-                            
-                            <!-- Header de la Casilla Libre -->
-                            <div class="w-full flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-slate-300">#${numeroCasilla}</span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                                    Disponible
-                                </span>
-                            </div>
-
-                            <!-- Icono Circular con Plus -->
-                            <div class="w-12 h-12 rounded-full bg-white border border-slate-200 text-slate-400 group-hover:border-blue-400 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition shadow-2xs my-1">
-                                <i class="fas fa-plus text-base"></i>
-                            </div>
-
-                            <!-- Texto -->
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-500 group-hover:text-blue-600 transition">
-                                    Asignar Dashboard
-                                </h4>
-                                <p class="text-[10px] text-slate-400 mt-0.5">Espacio libre</p>
-                            </div>
-
-                            <div class="w-full pt-2 mt-auto border-t border-slate-200/60">
-                                <span class="text-[11px] font-semibold text-blue-500 group-hover:underline">
-                                    + Elegir destino
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-
-            contenedor.innerHTML = html;
-
-            // Actualizar badge de conteo
-            const badge = document.getElementById('badgeConteoAsignados');
-            if (badge) {
-                badge.textContent = `${conteoAsignados} / 12 Asignados`;
-            }
-        }
-
-        // 3. Click en una casilla
-        function clickEnCasilla(index) {
-            if (modoEdicionActivo) {
-                abrirModalSeleccion(index);
-                return;
-            }
-
-            const moduloId = misAccesos12[index];
-            if (!moduloId) {
-                abrirModalSeleccion(index);
-                return;
-            }
-
-            const modulo = CATALOGO_DASHBOARDS.find(m => m.id === moduloId);
-            if (modulo) {
-                navegarAModulo(modulo.url, modulo.nombre);
-            }
-        }
-
-        // 4. Alternar Modo Configuración / Edición
-        function toggleModoEdicion() {
-            modoEdicionActivo = !modoEdicionActivo;
-            const btn = document.getElementById('btnModoEdicion');
-            const lbl = document.getElementById('lblModoEdicion');
-
-            if (modoEdicionActivo) {
-                btn.classList.remove('bg-slate-100', 'text-slate-700');
-                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                lbl.textContent = 'Listo (Finalizar)';
-            } else {
-                btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                btn.classList.add('bg-slate-100', 'text-slate-700');
-                lbl.textContent = 'Modo Configuración';
-            }
-
-            renderizarCuadricula();
-        }
-
-        // 5. Modal de Selección
-        function abrirModalSeleccion(index) {
-            casillaSeleccionadaIndex = index;
-            document.getElementById('lblModalNumeroCasilla').textContent = `#${index + 1}`;
-
-            // Si la casilla ya tenía un módulo, mostrar botón de eliminar
-            const btnQuitar = document.getElementById('btnQuitarAsignacion');
-            if (misAccesos12[index]) {
-                btnQuitar.classList.remove('hidden');
-            } else {
-                btnQuitar.classList.add('hidden');
-            }
-
-            // Limpiar buscador y resetear categoría
-            document.getElementById('inputBuscarDashboardModal').value = '';
-            categoriaFiltroActual = 'TODOS';
-            document.querySelectorAll('#filtrosCategoriasModal .cat-pill').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'active');
-                btn.classList.add('bg-slate-100', 'text-slate-600');
-            });
-            const primerBtn = document.querySelector('#filtrosCategoriasModal .cat-pill');
-            if (primerBtn) {
-                primerBtn.classList.add('bg-blue-600', 'text-white', 'active');
-                primerBtn.classList.remove('bg-slate-100', 'text-slate-600');
-            }
-
-            renderizarCatalogoEnModal();
-            document.getElementById('modalSeleccionarDashboard').classList.remove('hidden');
-        }
-
-        function cerrarModalSeleccion() {
-            document.getElementById('modalSeleccionarDashboard').classList.add('hidden');
-            casillaSeleccionadaIndex = null;
-        }
-
-        // 6. Renderizar catálogo dentro del modal
-        function renderizarCatalogoEnModal() {
-            const contenedor = document.getElementById('listaDashboardsModal');
-            const busqueda = (document.getElementById('inputBuscarDashboardModal').value || '').toLowerCase().trim();
-
-            const filtrados = CATALOGO_DASHBOARDS.filter(mod => {
-                const matchCat = (categoriaFiltroActual === 'TODOS') || (mod.categoria === categoriaFiltroActual);
-                const matchBusqueda = mod.nombre.toLowerCase().includes(busqueda) ||
-                                      mod.desc.toLowerCase().includes(busqueda) ||
-                                      mod.categoria.toLowerCase().includes(busqueda);
-                return matchCat && matchBusqueda;
-            });
-
-            if (filtrados.length === 0) {
-                contenedor.innerHTML = `
-                    <div class="text-center py-8 text-slate-400 text-xs">
-                        <i class="fas fa-search text-2xl mb-2 text-slate-300"></i>
-                        <p>No se encontraron dashboards que coincidan.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = '';
-            filtrados.forEach(mod => {
-                // Verificar si ya está asignado en otra casilla
-                const casillaOcupadaIndex = misAccesos12.indexOf(mod.id);
-                const estaAsignadoAqui = casillaSeleccionadaIndex !== null && misAccesos12[casillaSeleccionadaIndex] === mod.id;
-
-                html += `
-                    <div onclick="asignarModuloACasilla('${mod.id}')"
-                        class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition cursor-pointer flex items-center justify-between gap-3 group">
-                        
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-10 h-10 rounded-xl ${mod.bgIcon || 'bg-blue-600'} text-white flex items-center justify-center shrink-0 text-sm shadow-xs">
-                                <i class="fas ${mod.icono}"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 truncate transition">
-                                        ${mod.nombre}
-                                    </h4>
-                                    <span class="text-[9px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                        ${mod.categoria}
-                                    </span>
-                                </div>
-                                <p class="text-[11px] text-slate-500 truncate mt-0.5">${mod.desc}</p>
-                            </div>
-                        </div>
-
-                        <div class="shrink-0">
-                            ${estaAsignadoAqui ? `
-                                <span class="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-200">
-                                    <i class="fas fa-check mr-1"></i> Asignado aquí
-                                </span>
-                            ` : casillaOcupadaIndex !== -1 ? `
-                                <span class="px-2.5 py-1 text-[11px] font-semibold text-slate-400 bg-slate-50 rounded-lg">
-                                    En casilla #${casillaOcupadaIndex + 1}
-                                </span>
-                            ` : `
-                                <button type="button" class="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-600 group-hover:text-white rounded-lg transition">
-                                    Seleccionar
-                                </button>
-                            `}
-                        </div>
-                    </div>
-                `;
-            });
-
-            contenedor.innerHTML = html;
-        }
-
-        function filtrarCatalogoModulos() {
-            renderizarCatalogoEnModal();
-        }
-
-        function filtrarPorCategoriaModal(categoria, btn) {
-            categoriaFiltroActual = categoria;
-            document.querySelectorAll('#filtrosCategoriasModal .cat-pill').forEach(b => {
-                b.classList.remove('bg-blue-600', 'text-white', 'active');
-                b.classList.add('bg-slate-100', 'text-slate-600');
-            });
-            btn.classList.add('bg-blue-600', 'text-white', 'active');
-            btn.classList.remove('bg-slate-100', 'text-slate-600');
-
-            renderizarCatalogoEnModal();
-        }
-
-        // 7. Guardar Asignación en la casilla
-        function asignarModuloACasilla(moduloId) {
-            if (casillaSeleccionadaIndex === null) return;
-
-            misAccesos12[casillaSeleccionadaIndex] = moduloId;
-            guardarAccesosDirectos();
-            renderizarCuadricula();
-            cerrarModalSeleccion();
-        }
-
-        // 8. Quitar asignación (dejar libre)
-        function quitarAsignacionCasillaActual() {
-            if (casillaSeleccionadaIndex === null) return;
-
-            misAccesos12[casillaSeleccionadaIndex] = null;
-            guardarAccesosDirectos();
-            renderizarCuadricula();
-            cerrarModalSeleccion();
-        }
-
-        // 9. Restablecer accesos directos por defecto
-        function restablecerAccesosPorDefecto() {
-            misAccesos12 = [...ACCESOS_POR_DEFECTO];
-            guardarAccesosDirectos();
-            renderizarCuadricula();
-        }
-
-        function guardarAccesosDirectos() {
-            localStorage.setItem('corebi_accesos_directos_12', JSON.stringify(misAccesos12));
-        }
-
-        // 10. Navegación hacia los dashboards (conecta con index.html)
-        function navegarAModulo(url, titulo) {
-            if (window.parent && typeof window.parent.loadDashboardAndData === 'function') {
-                window.parent.loadDashboardAndData(url, '', titulo);
-                if (window.parent.menuPrincipal) {
-                    window.parent.menuPrincipal.seleccionarModuloPorUrl(url);
-                }
-            } else {
-                console.log("Navegando a:", url, titulo);
-                window.location.href = `../../${url}`;
-            }
-        }
-
-        // 11. Cargar usuario de la sesión
-        function cargarDatosUsuario() {
-            try {
-                const userRaw = sessionStorage.getItem('usuario');
-                if (userRaw) {
-                    const u = JSON.parse(userRaw);
-                    if (u.nombre) {
-                        document.getElementById('lblNombreUsuario').textContent = u.nombre;
-                    }
-                    if (u.usuario) {
-                        document.getElementById('lblCodigoUsuario').textContent = `${u.usuario} • ${u.rol_comercial || 'Usuario'}`;
-                    }
-                }
-
-                const ahora = new Date();
-                const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-                const fechaStr = ahora.toLocaleDateString('es-ES', opciones);
-                const fechaCap = fechaStr.charAt(0).toUpperCase() + fechaStr.slice(1);
-                document.getElementById('lblFechaActual').textContent = fechaCap;
-
-            } catch (e) {
-                console.warn('Error cargando usuario:', e);
-            }
-        }
-
-        // Inicializar al cargar el DOM
-        document.addEventListener('DOMContentLoaded', () => {
-            cargarDatosUsuario();
-            initAccesosDirectos();
-        });
-    </script>
+    <script src="dashPrincipal.service.js"></script>
+    <script src="dashPrincipal.controller.js"></script>
 </body>
 
 </html>

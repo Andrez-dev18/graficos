@@ -33,7 +33,7 @@
                 sessionStorage.clear();
 
                 // Ajusta esta ruta a la ubicación exacta de tu login
-                window.top.location.href = '/graficos/frontend/login.html';
+                window.top.location.href = '/corebi/frontend/login.html';
 
                 return Promise.reject(new Error("Sesión expirada"));
             }

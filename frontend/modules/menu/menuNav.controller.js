@@ -33,7 +33,7 @@ class MenuNavController {
                 const titulo = moduloInicial.titulo || moduloInicial.nom_mod;
 
                 if (typeof loadDashboardAndData === 'function') {
-                    loadDashboardAndData(url, param, titulo);
+                    loadDashboardAndData(url, param, titulo, moduloInicial.cod_mod);
                 }
 
                 if (moduloInicial.tipo !== 'main') {
@@ -219,7 +219,7 @@ class MenuNavController {
         return `
         <div id="${nodo.cod_mod}" class="text-sm menu-sub-control">
             <a href="#"
-                onclick="selectMenuItem(this); loadDashboardAndData('${url}', '${param}', '${titulo}'); event.stopPropagation();"
+                onclick="selectMenuItem(this); loadDashboardAndData('${url}', '${param}', '${titulo}', '${nodo.cod_mod}'); event.stopPropagation();"
                 class="menu-link flex items-center justify-between w-full text-gray-400 hover:text-white py-1">
                 <span>${icono} ${nodo.nom_mod}</span>
             </a>
