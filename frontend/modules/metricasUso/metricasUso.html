@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Métricas de Uso | Core BI</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(3px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        table.dataTable thead th {
+            background-color: #2563eb !important;
+            border-bottom: 1px solid #1d4ed8 !important;
+            color: #ffffff !important;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        table.dataTable thead th span.dt-column-order::before,
+        table.dataTable thead th span.dt-column-order::after {
+            color: rgba(255, 255, 255, 0.75) !important;
+        }
+
+        table.dataTable tbody tr {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        table.dataTable tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        table.dataTable tbody td {
+            padding: 10px 16px;
+            vertical-align: middle;
+        }
+
+        .dt-container .dt-info,
+        .dt-container .dt-length {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .dt-container .dt-paging .dt-paging-button {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 6px !important;
+            color: #475569 !important;
+            font-size: 11px;
+            margin: 0 2px;
+            padding: 4px 9px !important;
+        }
+
+        div.dt-container .dt-paging .dt-paging-button.current,
+        div.dt-container .dt-paging .dt-paging-button.current:hover {
+            background: #2563eb !important;
+            border-color: #2563eb !important;
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+
+        .dt-container .dt-paging .dt-paging-button:hover:not(.disabled) {
+            background: #f1f5f9 !important;
+        }
+
+        .dt-container .dt-length select {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 11px;
+            padding: 2px 6px;
+        }
+
+        .dt-container .dt-processing {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .dt-container .dt-layout-row {
+            margin: 0;
+            padding: 10px 16px;
+        }
+
+        .dt-container .dt-layout-row:first-child {
+            padding-top: 0;
+        }
+
+        .dt-container .dt-layout-row:last-child {
+            padding-bottom: 14px;
+        }
+
+        .dt-container .dt-layout-cell {
+            padding: 0;
+        }
+
+        table.dataTable.display > tbody > tr > .sorting_1,
+        table.dataTable.display > tbody > tr > .sorting_2,
+        table.dataTable.display > tbody > tr > .sorting_3,
+        table.dataTable.order-column > tbody > tr > .sorting_1,
+        table.dataTable.order-column > tbody > tr > .sorting_2,
+        table.dataTable.order-column > tbody > tr > .sorting_3 {
+            box-shadow: none !important;
+        }
+
+        .barra-dato {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            height: 1.75rem;
+            min-width: 110px;
+            overflow: hidden;
+            border-radius: 0.375rem;
+            padding: 0 0.5rem;
+        }
+
+        .barra-dato__relleno {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            min-width: 40px;
+            border-radius: 0.375rem;
+            background: #1d4ed8;
+        }
+
+        .barra-dato__valor {
+            position: relative;
+            z-index: 10;
+            color: #ffffff;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800">
+    <div class=" fade-in">
+
+        <section id="accesoDenegado" class="hidden rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-red-500 shadow-sm">
+                <i class="fa-solid fa-lock text-lg"></i>
+            </div>
+            <h2 class="mt-3 text-sm font-semibold text-red-700">No tienes acceso a este módulo</h2>
+            <p class="mt-1 text-xs text-red-600">Solicita permisos al administrador del sistema.</p>
+        </section>
+
+        <div id="contenidoMetricas" class="space-y-5">
+
+            <header class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-base font-semibold leading-tight text-slate-900 sm:text-lg">
+                                Bienvenido, <span id="lblNombreUsuario" class="text-blue-600">…</span>
+                            </h1>
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                Métricas de uso, actividad y adopción del sistema
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex flex-col">
+                            <label for="select-tipo-periodo"
+                                class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">PERIODO</label>
+                            <select id="select-tipo-periodo"
+                                class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-medium rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                                <option value="por_mes" selected>Por mes</option>
+                                <option value="entre_meses">Entre meses</option>
+                                <option value="por_fecha">Por fecha</option>
+                                <option value="entre_fechas">Entre fechas</option>
+                                <option value="ultima_semana">Última semana</option>
+                                <option value="entre_semanas">Entre semanas</option>
+                            </select>
+                        </div>
+
+                        <div id="contenedor-inputs-periodo" class="flex items-end gap-2">
+                            <!-- Generado dinámicamente por PeriodoHelper -->
+                        </div>
+
+                        <button id="btnCargar" type="button"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow-md shadow-blue-500/20 transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Cargar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                    <p class="text-xs text-slate-500">
+                        Período analizado: <span id="periodoActual" class="font-medium text-slate-700">—</span>
+                    </p>
+                    <p class="text-[11px] text-slate-400">Máximo 1 año por consulta</p>
+                </div>
+            </header>
+
+            <div id="mensajeEstado" class="hidden rounded-lg border px-4 py-3 text-sm"></div>
+
+            <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Usuarios activos</p>
+                            <p class="mt-1 text-xl font-bold text-slate-900" id="kpiUsuariosActivos">0</p>
+                            <p class="mt-0.5 text-xs text-slate-500" id="kpiUsuariosActivosDetalle">0 con acceso actual</p>
+                        </div>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-sm text-blue-500">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Ingresos al sistema</p>
+                            <p class="mt-1 text-xl font-bold text-slate-900" id="kpiIngresos">0</p>
+                            <p class="mt-0.5 text-xs text-slate-500" id="kpiIngresosDetalle">0 usuarios ingresaron</p>
+                        </div>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-sm text-emerald-500">
+                            <i class="fa-solid fa-right-to-bracket"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Consultas</p>
+                            <p class="mt-1 text-xl font-bold text-slate-900" id="kpiConsultas">0</p>
+                            <p class="mt-0.5 text-xs text-slate-500" id="kpiConsultasDetalle">0 promedio por usuario activo</p>
+                        </div>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-sm text-indigo-500">
+                            <i class="fa-solid fa-chart-column"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Módulo más visitado</p>
+                            <p class="mt-1 truncate text-sm font-semibold text-slate-900" id="kpiModuloTop" title="">Sin actividad</p>
+                            <p class="mt-0.5 text-xs text-slate-500" id="kpiModuloTopDetalle">Sin consultas en el período</p>
+                        </div>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-sm text-amber-500">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 gap-3 xl:grid-cols-3">
+                <div class="rounded-xl border border-slate-200 bg-white p-4 xl:col-span-2">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Actividad diaria</h2>
+                            <p class="mt-0.5 text-xs text-slate-500">Consultas e ingresos por día</p>
+                        </div>
+                    </div>
+                    <div class="relative mt-4 h-72">
+                        <canvas id="chartSerieDiaria"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">Usuarios por rol</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Usuarios activos en el período</p>
+                    </div>
+                    <div class="relative mt-4 h-72">
+                        <canvas id="chartRoles"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">Top módulos</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Los 10 módulos más consultados</p>
+                    </div>
+                    <div class="relative mt-4 h-80">
+                        <canvas id="chartTopModulos"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">Top usuarios</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Los 10 usuarios con más consultas</p>
+                    </div>
+                    <div class="relative mt-4 h-80">
+                        <canvas id="chartTopUsuarios"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div class="border-b border-slate-100 px-4 pt-3">
+                    <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div class="flex items-center gap-1 overflow-x-auto" id="tabsDetalle" role="tablist" aria-label="Detalle de métricas">
+                            <button type="button" data-tab="modulos" role="tab" aria-selected="true"
+                                class="-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 border-blue-600 px-3 py-2 text-sm font-medium text-slate-900 transition">
+                                Módulos
+                                <span id="contadorTabModulos" class="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">0</span>
+                            </button>
+                            <button type="button" data-tab="usuarios" role="tab" aria-selected="false"
+                                class="-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-500 transition hover:text-slate-700">
+                                Usuarios
+                                <span id="contadorTabUsuarios" class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">0</span>
+                            </button>
+                            <button type="button" data-tab="inactivos" role="tab" aria-selected="false"
+                                class="-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-500 transition hover:text-slate-700">
+                                Sin actividad
+                                <span id="contadorTabInactivos" class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">0</span>
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pb-2 xl:pb-0">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400"></i>
+                                <input type="text" id="inputBuscarTabla" placeholder="Buscar módulo o categoría..."
+                                    class="h-8 w-56 rounded-md border border-slate-300 bg-white pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <select id="selectOrdenTabla"
+                                class="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                <option value="1:desc">Consultas ↓</option>
+                                <option value="2:desc">Usuarios ↓</option>
+                                <option value="0:asc">Módulo A-Z</option>
+                                <option value="3:desc">Último acceso ↓</option>
+                            </select>
+                            <button type="button" id="btnLimpiarTabla" title="Limpiar búsqueda y orden"
+                                class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600">
+                                <i class="fa-solid fa-eraser text-[11px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="panelModulos">
+                    <div class="overflow-x-auto">
+                        <table id="tblModulosDetalle" class="display min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2.5 text-left font-semibold">Módulo</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Consultas</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Usuarios</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Último acceso</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="panelUsuarios" class="hidden">
+                    <div class="overflow-x-auto">
+                        <table id="tblUsuariosDetalle" class="display min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2.5 text-left font-semibold">Usuario</th>
+                                    <th class="px-4 py-2.5 text-left font-semibold">Roles</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Ingresos</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Consultas</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Módulos</th>
+                                    <th class="px-4 py-2.5 text-right font-semibold">Último acceso</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="panelInactivos" class="hidden">
+                    <div class="overflow-x-auto">
+                        <table id="tblInactivosDetalle" class="display min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2.5 text-left font-semibold">Usuario</th>
+                                    <th class="px-4 py-2.5 text-left font-semibold">Nombre</th>
+                                    <th class="px-4 py-2.5 text-left font-semibold">Roles</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/20">
+        <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-lg">
+            <span class="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"></span>
+            <span class="text-sm text-slate-600">Cargando métricas...</span>
+        </div>
+    </div>
+
+    <script src="../../assets/utils-graficos/periodo-helper.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    <script src="metricasUso.service.js"></script>
+    <script src="metricasUso.controller.js"></script>
+</body>
+
+</html>
