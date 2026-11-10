@@ -1,3 +1,58 @@
+const doughnutValueLabelsPlugin = {
+    id: 'doughnutValueLabels',
+    afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const dataset = chart.data.datasets[0];
+        const meta = chart.getDatasetMeta(0);
+
+        if (!dataset || !meta || !meta.data) return;
+
+        ctx.save();
+        ctx.font = '700 11px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.55)';
+        ctx.shadowBlur = 3;
+
+        meta.data.forEach((arc, index) => {
+            const valor = Number(dataset.data[index] || 0);
+            if (valor <= 0) return;
+
+            const posicion = arc.tooltipPosition();
+            ctx.fillText(valor.toLocaleString('es-PE'), posicion.x, posicion.y);
+        });
+
+        ctx.restore();
+    }
+};
+
+const horizontalBarValueLabelsPlugin = {
+    id: 'horizontalBarValueLabels',
+    afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const dataset = chart.data.datasets[0];
+        const meta = chart.getDatasetMeta(0);
+
+        if (!dataset || !meta || !meta.data) return;
+
+        ctx.save();
+        ctx.font = '600 10px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#475569';
+
+        meta.data.forEach((bar, index) => {
+            const valor = Number(dataset.data[index] || 0);
+            if (valor <= 0) return;
+
+            ctx.fillText(valor.toLocaleString('es-PE'), bar.x + 6, bar.y);
+        });
+
+        ctx.restore();
+    }
+};
+
 class MetricasUsoController {
     constructor() {
         this.service = new MetricasUsoService();
@@ -30,6 +85,7 @@ class MetricasUsoController {
             inactivos: {}
         };
         this.busquedaDebounce = null;
+        this.modalModulosRequest = 0;
     }
 
     init() {
@@ -190,6 +246,29 @@ class MetricasUsoController {
             if (tabla) {
                 tabla.search('').order(this.ordenPorDefecto(this.tabActiva)).page(0).draw();
             }
+        });
+
+        document.getElementById('btnCerrarModalModulos')?.addEventListener('click', () => {
+            this.cerrarModalModulosUsuario();
+        });
+
+        document.getElementById('modalModulosUsuario')?.addEventListener('click', (event) => {
+            if (event.target.id === 'modalModulosUsuario') {
+                this.cerrarModalModulosUsuario();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.cerrarModalModulosUsuario();
+            }
+        });
+
+        document.getElementById('tblUsuariosDetalle')?.addEventListener('click', (event) => {
+            const boton = event.target.closest('[data-ver-modulos]');
+            if (!boton) return;
+
+            this.abrirModalModulosUsuario(boton.dataset.codUsuario, boton.dataset.nombre);
         });
     }
 
@@ -368,6 +447,8 @@ class MetricasUsoController {
         const canvas = document.getElementById('chartSerieDiaria');
         if (!canvas) return;
 
+        this.serieDiaria = serie;
+
         const labels = serie.map(item => this.formatearDiaCorto(item.dia));
         const consultas = serie.map(item => Number(item.consultas) || 0);
         const ingresos = serie.map(item => Number(item.ingresos) || 0);
@@ -421,7 +502,30 @@ class MetricasUsoController {
                     tooltip: {
                         backgroundColor: '#0f172a',
                         padding: 10,
-                        cornerRadius: 6
+                        cornerRadius: 6,
+                        callbacks: {
+                            title: (items) => {
+                                if (!items.length) return '';
+
+                                const dia = this.serieDiaria[items[0].dataIndex];
+                                return dia ? this.formatearFechaTooltip(dia.dia) : '';
+                            },
+                            afterBody: (items) => {
+                                if (!items.length) return [];
+
+                                const dia = this.serieDiaria[items[0].dataIndex];
+
+                                if (!dia) return [];
+
+                                return [
+                                    '',
+                                    `Usuarios activos: ${this.formatearNumero(dia.usuariosActivos || 0)}`,
+                                    `Usuarios que ingresaron: ${this.formatearNumero(dia.usuariosIngresaron || 0)}`,
+                                    `Módulos a que ingresaron: ${this.formatearNumero(dia.modulosDistintos || 0)}`,
+                                    `Promedio consultas/usuario: ${this.formatearNumero(dia.promedioConsultas || 0)}`
+                                ];
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -465,6 +569,7 @@ class MetricasUsoController {
                     borderWidth: 2
                 }]
             },
+            plugins: [doughnutValueLabelsPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -509,10 +614,14 @@ class MetricasUsoController {
                     barThickness: 16
                 }]
             },
+            plugins: [horizontalBarValueLabelsPlugin],
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { right: 34 }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -568,10 +677,27 @@ class MetricasUsoController {
                     barThickness: 16
                 }]
             },
+            plugins: [horizontalBarValueLabelsPlugin],
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (event, elements) => {
+                    if (!elements.length) return;
+
+                    const item = usuarios[elements[0].index];
+                    if (!item) return;
+
+                    this.abrirModalModulosUsuario(item.cod_usuario, item.nombre || item.cod_usuario);
+                },
+                onHover: (event, elements) => {
+                    if (!event.native || !event.native.target) return;
+
+                    event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                },
+                layout: {
+                    padding: { right: 34 }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -605,6 +731,119 @@ class MetricasUsoController {
                 }
             }
         });
+    }
+
+    obtenerPeriodoModal() {
+        if (this.periodoActual && this.periodoActual.desde && this.periodoActual.hasta) {
+            return this.periodoActual;
+        }
+
+        if (window.PeriodoHelper && typeof PeriodoHelper.obtenerRangoFechas === 'function') {
+            const rango = PeriodoHelper.obtenerRangoFechas();
+
+            return {
+                desde: rango.fechaInicio || rango.inicio || '',
+                hasta: rango.fechaFin || rango.fin || ''
+            };
+        }
+
+        return { desde: '', hasta: '' };
+    }
+
+    async abrirModalModulosUsuario(codUsuario, nombre) {
+        const modal = document.getElementById('modalModulosUsuario');
+        const body = document.getElementById('modalModulosUsuarioBody');
+
+        if (!modal || !body || !codUsuario) return;
+
+        const periodo = this.obtenerPeriodoModal();
+        const requestId = ++this.modalModulosRequest;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        this.setTexto('modalModulosUsuarioNombre', nombre || codUsuario);
+        this.setTexto('modalModulosUsuarioPeriodo', 'Período: ' + (
+            periodo.desde && periodo.hasta
+                ? `${this.formatearFechaCorta(periodo.desde)} - ${this.formatearFechaCorta(periodo.hasta)}`
+                : '—'
+        ));
+        this.setTexto('modalModulosUsuarioResumen', 'Cargando…');
+
+        body.innerHTML = `
+            <tr>
+                <td colspan="4" class="px-5 py-10 text-center text-sm text-slate-500">
+                    <span class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600 align-middle"></span>
+                    Cargando módulos...
+                </td>
+            </tr>
+        `;
+
+        try {
+            const data = await this.service.obtenerModulosUsuario(codUsuario, periodo);
+
+            if (requestId !== this.modalModulosRequest) return;
+
+            this.renderizarModulosUsuario(data);
+        } catch (error) {
+            if (requestId !== this.modalModulosRequest) return;
+
+            body.innerHTML = `
+                <tr>
+                    <td colspan="4" class="px-5 py-10 text-center text-sm text-red-600">
+                        ${this.escaparHtml(error.message || 'No se pudieron cargar los módulos.')}
+                    </td>
+                </tr>
+            `;
+            this.setTexto('modalModulosUsuarioResumen', 'Error');
+        }
+    }
+
+    renderizarModulosUsuario(data) {
+        const body = document.getElementById('modalModulosUsuarioBody');
+
+        if (!body) return;
+
+        const modulos = data.modulos || [];
+        const periodo = data.periodo || {};
+
+        if (!modulos.length) {
+            body.innerHTML = `
+                <tr>
+                    <td colspan="4" class="px-5 py-10 text-center text-sm text-slate-500">
+                        El usuario no registra consultas a módulos en el período seleccionado.
+                    </td>
+                </tr>
+            `;
+        } else {
+            body.innerHTML = modulos.map(item => `
+                <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <td class="px-5 py-3">
+                        <p class="text-sm font-medium text-slate-800">${this.escaparHtml(item.nom_mod)}</p>
+                        <p class="text-[11px] text-slate-400">${this.escaparHtml(item.cod_mod)}</p>
+                    </td>
+                    <td class="px-5 py-3 text-xs text-slate-600">${this.escaparHtml(item.categoria || 'Sin categoría')}</td>
+                    <td class="px-5 py-3 text-right text-sm font-semibold text-slate-800">${this.formatearNumero(item.consultas)}</td>
+                    <td class="px-5 py-3 text-right text-xs text-slate-500">${this.formatearFechaHora(item.ultimo_acceso)}</td>
+                </tr>
+            `).join('');
+        }
+
+        this.setTexto('modalModulosUsuarioPeriodo', 'Período: ' + (
+            periodo.desde && periodo.hasta
+                ? `${this.formatearFechaCorta(periodo.desde)} - ${this.formatearFechaCorta(periodo.hasta)}`
+                : '—'
+        ));
+        this.setTexto('modalModulosUsuarioResumen', `${this.formatearNumero(data.totalModulos || 0)} módulos · ${this.formatearNumero(data.totalConsultas || 0)} consultas`);
+    }
+
+    cerrarModalModulosUsuario() {
+        const modal = document.getElementById('modalModulosUsuario');
+
+        if (!modal) return;
+
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     }
 
     renderizarTablas(data) {
@@ -753,7 +992,7 @@ class MetricasUsoController {
                 {
                     data: 'modulos',
                     className: 'text-right',
-                    render: (data) => `<span class="text-sm text-slate-600">${this.formatearNumero(data)}</span>`
+                    render: (data, type, row) => this.renderModulosUsuarioBoton(data, row)
                 },
                 {
                     data: 'ultima_actividad',
@@ -807,6 +1046,22 @@ class MetricasUsoController {
                     ${mostrarCodigo ? `<p class="text-[11px] text-slate-400">${this.escaparHtml(row.cod_usuario)}</p>` : ''}
                 </div>
             </div>
+        `;
+    }
+
+    renderModulosUsuarioBoton(cantidad, row) {
+        const codUsuario = row.cod_usuario || '';
+        const nombre = row.nombre || codUsuario;
+
+        return `
+            <button type="button" data-ver-modulos
+                data-cod-usuario="${this.escaparHtml(codUsuario)}"
+                data-nombre="${this.escaparHtml(nombre)}"
+                class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition hover:text-blue-700"
+                title="Ver módulos consultados">
+                ${this.formatearNumero(cantidad)}
+                <i class="fa-solid fa-eye text-[10px]"></i>
+            </button>
         `;
     }
 
@@ -1004,6 +1259,19 @@ class MetricasUsoController {
         return valor.toLocaleDateString('es-PE', {
             day: '2-digit',
             month: '2-digit'
+        });
+    }
+
+    formatearFechaTooltip(dia) {
+        if (!dia) return '';
+
+        const valor = new Date(`${dia}T00:00:00`);
+        if (isNaN(valor.getTime())) return dia;
+
+        return valor.toLocaleDateString('es-PE', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
         });
     }
 

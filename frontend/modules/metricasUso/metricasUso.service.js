@@ -89,6 +89,40 @@ class MetricasUsoService {
     async obtenerInactivosDatatable(dtParams, periodo) {
         return this.obtenerDatatable('/metricasUso/inactivos/datatable', dtParams, periodo);
     }
+
+    async obtenerModulosUsuario(codUsuario, periodo) {
+        const params = new URLSearchParams({
+            cod_usuario: codUsuario || '',
+            desde: periodo && periodo.desde ? periodo.desde : '',
+            hasta: periodo && periodo.hasta ? periodo.hasta : ''
+        });
+
+        const response = await fetch(`${this.baseUrl}/metricasUso/usuario/modulos?${params.toString()}`, {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store'
+        });
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch (error) {
+            data = null;
+        }
+
+        if (!response.ok) {
+            const error = new Error((data && data.message) || `Error HTTP ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+
+        if (!data || !data.success) {
+            throw new Error((data && data.message) || 'No se pudieron obtener los módulos del usuario');
+        }
+
+        return data.data;
+    }
 }
 
 window.MetricasUsoService = MetricasUsoService;

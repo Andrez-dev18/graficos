@@ -38,7 +38,10 @@ class MetricasUsoRepository
 
     public function obtenerAccesosPorDia($idPrograma, $desde, $hasta)
     {
-        $query = "SELECT DATE(fechaHora) AS dia, COUNT(*) AS total
+        $query = "SELECT DATE(fechaHora) AS dia,
+                         COUNT(*) AS total,
+                         COUNT(DISTINCT cod_usuario) AS usuarios,
+                         COUNT(DISTINCT cod_mod) AS modulos
                   FROM com_db_dashboard_accesos
                   WHERE id_programa = :id_programa
                     AND fechaHora BETWEEN :desde AND :hasta
@@ -103,9 +106,38 @@ class MetricasUsoRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function obtenerModulosPorUsuario($idPrograma, $codUsuario, $desde, $hasta)
+    {
+        $query = "SELECT a.cod_mod,
+                         COALESCE(MAX(m.nom_mod), MAX(a.nom_mod), a.cod_mod) AS nom_mod,
+                         MAX(p.nom_mod) AS categoria,
+                         COUNT(*) AS consultas,
+                         MAX(a.fechaHora) AS ultimo_acceso
+                  FROM com_db_dashboard_accesos a
+                  LEFT JOIN amd_dashboard_modulos m ON m.cod_mod = a.cod_mod AND m.id_programa = a.id_programa
+                  LEFT JOIN amd_dashboard_modulos p ON p.cod_mod = m.parent_cod AND p.id_programa = m.id_programa
+                  WHERE a.id_programa = :id_programa
+                    AND a.cod_usuario = :cod_usuario
+                    AND a.fechaHora BETWEEN :desde AND :hasta
+                  GROUP BY a.cod_mod
+                  ORDER BY consultas DESC, ultimo_acceso DESC";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([
+            ':id_programa' => $idPrograma,
+            ':cod_usuario' => $codUsuario,
+            ':desde' => $desde,
+            ':hasta' => $hasta
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function obtenerIngresosPorDia($idPrograma, $desde, $hasta)
     {
-        $query = "SELECT DATE(fechaHora) AS dia, COUNT(*) AS total
+        $query = "SELECT DATE(fechaHora) AS dia,
+                         COUNT(*) AS total,
+                         COUNT(DISTINCT cod_usuario) AS usuarios
                   FROM com_historial_acciones
                   WHERE id_programa = :id_programa
                     AND accion = 'LOGIN'

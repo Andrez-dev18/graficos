@@ -253,6 +253,48 @@ class MetricasUsoService
         );
     }
 
+    public function obtenerModulosUsuario($codUsuario, $epre, $idPrograma, $params)
+    {
+        list($desde, $hasta) = $this->validarPeriodo($params['desde'] ?? '', $params['hasta'] ?? '');
+        $codUsuarioObjetivo = trim((string) ($params['cod_usuario'] ?? ''));
+
+        if ($codUsuarioObjetivo === '') {
+            throw new InvalidArgumentException('El usuario es obligatorio.');
+        }
+
+        $desdeSql = $desde . ' 00:00:00';
+        $hastaSql = $hasta . ' 23:59:59';
+
+        $accesos = $this->repo->obtenerModulosPorUsuario($idPrograma, $codUsuarioObjetivo, $desdeSql, $hastaSql);
+
+        $modulos = [];
+        $totalConsultas = 0;
+
+        foreach ($accesos as $fila) {
+            $consultas = (int) $fila['consultas'];
+            $totalConsultas += $consultas;
+
+            $modulos[] = [
+                'cod_mod' => $fila['cod_mod'],
+                'nom_mod' => trim(!empty($fila['nom_mod']) ? $fila['nom_mod'] : $fila['cod_mod']),
+                'categoria' => trim(!empty($fila['categoria']) ? $fila['categoria'] : 'Sin categoría'),
+                'consultas' => $consultas,
+                'ultimo_acceso' => $fila['ultimo_acceso']
+            ];
+        }
+
+        return [
+            'periodo' => [
+                'desde' => $desde,
+                'hasta' => $hasta
+            ],
+            'usuario' => $codUsuarioObjetivo,
+            'modulos' => $modulos,
+            'totalModulos' => count($modulos),
+            'totalConsultas' => $totalConsultas
+        ];
+    }
+
     public function obtenerInactivosDatatable($codUsuario, $epre, $idPrograma, $params)
     {
         list($desde, $hasta) = $this->validarPeriodo($params['desde'] ?? '', $params['hasta'] ?? '');
@@ -509,12 +551,19 @@ class MetricasUsoService
     {
         $accesosMap = [];
         foreach ($accesosDia as $fila) {
-            $accesosMap[$fila['dia']] = (int) $fila['total'];
+            $accesosMap[$fila['dia']] = [
+                'total' => (int) $fila['total'],
+                'usuarios' => (int) ($fila['usuarios'] ?? 0),
+                'modulos' => (int) ($fila['modulos'] ?? 0)
+            ];
         }
 
         $ingresosMap = [];
         foreach ($ingresosDia as $fila) {
-            $ingresosMap[$fila['dia']] = (int) $fila['total'];
+            $ingresosMap[$fila['dia']] = [
+                'total' => (int) $fila['total'],
+                'usuarios' => (int) ($fila['usuarios'] ?? 0)
+            ];
         }
 
         $serie = [];
@@ -526,10 +575,20 @@ class MetricasUsoService
 
         foreach ($periodo as $fecha) {
             $dia = $fecha->format('Y-m-d');
+            $acceso = $accesosMap[$dia] ?? ['total' => 0, 'usuarios' => 0, 'modulos' => 0];
+            $ingreso = $ingresosMap[$dia] ?? ['total' => 0, 'usuarios' => 0];
+
+            $consultas = (int) $acceso['total'];
+            $usuariosActivos = (int) $acceso['usuarios'];
+
             $serie[] = [
                 'dia' => $dia,
-                'consultas' => $accesosMap[$dia] ?? 0,
-                'ingresos' => $ingresosMap[$dia] ?? 0
+                'consultas' => $consultas,
+                'ingresos' => (int) $ingreso['total'],
+                'usuariosActivos' => $usuariosActivos,
+                'usuariosIngresaron' => (int) $ingreso['usuarios'],
+                'modulosDistintos' => (int) $acceso['modulos'],
+                'promedioConsultas' => $usuariosActivos > 0 ? round($consultas / $usuariosActivos, 2) : 0
             ];
         }
 

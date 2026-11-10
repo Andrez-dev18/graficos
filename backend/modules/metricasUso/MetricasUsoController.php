@@ -69,6 +69,39 @@ class MetricasUsoController
         $this->responderDatatable('obtenerInactivosDatatable');
     }
 
+    public function usuarioModulos()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            $usuario = $_SESSION['usuario'] ?? null;
+            $epre = $_SESSION['epre'] ?? 'RS';
+            $idPrograma = $_SESSION['id_programa'] ?? '5';
+
+            if (!$usuario) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'message' => 'Usuario no autenticado']);
+                return;
+            }
+
+            if (!$this->service->tienePermiso($usuario, $epre, $idPrograma)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => 'No tienes acceso a este módulo']);
+                return;
+            }
+
+            $data = $this->service->obtenerModulosUsuario($usuario, $epre, $idPrograma, $_GET);
+
+            echo json_encode(['success' => true, 'data' => $data]);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
     private function responderDatatable($metodo)
     {
         header('Content-Type: application/json');
