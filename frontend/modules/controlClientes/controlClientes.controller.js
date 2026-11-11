@@ -134,12 +134,19 @@ class ControlClientesController {
 
     async init() {
         this.cachearElementos();
-        this.actualizarVisibilidadFiltros();
 
         if (this.selectTipoGrafico) {
+            const seleccionInicial = this.selectTipoGrafico.value;
+
+            if (seleccionInicial && CONTROL_CLIENTES_CONFIG[seleccionInicial]) {
+                this.tipoGraficoActual = seleccionInicial;
+                this.config = CONTROL_CLIENTES_CONFIG[seleccionInicial];
+            }
+
             this.selectTipoGrafico.value = this.tipoGraficoActual;
         }
 
+        this.actualizarVisibilidadFiltros();
         this.setupListeners();
         this.actualizarSubtitulo();
         this.limpiarError();

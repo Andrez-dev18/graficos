@@ -67,6 +67,13 @@ class TiendasMercadosController {
         this.cachearElementos();
 
         if (this.selectTipoGrafico) {
+            const seleccionInicial = this.selectTipoGrafico.value;
+
+            if (seleccionInicial && TIENDAS_MERCADOS_CONFIG[seleccionInicial]) {
+                this.tipoGraficoActual = seleccionInicial;
+                this.config = TIENDAS_MERCADOS_CONFIG[seleccionInicial];
+            }
+
             this.selectTipoGrafico.value = this.tipoGraficoActual;
         }
 

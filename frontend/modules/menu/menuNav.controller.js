@@ -219,12 +219,24 @@ class MenuNavController {
         return `
         <div id="${nodo.cod_mod}" class="text-sm menu-sub-control">
             <a href="#"
+                data-url="${this.escaparAtributo(url)}"
+                data-titulo="${this.escaparAtributo(titulo)}"
+                data-cod-mod="${this.escaparAtributo(nodo.cod_mod)}"
+                data-tipo="${this.escaparAtributo(param)}"
                 onclick="selectMenuItem(this); loadDashboardAndData('${url}', '${param}', '${titulo}', '${nodo.cod_mod}'); event.stopPropagation();"
                 class="menu-link flex items-center justify-between w-full text-gray-400 hover:text-white py-1">
                 <span>${icono} ${nodo.nom_mod}</span>
             </a>
         </div>
         `;
+    }
+
+    escaparAtributo(valor) {
+        return String(valor === null || valor === undefined ? '' : valor)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 }
 

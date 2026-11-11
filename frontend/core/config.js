@@ -119,3 +119,78 @@ const AppSecurity = {
     }
 };
 window.AppSecurity = AppSecurity;
+
+(function () {
+    const STORAGE_KEY = '__corebiChartSelection';
+    const MAX_AGE = 8000;
+
+    function obtenerPendiente() {
+        try {
+            const raw = sessionStorage.getItem(STORAGE_KEY);
+
+            if (!raw) return null;
+
+            const pendiente = JSON.parse(raw);
+
+            if (!pendiente || typeof pendiente !== 'object') {
+                sessionStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
+
+            if (pendiente.ts && Date.now() - pendiente.ts > MAX_AGE) {
+                sessionStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
+
+            return pendiente;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function buscarSelect(pendiente) {
+        if (pendiente.selectorId) {
+            const porId = document.getElementById(pendiente.selectorId);
+
+            if (porId) return porId;
+        }
+
+        if (pendiente.selectorName) {
+            return Array.from(document.querySelectorAll('select'))
+                .find(select => select.getAttribute('name') === pendiente.selectorName) || null;
+        }
+
+        return null;
+    }
+
+    function aplicarPendiente() {
+        const pendiente = obtenerPendiente();
+
+        if (!pendiente) return true;
+
+        if (pendiente.url && pendiente.url !== window.location.pathname) {
+            return true;
+        }
+
+        const select = buscarSelect(pendiente);
+
+        if (!select) return false;
+
+        const existe = Array.from(select.options).some(option => option.value === pendiente.value);
+
+        if (!existe) return false;
+
+        select.value = pendiente.value;
+        sessionStorage.removeItem(STORAGE_KEY);
+
+        return true;
+    }
+
+    if (!aplicarPendiente()) {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (aplicarPendiente()) return;
+
+            setTimeout(aplicarPendiente, 100);
+        }, { once: true });
+    }
+})();
