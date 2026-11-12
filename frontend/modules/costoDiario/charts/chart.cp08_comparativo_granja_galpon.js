@@ -15,6 +15,11 @@ window.ChartCP08ComparativoGranjaGalpon = {
     nomcencosActivo: null,
     galponActivo: null,
     lineaSeleccionada: null,
+    galponesSeleccionados: [],
+    lineasSeleccionadas: [],
+    datosPorCencos: {},
+    promesasCencos: {},
+    cargaSeq: 0,
     multiGranja: null,
     multiClasif: null,
 
@@ -30,6 +35,19 @@ window.ChartCP08ComparativoGranjaGalpon = {
         this.nomcencosActivo = data.nomcencos_activo || (data.tabla1_datos_productivos?.granjas?.[0]?.nomcencos) || '';
         this.galponActivo = null;
         this.lineaSeleccionada = null;
+        this.galponesSeleccionados = [];
+        this.lineasSeleccionadas = [];
+        this.datosPorCencos = {};
+        this.promesasCencos = {};
+        this.cargaSeq = (this.cargaSeq || 0) + 1;
+
+        if (this.cencosActivo) {
+            this.datosPorCencos[String(this.cencosActivo)] = {
+                tabla2: data.tabla2_comparacion_linea || {},
+                tabla3: data.tabla3_comparativo_detalle || {},
+                nomcencos: this.nomcencosActivo
+            };
+        }
 
         // 1. Ocultar contenedores estándar
         const headerPrincipal = document.getElementById('card-header-grafica-principal');
@@ -309,6 +327,239 @@ window.ChartCP08ComparativoGranjaGalpon = {
     },
 
     filtrarLocalmente() {
+        if (this.multiGranja) {
+            const granjas = this.multiGranja.getSelectedValues();
+            const totalOpciones = this.multiGranja.options ? this.multiGranja.options.length : 0;
+
+            if (granjas.length > 0 && granjas.length < totalOpciones) {
+                const cencosAntes = this.obtenerCencosSeleccionados().join('|');
+
+                this.galponesSeleccionados = this.galponesSeleccionados.filter(item =>
+                    granjas.includes(String(item.cencos))
+                );
+
+                if (!this.galponesSeleccionados.length && this.cencosActivo && !granjas.includes(String(this.cencosActivo))) {
+                    this.cencosActivo = granjas[0];
+                    this.nomcencosActivo = this.nombreCencos(granjas[0]);
+                }
+
+                const cencosDespues = this.obtenerCencosSeleccionados().join('|');
+
+                if (cencosAntes !== cencosDespues) {
+                    this.lineasSeleccionadas = [];
+                }
+
+                this.sincronizarSeleccionSimple();
+            }
+        }
+
+        this.asegurarDatosCencos();
+    },
+
+    claveGalpon(cencos, galpon) {
+        return `${String(cencos)}||${String(galpon)}`;
+    },
+
+    claveLinea(linea, nomlinea) {
+        return `${String(linea)}||${String(nomlinea || '')}`;
+    },
+
+    galponEstaSeleccionado(cencos, galpon) {
+        const clave = this.claveGalpon(cencos, galpon);
+        return this.galponesSeleccionados.some(item => this.claveGalpon(item.cencos, item.galpon) === clave);
+    },
+
+    lineaEstaSeleccionada(linea, nomlinea) {
+        return this.lineasSeleccionadas.includes(this.claveLinea(linea, nomlinea));
+    },
+
+    sincronizarSeleccionSimple() {
+        const ultimoGalpon = this.galponesSeleccionados[this.galponesSeleccionados.length - 1] || null;
+        this.galponActivo = ultimoGalpon ? String(ultimoGalpon.galpon) : null;
+
+        const ultimaClaveLinea = this.lineasSeleccionadas[this.lineasSeleccionadas.length - 1] || null;
+        this.lineaSeleccionada = ultimaClaveLinea ? String(ultimaClaveLinea).split('||')[0] : null;
+    },
+
+    obtenerCencosSeleccionados() {
+        if (!this.galponesSeleccionados.length) {
+            return this.cencosActivo ? [String(this.cencosActivo)] : [];
+        }
+
+        return Array.from(new Set(this.galponesSeleccionados.map(item => String(item.cencos)))).sort();
+    },
+
+    clasificacionCoincide(fila) {
+        const selectedClasif = this.multiClasif ? this.multiClasif.getSelectedValues() : [];
+
+        if (!selectedClasif || selectedClasif.length === 0) return true;
+
+        const totalOpciones = this.multiClasif && this.multiClasif.options ? this.multiClasif.options.length : 0;
+
+        if (totalOpciones > 0 && selectedClasif.length >= totalOpciones) return true;
+
+        const linea = String((fila && fila.linea) || '');
+        const clasifStr = `${linea} ${(fila && fila.nomlinea) || ''}`.trim();
+
+        return selectedClasif.some(sel => sel === linea || sel === clasifStr || sel.startsWith(linea));
+    },
+
+    obtenerGruposPaneles() {
+        const cencosList = this.obtenerCencosSeleccionados();
+
+        return cencosList.map(cen => {
+            const cache = this.datosPorCencos[String(cen)];
+
+            if (!cache) return null;
+
+            let galpones2 = (cache.tabla2 && cache.tabla2.galpones_headers) || [];
+            let galpones3 = (cache.tabla3 && cache.tabla3.galpones_headers) || [];
+
+            if (this.galponesSeleccionados.length) {
+                const seleccionados = this.galponesSeleccionados
+                    .filter(item => String(item.cencos) === String(cen))
+                    .map(item => String(item.galpon));
+
+                if (seleccionados.length) {
+                    galpones2 = galpones2.filter(g => seleccionados.includes(String(g)));
+                    galpones3 = galpones3.filter(g => seleccionados.includes(String(g)));
+                }
+            }
+
+            return {
+                cencos: String(cen),
+                nomcencos: cache.nomcencos || '',
+                tabla2: cache.tabla2 || {},
+                tabla3: cache.tabla3 || {},
+                galpones2,
+                galpones3
+            };
+        }).filter(Boolean);
+    },
+
+    nombreCencos(cencos) {
+        const cache = this.datosPorCencos[String(cencos)];
+
+        if (cache && cache.nomcencos) return cache.nomcencos;
+
+        const granja = (this.datosBackend.tabla1_datos_productivos?.granjas || [])
+            .find(item => String(item.cencos) === String(cencos));
+
+        return granja ? granja.nomcencos : '';
+    },
+
+    obtenerDatosCencos(cencos) {
+        const key = String(cencos);
+        const secuencia = this.cargaSeq;
+
+        if (this.datosPorCencos[key]) {
+            return Promise.resolve(this.datosPorCencos[key]);
+        }
+
+        if (this.promesasCencos[key]) {
+            return this.promesasCencos[key];
+        }
+
+        let rango = {};
+        if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
+            rango = PeriodoHelper.obtenerRangoFechas();
+        }
+
+        const payload = {
+            tipo_grafico: 'CP08 ComparativoGranjaGalpon',
+            fecha_inicio: rango.fechaInicio || rango.inicio,
+            fecha_fin: rango.fechaFin || rango.fin,
+            fechahisto: this.datosBackend.fecha,
+            cencos_seleccionado: key
+        };
+
+        if (this.multiGranja) {
+            const granjas = this.multiGranja.getSelectedValues();
+            if (granjas.length > 0 && granjas.length < this.multiGranja.options.length) {
+                payload.cencos = granjas.join(',');
+            }
+        }
+
+        if (this.multiClasif) {
+            const clasifs = this.multiClasif.getSelectedValues();
+            if (clasifs.length > 0 && clasifs.length < this.multiClasif.options.length) {
+                payload.clasificacion = clasifs.join(',');
+            }
+        }
+
+        const baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.API && AppConfig.API.BASE_URL)
+            ? AppConfig.API.BASE_URL
+            : '../../backend';
+
+        const promesa = fetch(`${baseUrl}/costoDiario/dashboard`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(res => {
+                const data = res.payload || res.data || res || {};
+                const cache = {
+                    tabla2: data.tabla2_comparacion_linea || {},
+                    tabla3: data.tabla3_comparativo_detalle || {},
+                    nomcencos: data.nomcencos_activo || this.nombreCencos(key)
+                };
+
+                if (secuencia !== this.cargaSeq) {
+                    return cache;
+                }
+
+                this.datosPorCencos[key] = cache;
+
+                if (String(key) === String(this.cencosActivo)) {
+                    this.datosBackend.tabla2_comparacion_linea = cache.tabla2;
+                    this.datosBackend.tabla3_comparativo_detalle = cache.tabla3;
+                    this.datosBackend.cencos_activo = key;
+                    this.datosBackend.nomcencos_activo = cache.nomcencos;
+                }
+
+                return cache;
+            })
+            .catch(err => {
+                console.error('Error al recargar datos de campaña CP08:', err);
+                const cache = { tabla2: {}, tabla3: {}, nomcencos: this.nombreCencos(key) };
+
+                if (secuencia === this.cargaSeq) {
+                    this.datosPorCencos[key] = cache;
+                }
+
+                return cache;
+            })
+            .finally(() => {
+                if (this.promesasCencos[key] === promesa) {
+                    delete this.promesasCencos[key];
+                }
+            });
+
+        this.promesasCencos[key] = promesa;
+
+        return promesa;
+    },
+
+    async asegurarDatosCencos() {
+        const cencos = this.obtenerCencosSeleccionados();
+        const faltantes = cencos.filter(cen => !this.datosPorCencos[String(cen)]);
+
+        if (!faltantes.length) {
+            this.renderPanel1();
+            this.renderPanel2();
+            this.renderPanel3();
+            return;
+        }
+
+        const secuencia = ++this.cargaSeq;
+        await Promise.all(faltantes.map(cen => this.obtenerDatosCencos(cen)));
+
+        if (secuencia !== this.cargaSeq) return;
+
         this.renderPanel1();
         this.renderPanel2();
         this.renderPanel3();
@@ -424,7 +675,8 @@ window.ChartCP08ComparativoGranjaGalpon = {
         `;
 
         document.getElementById('cp08-badge-linea-filtro')?.addEventListener('click', () => {
-            this.lineaSeleccionada = null;
+            this.lineasSeleccionadas = [];
+            this.sincronizarSeleccionSimple();
             this.renderPanel2();
             this.renderPanel3();
         });
@@ -503,10 +755,11 @@ window.ChartCP08ComparativoGranjaGalpon = {
                 const cencosDisplay = isFirstRow ? `<span class="font-bold text-slate-800 font-mono">${r.cencos}</span>` : '';
                 
                 // Resaltado de selección cruzada
-                const isRowSelected = (this.cencosActivo === r.cencos && this.galponActivo === r.galpon);
-                const rowBgClass = isRowSelected 
-                    ? 'bg-sky-200 font-bold text-blue-950 border-l-4 border-l-blue-600' 
-                    : (isGranjaActiva && this.galponActivo === null ? 'bg-blue-50/60 hover:bg-blue-100/60' : 'hover:bg-slate-50');
+                const isRowSelected = this.galponEstaSeleccionado(r.cencos, r.galpon);
+                const sinSeleccionGalpon = this.galponesSeleccionados.length === 0;
+                const rowBgClass = isRowSelected
+                    ? 'bg-sky-200 font-bold text-blue-950 border-l-4 border-l-blue-600'
+                    : (sinSeleccionGalpon && isGranjaActiva ? 'bg-blue-50/60 hover:bg-blue-100/60' : 'hover:bg-slate-50');
 
                 rowsHtml += `
                     <tr class="cp08-row-p1 ${rowBgClass} cursor-pointer transition-colors border-t border-slate-100"
@@ -528,9 +781,9 @@ window.ChartCP08ComparativoGranjaGalpon = {
 
             // Subtotal de la Granja
             const sub = g.subtotal || {};
-            const isSubSelected = (isGranjaActiva && this.galponActivo === null);
-            const subBgClass = isSubSelected 
-                ? 'bg-sky-100 font-bold text-blue-900 border-t border-b border-blue-300' 
+            const isSubSelected = (isGranjaActiva && this.galponesSeleccionados.length === 0);
+            const subBgClass = isSubSelected
+                ? 'bg-sky-100 font-bold text-blue-900 border-t border-b border-blue-300'
                 : 'bg-slate-50 font-bold hover:bg-slate-100';
 
             rowsHtml += `
@@ -574,32 +827,43 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const rows = document.querySelectorAll('.cp08-row-p1');
 
         rows.forEach(tr => {
-            tr.addEventListener('click', function() {
+            tr.addEventListener('click', function(e) {
                 const cencos = this.getAttribute('data-cencos');
                 const galpon = this.getAttribute('data-galpon');
                 const nomcencos = this.getAttribute('data-nomcencos');
+                const clave = self.claveGalpon(cencos, galpon);
+                const conCtrl = e.ctrlKey || e.metaKey;
+                const cencosAntes = self.obtenerCencosSeleccionados().join('|');
 
-                if (self.cencosActivo === cencos && self.galponActivo === galpon) {
-                    // Deseleccionar galpón (mostrar todos los galpones de esa granja)
-                    self.galponActivo = null;
-                    self.renderPanel1();
-                    self.renderPanel2();
-                    self.renderPanel3();
-                } else {
-                    const cencosCambio = self.cencosActivo !== cencos;
-                    self.cencosActivo = cencos;
-                    self.nomcencosActivo = nomcencos;
-                    self.galponActivo = galpon;
+                if (conCtrl) {
+                    const indice = self.galponesSeleccionados.findIndex(item =>
+                        self.claveGalpon(item.cencos, item.galpon) === clave
+                    );
 
-                    if (cencosCambio) {
-                        self.lineaSeleccionada = null;
-                        self.recargarDatosGranjaActiva();
+                    if (indice >= 0) {
+                        self.galponesSeleccionados.splice(indice, 1);
                     } else {
-                        self.renderPanel1();
-                        self.renderPanel2();
-                        self.renderPanel3();
+                        self.galponesSeleccionados.push({ cencos, galpon, nomcencos });
                     }
+                } else {
+                    const soloEste = self.galponesSeleccionados.length === 1 &&
+                        self.claveGalpon(self.galponesSeleccionados[0].cencos, self.galponesSeleccionados[0].galpon) === clave;
+
+                    self.galponesSeleccionados = soloEste ? [] : [{ cencos, galpon, nomcencos }];
                 }
+
+                self.cencosActivo = cencos;
+                self.nomcencosActivo = nomcencos;
+
+                const cencosDespues = self.obtenerCencosSeleccionados().join('|');
+
+                if (cencosAntes !== cencosDespues) {
+                    self.lineasSeleccionadas = [];
+                }
+
+                self.sincronizarSeleccionSimple();
+                self.renderPanel1();
+                self.asegurarDatosCencos();
             });
 
             tr.addEventListener('mouseenter', function(e) {
@@ -633,83 +897,19 @@ window.ChartCP08ComparativoGranjaGalpon = {
                 const cencos = this.getAttribute('data-cencos');
                 const nomcencos = this.getAttribute('data-nomcencos');
 
-                const cencosCambio = self.cencosActivo !== cencos;
                 self.cencosActivo = cencos;
                 self.nomcencosActivo = nomcencos;
-                self.galponActivo = null;
-
-                if (cencosCambio) {
-                    self.lineaSeleccionada = null;
-                    self.recargarDatosGranjaActiva();
-                } else {
-                    self.renderPanel1();
-                    self.renderPanel2();
-                    self.renderPanel3();
-                }
+                self.galponesSeleccionados = [];
+                self.lineasSeleccionadas = [];
+                self.sincronizarSeleccionSimple();
+                self.renderPanel1();
+                self.asegurarDatosCencos();
             });
         });
     },
 
     recargarDatosGranjaActiva() {
-        let rango = {};
-        if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
-            rango = PeriodoHelper.obtenerRangoFechas();
-        }
-
-        const payload = {
-            tipo_grafico: 'CP08 ComparativoGranjaGalpon',
-            fecha_inicio: rango.fechaInicio || rango.inicio,
-            fecha_fin: rango.fechaFin || rango.fin,
-            fechahisto: this.datosBackend.fecha,
-            cencos_seleccionado: this.cencosActivo
-        };
-
-        if (this.multiGranja) {
-            const granjas = this.multiGranja.getSelectedValues();
-            if (granjas.length > 0 && granjas.length < this.multiGranja.options.length) {
-                payload.cencos = granjas.join(',');
-            }
-        }
-
-        if (this.multiClasif) {
-            const clasifs = this.multiClasif.getSelectedValues();
-            if (clasifs.length > 0 && clasifs.length < this.multiClasif.options.length) {
-                payload.clasificacion = clasifs.join(',');
-            }
-        }
-
-        const baseUrl = (typeof AppConfig !== 'undefined' && AppConfig.API && AppConfig.API.BASE_URL) 
-            ? AppConfig.API.BASE_URL 
-            : '../../backend';
-        const url = `${baseUrl}/costoDiario/dashboard`;
-
-        fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-        })
-        .then(res => {
-            const data = res.payload || res.data || res;
-            if (res.success || data.status === 'success' || data.tabla2_comparacion_linea) {
-                if (data.tabla2_comparacion_linea) this.datosBackend.tabla2_comparacion_linea = data.tabla2_comparacion_linea;
-                if (data.tabla3_comparativo_detalle) this.datosBackend.tabla3_comparativo_detalle = data.tabla3_comparativo_detalle;
-                if (data.cencos_activo) this.datosBackend.cencos_activo = data.cencos_activo;
-                if (data.nomcencos_activo) this.datosBackend.nomcencos_activo = data.nomcencos_activo;
-
-                this.renderPanel1();
-                this.renderPanel2();
-                this.renderPanel3();
-            }
-        })
-        .catch(err => {
-            console.error('Error al recargar datos de granja CP08:', err);
-        });
+        this.asegurarDatosCencos();
     },
 
     renderPanel2() {
@@ -717,118 +917,141 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const badgeP2 = document.getElementById('cp08-badge-p2');
         if (!container) return;
 
-        const t2Data = this.datosBackend.tabla2_comparacion_linea || {};
-        let galpones = t2Data.galpones_headers || [];
-        const allFilas = t2Data.filas || [];
-        const totalesGalpon = t2Data.totales_galpon || {};
+        const grupos = this.obtenerGruposPaneles()
+            .map(grupo => ({ ...grupo, galpones: grupo.galpones2 || [] }))
+            .filter(grupo => grupo.galpones.length > 0);
 
-        // Filtro cruzado de galpón desde Panel 1
-        if (this.galponActivo !== null) {
-            galpones = galpones.filter(g => String(g) === String(this.galponActivo));
-        }
-
-        const selectedClasif = this.multiClasif ? this.multiClasif.getSelectedValues() : [];
-        const isFilteringClasif = selectedClasif && selectedClasif.length > 0 && selectedClasif.length < (this.multiClasif.options ? this.multiClasif.options.length : 999);
-
-        let filas = allFilas.filter(r => {
-            if (isFilteringClasif) {
-                const clasifStr = `${r.linea} ${r.nomlinea}`.trim();
-                const match = selectedClasif.some(sel => sel === r.linea || sel === clasifStr || sel.startsWith(r.linea));
-                if (!match) return false;
-            }
-            return true;
-        });
-
-        if (badgeP2) badgeP2.textContent = `${filas.length} Líneas`;
-
-        if (filas.length === 0 || galpones.length === 0) {
-            container.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay datos de líneas para la granja seleccionada</div>`;
+        if (!grupos.length) {
+            if (badgeP2) badgeP2.textContent = '0 Líneas';
+            container.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay datos de líneas para las campañas seleccionadas</div>`;
             return;
         }
 
-        // Construir cabeceras exactamente como Tableau (2 filas: Fila 1 = linea, nomlinea, galpones; Fila 2 = métricas)
-        let headerRow1 = `
-            <tr>
-                <th class="px-2 py-2 border-r border-slate-200" rowspan="2">linea</th>
-                <th class="px-2.5 py-2 text-left border-r border-slate-200" rowspan="2">nomlinea</th>
-        `;
-        let headerRow2 = `<tr>`;
+        const lineasMap = new Map();
 
-        galpones.forEach(g => {
-            headerRow1 += `<th class="px-2 py-1 border-r border-slate-200 bg-blue-700 text-center font-bold" colspan="4">${g}</th>`;
-            headerRow2 += `
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">valor</th>
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">Kilos Producid..</th>
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">CU</th>
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">Dif en CU</th>
-            `;
+        grupos.forEach(grupo => {
+            const filasGrupo = (grupo.tabla2.filas || []).filter(r => this.clasificacionCoincide(r));
+
+            filasGrupo.forEach(r => {
+                const key = `${r.linea}||${r.nomlinea || ''}`;
+
+                if (!lineasMap.has(key)) {
+                    lineasMap.set(key, {
+                        linea: r.linea,
+                        nomlinea: r.nomlinea || '',
+                        porGrupo: {}
+                    });
+                }
+
+                lineasMap.get(key).porGrupo[grupo.cencos] = r;
+            });
         });
 
+        const filas = Array.from(lineasMap.values());
+
+        if (badgeP2) badgeP2.textContent = `${filas.length} Líneas`;
+
+        if (!filas.length) {
+            container.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay datos de líneas para las campañas seleccionadas</div>`;
+            return;
+        }
+
+        let headerRow0 = `
+            <tr>
+                <th class="px-2 py-2 border-r border-slate-200" rowspan="3">linea</th>
+                <th class="px-2.5 py-2 text-left border-r border-slate-200" rowspan="3">nomlinea</th>
+        `;
+        let headerRow1 = `<tr>`;
+        let headerRow2 = `<tr>`;
+
+        grupos.forEach(grupo => {
+            headerRow0 += `<th class="px-2 py-1 border-r border-slate-200 bg-blue-800 text-center font-bold" colspan="${grupo.galpones.length * 4}" title="${grupo.nomcencos || ''}">${grupo.cencos}</th>`;
+
+            grupo.galpones.forEach(g => {
+                headerRow1 += `<th class="px-2 py-1 border-r border-slate-200 bg-blue-700 text-center font-bold" colspan="4">${g}</th>`;
+                headerRow2 += `
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">valor</th>
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">Kilos Producid..</th>
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">CU</th>
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">Dif en CU</th>
+                `;
+            });
+        });
+
+        headerRow0 += `</tr>`;
         headerRow1 += `</tr>`;
         headerRow2 += `</tr>`;
 
-        // Filas del cuerpo
         let rowsHtml = '';
+
         filas.forEach(r => {
-            const isSelected = this.lineaSeleccionada === r.linea;
-            const rowClass = isSelected 
-                ? 'bg-sky-200 font-bold text-blue-950 border-l-4 border-l-blue-600' 
+            const isSelected = this.lineaEstaSeleccionada(r.linea, r.nomlinea);
+            const rowClass = isSelected
+                ? 'bg-sky-200 font-bold text-blue-950 border-l-4 border-l-blue-600'
                 : 'hover:bg-slate-50 cursor-pointer';
 
             rowsHtml += `
-                <tr class="cp08-row-p2 ${rowClass} transition-colors border-t border-slate-100" 
+                <tr class="cp08-row-p2 ${rowClass} transition-colors border-t border-slate-100"
                     data-linea="${r.linea}" data-nomlinea="${r.nomlinea || ''}">
                     <td class="px-2 py-1 text-center font-mono font-bold text-slate-700 border-r border-slate-100">${r.linea}</td>
                     <td class="px-2.5 py-1 text-left font-mono border-r border-slate-100 whitespace-nowrap text-[11px]">${r.nomlinea || ''}</td>
             `;
 
-            galpones.forEach(g => {
-                const gData = (r.galpones && r.galpones[g]) || null;
-                if (gData) {
-                    const difCuClass = gData.dif_cu > 0 ? 'text-rose-600' : (gData.dif_cu < 0 ? 'text-emerald-600' : 'text-slate-400');
-                    rowsHtml += `
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 cp08-cell-p2"
-                            data-galpon="${g}" data-metric="valor" data-val="${this.formatNum(gData.valor, 2)}">${this.formatNum(gData.valor, 2)}</td>
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-600 cp08-cell-p2"
-                            data-galpon="${g}" data-metric="Kilos Producidos" data-val="${this.formatNum(gData.kilos, 2)}">${this.formatNum(gData.kilos, 2)}</td>
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 font-bold text-slate-900 cp08-cell-p2"
-                            data-galpon="${g}" data-metric="CU" data-val="${this.formatNum(gData.cu, 3)}">${this.formatNum(gData.cu, 3)}</td>
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 ${difCuClass} cp08-cell-p2"
-                            data-galpon="${g}" data-metric="Dif en CU" data-val="${gData.dif_cu !== 0 ? this.formatNum(gData.dif_cu, 3) : '-'}">${gData.dif_cu !== 0 ? this.formatNum(gData.dif_cu, 3) : '-'}</td>
-                    `;
-                } else {
-                    rowsHtml += `
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
-                        <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
-                    `;
-                }
+            grupos.forEach(grupo => {
+                const filaGrupo = r.porGrupo[grupo.cencos] || null;
+
+                grupo.galpones.forEach(g => {
+                    const gData = (filaGrupo && filaGrupo.galpones && filaGrupo.galpones[g]) || null;
+
+                    if (gData) {
+                        const difCuClass = gData.dif_cu > 0 ? 'text-rose-600' : (gData.dif_cu < 0 ? 'text-emerald-600' : 'text-slate-400');
+                        rowsHtml += `
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 cp08-cell-p2"
+                                data-galpon="${g}" data-metric="valor" data-val="${this.formatNum(gData.valor, 2)}">${this.formatNum(gData.valor, 2)}</td>
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-600 cp08-cell-p2"
+                                data-galpon="${g}" data-metric="Kilos Producidos" data-val="${this.formatNum(gData.kilos, 2)}">${this.formatNum(gData.kilos, 2)}</td>
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 font-bold text-slate-900 cp08-cell-p2"
+                                data-galpon="${g}" data-metric="CU" data-val="${this.formatNum(gData.cu, 3)}">${this.formatNum(gData.cu, 3)}</td>
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 ${difCuClass} cp08-cell-p2"
+                                data-galpon="${g}" data-metric="Dif en CU" data-val="${gData.dif_cu !== 0 ? this.formatNum(gData.dif_cu, 3) : '-'}">${gData.dif_cu !== 0 ? this.formatNum(gData.dif_cu, 3) : '-'}</td>
+                        `;
+                    } else {
+                        rowsHtml += `
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
+                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300">-</td>
+                        `;
+                    }
+                });
             });
 
             rowsHtml += `</tr>`;
         });
 
-        // Totales por Galpón
         let tfootHtml = `
             <tr class="border-t-2 border-slate-300 font-bold text-slate-900">
                 <td class="px-2 py-1.5 text-center border-r border-slate-200" colspan="2">Total General</td>
         `;
 
-        galpones.forEach(g => {
-            const totG = totalesGalpon[g] || {};
-            tfootHtml += `
-                <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-blue-900">${this.formatNum(totG.valor, 2)}</td>
-                <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-slate-700">${this.formatNum(totG.kilos, 2)}</td>
-                <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-blue-900">${this.formatNum(totG.cu, 3)}</td>
-                <td class="px-2 py-1.5 text-right border-r border-slate-200"></td>
-            `;
+        grupos.forEach(grupo => {
+            grupo.galpones.forEach(g => {
+                const totG = (grupo.tabla2.totales_galpon && grupo.tabla2.totales_galpon[g]) || {};
+                tfootHtml += `
+                    <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-blue-900">${this.formatNum(totG.valor, 2)}</td>
+                    <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-slate-700">${this.formatNum(totG.kilos, 2)}</td>
+                    <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-blue-900">${this.formatNum(totG.cu, 3)}</td>
+                    <td class="px-2 py-1.5 text-right border-r border-slate-200"></td>
+                `;
+            });
         });
+
         tfootHtml += `</tr>`;
 
         container.innerHTML = `
             <table id="cp08-tabla-p2" class="w-full text-xs border-collapse select-none">
                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
+                    ${headerRow0}
                     ${headerRow1}
                     ${headerRow2}
                 </thead>
@@ -849,13 +1072,26 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const rows = document.querySelectorAll('.cp08-row-p2');
 
         rows.forEach(tr => {
-            tr.addEventListener('click', function() {
-                const lin = this.getAttribute('data-linea');
-                if (self.lineaSeleccionada === lin) {
-                    self.lineaSeleccionada = null;
+            tr.addEventListener('click', function(e) {
+                const lin = String(this.getAttribute('data-linea'));
+                const nomlin = this.getAttribute('data-nomlinea') || '';
+                const clave = self.claveLinea(lin, nomlin);
+                const conCtrl = e.ctrlKey || e.metaKey;
+
+                if (conCtrl) {
+                    const indice = self.lineasSeleccionadas.indexOf(clave);
+
+                    if (indice >= 0) {
+                        self.lineasSeleccionadas.splice(indice, 1);
+                    } else {
+                        self.lineasSeleccionadas.push(clave);
+                    }
                 } else {
-                    self.lineaSeleccionada = lin;
+                    const soloEsta = self.lineasSeleccionadas.length === 1 && self.lineasSeleccionadas[0] === clave;
+                    self.lineasSeleccionadas = soloEsta ? [] : [clave];
                 }
+
+                self.sincronizarSeleccionSimple();
                 self.renderPanel2();
                 self.renderPanel3();
             });
@@ -888,89 +1124,121 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const badgeP3 = document.getElementById('cp08-badge-p3');
         if (!container) return;
 
-        const t3Data = this.datosBackend.tabla3_comparativo_detalle || {};
-        let galpones = t3Data.galpones_headers || [];
-        const allFilas = t3Data.filas || [];
-        const subtotalesLinea = t3Data.subtotales_linea || {};
-        const totalesGenerales = t3Data.totales_generales || {};
-
-        // Filtro cruzado de galpón desde Panel 1
-        if (this.galponActivo !== null) {
-            galpones = galpones.filter(g => String(g) === String(this.galponActivo));
-        }
+        const grupos = this.obtenerGruposPaneles()
+            .map(grupo => ({ ...grupo, galpones: grupo.galpones3 || [] }))
+            .filter(grupo => grupo.galpones.length > 0);
 
         if (badgeLinea) {
-            badgeLinea.classList.toggle('hidden', !this.lineaSeleccionada);
-            if (this.lineaSeleccionada) {
-                badgeLinea.textContent = `Línea: ${this.lineaSeleccionada} ✕`;
+            const totalLineas = this.lineasSeleccionadas.length;
+            badgeLinea.classList.toggle('hidden', totalLineas === 0);
+
+            if (totalLineas > 0) {
+                const lineasTexto = this.lineasSeleccionadas.map(clave => String(clave).split('||')[0]);
+
+                badgeLinea.textContent = totalLineas === 1
+                    ? `Línea: ${lineasTexto[0]} ✕`
+                    : `Líneas: ${totalLineas} ✕`;
+                badgeLinea.title = lineasTexto.join(', ');
             }
         }
 
-        const selectedClasif = this.multiClasif ? this.multiClasif.getSelectedValues() : [];
-        const isFilteringClasif = selectedClasif && selectedClasif.length > 0 && selectedClasif.length < (this.multiClasif.options ? this.multiClasif.options.length : 999);
-
-        let filas = allFilas.filter(r => {
-            // Filtro cruzado de línea desde Panel 2
-            if (this.lineaSeleccionada && r.linea !== this.lineaSeleccionada) return false;
-
-            if (isFilteringClasif) {
-                const match = selectedClasif.some(sel => sel === r.linea || sel.startsWith(r.linea));
-                if (!match) return false;
-            }
-            return true;
-        });
-
-        if (badgeP3) badgeP3.textContent = `${filas.length} Productos`;
-
-        if (filas.length === 0 || galpones.length === 0) {
-            container.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay productos para la granja y filtros seleccionados</div>`;
+        if (!grupos.length) {
+            if (badgeP3) badgeP3.textContent = '0 Productos';
+            container.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay productos para las campañas y filtros seleccionados</div>`;
             return;
         }
 
-        // Construir cabeceras pivotadas exactamente como Tableau
-        const totalGalpCols = galpones.length * 3;
+        const itemsMap = new Map();
+
+        grupos.forEach(grupo => {
+            const lineasSeleccionadasCodigo = this.lineasSeleccionadas.map(clave => String(clave).split('||')[0]);
+
+            const filasGrupo = (grupo.tabla3.filas || []).filter(r => {
+                if (lineasSeleccionadasCodigo.length && !lineasSeleccionadasCodigo.includes(String(r.linea))) {
+                    return false;
+                }
+
+                return this.clasificacionCoincide(r);
+            });
+
+            filasGrupo.forEach(r => {
+                const key = `${r.linea}||${r.codigo}||${r.nomcodigo || ''}||${r.transaccion}`;
+
+                if (!itemsMap.has(key)) {
+                    itemsMap.set(key, {
+                        linea: r.linea,
+                        codigo: r.codigo,
+                        nomcodigo: r.nomcodigo || '',
+                        transaccion: r.transaccion,
+                        porGrupo: {}
+                    });
+                }
+
+                itemsMap.get(key).porGrupo[grupo.cencos] = r;
+            });
+        });
+
+        const items = Array.from(itemsMap.values());
+
+        if (badgeP3) badgeP3.textContent = `${items.length} Productos`;
+
+        if (!items.length) {
+            container.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay productos para las campañas y filtros seleccionados</div>`;
+            return;
+        }
+
+        const gruposPorLinea = new Map();
+
+        items.forEach(item => {
+            const lin = String(item.linea);
+
+            if (!gruposPorLinea.has(lin)) {
+                gruposPorLinea.set(lin, []);
+            }
+
+            gruposPorLinea.get(lin).push(item);
+        });
+
+        const lineas = Array.from(gruposPorLinea.keys()).sort();
+
         let headerRow0 = `
             <tr>
                 <th class="px-2 py-2 border-r border-slate-200" rowspan="3">linea</th>
                 <th class="px-2.5 py-2 text-left border-r border-slate-200" rowspan="3">codigo</th>
                 <th class="px-3 py-2 text-left border-r border-slate-200" rowspan="3">nomcodigo</th>
                 <th class="px-1.5 py-2 text-center border-r border-slate-200" rowspan="3">trans..</th>
-                <th class="px-2 py-1 border-r border-slate-200 bg-blue-800 text-center font-bold tracking-wide" colspan="${totalGalpCols}">
-                    <div class="text-[10px] text-blue-200 font-normal">cencos / galpon</div>
-                    <div>${this.cencosActivo || ''}</div>
-                </th>
-            </tr>
         `;
-
         let headerRow1 = `<tr>`;
         let headerRow2 = `<tr>`;
 
-        galpones.forEach(g => {
-            headerRow1 += `<th class="px-2 py-1 border-r border-slate-200 bg-blue-700 text-center font-bold" colspan="3">${g}</th>`;
-            headerRow2 += `
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">cantidad</th>
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">peso</th>
-                <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">valor</th>
-            `;
+        grupos.forEach(grupo => {
+            headerRow0 += `<th class="px-2 py-1 border-r border-slate-200 bg-blue-800 text-center font-bold tracking-wide" colspan="${grupo.galpones.length * 3}" title="${grupo.nomcencos || ''}">${grupo.cencos}</th>`;
+
+            grupo.galpones.forEach(g => {
+                headerRow1 += `<th class="px-2 py-1 border-r border-slate-200 bg-blue-700 text-center font-bold" colspan="3">${g}</th>`;
+                headerRow2 += `
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">cantidad</th>
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">peso</th>
+                    <th class="px-2 py-1 text-right border-r border-slate-200 text-[11px]">valor</th>
+                `;
+            });
         });
 
+        headerRow0 += `</tr>`;
         headerRow1 += `</tr>`;
         headerRow2 += `</tr>`;
 
-        // Agrupar filas por línea para colocar fila de Total por cada línea
-        let gruposPorLinea = {};
-        filas.forEach(r => {
-            if (!gruposPorLinea[r.linea]) {
-                gruposPorLinea[r.linea] = [];
-            }
-            gruposPorLinea[r.linea].push(r);
-        });
-
         let rowsHtml = '';
-        Object.keys(gruposPorLinea).forEach(lin => {
-            const items = gruposPorLinea[lin];
 
-            items.forEach((r, idx) => {
+        lineas.forEach(lin => {
+            const itemsLinea = gruposPorLinea.get(lin).sort((a, b) => {
+                const codigo = String(a.codigo).localeCompare(String(b.codigo));
+                if (codigo !== 0) return codigo;
+
+                return String(a.transaccion).localeCompare(String(b.transaccion));
+            });
+
+            itemsLinea.forEach((r, idx) => {
                 const lineaDisplay = idx === 0 ? `<span class="font-bold text-slate-800 font-mono">${r.linea}</span>` : '';
 
                 rowsHtml += `
@@ -982,60 +1250,71 @@ window.ChartCP08ComparativoGranjaGalpon = {
                         <td class="px-1.5 py-1 text-center font-mono font-bold text-slate-600 border-r border-slate-100">${r.transaccion}</td>
                 `;
 
-                galpones.forEach(g => {
-                    const gData = (r.galpones && r.galpones[g]) || null;
-                    if (gData) {
-                        rowsHtml += `
-                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100">${gData.cantidad !== 0 ? this.formatNum(gData.cantidad, 2) : '0'}</td>
-                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100">${gData.peso !== 0 ? this.formatNum(gData.peso, 2) : '0,00'}</td>
-                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 font-medium">${this.formatNum(gData.valor, 2)}</td>
-                        `;
-                    } else {
-                        rowsHtml += `
-                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300"></td>
-                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300"></td>
-                            <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300"></td>
-                        `;
-                    }
+                grupos.forEach(grupo => {
+                    const filaGrupo = r.porGrupo[grupo.cencos] || null;
+
+                    grupo.galpones.forEach(g => {
+                        const gData = (filaGrupo && filaGrupo.galpones && filaGrupo.galpones[g]) || null;
+
+                        if (gData) {
+                            rowsHtml += `
+                                <td class="px-2 py-1 text-right font-mono border-r border-slate-100">${gData.cantidad !== 0 ? this.formatNum(gData.cantidad, 2) : '0'}</td>
+                                <td class="px-2 py-1 text-right font-mono border-r border-slate-100">${gData.peso !== 0 ? this.formatNum(gData.peso, 2) : '0,00'}</td>
+                                <td class="px-2 py-1 text-right font-mono border-r border-slate-100 font-medium">${this.formatNum(gData.valor, 2)}</td>
+                            `;
+                        } else {
+                            rowsHtml += `
+                                <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300"></td>
+                                <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300"></td>
+                                <td class="px-2 py-1 text-right font-mono border-r border-slate-100 text-slate-300"></td>
+                            `;
+                        }
+                    });
                 });
 
                 rowsHtml += `</tr>`;
             });
 
-            // Fila de Total de la Línea
-            const subL = subtotalesLinea[lin] || {};
             rowsHtml += `
                 <tr class="bg-slate-50 font-bold border-t border-b border-slate-200 select-none text-[11px]">
                     <td class="border-r border-slate-200"></td>
                     <td class="px-2.5 py-1 text-left text-slate-600 font-semibold border-r border-slate-200" colspan="3">Total</td>
             `;
 
-            galpones.forEach(g => {
-                const sG = subL[g] || {};
-                rowsHtml += `
-                    <td class="px-2 py-1 text-right font-mono text-slate-800 border-r border-slate-200">${sG.cantidad ? this.formatNum(sG.cantidad, 2) : ''}</td>
-                    <td class="px-2 py-1 text-right font-mono text-slate-800 border-r border-slate-200">${sG.peso ? this.formatNum(sG.peso, 2) : ''}</td>
-                    <td class="px-2 py-1 text-right font-mono text-slate-900 border-r border-slate-200 font-bold">${sG.valor ? this.formatNum(sG.valor, 2) : ''}</td>
-                `;
+            grupos.forEach(grupo => {
+                const subL = (grupo.tabla3.subtotales_linea && grupo.tabla3.subtotales_linea[lin]) || {};
+
+                grupo.galpones.forEach(g => {
+                    const sG = subL[g] || {};
+                    rowsHtml += `
+                        <td class="px-2 py-1 text-right font-mono text-slate-800 border-r border-slate-200">${sG.cantidad ? this.formatNum(sG.cantidad, 2) : ''}</td>
+                        <td class="px-2 py-1 text-right font-mono text-slate-800 border-r border-slate-200">${sG.peso ? this.formatNum(sG.peso, 2) : ''}</td>
+                        <td class="px-2 py-1 text-right font-mono text-slate-900 border-r border-slate-200 font-bold">${sG.valor ? this.formatNum(sG.valor, 2) : ''}</td>
+                    `;
+                });
             });
 
             rowsHtml += `</tr>`;
         });
 
-        // Fila de Total General
         let tfootHtml = `
             <tr class="border-t-2 border-slate-300 font-bold text-slate-900">
                 <td class="px-2 py-1.5 text-center border-r border-slate-200" colspan="4">Total general</td>
         `;
 
-        galpones.forEach(g => {
-            const totG = totalesGenerales[g] || {};
-            tfootHtml += `
-                <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-slate-800">${totG.cantidad ? this.formatNum(totG.cantidad, 2) : '0,00'}</td>
-                <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-slate-800">${totG.peso ? this.formatNum(totG.peso, 2) : '0,00'}</td>
-                <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-blue-900 font-bold">${totG.valor ? this.formatNum(totG.valor, 2) : '0,00'}</td>
-            `;
+        grupos.forEach(grupo => {
+            const totalesGenerales = grupo.tabla3.totales_generales || {};
+
+            grupo.galpones.forEach(g => {
+                const totG = totalesGenerales[g] || {};
+                tfootHtml += `
+                    <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-slate-800">${totG.cantidad ? this.formatNum(totG.cantidad, 2) : '0,00'}</td>
+                    <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-slate-800">${totG.peso ? this.formatNum(totG.peso, 2) : '0,00'}</td>
+                    <td class="px-2 py-1.5 text-right font-mono border-r border-slate-200 text-blue-900 font-bold">${totG.valor ? this.formatNum(totG.valor, 2) : '0,00'}</td>
+                `;
+            });
         });
+
         tfootHtml += `</tr>`;
 
         container.innerHTML = `
