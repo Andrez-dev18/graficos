@@ -713,7 +713,8 @@ const CP05_DEFINITION = {
         let totalCant = 0.0;
         let totalPeso = 0.0;
         let totalVal  = 0.0;
-        let globalKilosProd = 0.0;
+        let totalCU   = 0.0;
+        const kilosMap = new Map();
 
         let lastLinea = null;
         let rowsHtml = '';
@@ -725,13 +726,14 @@ const CP05_DEFINITION = {
             const kg   = Number(r.saca_kilos) || 0;
             const cu   = (r.cu !== undefined && r.cu !== null) ? Number(r.cu) : ((kg > 0) ? (val / kg) : 0);
 
-            if (globalKilosProd === 0 && kg > 0) {
-                globalKilosProd = kg;
+            if (kg > 0) {
+                kilosMap.set(String(r.saca_kilos), kg);
             }
 
             totalCant += cant;
             totalPeso += peso;
             totalVal  += val;
+            totalCU   += cu;
 
             const currentLinea = String(r.linea || '').trim();
             const isNewLinea = currentLinea !== lastLinea;
@@ -770,8 +772,7 @@ const CP05_DEFINITION = {
 
         tbody.innerHTML = rowsHtml;
 
-        const t2Totales = (this.datosBackend.tabla2_por_codigo && this.datosBackend.tabla2_por_codigo.totales) || {};
-        const totalCU = (t2Totales.cu !== undefined) ? Number(t2Totales.cu) : ((globalKilosProd > 0) ? (totalVal / globalKilosProd) : 0);
+        const totalKilos = Array.from(kilosMap.values()).reduce((suma, valor) => suma + valor, 0);
 
         tfoot.innerHTML = `
             <tr class="border-t-2 border-slate-300">
@@ -780,7 +781,7 @@ const CP05_DEFINITION = {
                 <td class="px-2.5 py-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">${this.formatNum(totalCant, 2)}</td>
                 <td class="px-2.5 py-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">${this.formatNum(totalPeso, 2)}</td>
                 <td class="px-3 py-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">${this.formatNum(totalVal, 2)}</td>
-                <td class="px-3 py-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">${this.formatNum(globalKilosProd, 2)}</td>
+                <td class="px-3 py-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">${this.formatNum(totalKilos, 2)}</td>
                 <td class="px-2.5 py-2 text-right font-mono font-bold text-blue-700">${this.formatNum(totalCU, 3)}</td>
             </tr>
         `;
@@ -805,9 +806,11 @@ const CP05_DEFINITION = {
         let totalCant = 0.0;
         let totalPeso = 0.0;
         let totalVal  = 0.0;
-        let globalKilosProd = 0.0;
+        let totalCU   = 0.0;
+        const kilosMap = new Map();
 
         let lastCencos = null;
+        let grupoT3 = null;
         let rowsHtml = '';
 
         filas.forEach(r => {
@@ -817,11 +820,41 @@ const CP05_DEFINITION = {
             const kg   = Number(r.saca_kilos) || 0;
             const cu   = (r.cu !== undefined && r.cu !== null) ? Number(r.cu) : ((kg > 0) ? (val / kg) : 0);
 
+            if (kg > 0) {
+                kilosMap.set(String(r.cencos || ''), kg);
+            }
+
             totalCant += cant;
             totalPeso += peso;
             totalVal  += val;
+            totalCU   += cu;
 
             const currentCencos = String(r.cencos || '').trim();
+
+            if (!grupoT3 || grupoT3.cencos !== currentCencos) {
+                if (grupoT3) {
+                    rowsHtml += this.renderSubtotalT3(grupoT3);
+                }
+
+                grupoT3 = {
+                    cencos: currentCencos,
+                    cantidad: 0.0,
+                    peso: 0.0,
+                    valor: 0.0,
+                    saca_kilos: kg,
+                    cu: 0.0
+                };
+            }
+
+            grupoT3.cantidad += cant;
+            grupoT3.peso += peso;
+            grupoT3.valor += val;
+            grupoT3.cu += cu;
+
+            if (grupoT3.saca_kilos === 0 && kg > 0) {
+                grupoT3.saca_kilos = kg;
+            }
+
             const isNewCencos = currentCencos !== lastCencos;
             lastCencos = currentCencos;
 
@@ -856,13 +889,13 @@ const CP05_DEFINITION = {
             `;
         });
 
+        if (grupoT3) {
+            rowsHtml += this.renderSubtotalT3(grupoT3);
+        }
+
         tbody.innerHTML = rowsHtml;
 
-        // Kilos prod global de T1 para el footer
-        const t3Totales = (this.datosBackend.tabla3_por_cencos_linea && this.datosBackend.tabla3_por_cencos_linea.totales) || {};
-        const t1Totales = (this.datosBackend.tabla1_resumen && this.datosBackend.tabla1_resumen.totales) || {};
-        globalKilosProd = Number(t1Totales.kilos_prod) || 0;
-        const totalCU = (t3Totales.cu !== undefined) ? Number(t3Totales.cu) : ((globalKilosProd > 0) ? (totalVal / globalKilosProd) : 0);
+        const totalKilos = Array.from(kilosMap.values()).reduce((suma, valor) => suma + valor, 0);
 
         tfoot.innerHTML = `
             <tr class="border-t-2 border-slate-300">
@@ -871,12 +904,41 @@ const CP05_DEFINITION = {
                 <td class="px-2.5 py-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">${this.formatNum(totalCant, 2)}</td>
                 <td class="px-2.5 py-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">${this.formatNum(totalPeso, 2)}</td>
                 <td class="px-3 py-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">${this.formatNum(totalVal, 2)}</td>
-                <td class="px-3 py-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">${this.formatNum(globalKilosProd, 2)}</td>
+                <td class="px-3 py-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">${this.formatNum(totalKilos, 2)}</td>
                 <td class="px-2.5 py-2 text-right font-mono font-bold text-blue-700">${this.formatNum(totalCU, 3)}</td>
             </tr>
         `;
 
         this.bindTooltipEvents('.cp05-row-t3');
+    },
+
+    renderSubtotalT3(grupo) {
+        return `
+            <tr class="bg-slate-100 font-bold border-t border-b border-slate-300 text-slate-800">
+                <td class="px-2 py-1.5 text-center font-mono border-r border-slate-200">${grupo.cencos || ''}</td>
+                <td class="px-2.5 py-1.5 text-left uppercase border-r border-slate-200">Total</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.cantidad, 2)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.peso, 2)}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.valor, 2)}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.saca_kilos, 2)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono text-blue-700">${this.formatNum(grupo.cu, 3)}</td>
+            </tr>
+        `;
+    },
+
+    renderSubtotalT4(grupo) {
+        return `
+            <tr class="bg-slate-100 font-bold border-t border-b border-slate-300 text-slate-800">
+                <td class="px-2 py-1.5 text-center font-mono border-r border-slate-200">${grupo.cencos || ''}</td>
+                <td class="px-1.5 py-1.5 text-center font-mono border-r border-slate-200">${grupo.galpon || ''}</td>
+                <td class="px-2.5 py-1.5 text-left uppercase border-r border-slate-200">Total</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.cantidad, 2)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.peso, 2)}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.valor, 2)}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-200">${this.formatNum(grupo.saca_kilos, 2)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono text-blue-700">${this.formatNum(grupo.cu, 3)}</td>
+            </tr>
+        `;
     },
 
     renderTabla4(filas) {
@@ -896,10 +958,12 @@ const CP05_DEFINITION = {
         let totalCant = 0.0;
         let totalPeso = 0.0;
         let totalVal  = 0.0;
-        let globalKilosProd = 0.0;
+        let totalCU   = 0.0;
+        const kilosMap = new Map();
 
         let lastCencos = null;
         let lastGalponKey = null;
+        let grupoT4 = null;
         let rowsHtml = '';
 
         filas.forEach(r => {
@@ -912,9 +976,41 @@ const CP05_DEFINITION = {
             totalCant += cant;
             totalPeso += peso;
             totalVal  += val;
+            totalCU   += cu;
 
             const currentCencos = String(r.cencos || '').trim();
-            const currentGalponKey = `${currentCencos}_${String(r.galpon || '').trim()}`;
+            const currentGalpon = String(r.galpon || '').trim();
+            const currentGalponKey = `${currentCencos}_${currentGalpon}`;
+
+            if (kg > 0) {
+                kilosMap.set(currentGalponKey, kg);
+            }
+
+            if (!grupoT4 || grupoT4.key !== currentGalponKey) {
+                if (grupoT4) {
+                    rowsHtml += this.renderSubtotalT4(grupoT4);
+                }
+
+                grupoT4 = {
+                    key: currentGalponKey,
+                    cencos: currentCencos,
+                    galpon: currentGalpon,
+                    cantidad: 0.0,
+                    peso: 0.0,
+                    valor: 0.0,
+                    saca_kilos: kg,
+                    cu: 0.0
+                };
+            }
+
+            grupoT4.cantidad += cant;
+            grupoT4.peso += peso;
+            grupoT4.valor += val;
+            grupoT4.cu += cu;
+
+            if (grupoT4.saca_kilos === 0 && kg > 0) {
+                grupoT4.saca_kilos = kg;
+            }
 
             const isNewCencos = currentCencos !== lastCencos;
             const isNewGalpon = currentGalponKey !== lastGalponKey;
@@ -956,26 +1052,13 @@ const CP05_DEFINITION = {
             `;
         });
 
+        if (grupoT4) {
+            rowsHtml += this.renderSubtotalT4(grupoT4);
+        }
+
         tbody.innerHTML = rowsHtml;
 
-        // Kilos prod global de T1 para el footer
-        const t4Totales = (this.datosBackend.tabla4_por_galpon_linea && this.datosBackend.tabla4_por_galpon_linea.totales) || {};
-        const t1Totales = (this.datosBackend.tabla1_resumen && this.datosBackend.tabla1_resumen.totales) || {};
-        globalKilosProd = Number(t1Totales.kilos_prod) || 0;
-        const totalCU = (t4Totales.cu !== undefined) ? Number(t4Totales.cu) : ((globalKilosProd > 0) ? (totalVal / globalKilosProd) : 0);
-
-        tfoot.innerHTML = `
-            <tr class="border-t-2 border-slate-300">
-                <td class="px-2 py-2 text-center border-r border-slate-200"></td>
-                <td class="px-1.5 py-2 text-center border-r border-slate-200"></td>
-                <td class="px-2.5 py-2 text-left font-bold text-slate-900 border-r border-slate-200 uppercase">Total general</td>
-                <td class="px-2.5 py-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">${this.formatNum(totalCant, 2)}</td>
-                <td class="px-2.5 py-2 text-right font-mono font-bold text-slate-800 border-r border-slate-200">${this.formatNum(totalPeso, 2)}</td>
-                <td class="px-3 py-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">${this.formatNum(totalVal, 2)}</td>
-                <td class="px-3 py-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">${this.formatNum(globalKilosProd, 2)}</td>
-                <td class="px-2.5 py-2 text-right font-mono font-bold text-blue-700">${this.formatNum(totalCU, 3)}</td>
-            </tr>
-        `;
+        tfoot.innerHTML = '';
 
         this.bindTooltipEvents('.cp05-row-t4');
     },

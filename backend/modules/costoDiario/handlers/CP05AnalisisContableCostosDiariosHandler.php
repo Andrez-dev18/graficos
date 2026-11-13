@@ -67,19 +67,24 @@ class CP05AnalisisContableCostosDiariosHandler
             }
         }
 
-        // 3. Pre-cargar producción (saca_kilos) a nivel Cencos y Galpón desde histodatosprodcompa (coincidiendo con fecha o fin de mes)
-        $stmtCencosProd = $db->prepare("SELECT cencos, SUM(saca_kilos) AS saca_kilos 
-                                        FROM histodatosprodcompa 
-                                        WHERE fechahisto = :fec1 OR fechahisto = LAST_DAY(:fec2) 
+        // 3. Pre-cargar producción (saca_kilos) a nivel Cencos y Galpón
+        // Tableau usa histodatosprod; si la fecha aún no está cargada allí, se usa histodatosprodcompa como respaldo.
+        $stmtProdDisponible = $db->prepare("SELECT COUNT(*) FROM histodatosprod WHERE fechahisto = :fec");
+        $stmtProdDisponible->execute([':fec' => $fechaConsulta]);
+        $tablaProd = ((int) $stmtProdDisponible->fetchColumn() > 0) ? 'histodatosprod' : 'histodatosprodcompa';
+
+        $stmtCencosProd = $db->prepare("SELECT cencos, SUM(saca_kilos) AS saca_kilos
+                                        FROM {$tablaProd}
+                                        WHERE fechahisto = :fec
                                         GROUP BY cencos");
-        $stmtCencosProd->execute([':fec1' => $fechaConsulta, ':fec2' => $fechaConsulta]);
+        $stmtCencosProd->execute([':fec' => $fechaConsulta]);
         $cencosProdMap = $stmtCencosProd->fetchAll(PDO::FETCH_KEY_PAIR);
 
-        $stmtGalponProd = $db->prepare("SELECT CONCAT(cencos, '_', galpon) AS k, SUM(saca_kilos) AS saca_kilos 
-                                        FROM histodatosprodcompa 
-                                        WHERE fechahisto = :fec1 OR fechahisto = LAST_DAY(:fec2) 
+        $stmtGalponProd = $db->prepare("SELECT CONCAT(cencos, '_', galpon) AS k, AVG(saca_kilos) AS saca_kilos
+                                        FROM {$tablaProd}
+                                        WHERE fechahisto = :fec
                                         GROUP BY cencos, galpon");
-        $stmtGalponProd->execute([':fec1' => $fechaConsulta, ':fec2' => $fechaConsulta]);
+        $stmtGalponProd->execute([':fec' => $fechaConsulta]);
         $galponProdMap = $stmtGalponProd->fetchAll(PDO::FETCH_KEY_PAIR);
 
         // 4. TABLA 1: "Costo Produccion por Kg de Pollo Vivo" (histodatosalmaacucompa)
@@ -92,7 +97,7 @@ class CP05AnalisisContableCostosDiariosHandler
                             ELSE CONCAT(TRIM(linea), ' ', COALESCE(TRIM(nomlinea), ''))
                         END AS clasificacion,
                         SUM(valor) AS valor,
-                        AVG(comodin) AS kilos_prod
+                        SUM(comodin) AS kilos_prod
                       FROM histodatosalmaacucompa
                       WHERE fechahisto = :fec
                         {$whereClasif}
@@ -156,7 +161,7 @@ class CP05AnalisisContableCostosDiariosHandler
                             SUM(cantidad) AS cantidad,
                             SUM(peso) AS peso,
                             SUM(valor) AS valor
-                          FROM histodatosalma
+                          FROM histodatosalmaacu
                           WHERE fechahisto = :fec
                             {$whereClasif}
                           GROUP BY cencos, nomcencos, galpon, linea, nomlinea, codigo, nomcodigo
@@ -217,7 +222,7 @@ class CP05AnalisisContableCostosDiariosHandler
         foreach ($t4Map as $item4) {
             $sacaKg = (float)$item4['saca_kilos'];
             $val = (float)$item4['valor'];
-            $cu = ($sacaKg > 0) ? round($val / $sacaKg, 3) : 0.0;
+            $cu = ($sacaKg > 0) ? round($val / $sacaKg, 6) : 0.0;
             $item4['cu'] = $cu;
             $item4['cantidad'] = round($item4['cantidad'], 2);
             $item4['peso'] = round($item4['peso'], 2);
@@ -297,7 +302,7 @@ class CP05AnalisisContableCostosDiariosHandler
             $item3['cantidad'] = round($item3['cantidad'], 2);
             $item3['peso'] = round($item3['peso'], 2);
             $item3['valor'] = round($item3['valor'], 2);
-            $item3['cu'] = round($item3['cu'], 3);
+            $item3['cu'] = round($item3['cu'], 6);
             $filasTabla3[] = $item3;
         }
 
@@ -390,7 +395,7 @@ class CP05AnalisisContableCostosDiariosHandler
             $item2['cantidad'] = round($item2['cantidad'], 2);
             $item2['peso'] = round($item2['peso'], 2);
             $item2['valor'] = round($item2['valor'], 2);
-            $item2['cu'] = round($item2['cu'], 3);
+            $item2['cu'] = round($item2['cu'], 6);
             $filasTabla2[] = $item2;
         }
 
