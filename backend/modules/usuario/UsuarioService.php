@@ -45,7 +45,7 @@ class UsuarioService
         } else {
             return [
                 'success' => false,
-                'message' => 'Usuario o contraseña incorrectos'
+                'message' => 'Usuario o DNI y contraseña incorrectos'
             ];
         }
     }

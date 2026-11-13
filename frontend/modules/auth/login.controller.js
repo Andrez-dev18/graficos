@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                         const spanError = errorMessage.querySelector('span');
                         if (spanError) {
                             // Usamos el mensaje del backend, o un texto por defecto si viene vacío
-                            spanError.textContent = data.message || 'Usuario o contraseña incorrectos.';
+                            spanError.textContent = data.message || 'Usuario o DNI y contraseña incorrectos.';
                         }
                         errorMessage.classList.remove('hidden');
                     }

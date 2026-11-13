@@ -12,13 +12,31 @@ class UsuarioRepository
 
     public function login($usuario, $password)
     {
-        $sql = "SELECT u.codigo, u.nombre, u.rol_comercial, u.epre, u.ruc, u.rol_flujo, u.estado
+        $usuario = trim((string) $usuario);
+
+        if ($usuario === '') {
+            return false;
+        }
+
+        $sqlBase = "SELECT u.codigo, u.nombre, u.rol_comercial, u.epre, u.ruc, u.rol_flujo, u.estado
             FROM usuario u
             JOIN conempre c ON c.epre = 'RS'
-            WHERE u.codigo = ?
-            AND u.password = LEFT(AES_ENCRYPT(?, c.enom), 8)";
+            WHERE %s
+            AND u.password = LEFT(AES_ENCRYPT(?, c.enom), 8)
+            LIMIT 1";
 
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->conn->prepare(sprintf($sqlBase, 'u.codigo = ?'));
+        $stmt->bindParam(1, $usuario, PDO::PARAM_STR);
+        $stmt->bindParam(2, $password, PDO::PARAM_STR);
+        $stmt->execute();
+
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($resultado) {
+            return $resultado;
+        }
+
+        $stmt = $this->conn->prepare(sprintf($sqlBase, 'u.libtri = ?'));
         $stmt->bindParam(1, $usuario, PDO::PARAM_STR);
         $stmt->bindParam(2, $password, PDO::PARAM_STR);
         $stmt->execute();
