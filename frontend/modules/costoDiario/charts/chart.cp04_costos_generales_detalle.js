@@ -17,12 +17,16 @@ const CP04_DEFINITION = {
     controller: null,
     datosBackend: null,
     multiClasif: null,
-    lineaSeleccionada: null,
+    lineasSeleccionadas: [],
     terminoBusquedaDetalle: '',
+    tooltipTimer: null,
+    tooltipPendiente: null,
+    ultimoEventoTooltip: null,
+    tooltipDelayMs: 500,
 
     destroy() {
         this.hideTooltip();
-        this.lineaSeleccionada = null;
+        this.lineasSeleccionadas = [];
         this.terminoBusquedaDetalle = '';
     },
 
@@ -42,6 +46,61 @@ const CP04_DEFINITION = {
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
         return fechaStr;
+    },
+
+    claveLineaSeleccion(item) {
+        const linea = String((item && item.linea) || '').trim();
+        const nomlinea = String((item && item.nomlinea) || '').trim();
+        return `${linea}||${nomlinea}`;
+    },
+
+    programarTooltip(e, data) {
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+        const tooltipVisible = tooltipEl && !tooltipEl.classList.contains('hidden');
+
+        this.cancelarTooltipProgramado();
+
+        // Si ya está visible, actualizarlo de inmediato al pasar a otra fila.
+        if (tooltipVisible) {
+            this.showTooltip(e, data);
+            return;
+        }
+
+        this.tooltipPendiente = data;
+        this.ultimoEventoTooltip = { clientX: e.clientX, clientY: e.clientY };
+        this.tooltipTimer = setTimeout(() => {
+            const dataPendiente = this.tooltipPendiente;
+            const evento = this.ultimoEventoTooltip;
+            this.tooltipTimer = null;
+            this.tooltipPendiente = null;
+            this.ultimoEventoTooltip = null;
+
+            if (dataPendiente && evento) {
+                this.showTooltip(evento, dataPendiente);
+            }
+        }, this.tooltipDelayMs);
+    },
+
+    cancelarTooltipProgramado() {
+        if (this.tooltipTimer) {
+            clearTimeout(this.tooltipTimer);
+            this.tooltipTimer = null;
+        }
+        this.tooltipPendiente = null;
+        this.ultimoEventoTooltip = null;
+    },
+
+    actualizarTooltip(e, data) {
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+        const tooltipVisible = tooltipEl && !tooltipEl.classList.contains('hidden');
+
+        if (tooltipVisible) {
+            this.showTooltip(e, data);
+            return;
+        }
+
+        this.tooltipPendiente = data;
+        this.ultimoEventoTooltip = { clientX: e.clientX, clientY: e.clientY };
     },
 
     showTooltip(e, data) {
@@ -167,10 +226,40 @@ const CP04_DEFINITION = {
     },
 
     hideTooltip() {
+        this.cancelarTooltipProgramado();
         const tooltipEl = document.getElementById('tooltip-tableau-costos');
         if (tooltipEl) {
             tooltipEl.classList.add('hidden');
         }
+    },
+
+    clicEnScrollbar(e, el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        const scrollbarVertical = el.offsetWidth - el.clientWidth;
+        const scrollbarHorizontal = el.offsetHeight - el.clientHeight;
+
+        if (scrollbarVertical > 0 && e.clientX >= rect.left + el.clientWidth) return true;
+        if (scrollbarHorizontal > 0 && e.clientY >= rect.top + el.clientHeight) return true;
+
+        return false;
+    },
+
+    bindTablaResumenAutoClear() {
+        const contenedor = document.getElementById('cp04-contenedor-tabla-resumen');
+        if (!contenedor || contenedor._cp04AutoClear) return;
+
+        contenedor._cp04AutoClear = true;
+        contenedor.addEventListener('click', (e) => {
+            if (e.target.closest('.cp04-row-resumen')) return;
+            if (e.target.closest('button, input, a, select, textarea')) return;
+            if (this.clicEnScrollbar(e, contenedor)) return;
+            if (!this.lineasSeleccionadas || !this.lineasSeleccionadas.length) return;
+
+            this.lineasSeleccionadas = [];
+            this.hideTooltip();
+            this.filtrarLocalmente();
+        });
     },
 
     getSelectedFilters() {
@@ -188,7 +277,7 @@ const CP04_DEFINITION = {
     render(controller, data) {
         this.controller = controller;
         this.datosBackend = data || {};
-        this.lineaSeleccionada = null;
+        this.lineasSeleccionadas = [];
 
         // 1. Ocultar cabecera redundante superior
         const headerPrincipal = document.getElementById('card-header-grafica-principal');
@@ -260,6 +349,12 @@ const CP04_DEFINITION = {
             return selectedClasif.some(sel => sel.trim() === c1 || sel.trim() === c2 || sel.trim().startsWith(c2 + ' '));
         });
 
+        // Descartar selecciones de líneas que ya no se ven por la Clasificación
+        const lineasVisibles = new Set(resumenFiltrado.map(r => this.claveLineaSeleccion(r)));
+        this.lineasSeleccionadas = (this.lineasSeleccionadas || []).filter(l =>
+            lineasVisibles.has(this.claveLineaSeleccion(l))
+        );
+
         // 2. Filtrar filas de Detalle por Clasificación
         let detalleFiltrado = isAll ? allDetalle : allDetalle.filter(d => {
             const c1 = (d.clasificacion || `${d.linea} ${d.nomlinea}`).trim();
@@ -267,9 +362,12 @@ const CP04_DEFINITION = {
             return selectedClasif.some(sel => sel.trim() === c1 || sel.trim() === c2 || sel.trim().startsWith(c2 + ' '));
         });
 
-        // 3. Aplicar Filtro Cruzado de Línea seleccionada en Tabla 1
-        if (this.lineaSeleccionada) {
-            detalleFiltrado = detalleFiltrado.filter(d => String(d.linea).trim() === String(this.lineaSeleccionada).trim());
+        // 3. Aplicar Filtro Cruzado de las líneas seleccionadas en Tabla 1
+        if (this.lineasSeleccionadas.length) {
+            const clavesSeleccionadas = new Set(this.lineasSeleccionadas.map(l => this.claveLineaSeleccion(l)));
+            detalleFiltrado = detalleFiltrado.filter(d =>
+                clavesSeleccionadas.has(this.claveLineaSeleccion(d))
+            );
         }
 
         // 4. Aplicar Búsqueda de texto en Tabla Detalle
@@ -336,7 +434,7 @@ const CP04_DEFINITION = {
                         </div>
                     </div>
 
-                    <div class="w-full overflow-x-auto max-h-[720px] custom-scrollbar">
+                    <div id="cp04-contenedor-tabla-resumen" class="w-full overflow-x-auto max-h-[720px] custom-scrollbar">
                         <table id="tabla-cp04-resumen" class="w-full text-xs border-collapse select-none">
                             <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold shadow-xs">
                                 <tr>
@@ -447,13 +545,25 @@ const CP04_DEFINITION = {
             btnExportDetalle.onclick = () => {
                 if (typeof ExcelExportHelper !== 'undefined') {
                     const fechaNom = (this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
-                    const sufijoLinea = this.lineaSeleccionada ? `_Linea_${this.lineaSeleccionada}` : '';
+                    let sufijoLinea = '';
+                    const lineasSel = this.lineasSeleccionadas || [];
+
+                    if (lineasSel.length === 1) {
+                        sufijoLinea = `_Linea_${lineasSel[0].linea}`;
+                    } else if (lineasSel.length > 1) {
+                        const codigos = lineasSel.map(l => String(l.linea || '').trim()).filter(Boolean);
+                        sufijoLinea = codigos.length
+                            ? `_Lineas_${codigos.slice(0, 3).join('_')}${codigos.length > 3 ? '_etc' : ''}`
+                            : `_Lineas_${lineasSel.length}`;
+                    }
+
                     ExcelExportHelper.exportarTabla('tabla-cp04-detalle', `CP04_Detalle_Costo_Unitario${sufijoLinea}_${fechaNom}`);
                 }
             };
         }
 
         this.filtrarLocalmente();
+        this.bindTablaResumenAutoClear();
 
     },
 
@@ -473,6 +583,8 @@ const CP04_DEFINITION = {
         let totalValor = 0.0;
         let kilosProdDia = 0.0;
         const fechaActiva = this.datosBackend.fecha || '';
+        const seleccionadasKeys = new Set((this.lineasSeleccionadas || []).map(l => this.claveLineaSeleccion(l)));
+        const haySeleccion = seleccionadasKeys.size > 0;
 
         let html = '';
         filas.forEach(r => {
@@ -483,10 +595,15 @@ const CP04_DEFINITION = {
             if (kilosProdDia === 0.0 && kg > 0) kilosProdDia = kg;
             totalValor += val;
 
-            const isSelected = this.lineaSeleccionada && String(this.lineaSeleccionada).trim() === String(r.linea).trim();
-            const rowClass = isSelected
-                ? 'bg-blue-100/70 text-blue-900 font-bold ring-1 ring-blue-400'
-                : 'hover:bg-blue-50/50 cursor-pointer transition-colors';
+            const isSelected = haySeleccion && seleccionadasKeys.has(this.claveLineaSeleccion(r));
+            let rowClass;
+            if (isSelected) {
+                rowClass = 'bg-blue-100/70 text-blue-900 font-bold ring-1 ring-blue-400 cursor-pointer transition-colors';
+            } else if (haySeleccion) {
+                rowClass = 'opacity-40 hover:bg-blue-50/50 cursor-pointer transition-colors';
+            } else {
+                rowClass = 'hover:bg-blue-50/50 cursor-pointer transition-colors';
+            }
 
             html += `
                 <tr class="cp04-row-resumen ${rowClass}" 
@@ -525,7 +642,7 @@ const CP04_DEFINITION = {
         const self = this;
         tbody.querySelectorAll('.cp04-row-resumen').forEach(tr => {
             tr.addEventListener('mouseenter', (e) => {
-                self.showTooltip(e, {
+                self.programarTooltip(e, {
                     fecha: tr.getAttribute('data-fecha'),
                     linea: tr.getAttribute('data-linea'),
                     nomlinea: tr.getAttribute('data-nomlinea'),
@@ -536,7 +653,7 @@ const CP04_DEFINITION = {
             });
 
             tr.addEventListener('mousemove', (e) => {
-                self.showTooltip(e, {
+                self.actualizarTooltip(e, {
                     fecha: tr.getAttribute('data-fecha'),
                     linea: tr.getAttribute('data-linea'),
                     nomlinea: tr.getAttribute('data-nomlinea'),
@@ -554,11 +671,27 @@ const CP04_DEFINITION = {
             tr.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const linea = tr.getAttribute('data-linea');
-                if (self.lineaSeleccionada === linea) {
-                    self.lineaSeleccionada = null;
+                const nomlinea = tr.getAttribute('data-nomlinea');
+                const conCtrl = e.ctrlKey || e.metaKey;
+                const clave = self.claveLineaSeleccion({ linea, nomlinea });
+                const esMismaLinea = (item) => self.claveLineaSeleccion(item) === clave;
+
+                const actuales = self.lineasSeleccionadas || [];
+
+                if (conCtrl) {
+                    const posicion = actuales.findIndex(esMismaLinea);
+                    if (posicion >= 0) {
+                        actuales.splice(posicion, 1);
+                    } else {
+                        actuales.push({ linea, nomlinea });
+                    }
+                    self.lineasSeleccionadas = actuales;
                 } else {
-                    self.lineaSeleccionada = linea;
+                    const soloEsta = actuales.length === 1 && esMismaLinea(actuales[0]);
+                    self.lineasSeleccionadas = soloEsta ? [] : [{ linea, nomlinea }];
                 }
+
+                self.hideTooltip();
                 self.filtrarLocalmente();
             });
         });
@@ -579,10 +712,17 @@ const CP04_DEFINITION = {
         }
 
         if (badgeFiltro) {
-            if (this.lineaSeleccionada) {
-                badgeFiltro.textContent = `Línea: ${this.lineaSeleccionada}`;
+            const lineasSeleccionadas = this.lineasSeleccionadas || [];
+            if (lineasSeleccionadas.length) {
+                badgeFiltro.textContent = lineasSeleccionadas.length === 1
+                    ? `Línea: ${lineasSeleccionadas[0].linea}`
+                    : `${lineasSeleccionadas.length} líneas seleccionadas`;
+                badgeFiltro.title = lineasSeleccionadas
+                    .map(l => `${l.linea || ''} ${l.nomlinea || ''}`.trim())
+                    .join(', ');
                 badgeFiltro.classList.remove('hidden');
             } else {
+                badgeFiltro.title = '';
                 badgeFiltro.classList.add('hidden');
             }
         }
@@ -708,7 +848,7 @@ const CP04_DEFINITION = {
         const self = this;
         tbody.querySelectorAll('.cp04-row-detalle').forEach(tr => {
             tr.addEventListener('mouseenter', (e) => {
-                self.showTooltip(e, {
+                self.programarTooltip(e, {
                     fecha: tr.getAttribute('data-fecha'),
                     cencos: tr.getAttribute('data-cencos'),
                     galpon: tr.getAttribute('data-galpon'),
@@ -726,7 +866,7 @@ const CP04_DEFINITION = {
             });
 
             tr.addEventListener('mousemove', (e) => {
-                self.showTooltip(e, {
+                self.actualizarTooltip(e, {
                     fecha: tr.getAttribute('data-fecha'),
                     cencos: tr.getAttribute('data-cencos'),
                     galpon: tr.getAttribute('data-galpon'),

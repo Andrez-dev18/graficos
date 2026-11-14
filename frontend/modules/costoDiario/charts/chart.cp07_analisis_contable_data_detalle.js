@@ -31,9 +31,21 @@ const CP07_DEFINITION = {
     lineaSeleccionada: null,
     alimentoSeleccionado: null,
     filtroLineainsu: '(Todo)',
+    tooltipTimer: null,
+    tooltipPendiente: null,
+    ultimoEventoTooltip: null,
+    tooltipDelayMs: 2000,
+    virtualTables: {},
+    _hoverRow: null,
+    _hoverData: null,
+    _tooltipSize: null,
 
     destroy() {
         this.hideTooltip();
+        this.datosBackend = null;
+        this.virtualTables = {};
+        this._hoverRow = null;
+        this._hoverData = null;
         this.cencosSeleccionado = null;
         this.galponSeleccionado = null;
         this.lineaSeleccionada = null;
@@ -48,6 +60,56 @@ const CP07_DEFINITION = {
         const parts = fixed.split('.');
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         return decimals > 0 ? parts.join(',') : parts[0];
+    },
+
+    programarTooltip(e, data) {
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+        const tooltipVisible = tooltipEl && !tooltipEl.classList.contains('hidden');
+
+        this.cancelarTooltipProgramado();
+
+        // Si ya está visible, actualizarlo de inmediato al pasar a otra fila.
+        if (tooltipVisible) {
+            this.showTooltip(e, data);
+            return;
+        }
+
+        this.tooltipPendiente = data;
+        this.ultimoEventoTooltip = { clientX: e.clientX, clientY: e.clientY };
+        this.tooltipTimer = setTimeout(() => {
+            const dataPendiente = this.tooltipPendiente;
+            const evento = this.ultimoEventoTooltip;
+            this.tooltipTimer = null;
+            this.tooltipPendiente = null;
+            this.ultimoEventoTooltip = null;
+
+            if (dataPendiente && evento) {
+                this.showTooltip(evento, dataPendiente);
+            }
+        }, this.tooltipDelayMs);
+    },
+
+    cancelarTooltipProgramado() {
+        if (this.tooltipTimer) {
+            clearTimeout(this.tooltipTimer);
+            this.tooltipTimer = null;
+        }
+        this.tooltipPendiente = null;
+        this.ultimoEventoTooltip = null;
+    },
+
+    actualizarTooltip(e, data) {
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+        const tooltipVisible = tooltipEl && !tooltipEl.classList.contains('hidden');
+
+        if (tooltipVisible) {
+            // Solo mover; el contenido no cambia mientras se está en la misma fila.
+            this.posicionarTooltip(e);
+            return;
+        }
+
+        this.tooltipPendiente = data;
+        this.ultimoEventoTooltip = { clientX: e.clientX, clientY: e.clientY };
     },
 
     showTooltip(e, data) {
@@ -92,9 +154,23 @@ const CP07_DEFINITION = {
         `;
 
         tooltipEl.classList.remove('hidden');
+        this._tooltipSize = {
+            width: tooltipEl.offsetWidth || 260,
+            height: tooltipEl.offsetHeight || 140
+        };
+        this.posicionarTooltip(e);
+    },
 
-        const tooltipWidth = tooltipEl.offsetWidth || 260;
-        const tooltipHeight = tooltipEl.offsetHeight || 140;
+    posicionarTooltip(e) {
+        const tooltipEl = document.getElementById('tooltip-tableau-costos');
+        if (!tooltipEl) return;
+
+        const size = this._tooltipSize || {
+            width: tooltipEl.offsetWidth || 260,
+            height: tooltipEl.offsetHeight || 140
+        };
+        const tooltipWidth = size.width;
+        const tooltipHeight = size.height;
 
         let left = e.clientX + 15;
         let top = e.clientY - 20;
@@ -107,8 +183,353 @@ const CP07_DEFINITION = {
     },
 
     hideTooltip() {
+        this.cancelarTooltipProgramado();
+        this._tooltipSize = null;
         const tooltipEl = document.getElementById('tooltip-tableau-costos');
         if (tooltipEl) tooltipEl.classList.add('hidden');
+    },
+
+    setupVirtualPanel(key, tbody, items, renderRow, colSpan, options = {}) {
+        if (!tbody) return;
+        const container = tbody.closest('div');
+        if (!container) return;
+
+        let state = this.virtualTables[key];
+        if (!state || state.tbody !== tbody) {
+            state = {
+                key,
+                tbody,
+                container,
+                items,
+                renderRow,
+                colSpan,
+                rowHeight: 30,
+                subHeight: 30,
+                measuredData: false,
+                measuredSub: false,
+                measurePass: 0,
+                offsets: null,
+                totalHeight: 0,
+                buffer: 10,
+                viewportFallback: options.viewportFallback || 400,
+                start: -1,
+                end: -1,
+                raf: null
+            };
+            container.addEventListener('scroll', () => this.onVirtualScroll(key), { passive: true });
+            this.virtualTables[key] = state;
+        } else {
+            state.items = items;
+            state.renderRow = renderRow;
+            state.colSpan = colSpan;
+            state.viewportFallback = options.viewportFallback || state.viewportFallback;
+        }
+
+        state.offsets = this.buildVirtualOffsets(state.items, state.rowHeight, state.subHeight);
+        state.totalHeight = state.offsets[state.offsets.length - 1] || 0;
+
+        if (options.resetScroll !== false) {
+            container.scrollTop = 0;
+        }
+
+        state.start = -1;
+        state.end = -1;
+        this.renderVirtualWindow(key, true);
+    },
+
+    buildVirtualOffsets(items, rowHeight, subHeight) {
+        const offsets = new Array(items.length + 1);
+        offsets[0] = 0;
+        for (let i = 0; i < items.length; i++) {
+            offsets[i + 1] = offsets[i] + (items[i] && items[i].type === 'subtotal' ? subHeight : rowHeight);
+        }
+        return offsets;
+    },
+
+    buscarIndicePorOffset(offsets, y) {
+        let lo = 0;
+        let hi = Math.max(0, offsets.length - 1);
+
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (offsets[mid + 1] <= y) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+
+        return lo;
+    },
+
+    onVirtualScroll(key) {
+        const state = this.virtualTables[key];
+        if (!state) return;
+
+        this.hideTooltip();
+        this._hoverRow = null;
+        this._hoverData = null;
+
+        if (state.raf) return;
+        state.raf = requestAnimationFrame(() => {
+            state.raf = null;
+            this.renderVirtualWindow(key);
+        });
+    },
+
+    renderVirtualWindow(key, force = false) {
+        const state = this.virtualTables[key];
+        if (!state || !state.tbody) return;
+
+        const total = state.items.length;
+        if (total === 0) {
+            state.start = 0;
+            state.end = 0;
+            return;
+        }
+
+        const container = state.container;
+        const viewport = container.clientHeight || state.viewportFallback;
+        const buffer = state.buffer;
+        const offsets = state.offsets || this.buildVirtualOffsets(state.items, state.rowHeight, state.subHeight);
+
+        let start = Math.max(0, this.buscarIndicePorOffset(offsets, container.scrollTop) - buffer);
+        let end = Math.min(total, this.buscarIndicePorOffset(offsets, container.scrollTop + viewport) + 1 + buffer);
+
+        if (total <= 80) {
+            start = 0;
+            end = total;
+        }
+
+        if (!force && start === state.start && end === state.end) return;
+
+        state.start = start;
+        state.end = end;
+
+        let html = '';
+        if (start > 0) {
+            html += `<tr class="cp07-vspacer" style="border:0;" aria-hidden="true"><td colspan="${state.colSpan}" style="height:${offsets[start]}px;padding:0;border:0;line-height:0;"></td></tr>`;
+        }
+
+        for (let i = start; i < end; i++) {
+            html += state.renderRow(state.items[i], i);
+        }
+
+        if (end < total) {
+            html += `<tr class="cp07-vspacer" style="border:0;" aria-hidden="true"><td colspan="${state.colSpan}" style="height:${Math.max(0, state.totalHeight - offsets[end])}px;padding:0;border:0;line-height:0;"></td></tr>`;
+        }
+
+        state.tbody.innerHTML = html;
+
+        // Medir alturas reales una vez por tipo de fila para mantener el scroll exacto.
+        if (state.measurePass < 3) {
+            let changed = false;
+
+            if (!state.measuredData) {
+                const dataProbe = state.tbody.querySelector(`tr.cp07-row-${key}`);
+                if (dataProbe) {
+                    const h = dataProbe.getBoundingClientRect().height;
+                    if (h > 0) {
+                        state.measuredData = true;
+                        if (Math.abs(h - state.rowHeight) > 0.5) {
+                            state.rowHeight = h;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            if (!state.measuredSub) {
+                const subProbe = state.tbody.querySelector('tr[data-cp07-subtotal="1"]');
+                if (subProbe) {
+                    const h = subProbe.getBoundingClientRect().height;
+                    if (h > 0) {
+                        state.measuredSub = true;
+                        if (Math.abs(h - state.subHeight) > 0.5) {
+                            state.subHeight = h;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            if (changed) {
+                state.measurePass++;
+                state.offsets = this.buildVirtualOffsets(state.items, state.rowHeight, state.subHeight);
+                state.totalHeight = state.offsets[state.offsets.length - 1] || 0;
+                state.start = -1;
+                state.end = -1;
+                this.renderVirtualWindow(key, true);
+            }
+        }
+    },
+
+    buildTooltipData(tr, panel) {
+        const fecha = this.datosBackend.fecha_formateada || this.datosBackend.fecha;
+
+        if (panel === 'p1') {
+            return {
+                titulo: 'Costo Unitario',
+                fecha,
+                cencos: tr.getAttribute('data-cencos'),
+                nomcencos: tr.getAttribute('data-nomcencos'),
+                galpon: tr.getAttribute('data-galpon'),
+                linea: tr.getAttribute('data-linea'),
+                nomlinea: tr.getAttribute('data-nomlinea'),
+                cantidad: tr.getAttribute('data-cantidad'),
+                peso: tr.getAttribute('data-peso'),
+                valor: tr.getAttribute('data-valor'),
+                saca_kilos: tr.getAttribute('data-saca_kilos'),
+                cu: tr.getAttribute('data-cu')
+            };
+        }
+
+        if (panel === 'p2') {
+            return {
+                titulo: 'Detalle Línea',
+                fecha,
+                cencos: tr.getAttribute('data-cencos'),
+                nomcencos: tr.getAttribute('data-nomcencos'),
+                galpon: tr.getAttribute('data-galpon'),
+                linea: tr.getAttribute('data-linea'),
+                nomlinea: tr.getAttribute('data-nomlinea'),
+                codigo: tr.getAttribute('data-codigo'),
+                nomcodigo: tr.getAttribute('data-nomcodigo'),
+                transaccion: tr.getAttribute('data-transaccion'),
+                cantidad: tr.getAttribute('data-cantidad'),
+                peso: tr.getAttribute('data-peso'),
+                valor: tr.getAttribute('data-valor'),
+                pu_kilo: tr.getAttribute('data-pu_kilo'),
+                pu_cant: tr.getAttribute('data-pu_cant')
+            };
+        }
+
+        return {
+            titulo: 'Insumo Fórmula',
+            fecha,
+            codigo: tr.getAttribute('data-item'),
+            nomcodigo: tr.getAttribute('data-nomalim'),
+            transaccion: tr.getAttribute('data-transaccion'),
+            insumo: tr.getAttribute('data-insumo'),
+            lineainsu: tr.getAttribute('data-lineainsu'),
+            valor: tr.getAttribute('data-valor'),
+            porinsu: tr.getAttribute('data-porinsu'),
+            valor_insu: tr.getAttribute('data-valor_insu'),
+            pvacons: tr.getAttribute('data-pvacons'),
+            valor_dist: tr.getAttribute('data-valor_dist')
+        };
+    },
+
+    bindDelegatedEvents() {
+        const bindPanel = (tbodyId, panel) => {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody || tbody._cp07Delegated) return;
+            tbody._cp07Delegated = true;
+
+            tbody.addEventListener('click', (e) => {
+                const tr = e.target.closest(`tr.cp07-row-${panel}`);
+                if (!tr) return;
+
+                if (panel === 'p1') {
+                    const cencos = tr.getAttribute('data-cencos');
+                    const galpon = tr.getAttribute('data-galpon');
+                    const linea = tr.getAttribute('data-linea');
+
+                    if (this.cencosSeleccionado === cencos && this.galponSeleccionado === galpon && this.lineaSeleccionada === linea) {
+                        this.cencosSeleccionado = null;
+                        this.galponSeleccionado = null;
+                        this.lineaSeleccionada = null;
+                    } else {
+                        this.cencosSeleccionado = cencos;
+                        this.galponSeleccionado = galpon;
+                        this.lineaSeleccionada = linea;
+                    }
+
+                    this.hideTooltip();
+                    this._hoverRow = null;
+                    this._hoverData = null;
+                    this.renderPanel1({ resetScroll: false });
+                    this.renderPanel2({ resetScroll: true });
+                    this.renderPanel3({ resetScroll: true });
+                } else if (panel === 'p2') {
+                    const codigo = tr.getAttribute('data-codigo');
+                    const linea = tr.getAttribute('data-linea');
+                    if (linea === '002' || (codigo && codigo.startsWith('PL'))) {
+                        this.alimentoSeleccionado = this.alimentoSeleccionado === codigo ? null : codigo;
+                        this.hideTooltip();
+                        this._hoverRow = null;
+                        this._hoverData = null;
+                        this.renderPanel2({ resetScroll: false });
+                        this.renderPanel3({ resetScroll: true });
+                    }
+                }
+            });
+
+            const getRow = (e) => e.target.closest(`tr.cp07-row-${panel}`);
+
+            tbody.addEventListener('mouseover', (e) => {
+                const tr = getRow(e);
+                if (!tr) return;
+                if (this._hoverRow === tr) return;
+                if (this._hoverRow && this._hoverRow.contains(e.relatedTarget)) return;
+
+                this._hoverRow = tr;
+                this._hoverData = this.buildTooltipData(tr, panel);
+                this.programarTooltip(e, this._hoverData);
+            });
+
+            tbody.addEventListener('mousemove', (e) => {
+                const tr = getRow(e);
+                if (!tr) return;
+
+                if (this._hoverRow !== tr) {
+                    this._hoverRow = tr;
+                    this._hoverData = this.buildTooltipData(tr, panel);
+                    this.programarTooltip(e, this._hoverData);
+                    return;
+                }
+
+                this.actualizarTooltip(e, this._hoverData);
+            });
+
+            tbody.addEventListener('mouseout', (e) => {
+                const tr = getRow(e);
+                if (!tr) return;
+                if (e.relatedTarget && tr.contains(e.relatedTarget)) return;
+
+                this._hoverRow = null;
+                this._hoverData = null;
+                this.hideTooltip();
+            });
+        };
+
+        bindPanel('cp07-tbody-p1', 'p1');
+        bindPanel('cp07-tbody-p2', 'p2');
+        bindPanel('cp07-tbody-p3', 'p3');
+    },
+
+    exportarPanelCompleto(tableId, key, nombreArchivo) {
+        const state = this.virtualTables[key];
+        const table = document.getElementById(tableId);
+        if (!state || !table || typeof ExcelExportHelper === 'undefined') return;
+
+        const theadHtml = table.querySelector('thead')?.outerHTML || '';
+        const tfootHtml = table.querySelector('tfoot')?.outerHTML || '';
+        const rowsHtml = state.items.map((item, idx) => state.renderRow(item, idx)).join('');
+
+        const temp = document.createElement('table');
+        temp.className = table.className;
+        temp.innerHTML = `${theadHtml}<tbody>${rowsHtml}</tbody>${tfootHtml}`;
+        temp.style.position = 'fixed';
+        temp.style.left = '-10000px';
+        temp.style.top = '0';
+
+        document.body.appendChild(temp);
+        try {
+            ExcelExportHelper.exportarTabla(temp, nombreArchivo);
+        } finally {
+            temp.remove();
+        }
     },
 
     getSelectedFilters() {
@@ -448,47 +869,42 @@ const CP07_DEFINITION = {
         // Bind selector de lineainsu
         document.getElementById('cp07-select-lineainsu')?.addEventListener('change', (e) => {
             this.filtroLineainsu = e.target.value;
-            this.renderPanel3();
+            this.renderPanel3({ resetScroll: true });
         });
 
         // Configurar exportación a Excel para las 3 tablas de CP07
         const fechaNom = (this.datosBackend.fecha_formateada || this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
-        const sufijoFiltro = (this.cencosSeleccionado ? `_${this.cencosSeleccionado}` : '') + (this.lineaSeleccionada ? `_L${this.lineaSeleccionada}` : '');
 
         const btnP1 = document.getElementById('cp07-btn-export-p1');
         if (btnP1) {
             btnP1.onclick = () => {
-                if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-cp07-p1', `CP07_Costo_Unitario_Cencos_Galpon_Linea_${fechaNom}`);
-                }
+                this.exportarPanelCompleto('tabla-cp07-p1', 'p1', `CP07_Costo_Unitario_Cencos_Galpon_Linea_${fechaNom}`);
             };
         }
 
         const btnP2 = document.getElementById('cp07-btn-export-p2');
         if (btnP2) {
             btnP2.onclick = () => {
-                if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-cp07-p2', `CP07_Detalle_Costo_Unitario_Linea${sufijoFiltro}_${fechaNom}`);
-                }
+                const sufijoFiltro = (this.cencosSeleccionado ? `_${this.cencosSeleccionado}` : '') + (this.lineaSeleccionada ? `_L${this.lineaSeleccionada}` : '');
+                this.exportarPanelCompleto('tabla-cp07-p2', 'p2', `CP07_Detalle_Costo_Unitario_Linea${sufijoFiltro}_${fechaNom}`);
             };
         }
 
         const btnP3 = document.getElementById('cp07-btn-export-p3');
         if (btnP3) {
             btnP3.onclick = () => {
-                if (typeof ExcelExportHelper !== 'undefined') {
-                    const sufijoAlim = this.alimentoSeleccionado ? `_${this.alimentoSeleccionado}` : '';
-                    ExcelExportHelper.exportarTabla('tabla-cp07-p3', `CP07_Formula_Insumos${sufijoAlim}_${fechaNom}`);
-                }
+                const sufijoAlim = this.alimentoSeleccionado ? `_${this.alimentoSeleccionado}` : '';
+                this.exportarPanelCompleto('tabla-cp07-p3', 'p3', `CP07_Formula_Insumos${sufijoAlim}_${fechaNom}`);
             };
         }
 
+        this.bindDelegatedEvents();
         this.renderPanel1();
         this.renderPanel2();
         this.renderPanel3();
     },
 
-    renderPanel1() {
+    renderPanel1(options = {}) {
         const tbody = document.getElementById('cp07-tbody-p1');
         const tfoot = document.getElementById('cp07-tfoot-p1');
         const badge = document.getElementById('cp07-badge-p1');
@@ -519,6 +935,7 @@ const CP07_DEFINITION = {
         if (badge) badge.textContent = `${filas.length} Reg`;
 
         if (filas.length === 0) {
+            if (this.virtualTables.p1) this.virtualTables.p1.items = [];
             tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-400 italic">No hay registros coincidentes</td></tr>`;
             tfoot.innerHTML = '';
             return;
@@ -526,13 +943,12 @@ const CP07_DEFINITION = {
 
         let totalCant = 0.0, totalPeso = 0.0, totalVal = 0.0, totalCU = 0.0;
         let lastCencos = null, lastGalpon = null;
-        let rowsHtml = '';
+        const items = [];
 
         filas.forEach(r => {
             const cant = Number(r.cantidad) || 0;
             const peso = Number(r.peso) || 0;
             const val  = Number(r.valor) || 0;
-            const saca = Number(r.saca_kilos) || 0;
             const cu   = Number(r.cu) || 0;
 
             totalCant += cant;
@@ -545,31 +961,8 @@ const CP07_DEFINITION = {
             lastCencos = r.cencos;
             lastGalpon = r.galpon;
 
-            const cencosDisplay = isNewCencos ? `<span class="font-bold text-slate-800 font-mono">${r.cencos}</span>` : '';
-            const galponDisplay = isNewGalpon ? `<span class="font-bold text-slate-700 font-mono">${r.galpon}</span>` : '';
-
-            const isSelected = this.cencosSeleccionado === r.cencos && this.galponSeleccionado === r.galpon && this.lineaSeleccionada === r.linea;
-            const rowClass = isSelected
-                ? "bg-blue-100/90 font-semibold text-blue-900 cursor-pointer"
-                : (isNewGalpon ? "border-t border-slate-300 hover:bg-blue-50/50 cursor-pointer" : "hover:bg-slate-50 cursor-pointer");
-
-            rowsHtml += `
-                <tr class="cp07-row-p1 ${rowClass}"
-                    data-cencos="${r.cencos}" data-nomcencos="${r.nomcencos}" data-galpon="${r.galpon}" data-linea="${r.linea}" data-nomlinea="${r.nomlinea}"
-                    data-cantidad="${cant}" data-peso="${peso}" data-valor="${val}" data-saca_kilos="${saca}" data-cu="${cu.toFixed(3)}">
-                    <td class="px-2 py-1.5 text-center border-r border-slate-100 select-none">${cencosDisplay}</td>
-                    <td class="px-1.5 py-1.5 text-center border-r border-slate-100 select-none">${galponDisplay}</td>
-                    <td class="px-2 py-1.5 text-center font-mono font-bold text-slate-700 border-r border-slate-100" title="${r.nomlinea || ''}">${r.linea}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${cant !== 0 ? this.formatNum(cant, 0) : '0'}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${peso !== 0 ? this.formatNum(peso, 2) : '0,00'}</td>
-                    <td class="px-3 py-1.5 text-right font-mono border-r border-slate-100 font-medium">${this.formatNum(val, 2)}</td>
-                    <td class="px-3 py-1.5 text-right font-mono border-r border-slate-100 text-slate-500">${saca > 0 ? this.formatNum(saca, 2) : '-'}</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono font-bold text-slate-900">${this.formatNum(cu, 3)}</td>
-                </tr>
-            `;
+            items.push({ r, isNewCencos, isNewGalpon });
         });
-
-        tbody.innerHTML = rowsHtml;
 
         tfoot.innerHTML = `
             <tr class="border-t-2 border-slate-300">
@@ -584,7 +977,42 @@ const CP07_DEFINITION = {
             </tr>
         `;
 
-        this.bindPanel1Events();
+        this.setupVirtualPanel('p1', tbody, items, (item) => this.renderP1Row(item), 8, {
+            resetScroll: options.resetScroll !== false,
+            viewportFallback: 820
+        });
+    },
+
+    renderP1Row(item) {
+        const r = item.r;
+        const cant = Number(r.cantidad) || 0;
+        const peso = Number(r.peso) || 0;
+        const val  = Number(r.valor) || 0;
+        const saca = Number(r.saca_kilos) || 0;
+        const cu   = Number(r.cu) || 0;
+
+        const cencosDisplay = item.isNewCencos ? `<span class="font-bold text-slate-800 font-mono">${r.cencos}</span>` : '';
+        const galponDisplay = item.isNewGalpon ? `<span class="font-bold text-slate-700 font-mono">${r.galpon}</span>` : '';
+
+        const isSelected = this.cencosSeleccionado === r.cencos && this.galponSeleccionado === r.galpon && this.lineaSeleccionada === r.linea;
+        const rowClass = isSelected
+            ? "bg-blue-100/90 font-semibold text-blue-900 cursor-pointer"
+            : (item.isNewGalpon ? "border-t border-slate-300 hover:bg-blue-50/50 cursor-pointer" : "hover:bg-slate-50 cursor-pointer");
+
+        return `
+            <tr class="cp07-row-p1 ${rowClass}"
+                data-cencos="${r.cencos}" data-nomcencos="${r.nomcencos}" data-galpon="${r.galpon}" data-linea="${r.linea}" data-nomlinea="${r.nomlinea}"
+                data-cantidad="${cant}" data-peso="${peso}" data-valor="${val}" data-saca_kilos="${saca}" data-cu="${cu.toFixed(3)}">
+                <td class="px-2 py-1.5 text-center border-r border-slate-100 select-none">${cencosDisplay}</td>
+                <td class="px-1.5 py-1.5 text-center border-r border-slate-100 select-none">${galponDisplay}</td>
+                <td class="px-2 py-1.5 text-center font-mono font-bold text-slate-700 border-r border-slate-100" title="${r.nomlinea || ''}">${r.linea}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${cant !== 0 ? this.formatNum(cant, 0) : '0'}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${peso !== 0 ? this.formatNum(peso, 2) : '0,00'}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-100 font-medium">${this.formatNum(val, 2)}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-100 text-slate-500">${saca > 0 ? this.formatNum(saca, 2) : '-'}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono font-bold text-slate-900">${this.formatNum(cu, 3)}</td>
+            </tr>
+        `;
     },
 
     bindPanel1Events() {
@@ -613,7 +1041,7 @@ const CP07_DEFINITION = {
             });
 
             tr.addEventListener('mouseenter', function(e) {
-                self.showTooltip(e, {
+                self.programarTooltip(e, {
                     titulo: 'Costo Unitario',
                     fecha: self.datosBackend.fecha_formateada || self.datosBackend.fecha,
                     cencos: this.getAttribute('data-cencos'),
@@ -630,7 +1058,7 @@ const CP07_DEFINITION = {
             });
 
             tr.addEventListener('mousemove', function(e) {
-                self.showTooltip(e, {
+                self.actualizarTooltip(e, {
                     titulo: 'Costo Unitario',
                     fecha: self.datosBackend.fecha_formateada || self.datosBackend.fecha,
                     cencos: this.getAttribute('data-cencos'),
@@ -652,7 +1080,7 @@ const CP07_DEFINITION = {
         });
     },
 
-    renderPanel2() {
+    renderPanel2(options = {}) {
         const tbody = document.getElementById('cp07-tbody-p2');
         const tfoot = document.getElementById('cp07-tfoot-p2');
         const badge = document.getElementById('cp07-badge-p2');
@@ -669,7 +1097,7 @@ const CP07_DEFINITION = {
         const selectedGalpones = this.multiGalpon ? this.multiGalpon.getSelectedValues() : [];
         const isFilteringGalpon = selectedGalpones && selectedGalpones.length > 0 && selectedGalpones.length < (this.multiGalpon.options ? this.multiGalpon.options.length : 999);
 
-        let isCrossFiltered = this.cencosSeleccionado || this.galponSeleccionado !== null || this.lineaSeleccionada;
+        const isCrossFiltered = this.cencosSeleccionado || this.galponSeleccionado !== null || this.lineaSeleccionada;
         if (badgeFiltro) {
             badgeFiltro.classList.toggle('hidden', !isCrossFiltered);
             if (isCrossFiltered) {
@@ -696,12 +1124,12 @@ const CP07_DEFINITION = {
         if (badge) badge.textContent = `${filas.length} Reg`;
 
         if (filas.length === 0) {
+            if (this.virtualTables.p2) this.virtualTables.p2.items = [];
             tbody.innerHTML = `<tr><td colspan="10" class="py-6 text-center text-slate-400 italic">No hay registros de detalle coincidentes</td></tr>`;
             tfoot.innerHTML = '';
             return;
         }
 
-        // Calcular máximos de PU Kilo y PU Cant para el tamaño de las barras ciruela
         let maxPuKilo = 1.0;
         let maxPuCant = 1.0;
         filas.forEach(r => {
@@ -712,10 +1140,8 @@ const CP07_DEFINITION = {
         });
 
         let totalCant = 0.0, totalPeso = 0.0, totalVal = 0.0;
-        let rowsHtml = '';
-
-        // Agrupar filas por [cencos_galpon_linea] para generar subtotales exactos como en Tableau
         let grupos = {};
+
         filas.forEach(r => {
             const key = `${r.cencos}_${r.galpon}_${r.linea}`;
             if (!grupos[key]) {
@@ -739,95 +1165,25 @@ const CP07_DEFINITION = {
             totalVal  += Number(r.valor) || 0;
         });
 
+        const items = [];
         Object.values(grupos).forEach(grp => {
             grp.filas.forEach((r, fIdx) => {
-                const cant = Number(r.cantidad) || 0;
-                const peso = Number(r.peso) || 0;
-                const val  = Number(r.valor) || 0;
-                const puK  = Number(r.pu_kilo) || 0;
-                const puC  = Number(r.pu_cant) || 0;
-
-                const cencosDisplay = fIdx === 0 ? `<span class="font-bold text-slate-800 font-mono">${r.cencos}</span>` : '';
-                const galponDisplay = fIdx === 0 ? `<span class="font-bold text-slate-700 font-mono">${r.galpon}</span>` : '';
-                const lineaDisplay  = fIdx === 0 ? `<span class="font-bold text-slate-800 font-mono">${r.linea}</span>` : '';
-
-                const isAlimento = r.linea === '002' || (r.codigo && r.codigo.startsWith('PL'));
-                const isSelected = this.alimentoSeleccionado === r.codigo;
-                const rowSelectedClass = isSelected ? "bg-amber-100 font-semibold text-amber-900" : (isAlimento ? "cursor-pointer hover:bg-amber-50/60" : "hover:bg-slate-50");
-
-                // En Tableau, la columna principal de barra es PU Kilo (o PU Cantidad si peso == 0)
-                const valorPU = peso > 0 ? puK : puC;
-                const widthPu = valorPU > 0 ? Math.min(100, Math.max(12, (valorPU / Math.max(maxPuKilo, 100)) * 100)) : 0;
-
-                const barPuHtml = valorPU > 0 ? `
-                    <div class="flex items-center justify-end gap-1.5 w-full">
-                        <div class="h-3.5 bg-[#a86591] rounded-2xs transition-all shrink-0" style="width: ${widthPu}px; max-width: 60%;"></div>
-                        <span class="font-mono text-[11px] text-slate-800 font-semibold text-right">${this.formatNum(valorPU, peso > 0 && puK < 10 ? 3 : 2)}</span>
-                    </div>
-                ` : '<span class="text-slate-300">-</span>';
-
-                const secPuHtml = (peso > 0 && puC > 0) ? `
-                    <span class="font-mono text-[11px] text-slate-700 text-right block">${this.formatNum(puC, 3)}</span>
-                ` : '<span class="text-slate-300">-</span>';
-
-                rowsHtml += `
-                    <tr class="cp07-row-p2 ${rowSelectedClass} transition-colors border-t border-slate-100"
-                        data-cencos="${r.cencos}" data-nomcencos="${r.nomcencos}" data-galpon="${r.galpon}" data-linea="${r.linea}" data-nomlinea="${r.nomlinea}"
-                        data-codigo="${r.codigo}" data-nomcodigo="${r.nomcodigo}" data-transaccion="${r.transaccion}"
-                        data-cantidad="${cant}" data-peso="${peso}" data-valor="${val}" data-pu_kilo="${puK.toFixed(3)}" data-pu_cant="${puC.toFixed(3)}">
-                        <td class="px-2 py-1.5 text-center border-r border-slate-100 select-none">${cencosDisplay}</td>
-                        <td class="px-1.5 py-1.5 text-center border-r border-slate-100 select-none">${galponDisplay}</td>
-                        <td class="px-2 py-1.5 text-center border-r border-slate-100 select-none">${lineaDisplay}</td>
-                        <td class="px-2.5 py-1.5 font-mono text-slate-800 border-r border-slate-100 whitespace-nowrap" title="${r.nomcodigo}">
-                            <div class="flex items-center gap-1.5">
-                                <span class="font-semibold ${isAlimento ? 'text-blue-900 font-bold' : 'text-slate-800'}">${r.codigo}</span>
-                                <span class="text-[11px] text-slate-500 truncate max-w-[135px]">${r.nomcodigo}</span>
-                            </div>
-                        </td>
-                        <td class="px-1.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r border-slate-100">${r.transaccion}</td>
-                        <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${cant !== 0 ? this.formatNum(cant, 2) : '0,00'}</td>
-                        <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${peso !== 0 ? this.formatNum(peso, 2) : '0,00'}</td>
-                        <td class="px-3 py-1.5 text-right font-mono border-r border-slate-100 font-semibold">${this.formatNum(val, 2)}</td>
-                        <td class="px-2.5 py-1 border-r border-slate-100">${barPuHtml}</td>
-                        <td class="px-2.5 py-1">${secPuHtml}</td>
-                    </tr>
-                `;
+                items.push({ type: 'data', r, fIdx, group: grp });
             });
 
-            // Subtotal PU de la Línea
             const subtotalVal = grp.subtotalVal;
             const subtotalPeso = grp.subtotalPeso;
             const subtotalCant = grp.subtotalCant;
             const subtotalPUPrincipal = subtotalPeso > 0 ? (subtotalVal / subtotalPeso) : (subtotalCant > 0 ? (subtotalVal / subtotalCant) : 0);
             const subtotalPUSecundario = (subtotalPeso > 0 && subtotalCant > 0) ? (subtotalVal / subtotalCant) : 0;
 
-            const subBarPuHtml = subtotalPUPrincipal > 0 ? `
-                <div class="flex items-center justify-end gap-1.5 w-full">
-                    <span class="font-mono text-[11px] text-slate-900 font-bold text-right">${this.formatNum(subtotalPUPrincipal, subtotalPeso > 0 && subtotalPUPrincipal < 10 ? 3 : 2)}</span>
-                </div>
-            ` : '';
-
-            const subSecPuHtml = subtotalPUSecundario > 0 ? `
-                <span class="font-mono text-[11px] text-slate-800 font-bold text-right block">${this.formatNum(subtotalPUSecundario, 3)}</span>
-            ` : '';
-
-            // Fila de Total de la Línea
-            rowsHtml += `
-                <tr class="bg-slate-50/80 font-bold border-t border-b border-slate-200 select-none text-[11px]">
-                    <td class="border-r border-slate-200"></td>
-                    <td class="border-r border-slate-200"></td>
-                    <td class="border-r border-slate-200"></td>
-                    <td class="px-3 py-1 text-right text-slate-500 font-semibold border-r border-slate-200" colspan="2">Total</td>
-                    <td class="px-2.5 py-1 text-right font-mono text-slate-800 border-r border-slate-200">${this.formatNum(grp.subtotalCant, 2)}</td>
-                    <td class="px-2.5 py-1 text-right font-mono text-slate-800 border-r border-slate-200 border-l-2 border-l-emerald-600">${this.formatNum(grp.subtotalPeso, 2)}</td>
-                    <td class="px-3 py-1 text-right font-mono text-slate-900 border-r border-slate-200 border-l-2 border-l-emerald-600">${this.formatNum(grp.subtotalVal, 2)}</td>
-                    <td class="px-2.5 py-1 border-r border-slate-200 text-right">${subBarPuHtml}</td>
-                    <td class="px-2.5 py-1 text-right">${subSecPuHtml}</td>
-                </tr>
-            `;
+            items.push({
+                type: 'subtotal',
+                grp,
+                subtotalPUPrincipal,
+                subtotalPUSecundario
+            });
         });
-
-        tbody.innerHTML = rowsHtml;
 
         tfoot.innerHTML = `
             <tr class="border-t-2 border-slate-300">
@@ -840,7 +1196,91 @@ const CP07_DEFINITION = {
             </tr>
         `;
 
-        this.bindPanel2Events();
+        this.setupVirtualPanel('p2', tbody, items, (item) => this.renderP2Item(item, maxPuKilo, maxPuCant), 10, {
+            resetScroll: options.resetScroll !== false,
+            viewportFallback: 380
+        });
+    },
+
+    renderP2Item(item, maxPuKilo, maxPuCant) {
+        if (item.type === 'subtotal') {
+            const grp = item.grp;
+            const subBarPuHtml = item.subtotalPUPrincipal > 0 ? `
+                <div class="flex items-center justify-end gap-1.5 w-full">
+                    <span class="font-mono text-[11px] text-slate-900 font-bold text-right">${this.formatNum(item.subtotalPUPrincipal, grp.subtotalPeso > 0 && item.subtotalPUPrincipal < 10 ? 3 : 2)}</span>
+                </div>
+            ` : '';
+
+            const subSecPuHtml = item.subtotalPUSecundario > 0 ? `
+                <span class="font-mono text-[11px] text-slate-800 font-bold text-right block">${this.formatNum(item.subtotalPUSecundario, 3)}</span>
+            ` : '';
+
+            return `
+                <tr data-cp07-subtotal="1" class="bg-slate-50/80 font-bold border-t border-b border-slate-200 select-none text-[11px]">
+                    <td class="border-r border-slate-200"></td>
+                    <td class="border-r border-slate-200"></td>
+                    <td class="border-r border-slate-200"></td>
+                    <td class="px-3 py-1 text-right text-slate-500 font-semibold border-r border-slate-200" colspan="2">Total</td>
+                    <td class="px-2.5 py-1 text-right font-mono text-slate-800 border-r border-slate-200">${this.formatNum(grp.subtotalCant, 2)}</td>
+                    <td class="px-2.5 py-1 text-right font-mono text-slate-800 border-r border-slate-200 border-l-2 border-l-emerald-600">${this.formatNum(grp.subtotalPeso, 2)}</td>
+                    <td class="px-3 py-1 text-right font-mono text-slate-900 border-r border-slate-200 border-l-2 border-l-emerald-600">${this.formatNum(grp.subtotalVal, 2)}</td>
+                    <td class="px-2.5 py-1 border-r border-slate-200 text-right">${subBarPuHtml}</td>
+                    <td class="px-2.5 py-1 text-right">${subSecPuHtml}</td>
+                </tr>
+            `;
+        }
+
+        const r = item.r;
+        const cant = Number(r.cantidad) || 0;
+        const peso = Number(r.peso) || 0;
+        const val  = Number(r.valor) || 0;
+        const puK  = Number(r.pu_kilo) || 0;
+        const puC  = Number(r.pu_cant) || 0;
+
+        const cencosDisplay = item.fIdx === 0 ? `<span class="font-bold text-slate-800 font-mono">${r.cencos}</span>` : '';
+        const galponDisplay = item.fIdx === 0 ? `<span class="font-bold text-slate-700 font-mono">${r.galpon}</span>` : '';
+        const lineaDisplay  = item.fIdx === 0 ? `<span class="font-bold text-slate-800 font-mono">${r.linea}</span>` : '';
+
+        const isAlimento = r.linea === '002' || (r.codigo && r.codigo.startsWith('PL'));
+        const isSelected = this.alimentoSeleccionado === r.codigo;
+        const rowSelectedClass = isSelected ? "bg-amber-100 font-semibold text-amber-900" : (isAlimento ? "cursor-pointer hover:bg-amber-50/60" : "hover:bg-slate-50");
+
+        const valorPU = peso > 0 ? puK : puC;
+        const widthPu = valorPU > 0 ? Math.min(100, Math.max(12, (valorPU / Math.max(maxPuKilo, 100)) * 100)) : 0;
+
+        const barPuHtml = valorPU > 0 ? `
+            <div class="flex items-center justify-end gap-1.5 w-full">
+                <div class="h-3.5 bg-[#a86591] rounded-2xs transition-all shrink-0" style="width: ${widthPu}px; max-width: 60%;"></div>
+                <span class="font-mono text-[11px] text-slate-800 font-semibold text-right">${this.formatNum(valorPU, peso > 0 && puK < 10 ? 3 : 2)}</span>
+            </div>
+        ` : '<span class="text-slate-300">-</span>';
+
+        const secPuHtml = (peso > 0 && puC > 0) ? `
+            <span class="font-mono text-[11px] text-slate-700 text-right block">${this.formatNum(puC, 3)}</span>
+        ` : '<span class="text-slate-300">-</span>';
+
+        return `
+            <tr class="cp07-row-p2 ${rowSelectedClass} transition-colors border-t border-slate-100"
+                data-cencos="${r.cencos}" data-nomcencos="${r.nomcencos}" data-galpon="${r.galpon}" data-linea="${r.linea}" data-nomlinea="${r.nomlinea}"
+                data-codigo="${r.codigo}" data-nomcodigo="${r.nomcodigo}" data-transaccion="${r.transaccion}"
+                data-cantidad="${cant}" data-peso="${peso}" data-valor="${val}" data-pu_kilo="${puK.toFixed(3)}" data-pu_cant="${puC.toFixed(3)}">
+                <td class="px-2 py-1.5 text-center border-r border-slate-100 select-none">${cencosDisplay}</td>
+                <td class="px-1.5 py-1.5 text-center border-r border-slate-100 select-none">${galponDisplay}</td>
+                <td class="px-2 py-1.5 text-center border-r border-slate-100 select-none">${lineaDisplay}</td>
+                <td class="px-2.5 py-1.5 font-mono text-slate-800 border-r border-slate-100 whitespace-nowrap" title="${r.nomcodigo}">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-semibold ${isAlimento ? 'text-blue-900 font-bold' : 'text-slate-800'}">${r.codigo}</span>
+                        <span class="text-[11px] text-slate-500 truncate max-w-[135px]">${r.nomcodigo}</span>
+                    </div>
+                </td>
+                <td class="px-1.5 py-1.5 text-center font-mono font-bold text-slate-600 border-r border-slate-100">${r.transaccion}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${cant !== 0 ? this.formatNum(cant, 2) : '0,00'}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono border-r border-slate-100">${peso !== 0 ? this.formatNum(peso, 2) : '0,00'}</td>
+                <td class="px-3 py-1.5 text-right font-mono border-r border-slate-100 font-semibold">${this.formatNum(val, 2)}</td>
+                <td class="px-2.5 py-1 border-r border-slate-100">${barPuHtml}</td>
+                <td class="px-2.5 py-1">${secPuHtml}</td>
+            </tr>
+        `;
     },
 
     bindPanel2Events() {
@@ -864,7 +1304,7 @@ const CP07_DEFINITION = {
             });
 
             tr.addEventListener('mouseenter', function(e) {
-                self.showTooltip(e, {
+                self.programarTooltip(e, {
                     titulo: 'Detalle Línea',
                     fecha: self.datosBackend.fecha_formateada || self.datosBackend.fecha,
                     cencos: this.getAttribute('data-cencos'),
@@ -884,7 +1324,7 @@ const CP07_DEFINITION = {
             });
 
             tr.addEventListener('mousemove', function(e) {
-                self.showTooltip(e, {
+                self.actualizarTooltip(e, {
                     titulo: 'Detalle Línea',
                     fecha: self.datosBackend.fecha_formateada || self.datosBackend.fecha,
                     cencos: this.getAttribute('data-cencos'),
@@ -909,7 +1349,7 @@ const CP07_DEFINITION = {
         });
     },
 
-    renderPanel3() {
+    renderPanel3(options = {}) {
         const tbody = document.getElementById('cp07-tbody-p3');
         const tfoot = document.getElementById('cp07-tfoot-p3');
         const badge = document.getElementById('cp07-badge-p3');
@@ -933,6 +1373,7 @@ const CP07_DEFINITION = {
         if (badge) badge.textContent = `${filas.length} Insumos`;
 
         if (filas.length === 0) {
+            if (this.virtualTables.p3) this.virtualTables.p3.items = [];
             tbody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400 italic">No hay fórmulas coincidentes</td></tr>`;
             tfoot.innerHTML = '';
             return;
@@ -940,7 +1381,7 @@ const CP07_DEFINITION = {
 
         let totalValInsu = 0.0, totalValDist = 0.0;
         let lastItem = null;
-        let rowsHtml = '';
+        const items = [];
 
         filas.forEach(r => {
             const valInsu = Number(r.valor_insu) || 0;
@@ -952,35 +1393,8 @@ const CP07_DEFINITION = {
             const isNewItem = r.item !== lastItem;
             lastItem = r.item;
 
-            const groupBorderClass = isNewItem ? "border-t-2 border-slate-300 bg-slate-50/20" : "border-t border-slate-100";
-            const itemDisplay = isNewItem ? `<span class="font-bold text-blue-900 font-mono">${r.item}</span>` : '';
-            const trxDisplay = isNewItem ? `<span class="font-bold text-slate-600 font-mono">${r.transaccion}</span>` : '';
-            const valDisplay = isNewItem ? `<span class="font-mono font-bold text-slate-800">${this.formatNum(r.valor, 2)}</span>` : '';
-
-            rowsHtml += `
-                <tr class="cp07-row-p3 ${groupBorderClass} hover:bg-blue-50/40 transition-colors"
-                    data-item="${r.item}" data-nomalim="${r.nomalim}" data-transaccion="${r.transaccion}"
-                    data-insumo="${r.insumo}" data-lineainsu="${r.lineainsu}" data-valor="${r.valor}"
-                    data-porinsu="${r.porinsu}" data-valor_insu="${valInsu}" data-pvacons="${r.pvacons}" data-valor_dist="${valDist}">
-                    <td class="px-2.5 py-1.5 border-r border-slate-100 select-none">${itemDisplay}</td>
-                    <td class="px-1.5 py-1.5 text-center border-r border-slate-100 select-none">${trxDisplay}</td>
-                    <td class="px-3 py-1.5 font-mono text-slate-800 border-r border-slate-100 whitespace-nowrap" title="${r.nominsu}">
-                        <div class="flex items-center gap-1.5">
-                            <span class="font-semibold text-slate-900">${r.codinsu}</span>
-                            <span class="text-[11px] text-slate-500 truncate max-w-[150px]">${r.nominsu}</span>
-                        </div>
-                    </td>
-                    <td class="px-2.5 py-1.5 text-slate-600 border-r border-slate-100 text-[11px] whitespace-nowrap">${r.lineainsu}</td>
-                    <td class="px-2.5 py-1.5 text-right border-r border-slate-100 select-none">${valDisplay}</td>
-                    <td class="px-2 py-1.5 text-right font-mono text-slate-600 border-r border-slate-100">${this.formatNum(r.porinsu, 2)}%</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono font-semibold text-slate-800 border-r border-slate-100">${this.formatNum(valInsu, 2)}</td>
-                    <td class="px-2 py-1.5 text-right font-mono text-slate-600 border-r border-slate-100">${this.formatNum(r.pvacons, 2)}%</td>
-                    <td class="px-2.5 py-1.5 text-right font-mono font-bold text-blue-700">${this.formatNum(valDist, 2)}</td>
-                </tr>
-            `;
+            items.push({ r, isNewItem, valInsu, valDist });
         });
-
-        tbody.innerHTML = rowsHtml;
 
         tfoot.innerHTML = `
             <tr class="border-t-2 border-slate-300">
@@ -991,7 +1405,43 @@ const CP07_DEFINITION = {
             </tr>
         `;
 
-        this.bindPanel3Events();
+        this.setupVirtualPanel('p3', tbody, items, (item) => this.renderP3Row(item), 9, {
+            resetScroll: options.resetScroll !== false,
+            viewportFallback: 400
+        });
+    },
+
+    renderP3Row(item) {
+        const r = item.r;
+        const valInsu = item.valInsu;
+        const valDist = item.valDist;
+
+        const groupBorderClass = item.isNewItem ? "border-t-2 border-slate-300 bg-slate-50/20" : "border-t border-slate-100";
+        const itemDisplay = item.isNewItem ? `<span class="font-bold text-blue-900 font-mono">${r.item}</span>` : '';
+        const trxDisplay = item.isNewItem ? `<span class="font-bold text-slate-600 font-mono">${r.transaccion}</span>` : '';
+        const valDisplay = item.isNewItem ? `<span class="font-mono font-bold text-slate-800">${this.formatNum(r.valor, 2)}</span>` : '';
+
+        return `
+            <tr class="cp07-row-p3 ${groupBorderClass} hover:bg-blue-50/40 transition-colors"
+                data-item="${r.item}" data-nomalim="${r.nomalim}" data-transaccion="${r.transaccion}"
+                data-insumo="${r.insumo}" data-lineainsu="${r.lineainsu}" data-valor="${r.valor}"
+                data-porinsu="${r.porinsu}" data-valor_insu="${valInsu}" data-pvacons="${r.pvacons}" data-valor_dist="${valDist}">
+                <td class="px-2.5 py-1.5 border-r border-slate-100 select-none">${itemDisplay}</td>
+                <td class="px-1.5 py-1.5 text-center border-r border-slate-100 select-none">${trxDisplay}</td>
+                <td class="px-3 py-1.5 font-mono text-slate-800 border-r border-slate-100 whitespace-nowrap" title="${r.nominsu}">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-semibold text-slate-900">${r.codinsu}</span>
+                        <span class="text-[11px] text-slate-500 truncate max-w-[150px]">${r.nominsu}</span>
+                    </div>
+                </td>
+                <td class="px-2.5 py-1.5 text-slate-600 border-r border-slate-100 text-[11px] whitespace-nowrap">${r.lineainsu}</td>
+                <td class="px-2.5 py-1.5 text-right border-r border-slate-100 select-none">${valDisplay}</td>
+                <td class="px-2 py-1.5 text-right font-mono text-slate-600 border-r border-slate-100">${this.formatNum(r.porinsu, 2)}%</td>
+                <td class="px-2.5 py-1.5 text-right font-mono font-semibold text-slate-800 border-r border-slate-100">${this.formatNum(valInsu, 2)}</td>
+                <td class="px-2 py-1.5 text-right font-mono text-slate-600 border-r border-slate-100">${this.formatNum(r.pvacons, 2)}%</td>
+                <td class="px-2.5 py-1.5 text-right font-mono font-bold text-blue-700">${this.formatNum(valDist, 2)}</td>
+            </tr>
+        `;
     },
 
     bindPanel3Events() {
@@ -1000,7 +1450,7 @@ const CP07_DEFINITION = {
 
         rows.forEach(tr => {
             tr.addEventListener('mouseenter', function(e) {
-                self.showTooltip(e, {
+                self.programarTooltip(e, {
                     titulo: 'Insumo Fórmula',
                     fecha: self.datosBackend.fecha_formateada || self.datosBackend.fecha,
                     codigo: this.getAttribute('data-item'),
@@ -1017,7 +1467,7 @@ const CP07_DEFINITION = {
             });
 
             tr.addEventListener('mousemove', function(e) {
-                self.showTooltip(e, {
+                self.actualizarTooltip(e, {
                     titulo: 'Insumo Fórmula',
                     fecha: self.datosBackend.fecha_formateada || self.datosBackend.fecha,
                     codigo: this.getAttribute('data-item'),

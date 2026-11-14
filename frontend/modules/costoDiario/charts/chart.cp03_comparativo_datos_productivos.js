@@ -21,6 +21,7 @@ const CP03_DEFINITION = {
     datosBackend: null,
     multiGranja: null,
     charts: [],
+    seleccionesCruzadas: [],
 
     destroy() {
         this.hideTooltip();
@@ -131,6 +132,34 @@ const CP03_DEFINITION = {
         }
     },
 
+    clicEnScrollbar(e, el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        const scrollbarVertical = el.offsetWidth - el.clientWidth;
+        const scrollbarHorizontal = el.offsetHeight - el.clientHeight;
+
+        if (scrollbarVertical > 0 && e.clientX >= rect.left + el.clientWidth) return true;
+        if (scrollbarHorizontal > 0 && e.clientY >= rect.top + el.clientHeight) return true;
+
+        return false;
+    },
+
+    bindTablaAutoClear() {
+        const contenedor = document.getElementById('cp03-contenedor-tabla');
+        if (!contenedor || contenedor._cp03AutoClear) return;
+
+        contenedor._cp03AutoClear = true;
+        contenedor.addEventListener('click', (e) => {
+            if (e.target.closest('.cp03-td-tooltip')) return;
+            if (e.target.closest('button, input, a, select, textarea')) return;
+            if (this.clicEnScrollbar(e, contenedor)) return;
+            if (!this.seleccionesCruzadas || !this.seleccionesCruzadas.length) return;
+
+            this.seleccionesCruzadas = [];
+            this.filtrarLocalmente();
+        });
+    },
+
     getSelectedFilters() {
         if (this.multiGranja) {
             const selected = typeof this.multiGranja.getSelectedValues === 'function' 
@@ -146,6 +175,7 @@ const CP03_DEFINITION = {
     render(controller, data) {
         this.controller = controller;
         this.datosBackend = data || {};
+        this.seleccionesCruzadas = [];
 
         // 1. Ocultar cabecera redundante superior
         const headerPrincipal = document.getElementById('card-header-grafica-principal');
@@ -207,50 +237,86 @@ const CP03_DEFINITION = {
         const allGranjas = this.datosBackend.granjas || [];
         const allDifs = this.datosBackend.diferencias || [];
 
+        // Si se filtra por granja, descartar selecciones de granjas que ya no se ven
+        if (!isAll) {
+            this.seleccionesCruzadas = (this.seleccionesCruzadas || []).filter(s =>
+                selectedCencos.includes(String(s.cencos))
+            );
+        }
+
         let granjasFiltradas = isAll ? allGranjas : allGranjas.filter(g => selectedCencos.includes(String(g.cencos)));
         let difsFiltradas = isAll ? allDifs : allDifs.filter(d => selectedCencos.includes(String(d.cencos)));
 
         this.renderTablaGranjaGalpon(granjasFiltradas);
 
-        if (this.seleccionCruzada) {
-            const sc = this.seleccionCruzada;
+        const selecciones = this.seleccionesCruzadas || [];
+        if (selecciones.length) {
+            const tuplasSeleccionadas = new Set();
+            const cencosTotales = new Set();
 
-            // Filtrar Diferencias
-            difsFiltradas = difsFiltradas.filter(d => {
-                if (sc.galpon === 'Total') {
-                    return String(d.cencos) === String(sc.cencos);
+            selecciones.forEach(s => {
+                const cencosKey = String(s.cencos);
+                const galponKey = String(s.galpon);
+                if (galponKey === 'Total') {
+                    cencosTotales.add(cencosKey);
+                } else {
+                    tuplasSeleccionadas.add(`${cencosKey}::${galponKey}`);
                 }
-                return String(d.cencos) === String(sc.cencos) && String(d.galpon) === String(sc.galpon);
             });
 
-            // Filtrar Barras
+            // Tabla de diferencias: incluir las tuplas seleccionadas o todos los galpones de un Total
+            difsFiltradas = difsFiltradas.filter(d => {
+                const cencosKey = String(d.cencos);
+                const galponKey = String(d.galpon);
+                return cencosTotales.has(cencosKey) || tuplasSeleccionadas.has(`${cencosKey}::${galponKey}`);
+            });
+
+            // Gráfico de barras: una entrada por tupla seleccionada, con su barra Total
             const granjasParaBarras = [];
             granjasFiltradas.forEach(g => {
-                if (String(g.cencos) === String(sc.cencos)) {
-                    if (sc.galpon === 'Total') {
-                        granjasParaBarras.push(g);
-                    } else {
-                        const gpSelected = (g.galpones || []).find(gp => String(gp.galpon) === String(sc.galpon));
-                        if (gpSelected) {
-                            const gpTotal = {
-                                ...gpSelected,
-                                galpon: 'Total',
-                                is_total: true
-                            };
-                            granjasParaBarras.push({
-                                ...g,
-                                galpones: [gpSelected, gpTotal]
-                            });
-                        }
+                const cencosKey = String(g.cencos);
+                const seleccionesGranja = selecciones.filter(s => String(s.cencos) === cencosKey);
+                if (!seleccionesGranja.length) return;
+
+                const tieneTotal = seleccionesGranja.some(s => String(s.galpon) === 'Total');
+                if (tieneTotal) {
+                    granjasParaBarras.push(g);
+                    return;
+                }
+
+                const galponesKeys = Array.from(new Set(seleccionesGranja.map(s => String(s.galpon))));
+                galponesKeys.sort((a, b) => {
+                    const na = parseInt(a, 10) || 0;
+                    const nb = parseInt(b, 10) || 0;
+                    return na - nb || a.localeCompare(b);
+                });
+
+                const galponesSeleccionados = [];
+                galponesKeys.forEach(galponKey => {
+                    const gpSelected = (g.galpones || []).find(gp => String(gp.galpon) === galponKey);
+                    if (gpSelected) {
+                        galponesSeleccionados.push(gpSelected);
+                        galponesSeleccionados.push({
+                            ...gpSelected,
+                            galpon: 'Total',
+                            is_total: true
+                        });
                     }
+                });
+
+                if (galponesSeleccionados.length) {
+                    granjasParaBarras.push({
+                        ...g,
+                        galpones: galponesSeleccionados
+                    });
                 }
             });
 
             this.renderTablaDiferencias(difsFiltradas);
-            this.renderSmallMultiplesBarras(granjasParaBarras);
+            this.renderSmallMultiplesBarras(granjasParaBarras, true);
         } else {
             this.renderTablaDiferencias(difsFiltradas);
-            this.renderSmallMultiplesBarras(granjasFiltradas);
+            this.renderSmallMultiplesBarras(granjasFiltradas, false);
         }
     },
 
@@ -306,7 +372,7 @@ const CP03_DEFINITION = {
                             </div>
                         </div>
 
-                        <div class="w-full overflow-x-auto max-h-[460px] custom-scrollbar">
+                        <div id="cp03-contenedor-tabla" class="w-full overflow-x-auto max-h-[460px] custom-scrollbar">
                             <table id="tabla-cp03-granja-galpon" class="w-full text-xs border-collapse text-right select-none">
                                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold shadow-xs">
                                     <tr>
@@ -424,6 +490,8 @@ const CP03_DEFINITION = {
             };
         }
 
+        this.bindTablaAutoClear();
+
     },
 
     /**
@@ -437,7 +505,11 @@ const CP03_DEFINITION = {
         }
         if (!tbody) return;
 
-        const sc = this.seleccionCruzada;
+        const selecciones = this.seleccionesCruzadas || [];
+        const haySeleccion = selecciones.length > 0;
+        const tuplasSeleccionadas = new Set(selecciones.map(s => `${String(s.cencos)}::${String(s.galpon)}`));
+        const celdasSeleccionadas = new Set(selecciones.map(s => `${String(s.cencos)}::${String(s.galpon)}::${s.metrica}`));
+
         let html = '';
         (granjas || []).forEach(g => {
             const galpones = g.galpones || [];
@@ -452,8 +524,8 @@ const CP03_DEFINITION = {
                 const galponVal = String(gp.galpon);
                 const fechaVal = gp.fecha || granjaFecha;
 
-                const isRowActive = sc && sc.cencos === cencosVal && sc.galpon === galponVal;
-                const isRowDimmed = sc && !isRowActive;
+                const isRowActive = haySeleccion && tuplasSeleccionadas.has(`${cencosVal}::${galponVal}`);
+                const isRowDimmed = haySeleccion && !isRowActive;
 
                 let rowClass = isTotal ? 'bg-slate-50 font-bold border-b-2 border-slate-200' : 'hover:bg-blue-50/40';
                 if (isRowDimmed) {
@@ -469,7 +541,7 @@ const CP03_DEFINITION = {
                 const valPgd = this.formatNum(gp.pgd, 3);
 
                 const getCellClass = (metricaNombre) => {
-                    const isCellSelected = sc && sc.cencos === cencosVal && sc.galpon === galponVal && sc.metrica === metricaNombre;
+                    const isCellSelected = celdasSeleccionadas.has(`${cencosVal}::${galponVal}::${metricaNombre}`);
                     if (isCellSelected) {
                         return 'bg-blue-100 text-blue-900 ring-2 ring-blue-500 font-bold shadow-xs z-10';
                     }
@@ -552,13 +624,28 @@ const CP03_DEFINITION = {
                 const cencos = td.getAttribute('data-cencos');
                 const galpon = td.getAttribute('data-galpon');
                 const metrica = td.getAttribute('data-metrica-nombre');
+                const conCtrl = e.ctrlKey || e.metaKey;
+                const esMismaCelda = (s) =>
+                    String(s.cencos) === String(cencos) &&
+                    String(s.galpon) === String(galpon) &&
+                    s.metrica === metrica;
 
-                if (self.seleccionCruzada && self.seleccionCruzada.cencos === cencos && self.seleccionCruzada.galpon === galpon && self.seleccionCruzada.metrica === metrica) {
-                    self.seleccionCruzada = null;
+                const actuales = self.seleccionesCruzadas || [];
+
+                if (conCtrl) {
+                    const posicion = actuales.findIndex(esMismaCelda);
+                    if (posicion >= 0) {
+                        actuales.splice(posicion, 1);
+                    } else {
+                        actuales.push({ cencos, galpon, metrica });
+                    }
+                    self.seleccionesCruzadas = actuales;
                 } else {
-                    self.seleccionCruzada = { cencos, galpon, metrica };
+                    const soloEsta = actuales.length === 1 && esMismaCelda(actuales[0]);
+                    self.seleccionesCruzadas = soloEsta ? [] : [{ cencos, galpon, metrica }];
                 }
 
+                self.hideTooltip();
                 self.filtrarLocalmente();
             });
         });
@@ -692,7 +779,7 @@ const CP03_DEFINITION = {
      *    - Separación y Agrupación por Cencos a la Derecha con divisores verticales
      *    - Tooltip Tableau Flotante
      */
-    renderSmallMultiplesBarras(granjas) {
+    renderSmallMultiplesBarras(granjas, modoFiltrado = false) {
         const panelFijo = document.getElementById('cp03-panel-fijo-eje-y');
         const contScroll = document.getElementById('cp03-contenedor-scroll-barras');
         if (!panelFijo || !contScroll) return;
@@ -746,7 +833,7 @@ const CP03_DEFINITION = {
 
         const labelsX = barItems.map(b => b.galpon);
 
-        const isFiltered = barItems.length <= 4;
+        const isFiltered = !!modoFiltrado;
 
         // 2. Ancho proporcional por barra para scroll horizontal
         const barWidthPx = isFiltered ? 55 : 34;

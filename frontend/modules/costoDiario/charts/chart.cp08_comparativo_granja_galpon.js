@@ -40,6 +40,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         this.datosPorCencos = {};
         this.promesasCencos = {};
         this.cargaSeq = (this.cargaSeq || 0) + 1;
+        this.generacionDatos = (this.generacionDatos || 0) + 1;
 
         if (this.cencosActivo) {
             this.datosPorCencos[String(this.cencosActivo)] = {
@@ -95,10 +96,15 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const ventanaPdf = window.open('', '_blank');
 
         try {
+            // Asegurar que estén cargados todos los cencos seleccionados antes de generar el PDF.
+            await this.asegurarDatosCencos();
+
             let rango = {};
             if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
                 rango = PeriodoHelper.obtenerRangoFechas();
             }
+
+            const gruposPdf = this.obtenerGruposPaneles();
 
             const payload = {
                 datos: this.datosBackend,
@@ -108,7 +114,10 @@ window.ChartCP08ComparativoGranjaGalpon = {
                     galponActivo: this.galponActivo,
                     lineaSeleccionada: this.lineaSeleccionada,
                     selectedGranjas: this.multiGranja ? this.multiGranja.getSelectedValues() : [],
-                    selectedClasif: this.multiClasif ? this.multiClasif.getSelectedValues() : []
+                    selectedClasif: this.multiClasif ? this.multiClasif.getSelectedValues() : [],
+                    galponesSeleccionados: this.galponesSeleccionados,
+                    lineasSeleccionadas: this.lineasSeleccionadas,
+                    grupos: gruposPdf
                 },
                 filtros: {
                     fecha_inicio: rango.fechaInicio || rango.inicio || '',
@@ -450,7 +459,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
 
     obtenerDatosCencos(cencos) {
         const key = String(cencos);
-        const secuencia = this.cargaSeq;
+        const generacion = this.generacionDatos || 0;
 
         if (this.datosPorCencos[key]) {
             return Promise.resolve(this.datosPorCencos[key]);
@@ -508,7 +517,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
                     nomcencos: data.nomcencos_activo || this.nombreCencos(key)
                 };
 
-                if (secuencia !== this.cargaSeq) {
+                if (generacion !== (this.generacionDatos || 0)) {
                     return cache;
                 }
 
@@ -527,7 +536,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
                 console.error('Error al recargar datos de campaña CP08:', err);
                 const cache = { tabla2: {}, tabla3: {}, nomcencos: this.nombreCencos(key) };
 
-                if (secuencia === this.cargaSeq) {
+                if (generacion === (this.generacionDatos || 0)) {
                     this.datosPorCencos[key] = cache;
                 }
 
@@ -595,7 +604,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
                             </div>
                         </div>
 
-                        <div class="w-full overflow-x-auto max-h-[460px] custom-scrollbar">
+                        <div id="cp08-container-tabla-p1" class="w-full overflow-x-auto max-h-[460px] custom-scrollbar">
                             <table id="cp08-tabla-p1" class="w-full text-xs border-collapse select-none">
                                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold text-center shadow-xs">
                                     <tr>
@@ -719,6 +728,60 @@ window.ChartCP08ComparativoGranjaGalpon = {
         this.renderPanel1();
         this.renderPanel2();
         this.renderPanel3();
+        this.bindAutoClearPanels();
+    },
+
+    _capturarScroll(el) {
+        return el ? { top: el.scrollTop, left: el.scrollLeft } : null;
+    },
+
+    _restaurarScroll(el, estado) {
+        if (!el || !estado) return;
+        el.scrollTop = estado.top;
+        el.scrollLeft = estado.left;
+    },
+
+    _clicEnScrollbar(e, el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        const scrollbarVertical = el.offsetWidth - el.clientWidth;
+        const scrollbarHorizontal = el.offsetHeight - el.clientHeight;
+
+        if (scrollbarVertical > 0 && e.clientX >= rect.left + el.clientWidth) return true;
+        if (scrollbarHorizontal > 0 && e.clientY >= rect.top + el.clientHeight) return true;
+
+        return false;
+    },
+
+    bindAutoClearPanels() {
+        const panel1 = document.getElementById('cp08-container-tabla-p1');
+        if (panel1 && !panel1._cp08AutoClear) {
+            panel1._cp08AutoClear = true;
+            panel1.addEventListener('click', (e) => {
+                if (e.target.closest('tr, button, input, a, select, textarea')) return;
+                if (this._clicEnScrollbar(e, panel1)) return;
+                if (!this.galponesSeleccionados.length) return;
+
+                this.galponesSeleccionados = [];
+                this.sincronizarSeleccionSimple();
+                this.asegurarDatosCencos();
+            });
+        }
+
+        const panel2 = document.getElementById('cp08-container-tabla-p2');
+        if (panel2 && !panel2._cp08AutoClear) {
+            panel2._cp08AutoClear = true;
+            panel2.addEventListener('click', (e) => {
+                if (e.target.closest('tr, button, input, a, select, textarea')) return;
+                if (this._clicEnScrollbar(e, panel2)) return;
+                if (!this.lineasSeleccionadas.length) return;
+
+                this.lineasSeleccionadas = [];
+                this.sincronizarSeleccionSimple();
+                this.renderPanel2();
+                this.renderPanel3();
+            });
+        }
     },
 
     renderPanel1() {
@@ -726,6 +789,9 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const tfoot = document.getElementById('cp08-tfoot-p1');
         const badge = document.getElementById('cp08-badge-p1');
         if (!tbody || !tfoot) return;
+
+        const contenedorP1 = document.getElementById('cp08-container-tabla-p1');
+        const scrollP1 = this._capturarScroll(contenedorP1);
 
         const allGranjas = (this.datosBackend.tabla1_datos_productivos && this.datosBackend.tabla1_datos_productivos.granjas) || [];
         const selectedGranjas = this.multiGranja ? this.multiGranja.getSelectedValues() : [];
@@ -820,6 +886,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         `;
 
         this.bindPanel1Events();
+        this._restaurarScroll(contenedorP1, scrollP1);
     },
 
     bindPanel1Events() {
@@ -852,8 +919,13 @@ window.ChartCP08ComparativoGranjaGalpon = {
                     self.galponesSeleccionados = soloEste ? [] : [{ cencos, galpon, nomcencos }];
                 }
 
-                self.cencosActivo = cencos;
-                self.nomcencosActivo = nomcencos;
+                // La granja activa solo debe cambiar cuando hay una selección.
+                // Al deseleccionar se conserva la granja activa previa para volver al estado anterior.
+                const ultimoSeleccionado = self.galponesSeleccionados[self.galponesSeleccionados.length - 1];
+                if (ultimoSeleccionado) {
+                    self.cencosActivo = ultimoSeleccionado.cencos;
+                    self.nomcencosActivo = ultimoSeleccionado.nomcencos;
+                }
 
                 const cencosDespues = self.obtenerCencosSeleccionados().join('|');
 
@@ -916,6 +988,8 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const container = document.getElementById('cp08-container-tabla-p2');
         const badgeP2 = document.getElementById('cp08-badge-p2');
         if (!container) return;
+
+        const scrollP2 = this._capturarScroll(container);
 
         const grupos = this.obtenerGruposPaneles()
             .map(grupo => ({ ...grupo, galpones: grupo.galpones2 || [] }))
@@ -1065,6 +1139,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         `;
 
         this.bindPanel2Events();
+        this._restaurarScroll(container, scrollP2);
     },
 
     bindPanel2Events() {
@@ -1124,6 +1199,8 @@ window.ChartCP08ComparativoGranjaGalpon = {
         const badgeP3 = document.getElementById('cp08-badge-p3');
         if (!container) return;
 
+        const scrollP3 = this._capturarScroll(container);
+
         const grupos = this.obtenerGruposPaneles()
             .map(grupo => ({ ...grupo, galpones: grupo.galpones3 || [] }))
             .filter(grupo => grupo.galpones.length > 0);
@@ -1149,12 +1226,11 @@ window.ChartCP08ComparativoGranjaGalpon = {
         }
 
         const itemsMap = new Map();
+        const lineasSeleccionadasClaves = new Set(this.lineasSeleccionadas.map(clave => String(clave)));
 
         grupos.forEach(grupo => {
-            const lineasSeleccionadasCodigo = this.lineasSeleccionadas.map(clave => String(clave).split('||')[0]);
-
             const filasGrupo = (grupo.tabla3.filas || []).filter(r => {
-                if (lineasSeleccionadasCodigo.length && !lineasSeleccionadasCodigo.includes(String(r.linea))) {
+                if (lineasSeleccionadasClaves.size && !lineasSeleccionadasClaves.has(this.claveLinea(r.linea, r.nomlinea))) {
                     return false;
                 }
 
@@ -1162,11 +1238,12 @@ window.ChartCP08ComparativoGranjaGalpon = {
             });
 
             filasGrupo.forEach(r => {
-                const key = `${r.linea}||${r.codigo}||${r.nomcodigo || ''}||${r.transaccion}`;
+                const key = `${r.linea}||${r.nomlinea || ''}||${r.codigo}||${r.nomcodigo || ''}||${r.transaccion}`;
 
                 if (!itemsMap.has(key)) {
                     itemsMap.set(key, {
                         linea: r.linea,
+                        nomlinea: r.nomlinea || '',
                         codigo: r.codigo,
                         nomcodigo: r.nomcodigo || '',
                         transaccion: r.transaccion,
@@ -1334,6 +1411,7 @@ window.ChartCP08ComparativoGranjaGalpon = {
         `;
 
         this.bindPanel3Events();
+        this._restaurarScroll(container, scrollP3);
     },
 
     bindPanel3Events() {

@@ -20,7 +20,8 @@ const CA01_DEFINITION = {
     datosDashboard: null,
     chartGeneral: null,
     detalleCharts: [],
-    fechaSeleccionada: null, // Fecha activa en filtro cruzado
+    fechasSeleccionadas: [], // Fechas activas en filtro cruzado
+    ultimoIndiceSeleccionado: null,
 
     // Paleta de colores exacta de Tableau
     coloresTipo: {
@@ -72,7 +73,8 @@ const CA01_DEFINITION = {
         if (cardTabla) cardTabla.classList.add('hidden');
 
         this.datosDashboard = data || {};
-        this.fechaSeleccionada = null; // Reiniciar filtro cruzado al cargar
+        this.fechasSeleccionadas = []; // Reiniciar filtro cruzado al cargar
+        this.ultimoIndiceSeleccionado = null;
 
         // Construir la estructura DOM del dashboard
         this.renderLayout();
@@ -191,10 +193,11 @@ const CA01_DEFINITION = {
         const yMin = Math.max(0, Math.floor((minVal - 0.005) * 500) / 500);
         const yMax = Math.ceil((maxVal + 0.005) * 500) / 500;
 
-        // Radios y bordes de puntos (resaltar el punto activo en filtro cruzado)
-        const pointRadii = puntos.map(p => p.fecha === this.fechaSeleccionada ? 7 : 3.5);
-        const pointBorderWidths = puntos.map(p => p.fecha === this.fechaSeleccionada ? 2.5 : 1);
-        const pointBorderColors = puntos.map(p => p.fecha === this.fechaSeleccionada ? '#0f172a' : '#ffffff');
+        // Radios y bordes de puntos (resaltar los días activos en filtro cruzado)
+        const fechasSelGeneral = new Set(this.fechasSeleccionadas);
+        const pointRadii = puntos.map(p => fechasSelGeneral.has(p.fecha) ? 7 : 3.5);
+        const pointBorderWidths = puntos.map(p => fechasSelGeneral.has(p.fecha) ? 2.5 : 1);
+        const pointBorderColors = puntos.map(p => fechasSelGeneral.has(p.fecha) ? '#0f172a' : '#ffffff');
 
         const ctx = canvas.getContext('2d');
 
@@ -228,23 +231,61 @@ const CA01_DEFINITION = {
                     padding: { top: 25, bottom: 5, left: 10, right: 15 }
                 },
                 onClick: (event, elements) => {
-                    if (elements && elements.length > 0) {
-                        const idx = elements[0].index;
-                        const puntoPresionado = puntos[idx];
-                        if (puntoPresionado) {
-                            if (this.fechaSeleccionada === puntoPresionado.fecha) {
-                                // Deseleccionar
-                                this.fechaSeleccionada = null;
-                            } else {
-                                // Seleccionar fecha
-                                this.fechaSeleccionada = puntoPresionado.fecha;
-                            }
-                            // Actualizar selección visual de la línea sin destruir su contexto
+                    const nativeEvent = event && event.native ? event.native : event;
+                    const conCtrl = !!(nativeEvent && (nativeEvent.ctrlKey || nativeEvent.metaKey));
+                    const conShift = !!(nativeEvent && nativeEvent.shiftKey);
+
+                    // Clic en área vacía: limpiar selección (auto-clear de Tableau)
+                    if (!elements || elements.length === 0) {
+                        if (this.fechasSeleccionadas.length) {
+                            this.fechasSeleccionadas = [];
+                            this.ultimoIndiceSeleccionado = null;
                             this.updateGeneralChartSelection();
-                            // Renderizar el detalle inferior
                             this.renderDetalleSection();
                         }
+                        return;
                     }
+
+                    const idx = elements[0].index;
+                    const puntoPresionado = puntos[idx];
+                    if (!puntoPresionado) return;
+
+                    const fecha = puntoPresionado.fecha;
+
+                    if (conShift) {
+                        const inicio = this.ultimoIndiceSeleccionado !== null ? this.ultimoIndiceSeleccionado : idx;
+                        const min = Math.min(inicio, idx);
+                        const max = Math.max(inicio, idx);
+                        const rango = [];
+                        for (let i = min; i <= max; i++) {
+                            if (puntos[i]) rango.push(puntos[i].fecha);
+                        }
+
+                        if (conCtrl) {
+                            const set = new Set(this.fechasSeleccionadas);
+                            rango.forEach(f => set.add(f));
+                            this.fechasSeleccionadas = Array.from(set);
+                        } else {
+                            this.fechasSeleccionadas = rango;
+                        }
+                        this.ultimoIndiceSeleccionado = idx;
+                    } else if (conCtrl) {
+                        const posicion = this.fechasSeleccionadas.indexOf(fecha);
+                        if (posicion >= 0) {
+                            this.fechasSeleccionadas.splice(posicion, 1);
+                        } else {
+                            this.fechasSeleccionadas.push(fecha);
+                        }
+                        this.ultimoIndiceSeleccionado = idx;
+                    } else {
+                        const soloEste = this.fechasSeleccionadas.length === 1 && this.fechasSeleccionadas[0] === fecha;
+                        this.fechasSeleccionadas = soloEste ? [] : [fecha];
+                        this.ultimoIndiceSeleccionado = soloEste ? null : idx;
+                    }
+
+                    this.fechasSeleccionadas = this.ordenarFechasSeleccionadas();
+                    this.updateGeneralChartSelection();
+                    this.renderDetalleSection();
                 },
                 plugins: {
                     legend: { display: false },
@@ -315,14 +356,50 @@ const CA01_DEFINITION = {
     updateGeneralChartSelection() {
         if (!this.chartGeneral) return;
         const puntos = this.datosDashboard.puntos_general || [];
-        this.chartGeneral.data.datasets[0].pointRadius = puntos.map(p => p.fecha === this.fechaSeleccionada ? 7 : 3.5);
-        this.chartGeneral.data.datasets[0].pointBorderWidth = puntos.map(p => p.fecha === this.fechaSeleccionada ? 2.5 : 1);
-        this.chartGeneral.data.datasets[0].pointBorderColor = puntos.map(p => p.fecha === this.fechaSeleccionada ? '#0f172a' : '#ffffff');
+        const seleccionadas = new Set(this.fechasSeleccionadas);
+        this.chartGeneral.data.datasets[0].pointRadius = puntos.map(p => seleccionadas.has(p.fecha) ? 7 : 3.5);
+        this.chartGeneral.data.datasets[0].pointBorderWidth = puntos.map(p => seleccionadas.has(p.fecha) ? 2.5 : 1);
+        this.chartGeneral.data.datasets[0].pointBorderColor = puntos.map(p => seleccionadas.has(p.fecha) ? '#0f172a' : '#ffffff');
         this.chartGeneral.update('none');
     },
 
+    ordenarFechasSeleccionadas() {
+        const set = new Set(this.fechasSeleccionadas);
+        const ordenadas = [];
+        (this.datosDashboard.puntos_general || []).forEach(p => {
+            if (set.has(p.fecha)) {
+                ordenadas.push(p.fecha);
+                set.delete(p.fecha);
+            }
+        });
+        set.forEach(fecha => ordenadas.push(fecha));
+        return ordenadas;
+    },
+
+    normalizarFecha(fecha) {
+        return String(fecha || '').replace(/-/g, '/');
+    },
+
+    diaSemanaDesdeFecha(fecha) {
+        const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const limpia = String(fecha || '').replace(/\//g, '-');
+        const date = new Date(`${limpia}T00:00:00`);
+        if (isNaN(date.getTime())) return '';
+        return dias[date.getDay()] || '';
+    },
+
+    capturarScroll(el) {
+        return el ? { top: el.scrollTop, left: el.scrollLeft } : null;
+    },
+
+    restaurarScroll(el, estado) {
+        if (!el || !estado) return;
+        el.scrollTop = estado.top;
+        el.scrollLeft = estado.left;
+    },
+
     renderDetalleSection() {
-        if (this.fechaSeleccionada) {
+        if (this.fechasSeleccionadas.length > 0) {
             this.renderFiltroCruzado();
         } else {
             this.renderDetalleGeneral();
@@ -470,7 +547,8 @@ const CA01_DEFINITION = {
     },
 
     /**
-     * Renderizado de Filtro Cruzado: Agrupado por Tipo de Alimento + Fórmula para una fecha específica
+     * Renderizado de Filtro Cruzado: Agrupado por Tipo de Alimento + Fórmula
+     * para uno o varios días seleccionados en la línea.
      */
     renderFiltroCruzado() {
         this.destroyDetalleCharts();
@@ -479,50 +557,79 @@ const CA01_DEFINITION = {
         const bodyEl = document.getElementById('contenedor-body-detalle');
         if (!cabeceraEl || !bodyEl) return;
 
-        const targetFechaSlash = this.fechaSeleccionada.replace(/-/g, '/');
+        const scrollBody = this.capturarScroll(bodyEl);
         const itemsDetalle = this.datosDashboard.items_detalle || [];
+        const fechasOrdenadas = this.ordenarFechasSeleccionadas();
+        const fechasDetalle = fechasOrdenadas.map(f => this.normalizarFecha(f));
+        const totalDias = fechasDetalle.length;
 
-        // 1. Extraer los ítems que tienen costo en la fecha seleccionada
-        const registrosFecha = [];
+        if (totalDias === 0) {
+            this.renderDetalleGeneral();
+            return;
+        }
+
+        // 1. Agrupar por tipo y por ítem, guardando el punto de cada día seleccionado.
+        const gruposPorTipo = new Map();
+
         itemsDetalle.forEach(item => {
-            const p = (item.puntos || []).find(pt => pt.fecha === targetFechaSlash || pt.fecha === this.fechaSeleccionada);
-            if (p) {
-                registrosFecha.push({
-                    tipo: p.tipo,
-                    coditem: item.coditem,
-                    nomitem: item.nomitem,
-                    item_label: item.item_label,
-                    diaSemana: p.diaSemana,
-                    fecha: p.fecha,
-                    pu: p.pu,
-                    tot_valor: p.tot_valor,
-                    tot_peso: p.tot_peso
+            const puntosPorFechaItem = new Map();
+            (item.puntos || []).forEach(pt => {
+                puntosPorFechaItem.set(this.normalizarFecha(pt.fecha), pt);
+            });
+
+            const puntosPorTipo = new Map();
+            fechasDetalle.forEach(fecha => {
+                const punto = puntosPorFechaItem.get(fecha);
+                if (!punto) return;
+
+                const tipo = punto.tipo || 'NULL';
+                if (!puntosPorTipo.has(tipo)) {
+                    puntosPorTipo.set(tipo, new Map());
+                }
+                puntosPorTipo.get(tipo).set(fecha, punto);
+            });
+
+            puntosPorTipo.forEach((puntosTipo, tipo) => {
+                if (!gruposPorTipo.has(tipo)) {
+                    gruposPorTipo.set(tipo, new Map());
+                }
+
+                const puntosPorFecha = new Map();
+                fechasDetalle.forEach(fecha => {
+                    puntosPorFecha.set(fecha, puntosTipo.get(fecha) || null);
                 });
+
+                gruposPorTipo.get(tipo).set(String(item.coditem), {
+                    item,
+                    puntosPorFecha
+                });
+            });
+        });
+
+        const tiposOrdenados = Array.from(gruposPorTipo.keys()).sort((a, b) => a.localeCompare(b));
+
+        const fechaTexto = fechasOrdenadas[0] || '';
+        let diaUnico = '';
+        if (totalDias === 1) {
+            const fechaBuscada = fechasDetalle[0];
+            for (const item of itemsDetalle) {
+                const punto = (item.puntos || []).find(pt => this.normalizarFecha(pt.fecha) === fechaBuscada);
+                if (punto && punto.diaSemana) {
+                    diaUnico = punto.diaSemana;
+                    break;
+                }
             }
-        });
-
-        // Ordenar por tipo y luego por código
-        registrosFecha.sort((a, b) => {
-            if (a.tipo !== b.tipo) return a.tipo.localeCompare(b.tipo);
-            return a.coditem.localeCompare(b.coditem);
-        });
-
-        // 2. Agrupar por tipo para las cabeceras superiores de nivel 1
-        const gruposPorTipo = {};
-        registrosFecha.forEach(r => {
-            if (!gruposPorTipo[r.tipo]) {
-                gruposPorTipo[r.tipo] = [];
-            }
-            gruposPorTipo[r.tipo].push(r);
-        });
-
-        const diaTexto = registrosFecha.length > 0 ? `${registrosFecha[0].diaSemana}, ${this.fechaSeleccionada}` : this.fechaSeleccionada;
+        }
+        const diaTexto = totalDias === 1
+            ? `${diaUnico || this.diaSemanaDesdeFecha(fechaTexto)}, ${fechaTexto}`
+            : `${totalDias} días seleccionados`;
+        const fechasTitle = fechasDetalle.join(', ');
 
         // Cabecera con botón de reset
         cabeceraEl.innerHTML = `
             <div class="flex items-center gap-3">
                 <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">Detalle de Tipo de Alimento</h2>
-                <div class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-xs px-2.5 py-1 rounded-lg font-semibold">
+                <div class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-xs px-2.5 py-1 rounded-lg font-semibold" title="${fechasTitle}">
                     <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
@@ -539,26 +646,36 @@ const CA01_DEFINITION = {
         `;
 
         document.getElementById('btn-reset-filtro-cruzado')?.addEventListener('click', () => {
-            this.fechaSeleccionada = null;
+            this.fechasSeleccionadas = [];
+            this.ultimoIndiceSeleccionado = null;
             this.updateGeneralChartSelection();
             this.renderDetalleSection();
         });
 
+        if (!tiposOrdenados.length) {
+            bodyEl.innerHTML = `<div class="p-8 text-center text-slate-400 italic">No hay datos para los días seleccionados</div>`;
+            this.restaurarScroll(bodyEl, scrollBody);
+            return;
+        }
+
         // 3. Construir la estructura HTML de columnas por Tipo y por Ítem (como en Tableau)
         let htmlGruposTipo = '';
-        const tiposOrdenados = Object.keys(gruposPorTipo);
-        const itemColWidth = 76; // Ancho constante por columna de ítem
+        const fechaColWidth = 76; // Ancho constante por columna de fecha
+        const itemColWidth = totalDias * fechaColWidth;
 
         tiposOrdenados.forEach((tipo, tipoIdx) => {
-            const itemsDelTipo = gruposPorTipo[tipo];
+            const itemsDelTipo = Array.from(gruposPorTipo.get(tipo).values())
+                .sort((a, b) => String(a.item.coditem).localeCompare(String(b.item.coditem)));
             const tipoWidth = itemsDelTipo.length * itemColWidth;
 
             let subheadersHtml = '';
-            itemsDelTipo.forEach(it => {
+            itemsDelTipo.forEach(entry => {
+                const it = entry.item;
                 const cod = it.coditem;
                 const nomCorto = it.nomitem.length > 12 ? (it.nomitem.substring(0, 11) + '..') : it.nomitem;
                 subheadersHtml += `
-                    <div class="flex flex-col items-center justify-start text-[10px] leading-tight text-slate-600 text-center w-[${itemColWidth}px] shrink-0 border-r border-slate-100 px-0.5" title="${it.item_label}">
+                    <div class="flex flex-col items-center justify-start text-[10px] leading-tight text-slate-600 text-center shrink-0 border-r border-slate-100 px-0.5"
+                        style="width: ${itemColWidth}px; min-width: ${itemColWidth}px;" title="${it.item_label}">
                         <span class="font-bold text-slate-700">${cod}</span>
                         <span class="truncate w-full text-[9px] text-slate-500">${nomCorto}</span>
                     </div>
@@ -594,10 +711,31 @@ const CA01_DEFINITION = {
             const canvas = document.getElementById(`canvas-ca01-tipo-${tipoIdx}`);
             if (!canvas) return;
 
-            const itemsDelTipo = gruposPorTipo[tipo];
-            const labels = itemsDelTipo.map(it => [it.diaSemana + ',', it.fecha]);
-            const dataValues = itemsDelTipo.map(it => it.pu);
-            const bgColors = itemsDelTipo.map(it => this.coloresTipo[it.tipo] || '#499894');
+            const itemsDelTipo = Array.from(gruposPorTipo.get(tipo).values())
+                .sort((a, b) => String(a.item.coditem).localeCompare(String(b.item.coditem)));
+            const colorTipo = this.coloresTipo[tipo] || '#499894';
+
+            const labels = [];
+            const dataValues = [];
+            const bgColors = [];
+            const registrosBarras = [];
+
+            itemsDelTipo.forEach(entry => {
+                fechasDetalle.forEach(fecha => {
+                    const punto = entry.puntosPorFecha.get(fecha) || null;
+                    const dia = punto && punto.diaSemana ? punto.diaSemana : this.diaSemanaDesdeFecha(fecha);
+                    const fechaMostrar = punto && punto.fecha ? punto.fecha : fecha;
+
+                    labels.push([dia + ',', fechaMostrar]);
+                    dataValues.push(punto ? punto.pu : null);
+                    bgColors.push(colorTipo);
+                    registrosBarras.push({
+                        item: entry.item,
+                        punto,
+                        diaSemana: dia
+                    });
+                });
+            });
 
             const ctx = canvas.getContext('2d');
 
@@ -634,32 +772,35 @@ const CA01_DEFINITION = {
                                     return;
                                 }
                                 const dataIndex = tooltip.dataPoints[0].dataIndex;
-                                const it = itemsDelTipo[dataIndex];
-                                if (!it) return;
+                                const registro = registrosBarras[dataIndex];
+                                if (!registro || !registro.punto) return;
+
+                                const it = registro.item;
+                                const punto = registro.punto;
 
                                 tooltipEl.innerHTML = `
                                     <div class="font-bold text-slate-900 border-b border-slate-200 pb-1 mb-1.5 flex justify-between items-center text-xs">
-                                        <span>${it.diaSemana}, ${it.fecha}</span>
-                                        <span class="text-blue-600 font-semibold">${it.tipo}</span>
+                                        <span>${registro.diaSemana}, ${punto.fecha}</span>
+                                        <span class="text-blue-600 font-semibold">${punto.tipo}</span>
                                     </div>
                                     <div class="flex flex-col gap-1 text-[11px] text-slate-700">
                                         <div class="flex justify-between gap-4">
                                             <span class="text-slate-500">Precio Unitario (PU):</span>
-                                            <span class="font-bold font-mono text-slate-900">${this.formatDecimal(it.pu, 3)}</span>
+                                            <span class="font-bold font-mono text-slate-900">${this.formatDecimal(punto.pu, 3)}</span>
                                         </div>
                                         <div class="flex justify-between gap-4">
                                             <span class="text-slate-500">Fórmula:</span>
                                             <span class="text-slate-800 text-[10px] font-semibold">${it.coditem} - ${it.nomitem}</span>
                                         </div>
-                                        ${it.tot_valor ? `
+                                        ${punto.tot_valor ? `
                                         <div class="flex justify-between gap-4">
                                             <span class="text-slate-500">Total Valor:</span>
-                                            <span class="font-mono text-slate-700">${this.formatDecimal(it.tot_valor, 2)}</span>
+                                            <span class="font-mono text-slate-700">${this.formatDecimal(punto.tot_valor, 2)}</span>
                                         </div>` : ''}
-                                        ${it.tot_peso ? `
+                                        ${punto.tot_peso ? `
                                         <div class="flex justify-between gap-4">
                                             <span class="text-slate-500">Total Peso:</span>
-                                            <span class="font-mono text-slate-700">${this.formatDecimal(it.tot_peso, 2)}</span>
+                                            <span class="font-mono text-slate-700">${this.formatDecimal(punto.tot_peso, 2)}</span>
                                         </div>` : ''}
                                     </div>
                                 `;
@@ -683,7 +824,7 @@ const CA01_DEFINITION = {
                                 weight: '500'
                             },
                             color: '#475569',
-                            formatter: (value) => this.formatDecimal(value, 3)
+                            formatter: (value) => (value === null || value === undefined ? '' : this.formatDecimal(value, 3))
                         }
                     },
                     scales: {
@@ -728,6 +869,8 @@ const CA01_DEFINITION = {
 
             this.detalleCharts.push(chartInstance);
         });
+
+        this.restaurarScroll(bodyEl, scrollBody);
     },
 
     customTooltipGeneral(context) {
@@ -765,7 +908,7 @@ const CA01_DEFINITION = {
                     <span class="font-mono text-slate-700">${this.formatDecimal(punto.tot_peso, 2)}</span>
                 </div>` : ''}
                 <div class="mt-1 pt-1 border-t border-slate-100 text-[10px] text-blue-600 font-semibold text-center">
-                    Haz clic para filtrar el detalle
+                    Clic: 1 día · Ctrl+clic: varios días
                 </div>
             </div>
         `;

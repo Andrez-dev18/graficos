@@ -21,14 +21,14 @@ const CP05_DEFINITION = {
     controller: null,
     datosBackend: null,
     multiClasif: null,
-    lineaSeleccionada: null,
+    lineasSeleccionadas: [],
     busquedaT2: '',
     busquedaT3: '',
     busquedaT4: '',
 
     destroy() {
         this.hideTooltip();
-        this.lineaSeleccionada = null;
+        this.lineasSeleccionadas = [];
         this.busquedaT2 = '';
         this.busquedaT3 = '';
         this.busquedaT4 = '';
@@ -50,6 +50,26 @@ const CP05_DEFINITION = {
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
         return fechaStr;
+    },
+
+    claveLineaSeleccion(item) {
+        const linea = String((item && item.linea) || '').trim();
+        const nomlinea = String((item && item.nomlinea) || '').trim();
+        return `${linea}||${nomlinea}`;
+    },
+
+    sufijoExportLineas() {
+        const seleccionadas = this.lineasSeleccionadas || [];
+        if (seleccionadas.length === 1) {
+            return `_Linea_${seleccionadas[0].linea}`;
+        }
+        if (seleccionadas.length > 1) {
+            const codigos = seleccionadas.map(l => String(l.linea || '').trim()).filter(Boolean);
+            return codigos.length
+                ? `_Lineas_${codigos.slice(0, 3).join('_')}${codigos.length > 3 ? '_etc' : ''}`
+                : `_Lineas_${seleccionadas.length}`;
+        }
+        return '';
     },
 
     showTooltip(e, data) {
@@ -188,6 +208,35 @@ const CP05_DEFINITION = {
         }
     },
 
+    clicEnScrollbar(e, el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        const scrollbarVertical = el.offsetWidth - el.clientWidth;
+        const scrollbarHorizontal = el.offsetHeight - el.clientHeight;
+
+        if (scrollbarVertical > 0 && e.clientX >= rect.left + el.clientWidth) return true;
+        if (scrollbarHorizontal > 0 && e.clientY >= rect.top + el.clientHeight) return true;
+
+        return false;
+    },
+
+    bindTabla1AutoClear() {
+        const contenedor = document.getElementById('cp05-contenedor-tabla-t1');
+        if (!contenedor || contenedor._cp05AutoClear) return;
+
+        contenedor._cp05AutoClear = true;
+        contenedor.addEventListener('click', (e) => {
+            if (e.target.closest('.cp05-row-t1')) return;
+            if (e.target.closest('button, input, a, select, textarea')) return;
+            if (this.clicEnScrollbar(e, contenedor)) return;
+            if (!this.lineasSeleccionadas || !this.lineasSeleccionadas.length) return;
+
+            this.lineasSeleccionadas = [];
+            this.hideTooltip();
+            this.filtrarLocalmente();
+        });
+    },
+
     getSelectedFilters() {
         if (this.multiClasif) {
             const selected = typeof this.multiClasif.getSelectedValues === 'function' 
@@ -203,7 +252,7 @@ const CP05_DEFINITION = {
     render(controller, data) {
         this.controller = controller;
         this.datosBackend = data || {};
-        this.lineaSeleccionada = null;
+        this.lineasSeleccionadas = [];
 
         // 1. Ocultar cabecera redundante superior
         const headerPrincipal = document.getElementById('card-header-grafica-principal');
@@ -280,10 +329,17 @@ const CP05_DEFINITION = {
         // 1. Filtrar Tabla 1
         const t1Filtrada = allT1.filter(matchClasif);
 
+        // Descartar selecciones de líneas que ya no se ven por la Clasificación
+        const clavesT1 = new Set(t1Filtrada.map(r => this.claveLineaSeleccion(r)));
+        this.lineasSeleccionadas = (this.lineasSeleccionadas || []).filter(l =>
+            clavesT1.has(this.claveLineaSeleccion(l))
+        );
+        const clavesSeleccionadas = new Set((this.lineasSeleccionadas || []).map(l => this.claveLineaSeleccion(l)));
+
         // 2. Filtrar Tabla 2
         let t2Filtrada = allT2.filter(matchClasif);
-        if (this.lineaSeleccionada) {
-            t2Filtrada = t2Filtrada.filter(d => String(d.linea).trim() === String(this.lineaSeleccionada).trim());
+        if (clavesSeleccionadas.size) {
+            t2Filtrada = t2Filtrada.filter(d => clavesSeleccionadas.has(this.claveLineaSeleccion(d)));
         }
         if (this.busquedaT2 && this.busquedaT2.trim() !== '') {
             const term = this.busquedaT2.trim().toLowerCase();
@@ -297,8 +353,8 @@ const CP05_DEFINITION = {
 
         // 3. Filtrar Tabla 3
         let t3Filtrada = allT3.filter(matchClasif);
-        if (this.lineaSeleccionada) {
-            t3Filtrada = t3Filtrada.filter(d => String(d.linea).trim() === String(this.lineaSeleccionada).trim());
+        if (clavesSeleccionadas.size) {
+            t3Filtrada = t3Filtrada.filter(d => clavesSeleccionadas.has(this.claveLineaSeleccion(d)));
         }
         if (this.busquedaT3 && this.busquedaT3.trim() !== '') {
             const term = this.busquedaT3.trim().toLowerCase();
@@ -312,8 +368,8 @@ const CP05_DEFINITION = {
 
         // 4. Filtrar Tabla 4
         let t4Filtrada = allT4.filter(matchClasif);
-        if (this.lineaSeleccionada) {
-            t4Filtrada = t4Filtrada.filter(d => String(d.linea).trim() === String(this.lineaSeleccionada).trim());
+        if (clavesSeleccionadas.size) {
+            t4Filtrada = t4Filtrada.filter(d => clavesSeleccionadas.has(this.claveLineaSeleccion(d)));
         }
         if (this.busquedaT4 && this.busquedaT4.trim() !== '') {
             const term = this.busquedaT4.trim().toLowerCase();
@@ -380,7 +436,7 @@ const CP05_DEFINITION = {
                                 </button>
                             </div>
                         </div>
-                        <div class="w-full overflow-x-auto max-h-[500px] custom-scrollbar">
+                        <div id="cp05-contenedor-tabla-t1" class="w-full overflow-x-auto max-h-[500px] custom-scrollbar">
                             <table id="tabla-cp05-t1" class="w-full text-xs border-collapse select-none">
                                 <thead class="sticky top-0 z-20 bg-blue-600 text-white border-b border-slate-300 font-bold shadow-xs">
                                     <tr>
@@ -538,7 +594,6 @@ const CP05_DEFINITION = {
 
         // Configurar exportación a Excel para las 4 tablas de CP05
         const fechaNom = (this.datosBackend.fecha || 'general').replace(/[^a-zA-Z0-9]/g, '_');
-        const sufijoLinea = this.lineaSeleccionada ? `_Linea_${this.lineaSeleccionada}` : '';
 
         const btnT1 = document.getElementById('cp05-btn-export-t1');
         if (btnT1) {
@@ -553,7 +608,7 @@ const CP05_DEFINITION = {
         if (btnT2) {
             btnT2.onclick = () => {
                 if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-cp05-t2', `CP05_Costo_Produccion_Por_Codigo${sufijoLinea}_${fechaNom}`);
+                    ExcelExportHelper.exportarTabla('tabla-cp05-t2', `CP05_Costo_Produccion_Por_Codigo${this.sufijoExportLineas()}_${fechaNom}`);
                 }
             };
         }
@@ -562,7 +617,7 @@ const CP05_DEFINITION = {
         if (btnT3) {
             btnT3.onclick = () => {
                 if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-cp05-t3', `CP05_Costo_Produccion_Cencos_Linea${sufijoLinea}_${fechaNom}`);
+                    ExcelExportHelper.exportarTabla('tabla-cp05-t3', `CP05_Costo_Produccion_Cencos_Linea${this.sufijoExportLineas()}_${fechaNom}`);
                 }
             };
         }
@@ -571,12 +626,13 @@ const CP05_DEFINITION = {
         if (btnT4) {
             btnT4.onclick = () => {
                 if (typeof ExcelExportHelper !== 'undefined') {
-                    ExcelExportHelper.exportarTabla('tabla-cp05-t4', `CP05_Costo_Unitario_Cencos_Galpon_Linea${sufijoLinea}_${fechaNom}`);
+                    ExcelExportHelper.exportarTabla('tabla-cp05-t4', `CP05_Costo_Unitario_Cencos_Galpon_Linea${this.sufijoExportLineas()}_${fechaNom}`);
                 }
             };
         }
 
         this.filtrarLocalmente();
+        this.bindTabla1AutoClear();
     },
 
     renderTabla1(filas) {
@@ -595,6 +651,8 @@ const CP05_DEFINITION = {
 
         let totalValor = 0.0;
         let kilosProdDia = 0.0;
+        const seleccionadasKeys = new Set((this.lineasSeleccionadas || []).map(l => this.claveLineaSeleccion(l)));
+        const haySeleccion = seleccionadasKeys.size > 0;
 
         let rowsHtml = '';
         filas.forEach(r => {
@@ -607,10 +665,15 @@ const CP05_DEFINITION = {
             }
             totalValor += val;
 
-            const isSelected = this.lineaSeleccionada && String(this.lineaSeleccionada).trim() === String(r.linea).trim();
-            const rowClass = isSelected
-                ? "bg-blue-100/90 font-semibold text-blue-900 cursor-pointer"
-                : "hover:bg-slate-100 cursor-pointer transition-colors";
+            const isSelected = haySeleccion && seleccionadasKeys.has(this.claveLineaSeleccion(r));
+            let rowClass;
+            if (isSelected) {
+                rowClass = "bg-blue-100/90 font-semibold text-blue-900 cursor-pointer";
+            } else if (haySeleccion) {
+                rowClass = "opacity-40 hover:bg-slate-100 cursor-pointer transition-colors";
+            } else {
+                rowClass = "hover:bg-slate-100 cursor-pointer transition-colors";
+            }
 
             rowsHtml += `
                 <tr class="cp05-row-t1 ${rowClass}" 
@@ -651,13 +714,30 @@ const CP05_DEFINITION = {
         const self = this;
 
         rows.forEach(tr => {
-            tr.addEventListener('click', function () {
+            tr.addEventListener('click', function (e) {
+                e.stopPropagation();
                 const linea = this.getAttribute('data-linea');
-                if (self.lineaSeleccionada === linea) {
-                    self.lineaSeleccionada = null;
+                const nomlinea = this.getAttribute('data-nomlinea');
+                const conCtrl = e.ctrlKey || e.metaKey;
+                const clave = self.claveLineaSeleccion({ linea, nomlinea });
+                const esMismaLinea = (item) => self.claveLineaSeleccion(item) === clave;
+
+                const actuales = self.lineasSeleccionadas || [];
+
+                if (conCtrl) {
+                    const posicion = actuales.findIndex(esMismaLinea);
+                    if (posicion >= 0) {
+                        actuales.splice(posicion, 1);
+                    } else {
+                        actuales.push({ linea, nomlinea });
+                    }
+                    self.lineasSeleccionadas = actuales;
                 } else {
-                    self.lineaSeleccionada = linea;
+                    const soloEsta = actuales.length === 1 && esMismaLinea(actuales[0]);
+                    self.lineasSeleccionadas = soloEsta ? [] : [{ linea, nomlinea }];
                 }
+
+                self.hideTooltip();
                 self.filtrarLocalmente();
             });
 
@@ -698,9 +778,17 @@ const CP05_DEFINITION = {
 
         if (badge) badge.textContent = `${filas.length} Reg`;
         if (badgeFiltro) {
-            badgeFiltro.classList.toggle('hidden', !this.lineaSeleccionada);
-            if (this.lineaSeleccionada) {
-                badgeFiltro.textContent = `Línea: ${this.lineaSeleccionada}`;
+            const lineasSeleccionadas = this.lineasSeleccionadas || [];
+            badgeFiltro.classList.toggle('hidden', !lineasSeleccionadas.length);
+            if (lineasSeleccionadas.length) {
+                badgeFiltro.textContent = lineasSeleccionadas.length === 1
+                    ? `Línea: ${lineasSeleccionadas[0].linea}`
+                    : `${lineasSeleccionadas.length} líneas seleccionadas`;
+                badgeFiltro.title = lineasSeleccionadas
+                    .map(l => `${l.linea || ''} ${l.nomlinea || ''}`.trim())
+                    .join(', ');
+            } else {
+                badgeFiltro.title = '';
             }
         }
 

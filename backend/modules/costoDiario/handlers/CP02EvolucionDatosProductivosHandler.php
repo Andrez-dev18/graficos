@@ -66,6 +66,10 @@ class CP02EvolucionDatosProductivosHandler
                             galpon,
                             SUM(saca_und) AS pollos,
                             SUM(saca_kilos) AS kilos,
+                            SUM(calimento) AS calimento,
+                            SUM(cantidadedad) AS cantidadedad,
+                            SUM(pollosmuertos) AS pollosmuertos,
+                            SUM(cargapollo) AS cargapollo,
                             (SUM(saca_kilos) / NULLIF(SUM(saca_und), 0)) AS peso,
                             (SUM(calimento) / NULLIF(SUM(saca_kilos), 0)) AS ica,
                             (SUM(cantidadedad) / NULLIF(SUM(saca_und), 0)) AS edad,
@@ -116,7 +120,11 @@ class CP02EvolucionDatosProductivosHandler
                 'raw_ica'    => round((float)$c['ica'], 3),
                 'raw_edad'   => round((float)$c['edad'], 3),
                 'raw_mort'   => round((float)$c['mort'], 3),
-                'raw_pgd'    => round((float)$c['pgd'], 3)
+                'raw_pgd'    => round((float)$c['pgd'], 3),
+                'raw_calimento'     => (float)$c['calimento'],
+                'raw_cantidadedad'  => (float)$c['cantidadedad'],
+                'raw_pollosmuertos' => (float)$c['pollosmuertos'],
+                'raw_cargapollo'    => (float)$c['cargapollo']
             ];
         }
 

@@ -407,6 +407,7 @@ class CP08ComparativoGranjaGalponHandler
 
         $sqlT3 = "SELECT 
                     linea,
+                    nomlinea,
                     codigo,
                     nomcodigo,
                     transaccion,
@@ -418,7 +419,7 @@ class CP08ComparativoGranjaGalponHandler
                   WHERE {$whereDateAlma}
                     AND cencos = :cen
                     {$whereClasifAlmaActivo}
-                  GROUP BY linea, codigo, nomcodigo, transaccion, galpon
+                  GROUP BY linea, nomlinea, codigo, nomcodigo, transaccion, galpon
                   ORDER BY 
                     CASE WHEN linea IS NULL OR TRIM(linea) = '' THEN 'ZZZ' ELSE linea END ASC, 
                     codigo ASC, 
@@ -436,6 +437,7 @@ class CP08ComparativoGranjaGalponHandler
 
         foreach ($rawT3 as $row) {
             $lin = trim($row['linea'] ?? '');
+            $nomLin = trim($row['nomlinea'] ?? '');
             $cod = trim($row['codigo'] ?? '');
             $nomCod = trim($row['nomcodigo'] ?? '');
             $trx = trim($row['transaccion'] ?? '');
@@ -449,10 +451,11 @@ class CP08ComparativoGranjaGalponHandler
                 $galponesT3Set[] = $gal;
             }
 
-            $itemKey = "{$lin}___{$cod}___{$trx}";
+            $itemKey = "{$lin}___{$nomLin}___{$cod}___{$trx}";
             if (!isset($itemsT3[$itemKey])) {
                 $itemsT3[$itemKey] = [
                     'linea'       => $lin,
+                    'nomlinea'    => $nomLin,
                     'codigo'      => $cod,
                     'nomcodigo'   => $nomCod,
                     'transaccion' => $trx,

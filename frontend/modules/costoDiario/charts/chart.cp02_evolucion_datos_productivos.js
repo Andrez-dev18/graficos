@@ -14,7 +14,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
     controller: null,
     datosDashboard: null,
     miniCharts: [],
-    filtroCruzadoActivo: null, // { colIdx, dia, cencos, galpon, metricaKey }
+    filtrosCruzadosActivos: [], // claves "colIdx::metricaKey"
 
     // Métricas y su configuración de colores según Tableau
     metricasConfig: [
@@ -129,25 +129,173 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
         this.showTooltip(e, { dia, cencos, nomcencos, galpon, metricaLabel, valor, color });
     },
 
-    onCellClick(el) {
+    onCellClick(el, event) {
         const colIdx = parseInt(el.getAttribute('data-col-idx'), 10);
-        const dia = el.getAttribute('data-dia');
-        const cencos = el.getAttribute('data-cencos');
-        const galpon = el.getAttribute('data-galpon');
         const metricaKey = el.getAttribute('data-metrica-key');
+        if (Number.isNaN(colIdx) || !metricaKey) return;
 
-        // Toggle: si hace clic en la misma celda, se desactiva el filtro cruzado
-        if (
-            this.filtroCruzadoActivo &&
-            this.filtroCruzadoActivo.colIdx === colIdx &&
-            this.filtroCruzadoActivo.metricaKey === metricaKey
-        ) {
-            this.filtroCruzadoActivo = null;
+        const clave = this.claveCelda(colIdx, metricaKey);
+        const conCtrl = !!(event && (event.ctrlKey || event.metaKey));
+
+        if (conCtrl) {
+            const posicion = this.filtrosCruzadosActivos.indexOf(clave);
+            if (posicion >= 0) {
+                this.filtrosCruzadosActivos.splice(posicion, 1);
+            } else {
+                this.filtrosCruzadosActivos.push(clave);
+            }
         } else {
-            this.filtroCruzadoActivo = { colIdx, dia, cencos, galpon, metricaKey };
+            const soloEsta = this.filtrosCruzadosActivos.length === 1 && this.filtrosCruzadosActivos[0] === clave;
+            this.filtrosCruzadosActivos = soloEsta ? [] : [clave];
         }
 
         this.aplicarFiltroCruzado();
+    },
+
+    claveCelda(colIdx, metricaKey) {
+        return `${colIdx}::${metricaKey}`;
+    },
+
+    obtenerColumnasSeleccionadas(dataSrc) {
+        const indices = Array.from(new Set(
+            this.filtrosCruzadosActivos
+                .map(clave => parseInt(String(clave).split('::')[0], 10))
+                .filter(idx => !Number.isNaN(idx))
+        ));
+
+        const columnas = indices
+            .map(idx => dataSrc.columnasTabla[idx])
+            .filter(Boolean);
+
+        columnas.sort((a, b) => {
+            if (a.fecha !== b.fecha) return String(a.fecha) < String(b.fecha) ? -1 : 1;
+            if (a.cencos !== b.cencos) return String(a.cencos) < String(b.cencos) ? -1 : 1;
+            return (parseInt(a.galpon, 10) || 0) - (parseInt(b.galpon, 10) || 0);
+        });
+
+        return columnas;
+    },
+
+    formatearEntero(valor) {
+        const num = Number(valor);
+        if (!Number.isFinite(num)) return '0';
+        const signo = num < 0 ? '-' : '';
+        const entero = Math.round(Math.abs(num)).toString();
+        return signo + entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    },
+
+    formatearDecimal3(valor) {
+        const num = Number(valor);
+        return Number.isFinite(num) ? num.toFixed(3).replace('.', ',') : '0,000';
+    },
+
+    construirTendenciaSeleccionada(columnas) {
+        const porFecha = new Map();
+        const asNumber = (valor) => {
+            const num = Number(valor);
+            return Number.isFinite(num) ? num : 0;
+        };
+
+        columnas.forEach(col => {
+            const fecha = col.fecha || (col.dia ? col.dia.split(', ')[1] : '');
+            if (!fecha) return;
+
+            if (!porFecha.has(fecha)) {
+                porFecha.set(fecha, {
+                    pollos: 0,
+                    kilos: 0,
+                    calimento: 0,
+                    cantidadedad: 0,
+                    muertos: 0,
+                    carga: 0
+                });
+            }
+
+            const acumulado = porFecha.get(fecha);
+            acumulado.pollos += asNumber(col.raw_pollos);
+            acumulado.kilos += asNumber(col.raw_kilos);
+            acumulado.calimento += asNumber(col.raw_calimento);
+            acumulado.cantidadedad += asNumber(col.raw_cantidadedad);
+            acumulado.muertos += asNumber(col.raw_pollosmuertos);
+            acumulado.carga += asNumber(col.raw_cargapollo);
+        });
+
+        const fechas = Array.from(porFecha.keys()).sort();
+        const tendencia = {
+            fechas: [],
+            pollos: [],
+            kilos: [],
+            peso: [],
+            ica: [],
+            edad: [],
+            mort: [],
+            pgd: [],
+            rawLabels: {
+                pollos: [],
+                kilos: [],
+                peso: [],
+                ica: [],
+                edad: [],
+                mort: [],
+                pgd: []
+            }
+        };
+
+        fechas.forEach(fecha => {
+            const a = porFecha.get(fecha);
+            const peso = a.pollos > 0 ? Math.round((a.kilos / a.pollos) * 1000) / 1000 : 0;
+            const ica = a.kilos > 0 ? Math.round((a.calimento / a.kilos) * 1000) / 1000 : 0;
+            const edad = a.pollos > 0 ? Math.round((a.cantidadedad / a.pollos) * 1000) / 1000 : 0;
+            const mort = a.carga > 0 ? Math.round(((a.muertos / a.carga) * 100) * 1000) / 1000 : 0;
+            const pgd = a.cantidadedad > 0 ? Math.round((a.kilos / a.cantidadedad) * 1000) / 1000 : 0;
+
+            tendencia.fechas.push(String(fecha).replace(/-/g, '/'));
+            tendencia.pollos.push(a.pollos);
+            tendencia.kilos.push(a.kilos);
+            tendencia.peso.push(peso);
+            tendencia.ica.push(ica);
+            tendencia.edad.push(edad);
+            tendencia.mort.push(mort);
+            tendencia.pgd.push(pgd);
+
+            tendencia.rawLabels.pollos.push(this.formatearEntero(a.pollos));
+            tendencia.rawLabels.kilos.push(this.formatearEntero(a.kilos));
+            tendencia.rawLabels.peso.push(this.formatearDecimal3(peso));
+            tendencia.rawLabels.ica.push(this.formatearDecimal3(ica));
+            tendencia.rawLabels.edad.push(this.formatearDecimal3(edad));
+            tendencia.rawLabels.mort.push(this.formatearDecimal3(mort));
+            tendencia.rawLabels.pgd.push(this.formatearDecimal3(pgd));
+        });
+
+        return tendencia;
+    },
+
+    clicEnScrollbar(e, el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        const scrollbarVertical = el.offsetWidth - el.clientWidth;
+        const scrollbarHorizontal = el.offsetHeight - el.clientHeight;
+
+        if (scrollbarVertical > 0 && e.clientX >= rect.left + el.clientWidth) return true;
+        if (scrollbarHorizontal > 0 && e.clientY >= rect.top + el.clientHeight) return true;
+
+        return false;
+    },
+
+    bindTablaAutoClear() {
+        const contenedor = document.getElementById('cp02-contenedor-tabla');
+        if (!contenedor || contenedor._cp02AutoClear) return;
+
+        contenedor._cp02AutoClear = true;
+        contenedor.addEventListener('click', (e) => {
+            if (e.target.closest('td.celda-matriz-dato')) return;
+            if (e.target.closest('button, input, a, select, textarea')) return;
+            if (this.clicEnScrollbar(e, contenedor)) return;
+            if (!this.filtrosCruzadosActivos.length) return;
+
+            this.filtrosCruzadosActivos = [];
+            this.aplicarFiltroCruzado();
+        });
     },
 
     getData() {
@@ -166,7 +314,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
         const dataSrc = this.getData();
         const allCells = document.querySelectorAll('#tabla-datos-productivos-cp02 .celda-matriz-dato');
 
-        if (!this.filtroCruzadoActivo) {
+        if (!this.filtrosCruzadosActivos.length) {
             // Restaurar estado visual completo sin filtro
             allCells.forEach(td => {
                 td.classList.remove('opacity-25', 'text-slate-300', 'bg-blue-100', 'ring-2', 'ring-blue-500', 'font-bold', 'text-blue-900');
@@ -182,13 +330,13 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
             return;
         }
 
-        // Aplicar atenuación / resaltado a las celdas de la tabla matriz
-        const active = this.filtroCruzadoActivo;
+        // Resaltar todas las celdas seleccionadas y atenuar el resto
+        const seleccionadas = new Set(this.filtrosCruzadosActivos);
         allCells.forEach(td => {
             const cIdx = parseInt(td.getAttribute('data-col-idx'), 10);
             const mKey = td.getAttribute('data-metrica-key');
 
-            if (cIdx === active.colIdx && mKey === active.metricaKey) {
+            if (seleccionadas.has(this.claveCelda(cIdx, mKey))) {
                 td.classList.remove('opacity-25', 'text-slate-300', 'text-slate-700');
                 td.classList.add('bg-blue-100', 'ring-2', 'ring-blue-500', 'font-bold', 'text-blue-900');
             } else {
@@ -197,45 +345,28 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
             }
         });
 
-        // Filtrar datos para Tendencia por Día (solo el punto seleccionado)
-        const selectedCol = dataSrc.columnasTabla[active.colIdx];
-        if (selectedCol) {
-            const fechaCorta = selectedCol.dia.split(', ')[1];
-            const filteredTendencia = {
-                fechas: [fechaCorta],
-                pollos: [parseFloat(String(selectedCol.pollos).replace(/\./g, '').replace(',', '.'))],
-                kilos: [parseFloat(String(selectedCol.kilos).replace(/\./g, '').replace(',', '.'))],
-                peso: [parseFloat(String(selectedCol.peso).replace(/\./g, '').replace(',', '.'))],
-                ica: [parseFloat(String(selectedCol.ica).replace(/\./g, '').replace(',', '.'))],
-                edad: [parseFloat(String(selectedCol.edad).replace(/\./g, '').replace(',', '.'))],
-                mort: [parseFloat(String(selectedCol.mort).replace(/\./g, '').replace(',', '.'))],
-                pgd: [parseFloat(String(selectedCol.pgd).replace(/\./g, '').replace(',', '.'))],
-                // Textos originales para datalabels exactos
-                rawLabels: {
-                    pollos: selectedCol.pollos,
-                    kilos: selectedCol.kilos,
-                    peso: selectedCol.peso,
-                    ica: selectedCol.ica,
-                    edad: selectedCol.edad,
-                    mort: selectedCol.mort,
-                    pgd: selectedCol.pgd
-                }
-            };
+        const columnasSeleccionadas = this.obtenerColumnasSeleccionadas(dataSrc);
+        if (!columnasSeleccionadas.length) {
+            this.filtrosCruzadosActivos = [];
+            this.aplicarFiltroCruzado();
+            return;
+        }
 
-            this.renderMiniChartsTendencia(filteredTendencia, true);
+        // Tendencia por Día: agregada por fecha sobre las tuplas seleccionadas
+        const tendenciaSeleccionada = this.construirTendenciaSeleccionada(columnasSeleccionadas);
+        this.renderMiniChartsTendencia(tendenciaSeleccionada, true);
 
-            // Filtrar Comparativo por Cencos Galpon (solo la columna seleccionada)
-            const contBarras = document.getElementById('contenedor-comparativo-barras-cp02');
-            if (contBarras) {
-                contBarras.innerHTML = this.renderComparativoBarras([selectedCol]);
-            }
+        // Comparativo por Cencos Galpón: una columna por tupla seleccionada
+        const contBarras = document.getElementById('contenedor-comparativo-barras-cp02');
+        if (contBarras) {
+            contBarras.innerHTML = this.renderComparativoBarras(columnasSeleccionadas);
         }
     },
 
     render(controller, data) {
         this.controller = controller;
         this.datosDashboard = data || {};
-        this.filtroCruzadoActivo = null;
+        this.filtrosCruzadosActivos = [];
 
         // 1. Título principal
         const tituloGrafica = document.getElementById('titulo-grafica-principal');
@@ -280,10 +411,34 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
             { dia: 'domingo, 2024/04/14', cencos: '643020', galpon: '5', pollos: '24.593', kilos: '69.490', peso: '2,826', ica: '1,561', edad: '44,092', mort: '4,611', pgd: '0,064' }
         ];
 
-        const columnasTabla = rawCols.map(c => ({
-            ...c,
-            nomcencos: this.cencosNombres[c.cencos] || `GRANJA ${c.cencos}`
-        }));
+        const parseNum = (valor) => {
+            const num = parseFloat(String(valor).replace(/\./g, '').replace(',', '.'));
+            return Number.isFinite(num) ? num : 0;
+        };
+
+        const columnasTabla = rawCols.map(c => {
+            const pollos = parseNum(c.pollos);
+            const kilos = parseNum(c.kilos);
+            const ica = parseNum(c.ica);
+            const edad = parseNum(c.edad);
+            const mort = parseNum(c.mort);
+
+            return {
+                ...c,
+                nomcencos: this.cencosNombres[c.cencos] || `GRANJA ${c.cencos}`,
+                raw_pollos: pollos,
+                raw_kilos: kilos,
+                raw_peso: parseNum(c.peso),
+                raw_ica: ica,
+                raw_edad: edad,
+                raw_mort: mort,
+                raw_pgd: parseNum(c.pgd),
+                raw_calimento: ica * kilos,
+                raw_cantidadedad: edad * pollos,
+                raw_cargapollo: pollos,
+                raw_pollosmuertos: (mort / 100) * pollos
+            };
+        });
 
         // Fechas para la gráfica de tendencia (24 días de abril)
         const fechasTendencia = [];
@@ -352,7 +507,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                 </div>
 
                 <!-- CONTENEDOR DE LA TABLA MATRICIAL SCROLLABLE -->
-                <div class="overflow-x-auto overflow-y-auto max-h-[360px] custom-scrollbar">
+                <div id="cp02-contenedor-tabla" class="overflow-x-auto overflow-y-auto max-h-[360px] custom-scrollbar">
                     <table id="tabla-datos-productivos-cp02" class="text-[11px] border-collapse font-sans min-w-full select-none">
                         <thead class="sticky top-0 z-20 bg-slate-100 text-slate-800 border-b border-slate-300">
                             <!-- Nivel 1: Días -->
@@ -421,6 +576,8 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                 }
             };
         }
+
+        this.bindTablaAutoClear();
     },
 
     renderHeaderDias(columnas) {
@@ -506,7 +663,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                             data-metrica-key="${r.key}"
                             data-valor="${col[r.key]}"
                             data-color="${r.color}"
-                            onclick="window.ChartRegistry['CP02 EvolucionDatosProductivos'].onCellClick(this)"
+                            onclick="window.ChartRegistry['CP02 EvolucionDatosProductivos'].onCellClick(this, event)"
                             onmousemove="window.ChartRegistry['CP02 EvolucionDatosProductivos'].onCellHover(event, this)"
                             onmouseleave="window.ChartRegistry['CP02 EvolucionDatosProductivos'].hideTooltip()">
                             ${col[r.key]}
@@ -609,7 +766,7 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                                     const idx = dataPoint.dataIndex;
                                     const fecha = datosTendencia.fechas[idx];
                                     const val = dataPoint.raw;
-                                    const valStr = cfg.isK ? Number(val).toLocaleString('es-PE') : Number(val).toFixed(cfg.decimals).replace('.', ',');
+                                    const valStr = cfg.isK ? self.formatearEntero(val) : Number(val).toFixed(cfg.decimals).replace('.', ',');
 
                                     const pos = context.chart.canvas.getBoundingClientRect();
                                     const fakeEvent = {
@@ -634,7 +791,10 @@ window.ChartRegistry['CP02 EvolucionDatosProductivos'] = {
                             color: '#1e293b',
                             formatter: (v, ctx) => {
                                 if (isFiltered) {
-                                    return (datosTendencia.rawLabels && datosTendencia.rawLabels[cfg.key]) || (cfg.isK ? Number(v).toLocaleString('es-PE') : Number(v).toFixed(cfg.decimals).replace('.', ','));
+                                    const raw = datosTendencia.rawLabels && datosTendencia.rawLabels[cfg.key];
+                                    if (Array.isArray(raw)) return raw[ctx.dataIndex] ?? '';
+                                    if (raw !== undefined && raw !== null) return raw;
+                                    return cfg.isK ? self.formatearEntero(v) : Number(v).toFixed(cfg.decimals).replace('.', ',');
                                 }
                                 if (ctx.dataIndex % 2 === 0 || ctx.dataIndex === cfg.data.length - 1) {
                                     return cfg.isK ? `${Math.round(v / 1000)}K` : Number(v).toFixed(cfg.decimals).replace('.', ',');
