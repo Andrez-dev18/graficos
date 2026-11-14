@@ -6,7 +6,8 @@ class CostosDiasService {
         this.baseUrl = AppConfig.API.BASE_URL;
         this.ENDPOINTS = {
             DASHBOARD: '/costosDias/dashboard',
-            EXPORTAR_PDF: '/costosDias/exportar-pdf'
+            EXPORTAR_PDF: '/costosDias/exportar-pdf',
+            VER_PDF: '/costosDias/ver-pdf'
         };
     }
 
@@ -45,7 +46,7 @@ class CostosDiasService {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/pdf'
+                'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
         });
@@ -61,11 +62,15 @@ class CostosDiasService {
             throw new Error(mensaje);
         }
 
-        const contentType = response.headers.get('Content-Type') || '';
-        if (!contentType.includes('application/pdf')) {
-            throw new Error('El servidor no devolvió un archivo PDF válido.');
+        const data = await response.json();
+        if (!data || !data.success || !data.token) {
+            throw new Error(data?.message || 'El servidor no devolvió un PDF válido.');
         }
 
-        return await response.blob();
+        return data;
+    }
+
+    obtenerUrlPdf(token) {
+        return `${this.baseUrl}${this.ENDPOINTS.VER_PDF}?token=${encodeURIComponent(token)}`;
     }
 }

@@ -4,6 +4,146 @@ class CostosDiasPdf
 {
     public static function generar(array $payload): void
     {
+        $resultado = self::construir($payload);
+        self::enviarPdf($resultado['pdf'], $resultado['nombre']);
+    }
+
+    /**
+     * Genera el PDF y lo guarda en un archivo temporal para servirlo por GET.
+     */
+    public static function guardarTemporal(array $payload): array
+    {
+        $resultado = self::construir($payload);
+        $directorio = self::directorioTemporal();
+        self::limpiarTemporales($directorio);
+
+        $token = bin2hex(random_bytes(16));
+        $rutaPdf = $directorio . DIRECTORY_SEPARATOR . $token . '.pdf';
+        $rutaMeta = $directorio . DIRECTORY_SEPARATOR . $token . '.json';
+
+        if (file_put_contents($rutaPdf, $resultado['pdf']) === false) {
+            throw new RuntimeException('No se pudo guardar el PDF temporal.');
+        }
+
+        if (file_put_contents($rutaMeta, json_encode([
+            'filename' => $resultado['nombre'],
+            'created'  => time()
+        ])) === false) {
+            @unlink($rutaPdf);
+            throw new RuntimeException('No se pudo guardar la metadata del PDF temporal.');
+        }
+
+        return [
+            'token'    => $token,
+            'filename' => $resultado['nombre']
+        ];
+    }
+
+    /**
+     * Sirve un PDF temporal con Content-Disposition inline para conservar el nombre.
+     */
+    public static function servirTemporal(string $token): void
+    {
+        if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
+            self::responderError('El enlace del PDF no es válido.');
+        }
+
+        $directorio = self::directorioTemporal();
+        self::limpiarTemporales($directorio, 3600, $token);
+
+        $rutaPdf = $directorio . DIRECTORY_SEPARATOR . $token . '.pdf';
+        $rutaMeta = $directorio . DIRECTORY_SEPARATOR . $token . '.json';
+
+        if (!is_file($rutaPdf) || !is_file($rutaMeta)) {
+            self::responderError('El PDF ya no está disponible. Vuelva a generarlo.');
+        }
+
+        $meta = json_decode((string)file_get_contents($rutaMeta), true);
+        $nombre = is_array($meta) && !empty($meta['filename'])
+            ? basename((string)$meta['filename'])
+            : 'Costos_Tradicional_Dia.pdf';
+
+        self::enviarPdfArchivo($rutaPdf, $nombre);
+    }
+
+    private static function enviarPdf(string $pdf, string $nombre): void
+    {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . $nombre . '"');
+        header('Content-Length: ' . strlen($pdf));
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+        echo $pdf;
+        exit;
+    }
+
+    private static function enviarPdfArchivo(string $ruta, string $nombre): void
+    {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . $nombre . '"');
+        header('Content-Length: ' . filesize($ruta));
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+        readfile($ruta);
+        exit;
+    }
+
+    private static function directorioTemporal(): string
+    {
+        static $directorio = null;
+
+        if ($directorio !== null) {
+            return $directorio;
+        }
+
+        $candidatos = [
+            sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'corebi_costosdias_pdf',
+            dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'tmp'
+        ];
+
+        foreach ($candidatos as $candidato) {
+            if (!is_dir($candidato) && !@mkdir($candidato, 0700, true) && !is_dir($candidato)) {
+                continue;
+            }
+
+            if (is_writable($candidato)) {
+                $directorio = $candidato;
+                return $directorio;
+            }
+        }
+
+        throw new RuntimeException('No se pudo crear un directorio temporal escribible para el PDF.');
+    }
+
+    private static function limpiarTemporales(string $directorio, int $ttl = 3600, string $excluir = ''): void
+    {
+        $limite = time() - $ttl;
+
+        foreach (glob($directorio . DIRECTORY_SEPARATOR . '*') ?: [] as $archivo) {
+            if ($excluir !== '' && strpos(basename($archivo), $excluir . '.') === 0) {
+                continue;
+            }
+            if (is_file($archivo) && filemtime($archivo) < $limite) {
+                @unlink($archivo);
+            }
+        }
+    }
+
+    private static function responderError(string $mensaje): void
+    {
+        http_response_code(404);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>PDF no disponible</title></head>'
+            . '<body style="font-family:Segoe UI,sans-serif;background:#f8fafc;color:#334155;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">'
+            . '<div style="text-align:center;max-width:420px;padding:24px;">'
+            . '<h2 style="font-size:18px;margin:0 0 8px;">PDF no disponible</h2>'
+            . '<p style="font-size:14px;margin:0;">' . self::e($mensaje) . '</p>'
+            . '</div></body></html>';
+        exit;
+    }
+
+    private static function construir(array $payload): array
+    {
         ini_set('memory_limit', '512M');
         ini_set('max_execution_time', '180');
 
@@ -55,7 +195,7 @@ class CostosDiasPdf
             'margin_top' => 24,
             'margin_header' => 5,
             'margin_bottom' => 8,
-            'tempDir' => sys_get_temp_dir(),
+            'tempDir' => self::directorioTemporal(),
             'default_font' => 'dejavusans'
         ]);
 
@@ -77,9 +217,13 @@ class CostosDiasPdf
             $mpdf->WriteHTML($chunk);
         }
 
-        $nombre = 'Costos_Tradicional_Dia_' . date('Ymd_His') . '.pdf';
-        $mpdf->Output($nombre, \Mpdf\Output\Destination::INLINE);
-        exit;
+        $nombre = self::nombreArchivo($filtros);
+        $pdf = $mpdf->Output($nombre, \Mpdf\Output\Destination::STRING_RETURN);
+
+        return [
+            'nombre' => $nombre,
+            'pdf'    => $pdf
+        ];
     }
 
     private static function construirTablaChunks(array $periodos, array $aniosEstructura, array $matrizFamilias, array $graficaCosto): array
@@ -284,6 +428,27 @@ class CostosDiasPdf
             table.detalle td.num { text-align:center; white-space:nowrap; font-size:5.8pt; }
             table.detalle tr.total td { background:#dbeafe; color:#1e3a8a; font-weight:bold; font-size:6pt; }
         </style>';
+    }
+
+    private static function nombreArchivo(array $filtros): string
+    {
+        $inicio = self::fechaArchivo($filtros['fecha_inicio'] ?? '');
+        $fin = self::fechaArchivo($filtros['fecha_fin'] ?? '');
+
+        if ($inicio !== '' && $fin !== '') {
+            return "Costos_Tradicional_Dia_{$inicio}_{$fin}.pdf";
+        }
+
+        return 'Costos_Tradicional_Dia_' . date('Ymd_His') . '.pdf';
+    }
+
+    private static function fechaArchivo(string $fecha): string
+    {
+        if ($fecha === '') {
+            return '';
+        }
+        $date = DateTime::createFromFormat('Y-m-d', substr($fecha, 0, 10));
+        return $date ? $date->format('Ymd') : '';
     }
 
     private static function fechaCorta(string $fecha): string

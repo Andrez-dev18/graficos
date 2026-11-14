@@ -5,3 +5,6 @@ $this->post('/costos-dias/dashboard', 'CostosDiasController@getDashboard');
 
 $this->post('/costosDias/exportar-pdf', 'CostosDiasController@exportarPdf');
 $this->post('/costos-dias/exportar-pdf', 'CostosDiasController@exportarPdf');
+
+$this->get('/costosDias/ver-pdf', 'CostosDiasController@verPdf');
+$this->get('/costos-dias/ver-pdf', 'CostosDiasController@verPdf');

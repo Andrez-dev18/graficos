@@ -197,6 +197,11 @@ class CostosDiasController {
             </body>
             </html>
         `);
+        ventanaPdf.document.close();
+
+        // Devolver el foco a la web para que la captura del gráfico no se bloquee
+        try { window.top.focus(); } catch (e) { /* Ignorar */ }
+        try { window.focus(); } catch (e) { /* Ignorar */ }
 
         const btn = document.getElementById('btn-exportar-pdf');
         const htmlOriginal = btn ? btn.innerHTML : '';
@@ -220,7 +225,7 @@ class CostosDiasController {
                 throw new Error('No se encontró la tarjeta del gráfico.');
             }
 
-            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            await new Promise(resolve => setTimeout(resolve, 50));
 
             const canvas = await html2canvas(card, {
                 scale: 2,
@@ -238,15 +243,21 @@ class CostosDiasController {
                 fecha_fin: rango.fechaFin || rango.fin || ''
             };
 
-            const blob = await this.service.exportarPdf({
+            const solicitudPdf = this.service.exportarPdf({
                 chartImage: chartImage,
                 datos: this.datosDashboard,
                 filtros: filtros
             });
 
-            const url = window.URL.createObjectURL(blob);
-            ventanaPdf.location.href = url;
-            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+            // Mostrar la pestaña con el spinner mientras el backend genera el PDF
+            try { ventanaPdf.focus(); } catch (e) { /* Ignorar */ }
+
+            const resultado = await solicitudPdf;
+
+            if (!ventanaPdf.closed) {
+                ventanaPdf.location.href = this.service.obtenerUrlPdf(resultado.token);
+                ventanaPdf.focus();
+            }
         } catch (error) {
             try { ventanaPdf.close(); } catch (e) { /* Ignorar */ }
             console.error('Error al exportar PDF:', error);

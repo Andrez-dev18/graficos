@@ -42,18 +42,46 @@ class CostosDiasController
 
     public function exportarPdf()
     {
+        header('Content-Type: application/json; charset=utf-8');
         try {
             $rawInput = file_get_contents('php://input');
             $payload = json_decode($rawInput, true) ?? $_POST;
 
-            CostosDiasPdf::generar($payload);
+            foreach (['datos', 'filtros'] as $campo) {
+                if (isset($payload[$campo]) && is_string($payload[$campo])) {
+                    $decodificado = json_decode($payload[$campo], true);
+                    if (is_array($decodificado)) {
+                        $payload[$campo] = $decodificado;
+                    }
+                }
+            }
+
+            $resultado = CostosDiasPdf::guardarTemporal($payload);
+
+            echo json_encode([
+                'success'  => true,
+                'token'    => $resultado['token'],
+                'filename' => $resultado['filename']
+            ]);
         } catch (Throwable $e) {
             http_response_code(500);
-            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => false,
                 'message' => 'Error al generar PDF: ' . $e->getMessage()
             ]);
+        }
+        exit;
+    }
+
+    public function verPdf()
+    {
+        try {
+            $token = isset($_GET['token']) ? (string)$_GET['token'] : '';
+            CostosDiasPdf::servirTemporal($token);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<h1>Error al mostrar el PDF</h1><p>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
         }
         exit;
     }
