@@ -8,8 +8,8 @@ class CostosTradicionalesController {
         this.chartInstance = null;
         this.chartTipoActual = null;
         this.datosDashboard = null;
-        this.mesSeleccionadoCP04 = null;
-        this.mesSeleccionadoCP05 = null;
+        this.mesesSeleccionadosCP04 = [];
+        this.mesesSeleccionadosCP05 = [];
         this.itemsSeleccionadosCP07 = [];
         this.catalogoInsumosCP07 = [];
 
@@ -220,6 +220,21 @@ class CostosTradicionalesController {
             `;
         }
 
+        // Al recargar, CP04 y CP05 MortVsPeso vuelven a su estado sin filtro cruzado
+        if (this.chartTipoActual === 'CP04' && this.mesesSeleccionadosCP04.length) {
+            this.mesesSeleccionadosCP04 = [];
+            this.actualizarFiltroCruzadoCP04(true);
+        } else {
+            this.mesesSeleccionadosCP04 = [];
+        }
+
+        if (this.chartTipoActual === 'CP05MortVsPeso' && this.mesesSeleccionadosCP05.length) {
+            this.mesesSeleccionadosCP05 = [];
+            this.actualizarFiltroCruzadoCP05(true);
+        } else {
+            this.mesesSeleccionadosCP05 = [];
+        }
+
         try {
             let rango = {};
             if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
@@ -315,6 +330,8 @@ class CostosTradicionalesController {
         const selZona = document.getElementById('select-zona');
         if (selZona) selZona.value = 'TODOS';
         this.itemsSeleccionadosCP07 = [];
+        this.mesesSeleccionadosCP04 = [];
+        this.mesesSeleccionadosCP05 = [];
         this.setupPeriodo();
         await this.onCargarClick();
     }
@@ -345,7 +362,7 @@ class CostosTradicionalesController {
      */
     configurarVistaCP01(data) {
         this.chartTipoActual = 'CP01';
-        this.mesSeleccionadoCP04 = null;
+        this.mesesSeleccionadosCP04 = [];
 
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo de Producción Pollo Vivo - MES';
@@ -391,7 +408,7 @@ class CostosTradicionalesController {
      */
     configurarVistaCP02(data) {
         this.chartTipoActual = 'CP02';
-        this.mesSeleccionadoCP04 = null;
+        this.mesesSeleccionadosCP04 = [];
 
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo de Producción Pollo vivo vs. Costo de Alimentación (S/ por Kg)';
@@ -420,7 +437,7 @@ class CostosTradicionalesController {
      */
     configurarVistaCP03(data) {
         this.chartTipoActual = 'CP03';
-        this.mesSeleccionadoCP04 = null;
+        this.mesesSeleccionadosCP04 = [];
 
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo Promedio de Producción Pollo Vivo por Zona';
@@ -450,6 +467,7 @@ class CostosTradicionalesController {
      */
     configurarVistaCP04(data) {
         this.chartTipoActual = 'CP04';
+        this.mesesSeleccionadosCP04 = [];
 
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion';
@@ -471,7 +489,7 @@ class CostosTradicionalesController {
         if (titTabla) titTabla.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion Detalle';
 
         this.renderizarGraficaCP04(data);
-        this.actualizarFiltroCruzadoCP04(this.mesSeleccionadoCP04, false);
+        this.actualizarFiltroCruzadoCP04(false);
     }
 
     /**
@@ -479,7 +497,7 @@ class CostosTradicionalesController {
      */
     configurarVistaCP05(data) {
         this.chartTipoActual = 'CP05';
-        this.mesSeleccionadoCP04 = null;
+        this.mesesSeleccionadosCP04 = [];
 
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Costo por Kg. Pollo Vivo vs Costo de Alimentacion';
@@ -509,6 +527,7 @@ class CostosTradicionalesController {
      */
     configurarVistaCP05MortVsPeso(data) {
         this.chartTipoActual = 'CP05MortVsPeso';
+        this.mesesSeleccionadosCP05 = [];
 
         const titulo = document.getElementById('titulo-grafica-principal');
         if (titulo) titulo.textContent = 'Mortalidad Vs Peso Promedio';
@@ -533,7 +552,7 @@ class CostosTradicionalesController {
         if (titTabla) titTabla.textContent = 'Mortalidad Vs Peso Promedio Detalle';
 
         this.renderizarGraficaCP05MortVsPeso(data);
-        this.actualizarFiltroCruzadoCP05(this.mesSeleccionadoCP05, false);
+        this.actualizarFiltroCruzadoCP05(false);
     }
 
     /**
@@ -806,30 +825,142 @@ class CostosTradicionalesController {
     }
 
     /**
+     * Indica si un mes está seleccionado en CP05 MortVsPeso
+     */
+    esMesSeleccionadoCP05(mesKey) {
+        return (this.mesesSeleccionadosCP05 || []).includes(mesKey);
+    }
+
+    /**
+     * Indica si hay filtro cruzado activo en CP05 MortVsPeso
+     */
+    hayFiltroCP05() {
+        return (this.mesesSeleccionadosCP05 || []).length > 0;
+    }
+
+    /**
+     * Ordena los meses seleccionados según el orden cronológico de la gráfica
+     */
+    ordenarMesesSeleccionadosCP05() {
+        const seleccionados = new Set(this.mesesSeleccionadosCP05 || []);
+        const ordenados = [];
+
+        (this.datosDashboard?.graficaCP05MortVsPeso || []).forEach(m => {
+            if (seleccionados.has(m.key)) {
+                ordenados.push(m.key);
+                seleccionados.delete(m.key);
+            }
+        });
+
+        seleccionados.forEach(key => ordenados.push(key));
+        return ordenados;
+    }
+
+    nombreMesCP05(mesKey) {
+        const encontrado = (this.datosDashboard?.graficaCP05MortVsPeso || []).find(m => m.key === mesKey);
+        return encontrado ? encontrado.mes_larga : mesKey;
+    }
+
+    /**
+     * Sin Ctrl reemplaza la selección; con Ctrl agrega o quita el mes.
+     */
+    alternarMesCP05(mesKey, conCtrl = false) {
+        if (!mesKey) return;
+
+        const actuales = this.mesesSeleccionadosCP05 || [];
+
+        if (!conCtrl) {
+            const soloEste = actuales.length === 1 && actuales[0] === mesKey;
+            this.mesesSeleccionadosCP05 = soloEste ? [] : [mesKey];
+            return;
+        }
+
+        const posicion = actuales.indexOf(mesKey);
+        if (posicion >= 0) {
+            actuales.splice(posicion, 1);
+        } else {
+            actuales.push(mesKey);
+        }
+
+        this.mesesSeleccionadosCP05 = actuales;
+        this.mesesSeleccionadosCP05 = this.ordenarMesesSeleccionadosCP05();
+    }
+
+    limpiarFiltroCP05() {
+        this.mesesSeleccionadosCP05 = [];
+        this.actualizarFiltroCruzadoCP05(true);
+    }
+
+    /**
      * Actualiza el estado reactivo del filtro cruzado en CP05 MortVsPeso sin destruir la gráfica
      */
-    actualizarFiltroCruzadoCP05(mesKey, triggerChartUpdate = true) {
-        this.mesSeleccionadoCP05 = mesKey;
+    actualizarFiltroCruzadoCP05(triggerChartUpdate = true) {
         const data = this.datosDashboard || {};
+        const seleccionados = this.ordenarMesesSeleccionadosCP05();
+        this.mesesSeleccionadosCP05 = seleccionados;
 
         const contenedorBadges = document.getElementById('contenedor-badges-grafica');
         if (contenedorBadges) {
-            contenedorBadges.innerHTML = '';
+            if (seleccionados.length === 0) {
+                contenedorBadges.innerHTML = `
+                    <span class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                        </svg>
+                        Ctrl + clic para seleccionar varios meses
+                    </span>
+                `;
+            } else {
+                const chips = seleccionados.map(key => `
+                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                        <span class="capitalize">${this.nombreMesCP05(key)}</span>
+                        <button type="button" data-quitar-mes-cp05="${key}" title="Quitar mes"
+                            class="flex items-center justify-center w-4 h-4 rounded text-amber-500 hover:text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </span>
+                `).join('');
+
+                contenedorBadges.innerHTML = `
+                    ${chips}
+                    <button type="button" id="cp05-btn-limpiar-filtro"
+                        class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer">
+                        Limpiar filtro
+                    </button>
+                `;
+
+                contenedorBadges.querySelectorAll('[data-quitar-mes-cp05]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const key = btn.getAttribute('data-quitar-mes-cp05');
+                        this.mesesSeleccionadosCP05 = (this.mesesSeleccionadosCP05 || []).filter(k => k !== key);
+                        this.actualizarFiltroCruzadoCP05(true);
+                    });
+                });
+
+                document.getElementById('cp05-btn-limpiar-filtro')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.limpiarFiltroCP05();
+                });
+            }
         }
 
         const subTabla = document.getElementById('subtitulo-tabla-detalle');
         if (subTabla) {
-            if (this.mesSeleccionadoCP05) {
-                const mesObj = (data.graficaCP05MortVsPeso || []).find(m => m.key === this.mesSeleccionadoCP05);
-                const nombreMes = mesObj ? mesObj.mes_larga : this.mesSeleccionadoCP05;
-                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para el mes de <strong class="capitalize">${nombreMes}</strong></span>`;
+            if (seleccionados.length === 1) {
+                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para el mes de <strong class="capitalize">${this.nombreMesCP05(seleccionados[0])}</strong></span>`;
+            } else if (seleccionados.length > 1) {
+                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para <strong>${seleccionados.length} meses</strong></span>`;
             } else {
                 subTabla.textContent = 'Histórico detallado por centro de costo (cencos) y mes de fecha';
             }
         }
 
-        const detalleAMostrar = this.mesSeleccionadoCP05
-            ? (data.detalleMesesCP05MortVsPeso || []).filter(m => m.key === this.mesSeleccionadoCP05)
+        const clavesSeleccionadas = new Set(seleccionados);
+        const detalleAMostrar = clavesSeleccionadas.size
+            ? (data.detalleMesesCP05MortVsPeso || []).filter(m => clavesSeleccionadas.has(m.key))
             : (data.detalleMesesCP05MortVsPeso || []);
 
         this.renderizarTablaCP05MortVsPeso({ detalleMeses: detalleAMostrar });
@@ -844,30 +975,142 @@ class CostosTradicionalesController {
     }
 
     /**
+     * Indica si un mes está seleccionado en CP04
+     */
+    esMesSeleccionadoCP04(mesKey) {
+        return (this.mesesSeleccionadosCP04 || []).includes(mesKey);
+    }
+
+    /**
+     * Indica si hay filtro cruzado activo en CP04
+     */
+    hayFiltroCP04() {
+        return (this.mesesSeleccionadosCP04 || []).length > 0;
+    }
+
+    /**
+     * Ordena los meses seleccionados según el orden cronológico de la gráfica
+     */
+    ordenarMesesSeleccionadosCP04() {
+        const seleccionados = new Set(this.mesesSeleccionadosCP04 || []);
+        const ordenados = [];
+
+        (this.datosDashboard?.graficaCP04 || []).forEach(m => {
+            if (seleccionados.has(m.key)) {
+                ordenados.push(m.key);
+                seleccionados.delete(m.key);
+            }
+        });
+
+        seleccionados.forEach(key => ordenados.push(key));
+        return ordenados;
+    }
+
+    nombreMesCP04(mesKey) {
+        const encontrado = (this.datosDashboard?.graficaCP04 || []).find(m => m.key === mesKey);
+        return encontrado ? encontrado.mes_larga : mesKey;
+    }
+
+    /**
+     * Sin Ctrl reemplaza la selección; con Ctrl agrega o quita el mes.
+     */
+    alternarMesCP04(mesKey, conCtrl = false) {
+        if (!mesKey) return;
+
+        const actuales = this.mesesSeleccionadosCP04 || [];
+
+        if (!conCtrl) {
+            const soloEste = actuales.length === 1 && actuales[0] === mesKey;
+            this.mesesSeleccionadosCP04 = soloEste ? [] : [mesKey];
+            return;
+        }
+
+        const posicion = actuales.indexOf(mesKey);
+        if (posicion >= 0) {
+            actuales.splice(posicion, 1);
+        } else {
+            actuales.push(mesKey);
+        }
+
+        this.mesesSeleccionadosCP04 = actuales;
+        this.mesesSeleccionadosCP04 = this.ordenarMesesSeleccionadosCP04();
+    }
+
+    limpiarFiltroCP04() {
+        this.mesesSeleccionadosCP04 = [];
+        this.actualizarFiltroCruzadoCP04(true);
+    }
+
+    /**
      * Actualiza el estado reactivo del filtro cruzado en CP04 sin destruir la gráfica
      */
-    actualizarFiltroCruzadoCP04(mesKey, triggerChartUpdate = true) {
-        this.mesSeleccionadoCP04 = mesKey;
+    actualizarFiltroCruzadoCP04(triggerChartUpdate = true) {
         const data = this.datosDashboard || {};
+        const seleccionados = this.ordenarMesesSeleccionadosCP04();
+        this.mesesSeleccionadosCP04 = seleccionados;
 
         const contenedorBadges = document.getElementById('contenedor-badges-grafica');
         if (contenedorBadges) {
-            contenedorBadges.innerHTML = '';
+            if (seleccionados.length === 0) {
+                contenedorBadges.innerHTML = `
+                    <span class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                        </svg>
+                        Ctrl + clic para seleccionar varios meses
+                    </span>
+                `;
+            } else {
+                const chips = seleccionados.map(key => `
+                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                        <span class="capitalize">${this.nombreMesCP04(key)}</span>
+                        <button type="button" data-quitar-mes-cp04="${key}" title="Quitar mes"
+                            class="flex items-center justify-center w-4 h-4 rounded text-amber-500 hover:text-amber-900 hover:bg-amber-100 transition-colors cursor-pointer">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </span>
+                `).join('');
+
+                contenedorBadges.innerHTML = `
+                    ${chips}
+                    <button type="button" id="cp04-btn-limpiar-filtro"
+                        class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer">
+                        Limpiar filtro
+                    </button>
+                `;
+
+                contenedorBadges.querySelectorAll('[data-quitar-mes-cp04]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const key = btn.getAttribute('data-quitar-mes-cp04');
+                        this.mesesSeleccionadosCP04 = (this.mesesSeleccionadosCP04 || []).filter(k => k !== key);
+                        this.actualizarFiltroCruzadoCP04(true);
+                    });
+                });
+
+                document.getElementById('cp04-btn-limpiar-filtro')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.limpiarFiltroCP04();
+                });
+            }
         }
 
         const subTabla = document.getElementById('subtitulo-tabla-detalle');
         if (subTabla) {
-            if (this.mesSeleccionadoCP04) {
-                const mesObj = (data.graficaCP04 || []).find(m => m.key === this.mesSeleccionadoCP04);
-                const nombreMes = mesObj ? mesObj.mes_larga : this.mesSeleccionadoCP04;
-                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para el mes de <strong class="capitalize">${nombreMes}</strong></span>`;
+            if (seleccionados.length === 1) {
+                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para el mes de <strong class="capitalize">${this.nombreMesCP04(seleccionados[0])}</strong></span>`;
+            } else if (seleccionados.length > 1) {
+                subTabla.innerHTML = `<span class="text-amber-700 font-semibold">Detalle filtrado para <strong>${seleccionados.length} meses</strong></span>`;
             } else {
                 subTabla.textContent = 'Histórico detallado por centro de costo (cencos) y mes de fecha';
             }
         }
 
-        const detalleAMostrar = this.mesSeleccionadoCP04
-            ? (data.detalleMesesCP04 || []).filter(m => m.key === this.mesSeleccionadoCP04)
+        const clavesSeleccionadas = new Set(seleccionados);
+        const detalleAMostrar = clavesSeleccionadas.size
+            ? (data.detalleMesesCP04 || []).filter(m => clavesSeleccionadas.has(m.key))
             : (data.detalleMesesCP04 || []);
 
         this.renderizarTablaCP04({ detalleMeses: detalleAMostrar });
@@ -1739,22 +1982,22 @@ class CostosTradicionalesController {
             yAxisID: 'y1',
             backgroundColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP04) return '#f28e2b';
-                return (item && item.key === this.mesSeleccionadoCP04) ? '#ea580c' : 'rgba(242, 142, 43, 0.22)';
+                if (!this.hayFiltroCP04()) return '#f28e2b';
+                return this.esMesSeleccionadoCP04(item && item.key) ? '#ea580c' : 'rgba(242, 142, 43, 0.22)';
             },
             hoverBackgroundColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP04) return '#e07d1b';
-                return (item && item.key === this.mesSeleccionadoCP04) ? '#c2410c' : 'rgba(242, 142, 43, 0.35)';
+                if (!this.hayFiltroCP04()) return '#e07d1b';
+                return this.esMesSeleccionadoCP04(item && item.key) ? '#c2410c' : 'rgba(242, 142, 43, 0.35)';
             },
             borderColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (item && item.key === this.mesSeleccionadoCP04) return '#0f172a';
+                if (this.esMesSeleccionadoCP04(item && item.key)) return '#0f172a';
                 return 'transparent';
             },
             borderWidth: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                return (item && item.key === this.mesSeleccionadoCP04) ? 2.5 : 0;
+                return this.esMesSeleccionadoCP04(item && item.key) ? 2.5 : 0;
             },
             borderRadius: 1,
             barPercentage: 0.54,
@@ -1766,7 +2009,7 @@ class CostosTradicionalesController {
                 offset: 3,
                 color: (context) => {
                     const item = periodosGrafica[context.dataIndex];
-                    if (!this.mesSeleccionadoCP04 || (item && item.key === this.mesSeleccionadoCP04)) return '#c2410c';
+                    if (!this.hayFiltroCP04() || this.esMesSeleccionadoCP04(item && item.key)) return '#c2410c';
                     return '#cbd5e1';
                 },
                 font: {
@@ -1785,34 +2028,34 @@ class CostosTradicionalesController {
             yAxisID: 'y',
             borderColor: '#4e79a7',
             segment: {
-                borderColor: () => this.mesSeleccionadoCP04 ? 'rgba(78, 121, 167, 0.35)' : '#4e79a7'
+                borderColor: () => this.hayFiltroCP04() ? 'rgba(78, 121, 167, 0.35)' : '#4e79a7'
             },
             backgroundColor: '#4e79a7',
             borderWidth: 2.2,
             tension: 0.05,
             pointRadius: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP04) return 4;
-                return (item && item.key === this.mesSeleccionadoCP04) ? 6 : 2;
+                if (!this.hayFiltroCP04()) return 4;
+                return this.esMesSeleccionadoCP04(item && item.key) ? 6 : 2;
             },
             pointHoverRadius: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP04) return 6.5;
-                return (item && item.key === this.mesSeleccionadoCP04) ? 8 : 4;
+                if (!this.hayFiltroCP04()) return 6.5;
+                return this.esMesSeleccionadoCP04(item && item.key) ? 8 : 4;
             },
             pointBackgroundColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP04) return '#4e79a7';
-                return (item && item.key === this.mesSeleccionadoCP04) ? '#1e40af' : 'rgba(78, 121, 167, 0.25)';
+                if (!this.hayFiltroCP04()) return '#4e79a7';
+                return this.esMesSeleccionadoCP04(item && item.key) ? '#1e40af' : 'rgba(78, 121, 167, 0.25)';
             },
             pointBorderColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP04 || (item && item.key === this.mesSeleccionadoCP04)) return '#ffffff';
+                if (!this.hayFiltroCP04() || this.esMesSeleccionadoCP04(item && item.key)) return '#ffffff';
                 return 'transparent';
             },
             pointBorderWidth: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                return (item && item.key === this.mesSeleccionadoCP04) ? 2.5 : 1;
+                return this.esMesSeleccionadoCP04(item && item.key) ? 2.5 : 1;
             },
             order: 1,
             datalabels: {
@@ -1821,7 +2064,7 @@ class CostosTradicionalesController {
                 offset: 7,
                 color: (context) => {
                     const item = periodosGrafica[context.dataIndex];
-                    if (!this.mesSeleccionadoCP04 || (item && item.key === this.mesSeleccionadoCP04)) return '#1e40af';
+                    if (!this.hayFiltroCP04() || this.esMesSeleccionadoCP04(item && item.key)) return '#1e40af';
                     return '#cbd5e1';
                 },
                 font: {
@@ -1859,18 +2102,19 @@ class CostosTradicionalesController {
                     intersect: false
                 },
                 onClick: (event, elements, chart) => {
+                    const nativeEvent = event && event.native ? event.native : event;
+                    const conCtrl = !!(nativeEvent && (nativeEvent.ctrlKey || nativeEvent.metaKey));
+
                     const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
                     if (points && points.length > 0) {
                         const dataIndex = points[0].index;
                         const clickedItem = periodosGrafica[dataIndex];
                         if (clickedItem) {
-                            const newKey = (this.mesSeleccionadoCP04 === clickedItem.key) ? null : clickedItem.key;
-                            this.actualizarFiltroCruzadoCP04(newKey, true);
+                            this.alternarMesCP04(clickedItem.key, conCtrl);
+                            this.actualizarFiltroCruzadoCP04(true);
                         }
-                    } else {
-                        if (this.mesSeleccionadoCP04 !== null) {
-                            this.actualizarFiltroCruzadoCP04(null, true);
-                        }
+                    } else if (this.hayFiltroCP04()) {
+                        this.limpiarFiltroCP04();
                     }
                 },
                 onHover: (event, chartElement) => {
@@ -1932,13 +2176,13 @@ class CostosTradicionalesController {
                         ticks: {
                             color: (ctx) => {
                                 const item = periodosGrafica[ctx.index];
-                                if (item && item.key === this.mesSeleccionadoCP04) return '#000000';
-                                if (this.mesSeleccionadoCP04) return '#94a3b8';
+                                if (this.esMesSeleccionadoCP04(item && item.key)) return '#000000';
+                                if (this.hayFiltroCP04()) return '#94a3b8';
                                 return '#475569';
                             },
                             font: (ctx) => {
                                 const item = periodosGrafica[ctx.index];
-                                const isSel = (item && item.key === this.mesSeleccionadoCP04);
+                                const isSel = this.esMesSeleccionadoCP04(item && item.key);
                                 return {
                                     size: 10.5,
                                     weight: isSel ? 'bold' : '600'
@@ -2422,27 +2666,27 @@ class CostosTradicionalesController {
             tension: 0.05,
             pointRadius: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05) return 4.5;
-                return (item && item.key === this.mesSeleccionadoCP05) ? 7 : 2.5;
+                if (!this.hayFiltroCP05()) return 4.5;
+                return this.esMesSeleccionadoCP05(item && item.key) ? 7 : 2.5;
             },
             pointHoverRadius: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05) return 7;
-                return (item && item.key === this.mesSeleccionadoCP05) ? 9 : 4.5;
+                if (!this.hayFiltroCP05()) return 7;
+                return this.esMesSeleccionadoCP05(item && item.key) ? 9 : 4.5;
             },
             pointBackgroundColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05) return '#e15759';
-                return (item && item.key === this.mesSeleccionadoCP05) ? '#b91c1c' : 'rgba(225, 87, 89, 0.25)';
+                if (!this.hayFiltroCP05()) return '#e15759';
+                return this.esMesSeleccionadoCP05(item && item.key) ? '#b91c1c' : 'rgba(225, 87, 89, 0.25)';
             },
             pointBorderColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#ffffff';
+                if (!this.hayFiltroCP05() || this.esMesSeleccionadoCP05(item && item.key)) return '#ffffff';
                 return 'transparent';
             },
             pointBorderWidth: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                return (item && item.key === this.mesSeleccionadoCP05) ? 2.5 : 1.5;
+                return this.esMesSeleccionadoCP05(item && item.key) ? 2.5 : 1.5;
             },
             order: 1,
             datalabels: {
@@ -2451,7 +2695,7 @@ class CostosTradicionalesController {
                 offset: 7,
                 color: (context) => {
                     const item = periodosGrafica[context.dataIndex];
-                    if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#b91c1c';
+                    if (!this.hayFiltroCP05() || this.esMesSeleccionadoCP05(item && item.key)) return '#b91c1c';
                     return '#cbd5e1';
                 },
                 font: {
@@ -2474,27 +2718,27 @@ class CostosTradicionalesController {
             tension: 0.05,
             pointRadius: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05) return 4.5;
-                return (item && item.key === this.mesSeleccionadoCP05) ? 7 : 2.5;
+                if (!this.hayFiltroCP05()) return 4.5;
+                return this.esMesSeleccionadoCP05(item && item.key) ? 7 : 2.5;
             },
             pointHoverRadius: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05) return 7;
-                return (item && item.key === this.mesSeleccionadoCP05) ? 9 : 4.5;
+                if (!this.hayFiltroCP05()) return 7;
+                return this.esMesSeleccionadoCP05(item && item.key) ? 9 : 4.5;
             },
             pointBackgroundColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05) return '#595959';
-                return (item && item.key === this.mesSeleccionadoCP05) ? '#1e293b' : 'rgba(89, 89, 89, 0.25)';
+                if (!this.hayFiltroCP05()) return '#595959';
+                return this.esMesSeleccionadoCP05(item && item.key) ? '#1e293b' : 'rgba(89, 89, 89, 0.25)';
             },
             pointBorderColor: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#ffffff';
+                if (!this.hayFiltroCP05() || this.esMesSeleccionadoCP05(item && item.key)) return '#ffffff';
                 return 'transparent';
             },
             pointBorderWidth: (context) => {
                 const item = periodosGrafica[context.dataIndex];
-                return (item && item.key === this.mesSeleccionadoCP05) ? 2.5 : 1.5;
+                return this.esMesSeleccionadoCP05(item && item.key) ? 2.5 : 1.5;
             },
             order: 2,
             datalabels: {
@@ -2509,7 +2753,7 @@ class CostosTradicionalesController {
                 offset: 7,
                 color: (context) => {
                     const item = periodosGrafica[context.dataIndex];
-                    if (!this.mesSeleccionadoCP05 || (item && item.key === this.mesSeleccionadoCP05)) return '#334155';
+                    if (!this.hayFiltroCP05() || this.esMesSeleccionadoCP05(item && item.key)) return '#334155';
                     return '#cbd5e1';
                 },
                 font: {
@@ -2547,18 +2791,19 @@ class CostosTradicionalesController {
                     intersect: false
                 },
                 onClick: (event, elements, chart) => {
+                    const nativeEvent = event && event.native ? event.native : event;
+                    const conCtrl = !!(nativeEvent && (nativeEvent.ctrlKey || nativeEvent.metaKey));
+
                     const points = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
                     if (points && points.length > 0) {
                         const dataIndex = points[0].index;
                         const clickedItem = periodosGrafica[dataIndex];
                         if (clickedItem) {
-                            const newKey = (this.mesSeleccionadoCP05 === clickedItem.key) ? null : clickedItem.key;
-                            this.actualizarFiltroCruzadoCP05(newKey, true);
+                            this.alternarMesCP05(clickedItem.key, conCtrl);
+                            this.actualizarFiltroCruzadoCP05(true);
                         }
-                    } else {
-                        if (this.mesSeleccionadoCP05 !== null) {
-                            this.actualizarFiltroCruzadoCP05(null, true);
-                        }
+                    } else if (this.hayFiltroCP05()) {
+                        this.limpiarFiltroCP05();
                     }
                 },
                 onHover: (event, chartElement) => {
@@ -2620,13 +2865,13 @@ class CostosTradicionalesController {
                         ticks: {
                             color: (ctx) => {
                                 const item = periodosGrafica[ctx.index];
-                                if (item && item.key === this.mesSeleccionadoCP05) return '#000000';
-                                if (this.mesSeleccionadoCP05) return '#94a3b8';
+                                if (this.esMesSeleccionadoCP05(item && item.key)) return '#000000';
+                                if (this.hayFiltroCP05()) return '#94a3b8';
                                 return '#475569';
                             },
                             font: (ctx) => {
                                 const item = periodosGrafica[ctx.index];
-                                const isSel = (item && item.key === this.mesSeleccionadoCP05);
+                                const isSel = this.esMesSeleccionadoCP05(item && item.key);
                                 return {
                                     size: 10.5,
                                     weight: isSel ? 'bold' : '600'

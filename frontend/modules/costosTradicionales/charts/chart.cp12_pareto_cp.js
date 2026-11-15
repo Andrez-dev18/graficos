@@ -16,7 +16,7 @@ window.ChartRegistry['CP12 ParetoCP'] = {
     datosDetalle: [],
     totalesPareto: null,
     totalKg: 0,
-    clasifFiltroActivo: null,
+    clasificacionesSeleccionadas: [],
     detalleFiltrado: [],
     paginaActualDetalle: 1,
     filasPorPaginaDetalle: 200,
@@ -64,28 +64,138 @@ window.ChartRegistry['CP12 ParetoCP'] = {
         this.datosDetalle = data.tabla_detalle || [];
         this.totalesPareto = data.totales_pareto || null;
         this.totalKg = data.total_kg_vendidos || 0;
-        this.clasifFiltroActivo = null;
+        this.clasificacionesSeleccionadas = [];
         this.paginaActualDetalle = 1;
 
         // 4. Badges Superiores
-        const contenedorBadges = document.getElementById('contenedor-badges-grafica');
-        if (contenedorBadges) {
-            contenedorBadges.innerHTML = `
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-md shadow-2xs">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-                        Líneas Pareto: <strong class="text-blue-800">${this.datosPareto.length}</strong>
-                    </span>
-                    <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-md shadow-2xs">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        Kg Vendidos: <strong class="text-emerald-700">${Number(this.totalKg).toLocaleString('es-PE', { maximumFractionDigits: 0 })} kg</strong>
-                    </span>
-                </div>
-            `;
-        }
+        this.renderBadgesCP12();
 
         // 5. Renderizar el lienzo de dos tablas
         this.renderLayoutDual(controller);
+    },
+
+    escaparClasificacionCP12(valor) {
+        return String(valor).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    },
+
+    esClasificacionSeleccionada(clasif) {
+        return (this.clasificacionesSeleccionadas || []).some(c => String(c) === String(clasif));
+    },
+
+    hayFiltroClasificaciones() {
+        return (this.clasificacionesSeleccionadas || []).length > 0;
+    },
+
+    ordenarClasificacionesSeleccionadas() {
+        const seleccionadas = new Set((this.clasificacionesSeleccionadas || []).map(String));
+        const ordenadas = [];
+
+        (this.datosPareto || []).forEach(r => {
+            const key = String(r.clasificacion);
+            if (seleccionadas.has(key)) {
+                ordenadas.push(r.clasificacion);
+                seleccionadas.delete(key);
+            }
+        });
+
+        seleccionadas.forEach(key => ordenadas.push(key));
+        return ordenadas;
+    },
+
+    alternarClasificacion(clasif, conCtrl = false) {
+        if (clasif === null || clasif === undefined) return;
+
+        const key = String(clasif);
+        const actuales = (this.clasificacionesSeleccionadas || []).map(String);
+
+        if (!conCtrl) {
+            const soloEsta = actuales.length === 1 && actuales[0] === key;
+            this.clasificacionesSeleccionadas = soloEsta ? [] : [clasif];
+            return;
+        }
+
+        const posicion = actuales.indexOf(key);
+        if (posicion >= 0) {
+            actuales.splice(posicion, 1);
+        } else {
+            actuales.push(key);
+        }
+
+        this.clasificacionesSeleccionadas = actuales;
+        this.clasificacionesSeleccionadas = this.ordenarClasificacionesSeleccionadas();
+    },
+
+    quitarClasificacion(clasif, event) {
+        if (event) event.stopPropagation();
+        const key = String(clasif);
+        this.clasificacionesSeleccionadas = (this.clasificacionesSeleccionadas || []).filter(c => String(c) !== key);
+        this.refrescarFiltrosClasificaciones();
+    },
+
+    limpiarFiltroClasificaciones() {
+        this.clasificacionesSeleccionadas = [];
+        this.refrescarFiltrosClasificaciones();
+    },
+
+    refrescarFiltrosClasificaciones() {
+        this.paginaActualDetalle = 1;
+        this.renderTablaPareto();
+        this.filtrarYRenderizarDetalle();
+        this.renderBadgesCP12();
+    },
+
+    renderBadgesCP12() {
+        const contenedor = document.getElementById('contenedor-badges-grafica');
+        if (!contenedor) return;
+
+        const kpis = `
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-md shadow-2xs">
+                <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                Líneas Pareto: <strong class="text-blue-800">${(this.datosPareto || []).length}</strong>
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-md shadow-2xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Kg Vendidos: <strong class="text-emerald-700">${Number(this.totalKg || 0).toLocaleString('es-PE', { maximumFractionDigits: 0 })} kg</strong>
+            </span>
+        `;
+
+        const seleccionadas = this.ordenarClasificacionesSeleccionadas();
+        let seleccionHtml = '';
+
+        if (seleccionadas.length === 0) {
+            seleccionHtml = `
+                <span class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                    </svg>
+                    Ctrl + clic para seleccionar varias clasificaciones
+                </span>
+            `;
+        } else {
+            const chips = seleccionadas.map(clasif => `
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                    <span>${clasif}</span>
+                    <button type="button" title="Quitar clasificación" data-quitar-clasif-cp12="true"
+                        onclick="window.ChartRegistry['CP12 ParetoCP'].quitarClasificacion('${this.escaparClasificacionCP12(clasif)}', event)"
+                        class="flex items-center justify-center w-4 h-4 rounded text-blue-500 hover:text-blue-900 hover:bg-blue-100 transition-colors cursor-pointer">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </span>
+            `).join('');
+
+            seleccionHtml = `
+                ${chips}
+                <button type="button"
+                    onclick="window.ChartRegistry['CP12 ParetoCP'].limpiarFiltroClasificaciones()"
+                    class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer">
+                    Limpiar filtro
+                </button>
+            `;
+        }
+
+        contenedor.innerHTML = `<div class="flex flex-wrap items-center gap-2">${kpis}${seleccionHtml}</div>`;
     },
 
     initMultiSelect(controller, catalogo) {
@@ -225,7 +335,7 @@ window.ChartRegistry['CP12 ParetoCP'] = {
         const btnLimpiar = document.getElementById('btn-limpiar-filtro-cp12');
         if (btnLimpiar) {
             btnLimpiar.addEventListener('click', () => {
-                this.seleccionarClasificacion(null);
+                this.limpiarFiltroClasificaciones();
             });
         }
     },
@@ -243,19 +353,25 @@ window.ChartRegistry['CP12 ParetoCP'] = {
             return;
         }
 
+        const hayFiltro = this.hayFiltroClasificaciones();
         let html = '';
         items.forEach(r => {
-            const isSelected = (this.clasifFiltroActivo === r.clasificacion);
-            const rowClass = isSelected
-                ? 'bg-blue-50 font-semibold border-l-4 border-l-blue-600'
-                : 'hover:bg-slate-50/80 transition-colors cursor-pointer';
+            const isSelected = this.esClasificacionSeleccionada(r.clasificacion);
+            let rowClass;
+            if (isSelected) {
+                rowClass = 'bg-blue-50 font-semibold border-l-4 border-l-blue-600 cursor-pointer';
+            } else if (hayFiltro) {
+                rowClass = 'opacity-40 hover:bg-slate-50/80 transition-colors cursor-pointer';
+            } else {
+                rowClass = 'hover:bg-slate-50/80 transition-colors cursor-pointer';
+            }
 
             const valorStr = Number(r.valor).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const kgStr = Number(r.kg_vendidos).toLocaleString('es-PE', { maximumFractionDigits: 0 });
             const cuStr = Number(r.cu_mensual).toFixed(3).replace('.', ',');
 
             html += `
-                <tr class="${rowClass}" onclick="window.ChartRegistry['CP12 ParetoCP'].seleccionarClasificacion('${r.clasificacion.replace(/'/g, "\\'")}')">
+                <tr class="${rowClass}" onclick="window.ChartRegistry['CP12 ParetoCP'].seleccionarClasificacion('${this.escaparClasificacionCP12(r.clasificacion)}', event)">
                     <td class="px-3 py-1.5 text-left border-r border-slate-100 text-slate-800 ${isSelected ? 'text-blue-800 font-bold' : ''}">
                         ${r.clasificacion}
                     </td>
@@ -292,24 +408,25 @@ window.ChartRegistry['CP12 ParetoCP'] = {
         }
     },
 
-    seleccionarClasificacion(clasif) {
-        if (this.clasifFiltroActivo === clasif) {
-            this.clasifFiltroActivo = null; // Toggle para desmarcar
-        } else {
-            this.clasifFiltroActivo = clasif;
-        }
-
-        this.paginaActualDetalle = 1;
-        this.renderTablaPareto();
-        this.filtrarYRenderizarDetalle();
+    seleccionarClasificacion(clasif, event) {
+        const conCtrl = !!(event && (event.ctrlKey || event.metaKey));
+        this.alternarClasificacion(clasif, conCtrl);
+        this.refrescarFiltrosClasificaciones();
     },
 
     filtrarYRenderizarDetalle() {
         const subtitulo = document.getElementById('subtitulo-detalle-cp12');
         const btnLimpiar = document.getElementById('btn-limpiar-filtro-cp12');
+        const seleccionadas = this.ordenarClasificacionesSeleccionadas();
 
-        if (this.clasifFiltroActivo) {
-            if (subtitulo) subtitulo.innerHTML = `Filtro: <strong class="text-blue-700">${this.clasifFiltroActivo}</strong>`;
+        if (seleccionadas.length > 0) {
+            if (subtitulo) {
+                if (seleccionadas.length === 1) {
+                    subtitulo.innerHTML = `Filtro: <strong class="text-blue-700">${seleccionadas[0]}</strong>`;
+                } else {
+                    subtitulo.innerHTML = `Filtro: <strong class="text-blue-700">${seleccionadas.length} clasificaciones</strong>`;
+                }
+            }
             if (btnLimpiar) btnLimpiar.classList.remove('hidden');
         } else {
             if (subtitulo) subtitulo.textContent = 'Todas las clasificaciones';
@@ -319,12 +436,12 @@ window.ChartRegistry['CP12 ParetoCP'] = {
         // Filtrar datos de la tabla detalle
         let items = this.datosDetalle;
 
-        if (this.clasifFiltroActivo) {
-            const clasifTarget = this.clasifFiltroActivo;
+        if (seleccionadas.length > 0) {
+            const clavesSeleccionadas = new Set(seleccionadas.map(String));
             let currentClasif = '';
             items = this.datosDetalle.filter(r => {
                 if (r.clasificacion) currentClasif = r.clasificacion;
-                return currentClasif === clasifTarget;
+                return clavesSeleccionadas.has(String(currentClasif));
             });
         }
 

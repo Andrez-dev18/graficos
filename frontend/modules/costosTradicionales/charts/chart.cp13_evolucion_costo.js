@@ -18,7 +18,7 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
     periodos: [],
     datosEvolucion: [],
     datosDetalle: [],
-    clasifFiltroActivo: null,
+    clasificacionesSeleccionadas: [],
     detalleFiltrado: [],
     paginaActualDetalle: 1,
     filasPorPaginaDetalle: 150,
@@ -69,10 +69,10 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
         this.periodos = data.periodos || [];
         this.datosEvolucion = data.tabla_evolucion || [];
         this.datosDetalle = data.tabla_detalle || [];
-        this.clasifFiltroActivo = null;
+        this.clasificacionesSeleccionadas = [];
         this.paginaActualDetalle = 1;
 
-        // 4. Badges Superiores (Limpios sin pastillas)
+        // 4. Cabecera sin chips de filtro
         const contenedorBadges = document.getElementById('contenedor-badges-grafica');
         if (contenedorBadges) {
             contenedorBadges.innerHTML = '';
@@ -80,6 +80,68 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
 
         // 5. Renderizar el layout dual
         this.renderLayoutDual(controller);
+    },
+
+    escaparClasificacionCP13(valor) {
+        return String(valor).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    },
+
+    esClasificacionSeleccionada(clasif) {
+        return (this.clasificacionesSeleccionadas || []).some(c => String(c) === String(clasif));
+    },
+
+    hayFiltroClasificaciones() {
+        return (this.clasificacionesSeleccionadas || []).length > 0;
+    },
+
+    ordenarClasificacionesSeleccionadas() {
+        const seleccionadas = new Set((this.clasificacionesSeleccionadas || []).map(String));
+        const ordenadas = [];
+
+        (this.datosEvolucion || []).forEach(r => {
+            const key = String(r.clasificacion);
+            if (seleccionadas.has(key)) {
+                ordenadas.push(r.clasificacion);
+                seleccionadas.delete(key);
+            }
+        });
+
+        seleccionadas.forEach(key => ordenadas.push(key));
+        return ordenadas;
+    },
+
+    alternarClasificacion(clasif, conCtrl = false) {
+        if (clasif === null || clasif === undefined) return;
+
+        const key = String(clasif);
+        const actuales = (this.clasificacionesSeleccionadas || []).map(String);
+
+        if (!conCtrl) {
+            const soloEsta = actuales.length === 1 && actuales[0] === key;
+            this.clasificacionesSeleccionadas = soloEsta ? [] : [clasif];
+            return;
+        }
+
+        const posicion = actuales.indexOf(key);
+        if (posicion >= 0) {
+            actuales.splice(posicion, 1);
+        } else {
+            actuales.push(key);
+        }
+
+        this.clasificacionesSeleccionadas = actuales;
+        this.clasificacionesSeleccionadas = this.ordenarClasificacionesSeleccionadas();
+    },
+
+    limpiarFiltroClasificaciones() {
+        this.clasificacionesSeleccionadas = [];
+        this.refrescarFiltrosClasificaciones();
+    },
+
+    refrescarFiltrosClasificaciones() {
+        this.paginaActualDetalle = 1;
+        this.renderTablaEvolucion();
+        this.filtrarYRenderizarDetalle();
     },
 
     initMultiSelect(controller, catalogo) {
@@ -224,7 +286,7 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
         const btnLimpiar = document.getElementById('btn-limpiar-filtro-cp13');
         if (btnLimpiar) {
             btnLimpiar.addEventListener('click', () => {
-                this.seleccionarClasificacion(null);
+                this.limpiarFiltroClasificaciones();
             });
         }
     },
@@ -240,14 +302,20 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
             return;
         }
 
+        const hayFiltro = this.hayFiltroClasificaciones();
         let html = '';
         items.forEach(r => {
-            const isSelected = (this.clasifFiltroActivo === r.clasificacion);
-            const blockClass = isSelected
-                ? 'bg-slate-100/90 font-semibold'
-                : 'hover:bg-slate-50/70 transition-colors';
+            const isSelected = this.esClasificacionSeleccionada(r.clasificacion);
+            let blockClass;
+            if (isSelected) {
+                blockClass = 'bg-slate-100/90 font-semibold';
+            } else if (hayFiltro) {
+                blockClass = 'opacity-40 hover:bg-slate-50/70 transition-colors';
+            } else {
+                blockClass = 'hover:bg-slate-50/70 transition-colors';
+            }
 
-            const clasifEscaped = r.clasificacion.replace(/'/g, "\\'");
+            const clasifEscaped = this.escaparClasificacionCP13(r.clasificacion);
 
             // Fila 1: CU Mensual (en rojo/salmón)
             let row1Cols = '';
@@ -294,7 +362,7 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
 
             html += `
                 <!-- Fila 1: CU Mensual -->
-                <tr class="${blockClass} cursor-pointer border-t border-slate-200" onclick="window.ChartRegistry['CP13 EvolucionCosto'].seleccionarClasificacion('${clasifEscaped}')">
+                <tr class="${blockClass} cursor-pointer border-t border-slate-200" onclick="window.ChartRegistry['CP13 EvolucionCosto'].seleccionarClasificacion('${clasifEscaped}', event)">
                     <td rowspan="2" class="px-3 py-2 text-left border-r border-slate-300 font-medium text-slate-800 align-middle ${isSelected ? 'text-slate-900 font-bold border-l-4 border-l-slate-700' : ''}">
                         ${r.clasificacion}
                     </td>
@@ -304,7 +372,7 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
                     ${row1Cols}
                 </tr>
                 <!-- Fila 2: Diferencia Mes Anterior -->
-                <tr class="${blockClass} cursor-pointer border-b border-slate-300" onclick="window.ChartRegistry['CP13 EvolucionCosto'].seleccionarClasificacion('${clasifEscaped}')">
+                <tr class="${blockClass} cursor-pointer border-b border-slate-300" onclick="window.ChartRegistry['CP13 EvolucionCosto'].seleccionarClasificacion('${clasifEscaped}', event)">
                     <td class="px-2.5 py-1 text-left border-r border-slate-200 text-slate-500 font-normal whitespace-nowrap">
                         Diferencia Mes Anterior
                     </td>
@@ -316,24 +384,25 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
         tbody.innerHTML = html;
     },
 
-    seleccionarClasificacion(clasif) {
-        if (this.clasifFiltroActivo === clasif) {
-            this.clasifFiltroActivo = null;
-        } else {
-            this.clasifFiltroActivo = clasif;
-        }
-
-        this.paginaActualDetalle = 1;
-        this.renderTablaEvolucion();
-        this.filtrarYRenderizarDetalle();
+    seleccionarClasificacion(clasif, event) {
+        const conCtrl = !!(event && (event.ctrlKey || event.metaKey));
+        this.alternarClasificacion(clasif, conCtrl);
+        this.refrescarFiltrosClasificaciones();
     },
 
     filtrarYRenderizarDetalle() {
         const subtitulo = document.getElementById('subtitulo-detalle-cp13');
         const btnLimpiar = document.getElementById('btn-limpiar-filtro-cp13');
+        const seleccionadas = this.ordenarClasificacionesSeleccionadas();
 
-        if (this.clasifFiltroActivo) {
-            if (subtitulo) subtitulo.innerHTML = `Filtro: <strong class="text-slate-900">${this.clasifFiltroActivo}</strong>`;
+        if (seleccionadas.length > 0) {
+            if (subtitulo) {
+                if (seleccionadas.length === 1) {
+                    subtitulo.innerHTML = `Filtro: <strong class="text-slate-900">${seleccionadas[0]}</strong>`;
+                } else {
+                    subtitulo.innerHTML = `Filtro: <strong class="text-slate-900">${seleccionadas.length} clasificaciones</strong>`;
+                }
+            }
             if (btnLimpiar) btnLimpiar.classList.remove('hidden');
         } else {
             if (subtitulo) subtitulo.textContent = 'Todas las clasificaciones';
@@ -342,9 +411,9 @@ window.ChartRegistry['CP13 EvolucionCosto'] = {
 
         let items = this.datosDetalle;
 
-        if (this.clasifFiltroActivo) {
-            const target = this.clasifFiltroActivo;
-            items = this.datosDetalle.filter(r => r.clasificacion === target);
+        if (seleccionadas.length > 0) {
+            const clavesSeleccionadas = new Set(seleccionadas.map(String));
+            items = this.datosDetalle.filter(r => clavesSeleccionadas.has(String(r.clasificacion)));
         }
 
         this.detalleFiltrado = items;
