@@ -20,9 +20,7 @@ window.ChartRegistry = window.ChartRegistry || {};
 window.DashAnalisisPlacasChart = {
     controllerRef: null,
     datosBackend: null,
-    placaSeleccionada: null,
-    fecProcesoSeleccionada: null,
-    fecProcesoFormateada: '',
+    seleccionesPlacas: [],
 
     _pageSize: 50,
     _pages: { liq: 1, ventas: 1, rutas: 1, causal: 1, cumpPlaca: 1, cumpCod: 1 },
@@ -47,10 +45,7 @@ window.DashAnalisisPlacasChart = {
         this.controllerRef = controller;
         this.datosBackend = data || {};
 
-        const filtros = this.datosBackend.filtros || {};
-        this.placaSeleccionada = filtros.placa_seleccionada || null;
-        this.fecProcesoSeleccionada = filtros.fecproceso_seleccionada || null;
-        this.fecProcesoFormateada = this.fecProcesoSeleccionada ? this.fecProcesoSeleccionada.replace(/-/g, '/') : '';
+        this.seleccionesPlacas = [];
 
         this._pageSize = 50;
         this._resetAllPages();
@@ -75,6 +70,7 @@ window.DashAnalisisPlacasChart = {
         this.setupFilters();
         this._buildViewModel();
         this.renderLayout();
+        this.actualizarBadgesCabecera([]);
 
         this.renderTablaLiquidacion();
         this.renderTablaVentas();
@@ -91,9 +87,7 @@ window.DashAnalisisPlacasChart = {
     },
 
     resetSelection() {
-        this.placaSeleccionada = null;
-        this.fecProcesoSeleccionada = null;
-        this.fecProcesoFormateada = '';
+        this.seleccionesPlacas = [];
     },
 
     resetFilters() {
@@ -101,10 +95,9 @@ window.DashAnalisisPlacasChart = {
     },
 
     getSelectedFilters() {
-        return {
-            placa_seleccionada: this.placaSeleccionada,
-            fecproceso_seleccionada: this.fecProcesoSeleccionada
-        };
+        // La recarga desde "Cargar" vuelve al estado sin selección.
+        // El filtro múltiple se envía aparte como pares_placa_fecha.
+        return {};
     },
 
     setupFilters() {
@@ -155,19 +148,19 @@ window.DashAnalisisPlacasChart = {
             cumpCod: cumpCodData.filas || [],
             meta: {
                 ventasPlaca: ventas.placa || '(Todas)',
-                ventasFec: ventas.fecproceso_formateada || this.fecProcesoFormateada,
+                ventasFec: ventas.fecproceso_formateada || '',
                 rutasPlaca: rutas.placa || '(Todas)',
-                rutasFec: rutas.fecproceso_formateada || this.fecProcesoFormateada,
+                rutasFec: rutas.fecproceso_formateada || '',
                 causalPlaca: causal.placa || '(Todas)',
-                causalFec: causal.fecproceso_formateada || this.fecProcesoFormateada,
+                causalFec: causal.fecproceso_formateada || '',
                 cumpPlaca: cump.placa || '(Todas)',
-                cumpFec: cump.fecproceso_formateada || this.fecProcesoFormateada
+                cumpFec: cump.fecproceso_formateada || ''
             },
             cumpTotal: cumpCodData.total || null
         };
 
         this._baseCompleto = !ventasPaginado && this._otrosCompletos;
-        this._baseEsFiltrada = !!(d.filtros && d.filtros.placa_seleccionada);
+        this._baseEsFiltrada = !!(d.filtros && ((Array.isArray(d.filtros.pares_placa_fecha) && d.filtros.pares_placa_fecha.length > 0) || d.filtros.placa_seleccionada));
 
         this._view = {
             ventas: this._base.ventas || (ventas.filas || []),
@@ -197,19 +190,94 @@ window.DashAnalisisPlacasChart = {
         return !!(this._base && this._baseCompleto && !this._baseEsFiltrada);
     },
 
-    _filtrarEnMemoria(placa, fecproceso) {
-        const norm = (v) => String(v === null || v === undefined ? '' : v).replace(/-/g, '').trim();
-        const target = norm(placa);
-        const fecha = fecproceso ? String(fecproceso).slice(0, 10) : null;
-        const fechaFila = (r) => String(r.fecproceso || r.fechaproceso || '').slice(0, 10);
-        const mismaFecha = (r) => !fecha || fechaFila(r) === fecha;
+    _normalizarFecha(fecha) {
+        return String(fecha === null || fecha === undefined ? '' : fecha).slice(0, 10);
+    },
 
-        const ventas = this._base.ventas.filter(r => norm(r.placa) === target && mismaFecha(r));
-        const causal = this._base.causal.filter(r => norm(r.placa) === target && mismaFecha(r));
-        const cumpPlaca = this._base.cumpPlaca.filter(r => norm(r.placa) === target && mismaFecha(r));
-        const cumpCod = this._base.cumpCod.filter(r => norm(r.placa) === target && mismaFecha(r));
-        const rutas = this._base.rutas.filter(r => norm(r.placa) === target && mismaFecha(r));
-        const fecFmt = fecproceso ? String(fecproceso).replace(/-/g, '/') : '';
+    clavePar(placa, fecproceso) {
+        return `${String(placa === null || placa === undefined ? '' : placa).trim()}||${this._normalizarFecha(fecproceso)}`;
+    },
+
+    esParSeleccionado(placa, fecproceso) {
+        const key = this.clavePar(placa, fecproceso);
+        return (this.seleccionesPlacas || []).some(s => this.clavePar(s.placa, s.fecproceso) === key);
+    },
+
+    haySeleccion() {
+        return (this.seleccionesPlacas || []).length > 0;
+    },
+
+    resumenSeleccion() {
+        const selecciones = this.seleccionesPlacas || [];
+        const placas = [...new Set(selecciones.map(s => String(s.placa)))];
+        const fechas = [...new Set(selecciones.map(s => this._normalizarFecha(s.fecproceso)))];
+        let texto = 'Placas: (Todas)';
+        let textoVentas = 'Placas: (Todas)';
+        let sufijo = 'Todas';
+
+        if (selecciones.length === 1) {
+            const fecha = this._normalizarFecha(selecciones[0].fecproceso).replace(/-/g, '/');
+            texto = `Placa: ${selecciones[0].placa}`;
+            textoVentas = `Placa: ${selecciones[0].placa} | Fecha: ${fecha}`;
+            sufijo = `Placa_${selecciones[0].placa}`;
+        } else if (selecciones.length > 1) {
+            texto = `Placas: ${placas.length} | Fechas: ${fechas.length}`;
+            textoVentas = `Placas: ${selecciones.length} seleccionadas`;
+            sufijo = `${selecciones.length}_selecciones`;
+        }
+
+        return { selecciones, placas, fechas, texto, textoVentas, sufijo, n: selecciones.length };
+    },
+
+    _buildMetaResumen() {
+        const resumen = this.resumenSeleccion();
+        const unaFecha = resumen.selecciones.length === 1
+            ? this._normalizarFecha(resumen.selecciones[0].fecproceso).replace(/-/g, '/')
+            : '';
+
+        return {
+            ventasPlaca: resumen.textoVentas,
+            ventasFec: unaFecha,
+            rutasPlaca: resumen.texto,
+            rutasFec: '',
+            causalPlaca: resumen.texto,
+            causalFec: '',
+            cumpPlaca: resumen.texto,
+            cumpFec: ''
+        };
+    },
+
+    alternarPar(placa, fecproceso, conCtrl = false) {
+        if (!placa || placa === '0') return;
+
+        const par = { placa: String(placa), fecproceso: this._normalizarFecha(fecproceso) };
+        const key = this.clavePar(par.placa, par.fecproceso);
+        const actuales = this.seleccionesPlacas || [];
+
+        if (!conCtrl) {
+            const soloEste = actuales.length === 1 && this.clavePar(actuales[0].placa, actuales[0].fecproceso) === key;
+            this.seleccionesPlacas = soloEste ? [] : [par];
+            return;
+        }
+
+        const idx = actuales.findIndex(s => this.clavePar(s.placa, s.fecproceso) === key);
+        if (idx >= 0) {
+            actuales.splice(idx, 1);
+        } else {
+            actuales.push(par);
+        }
+        this.seleccionesPlacas = actuales;
+    },
+
+    _filtrarEnMemoriaSelecciones(selecciones) {
+        const claves = new Set((selecciones || []).map(s => this.clavePar(s.placa, s.fecproceso)));
+        const match = (r) => claves.has(this.clavePar(r.placa, r.fecproceso || r.fechaproceso));
+
+        const ventas = (this._base.ventas || []).filter(match);
+        const causal = (this._base.causal || []).filter(match);
+        const cumpPlaca = (this._base.cumpPlaca || []).filter(match);
+        const cumpCod = (this._base.cumpCod || []).filter(match);
+        const rutas = (this._base.rutas || []).filter(match);
 
         return {
             ventas,
@@ -217,7 +285,7 @@ window.DashAnalisisPlacasChart = {
             causal,
             cumpPlaca,
             cumpCod,
-            meta: this._buildMetaFor(placa, fecFmt),
+            meta: this._buildMetaResumen(),
             cumpTotal: this._computeCumpTotal(cumpCod)
         };
     },
@@ -305,6 +373,10 @@ window.DashAnalisisPlacasChart = {
                                 <option value="50" selected>50</option>
                                 <option value="100">100</option>
                             </select>
+                            <button id="btn-ver-todo-placas" type="button"
+                                class="hidden flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-2xs transition-all cursor-pointer">
+                                <span>Ver todo</span>
+                            </button>
                             <button id="btn-export-placas-liq" type="button"
                                 class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 shadow-2xs transition-all cursor-pointer">
                                 <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,7 +412,7 @@ window.DashAnalisisPlacasChart = {
                                 <div class="flex items-center gap-2">
                                     <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">Analisis de Ventas</h2>
                                     <span id="badge-ventas-placa" class="bg-blue-50 text-blue-700 text-xs font-mono font-bold px-2 py-0.5 rounded border border-blue-200">
-                                        ${this.placaSeleccionada ? `Placa: ${this.placaSeleccionada}${this.fecProcesoFormateada ? ' | Fecha: ' + this.fecProcesoFormateada : ''}` : 'Placas: (Todas)'}
+                                        Placas: (Todas)
                                     </span>
                                 </div>
                                 <span class="text-[11px] text-slate-400 font-medium">Línea 601 agrupada por cliente, documento y código</span>
@@ -394,7 +466,7 @@ window.DashAnalisisPlacasChart = {
                                 <div class="flex items-center gap-2">
                                     <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">Tiempos de Ruta</h2>
                                     <span id="badge-rutas-placa" class="bg-blue-50 text-blue-700 text-xs font-mono font-bold px-2 py-0.5 rounded border border-blue-200">
-                                        ${this.placaSeleccionada ? 'Placa: ' + this.placaSeleccionada : 'Placas: (Todas)'}
+                                        Placas: (Todas)
                                     </span>
                                 </div>
                                 <span class="text-[11px] text-slate-400 font-medium">Control de garitas, galpones y planta de beneficio</span>
@@ -440,7 +512,7 @@ window.DashAnalisisPlacasChart = {
                                 <div class="flex items-center gap-2">
                                     <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">Agente Causal</h2>
                                     <span id="badge-causal-placa" class="bg-blue-50 text-blue-700 text-xs font-mono font-bold px-2 py-0.5 rounded border border-blue-200">
-                                        ${this.placaSeleccionada ? 'Placa: ' + this.placaSeleccionada : 'Placas: (Todas)'}
+                                        Placas: (Todas)
                                     </span>
                                 </div>
                                 <span class="text-[11px] text-slate-400 font-medium">Registro de incidencias, demoras y justificaciones operativas</span>
@@ -483,7 +555,7 @@ window.DashAnalisisPlacasChart = {
                                 <div class="flex items-center gap-2">
                                     <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">Cumplimiento Objetivo</h2>
                                     <span id="badge-cumplimiento-placa" class="bg-blue-50 text-blue-700 text-xs font-mono font-bold px-2 py-0.5 rounded border border-blue-200">
-                                        ${this.placaSeleccionada ? 'Placa: ' + this.placaSeleccionada : 'Placas: (Todas)'}
+                                        Placas: (Todas)
                                     </span>
                                 </div>
                                 <span class="text-[11px] text-slate-400 font-medium">Porcentaje objetivo, real y diferencia de merma</span>
@@ -795,7 +867,7 @@ window.DashAnalisisPlacasChart = {
                 const fecproceso = pGroup.tfecfac || tfecfac;
                 const items = pGroup.items || [];
                 const itemsCount = items.length;
-                const isSelected = (placa !== '' && placa === this.placaSeleccionada);
+                const isSelected = (placa !== '' && this.esParSeleccionado(placa, fecproceso));
 
                 items.forEach((iData, idxItem) => {
                     const isFirstRowOfClient = (filaIdxCliente === 0);
@@ -804,7 +876,7 @@ window.DashAnalisisPlacasChart = {
                     const baseCells = 1 + (isFirstRowOfClient ? 1 : 0) + (isFirstItemOfPlaca ? 1 : 0);
 
                     const rowClass = isSelected
-                        ? 'bg-blue-100/90 font-bold border-l-4 border-l-blue-600 text-blue-900 transition-colors'
+                        ? 'bg-blue-100/90 font-bold border-l-4 border-l-blue-600 text-blue-900 transition-colors cursor-pointer'
                         : 'hover:bg-blue-50/50 transition-colors cursor-pointer';
 
                     let ttAttr = '';
@@ -926,7 +998,7 @@ window.DashAnalisisPlacasChart = {
 
         const rows = this._view.ventas || [];
         const meta = this._view.meta;
-        const fecFmt = meta.ventasFec || this.fecProcesoFormateada;
+        const fecFmt = meta.ventasFec || '';
         const placa = meta.ventasPlaca || '(Todas)';
         const esTodas = (placa === '(Todas)');
 
@@ -1022,7 +1094,7 @@ window.DashAnalisisPlacasChart = {
 
         return `
             <tr class="hover:bg-blue-50/50 transition-colors"${ttAttr}>
-                <td class="px-2 py-1.5 text-center font-mono text-slate-500 border-r border-slate-100">${this._view.meta.ventasFec || this.fecProcesoFormateada}</td>
+                <td class="px-2 py-1.5 text-center font-mono text-slate-500 border-r border-slate-100">${f.fecproceso_fmt || f.fecproceso || this._view.meta.ventasFec || ''}</td>
                 <td class="px-2 py-1.5 text-center font-bold text-slate-800 border-r border-slate-100">${f.placa}</td>
                 <td class="px-2 py-1.5 text-center font-mono text-slate-700 border-r border-slate-100">${f.fecreg_dmy || f.fecreg}</td>
                 <td class="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100">${f.min_time || ''}</td>
@@ -1097,7 +1169,7 @@ window.DashAnalisisPlacasChart = {
         const rows = this._view.rutas || [];
         const meta = this._view.meta;
         const placa = meta.rutasPlaca || '(Todas)';
-        const fecFmt = meta.rutasFec || this.fecProcesoFormateada;
+        const fecFmt = meta.rutasFec || '';
         const esTodas = (placa === '(Todas)');
 
         const badgeR = document.getElementById('badge-rutas-placa');
@@ -1171,7 +1243,7 @@ window.DashAnalisisPlacasChart = {
 
         const rows = this._view.causal || [];
         const meta = this._view.meta;
-        const fecFmt = meta.causalFec || this.fecProcesoFormateada;
+        const fecFmt = meta.causalFec || '';
         const placa = meta.causalPlaca || '(Todas)';
         const esTodas = (placa === '(Todas)');
 
@@ -1251,7 +1323,7 @@ window.DashAnalisisPlacasChart = {
 
         const rows = this._view.cumpPlaca || [];
         const meta = this._view.meta;
-        const fecFmt = meta.cumpFec || this.fecProcesoFormateada;
+        const fecFmt = meta.cumpFec || '';
         const placa = meta.cumpPlaca || '(Todas)';
         const esTodas = (placa === '(Todas)');
 
@@ -1325,7 +1397,7 @@ window.DashAnalisisPlacasChart = {
 
         const rows = this._view.cumpCod || [];
         const meta = this._view.meta;
-        const fecFmt = meta.cumpFec || this.fecProcesoFormateada;
+        const fecFmt = meta.cumpFec || '';
         const total = this._view.cumpTotal || this._computeCumpTotal(rows);
 
         if (rows.length === 0) {
@@ -1442,46 +1514,55 @@ window.DashAnalisisPlacasChart = {
             const fecproceso = row.getAttribute('data-fecproceso-row');
             if (!placa || placa === '0') return;
 
-            if (this.placaSeleccionada && this.placaSeleccionada === placa) {
-                await this.deseleccionarPlaca();
-            } else {
-                await this.seleccionarPlaca(placa, fecproceso);
-            }
+            const conCtrl = !!(e.ctrlKey || e.metaKey);
+            this.alternarPar(placa, fecproceso, conCtrl);
+            await this.aplicarSeleccion();
         };
         container.addEventListener('click', this._clickHandler);
+
+        const btnVerTodo = document.getElementById('btn-ver-todo-placas');
+        if (btnVerTodo) {
+            if (this._verTodoHandler) btnVerTodo.removeEventListener('click', this._verTodoHandler);
+            this._verTodoHandler = async () => {
+                this.seleccionesPlacas = [];
+                await this.aplicarSeleccion();
+            };
+            btnVerTodo.addEventListener('click', this._verTodoHandler);
+        }
     },
 
-    async seleccionarPlaca(placa, fecproceso) {
-        this.placaSeleccionada = placa;
-        this.fecProcesoSeleccionada = fecproceso;
-        this.fecProcesoFormateada = fecproceso ? fecproceso.replace(/-/g, '/') : '';
+    async aplicarSeleccion() {
         this._ventasLoadSeq = (this._ventasLoadSeq || 0) + 1;
-
         this.updateSelectionHighlight();
-        this.actualizarBadgesCabecera(placa, this.fecProcesoFormateada);
+
+        if (!this.haySeleccion()) {
+            await this.restaurarBase();
+            this.actualizarBadgesCabecera([]);
+            return;
+        }
 
         if (this._puedeFiltrarEnMemoria()) {
-            this._view = this._filtrarEnMemoria(placa, fecproceso);
+            this._view = this._filtrarEnMemoriaSelecciones(this.seleccionesPlacas);
             this._resetDetailPages();
             this.renderTablaVentas();
             this.renderTablaRutas();
             this.renderTablaAgcausal();
             this.renderTablaCumplimiento();
-        } else {
-            this.mostrarPlaceholdersCarga(placa);
-            await this.cargarDetallePlaca(placa, fecproceso);
+            this.actualizarBadgesCabecera(this.seleccionesPlacas);
+            return;
         }
+
+        this.mostrarPlaceholdersCarga(this.resumenSeleccion().texto);
+        await this.cargarDetalleSelecciones(this.seleccionesPlacas);
+        this.actualizarBadgesCabecera(this.seleccionesPlacas);
     },
 
-    async deseleccionarPlaca() {
-        this.placaSeleccionada = null;
-        this.fecProcesoSeleccionada = null;
-        this.fecProcesoFormateada = '';
-        this._ventasLoadSeq = (this._ventasLoadSeq || 0) + 1;
+    async limpiarSeleccion() {
+        this.seleccionesPlacas = [];
+        await this.aplicarSeleccion();
+    },
 
-        this.updateSelectionHighlight();
-        this.actualizarBadgesCabecera('(Todas)', 'Período Completo');
-
+    async restaurarBase() {
         if (this._base && this._baseCompleto && !this._baseEsFiltrada) {
             this._ventasServerMode = false;
             this._ventasServerConfig = null;
@@ -1522,25 +1603,27 @@ window.DashAnalisisPlacasChart = {
             this.renderTablaAgcausal();
             this.renderTablaCumplimiento();
         } else {
-            this.mostrarPlaceholdersCarga('(Todas)');
-            await this.cargarDetallePlaca(null, null);
+            this.mostrarPlaceholdersCarga('todas las placas');
+            await this.cargarDetalleSelecciones([]);
         }
     },
 
     updateSelectionHighlight() {
         const tbody = document.getElementById('tbody-placas-liq');
         if (!tbody) return;
-        const sel = this.placaSeleccionada;
 
         tbody.querySelectorAll('tr[data-placa-row]').forEach(tr => {
-            const isSel = !!(sel && tr.getAttribute('data-placa-row') === sel);
+            const placa = tr.getAttribute('data-placa-row');
+            const fecproceso = tr.getAttribute('data-fecproceso-row');
+            const isSel = this.esParSeleccionado(placa, fecproceso);
+
             tr.classList.toggle('bg-blue-100/90', isSel);
             tr.classList.toggle('font-bold', isSel);
             tr.classList.toggle('border-l-4', isSel);
             tr.classList.toggle('border-l-blue-600', isSel);
             tr.classList.toggle('text-blue-900', isSel);
             tr.classList.toggle('hover:bg-blue-50/50', !isSel);
-            tr.classList.toggle('cursor-pointer', !isSel);
+            tr.classList.add('cursor-pointer');
 
             const placaTd = tr.querySelector('td[data-role="placa"]');
             if (placaTd) {
@@ -1561,39 +1644,58 @@ window.DashAnalisisPlacasChart = {
         });
     },
 
-    actualizarBadgesCabecera(placa, fecFmt) {
-        const esTodas = (!placa || placa === '(Todas)');
-        const txtVentas = esTodas ? `Placas: (Todas) | Período: ${fecFmt || 'Actual'}` : `Placa: ${placa} | Fecha: ${fecFmt}`;
-        const txtSimple = esTodas ? `Placas: (Todas)` : `Placa: ${placa}`;
+    actualizarBadgesCabecera(selecciones) {
+        const resumen = this.resumenSeleccion();
+        const texto = resumen.n === 0 ? 'Placas: (Todas)' : resumen.texto;
+        const textoVentas = resumen.n === 0 ? 'Placas: (Todas)' : resumen.textoVentas;
+        const titulo = resumen.n > 0
+            ? resumen.selecciones.map(s => `${s.placa} ${this._normalizarFecha(s.fecproceso)}`).join(', ')
+            : '';
 
         const badgeV = document.getElementById('badge-ventas-placa');
-        if (badgeV) badgeV.textContent = txtVentas;
+        if (badgeV) {
+            badgeV.textContent = textoVentas;
+            badgeV.title = titulo;
+        }
 
         const badgeR = document.getElementById('badge-rutas-placa');
-        if (badgeR) badgeR.textContent = esTodas ? txtSimple : `Placa: ${placa} | Fecha: ${fecFmt}`;
+        if (badgeR) {
+            badgeR.textContent = texto;
+            badgeR.title = titulo;
+        }
 
         const badgeC = document.getElementById('badge-causal-placa');
-        if (badgeC) badgeC.textContent = txtSimple;
+        if (badgeC) {
+            badgeC.textContent = texto;
+            badgeC.title = titulo;
+        }
 
         const badgeCum = document.getElementById('badge-cumplimiento-placa');
-        if (badgeCum) badgeCum.textContent = txtSimple;
+        if (badgeCum) {
+            badgeCum.textContent = texto;
+            badgeCum.title = titulo;
+        }
+
+        const btnVerTodo = document.getElementById('btn-ver-todo-placas');
+        if (btnVerTodo) {
+            btnVerTodo.classList.toggle('hidden', resumen.n === 0);
+        }
     },
 
-    mostrarPlaceholdersCarga(placa) {
-        const txtPlaca = (placa === '(Todas)' || !placa) ? 'todas las placas' : `placa ${placa}`;
+    mostrarPlaceholdersCarga(texto) {
+        const txt = texto || 'todas las placas';
         const tV = document.getElementById('tbody-placas-ventas');
-        if (tV) tV.innerHTML = `<tr><td colspan="17" class="py-8 text-center text-blue-600 font-medium animate-pulse">Cargando ventas para ${txtPlaca}...</td></tr>`;
+        if (tV) tV.innerHTML = `<tr><td colspan="17" class="py-8 text-center text-blue-600 font-medium animate-pulse">Cargando ventas para ${txt}...</td></tr>`;
 
         const tR = document.getElementById('tbody-placas-rutas');
-        if (tR) tR.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-blue-600 font-medium animate-pulse">Cargando rutas para ${txtPlaca}...</td></tr>`;
+        if (tR) tR.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-blue-600 font-medium animate-pulse">Cargando rutas para ${txt}...</td></tr>`;
 
         const tA = document.getElementById('tbody-placas-agcausal');
-        if (tA) tA.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-blue-600 font-medium animate-pulse">Cargando causas para ${txtPlaca}...</td></tr>`;
+        if (tA) tA.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-blue-600 font-medium animate-pulse">Cargando causas para ${txt}...</td></tr>`;
 
         const tC = document.getElementById('tbody-cumplimiento-placa');
-        if (tC) tC.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-blue-600 font-medium animate-pulse">Cargando cumplimiento para ${txtPlaca}...</td></tr>`;
+        if (tC) tC.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-blue-600 font-medium animate-pulse">Cargando cumplimiento para ${txt}...</td></tr>`;
     },
-
     _getRangoActual() {
         let rango = {};
         if (typeof PeriodoHelper !== 'undefined' && PeriodoHelper.obtenerRangoFechas) {
@@ -1626,8 +1728,7 @@ window.DashAnalisisPlacasChart = {
                 tipo_grafico: 'DashAnalisisPlacas',
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin,
-                placa_seleccionada: this.placaSeleccionada,
-                fecproceso_seleccionada: this.fecProcesoSeleccionada,
+                pares_placa_fecha: (this.seleccionesPlacas || []).map(s => this.clavePar(s.placa, s.fecproceso)),
                 incluir_liquidacion: false,
                 solo_ventas: true,
                 paginado_ventas: true,
@@ -1690,7 +1791,7 @@ window.DashAnalisisPlacasChart = {
             this._ventasServerMode = false;
             this._ventasServerConfig = null;
 
-            if (!this.placaSeleccionada) {
+            if (!this.haySeleccion()) {
                 this._view.ventas = this._base.ventas;
                 this._view.meta = {
                     ...this._view.meta,
@@ -1705,15 +1806,16 @@ window.DashAnalisisPlacasChart = {
         }
     },
 
-    async cargarDetallePlaca(placa, fecproceso) {
+    async cargarDetalleSelecciones(selecciones) {
         if (!this.controllerRef || !this.controllerRef.service) return;
 
         try {
             const { fechaInicio, fechaFin } = this._getRangoActual();
-            const key = `${fechaInicio}|${fechaFin}|${placa || '(Todas)'}|${fecproceso || ''}`;
+            const pares = (selecciones || []).map(s => this.clavePar(s.placa, s.fecproceso)).sort();
+            const key = `${fechaInicio}|${fechaFin}|${pares.join(',')}`;
 
             if (this._cacheSeleccion[key]) {
-                this._applyViewFromPayload(this._cacheSeleccion[key], placa, fecproceso);
+                this._applyViewFromPayload(this._cacheSeleccion[key], null, null, selecciones);
                 return;
             }
 
@@ -1721,8 +1823,7 @@ window.DashAnalisisPlacasChart = {
                 tipo_grafico: 'DashAnalisisPlacas',
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin,
-                placa_seleccionada: placa,
-                fecproceso_seleccionada: fecproceso,
+                pares_placa_fecha: pares,
                 incluir_liquidacion: false
             });
 
@@ -1736,16 +1837,16 @@ window.DashAnalisisPlacasChart = {
                 while (claves.length > 10) {
                     delete this._cacheSeleccion[claves.shift()];
                 }
-                this._applyViewFromPayload(payload, placa, fecproceso);
+                this._applyViewFromPayload(payload, null, null, selecciones);
             } else {
-                console.warn('Respuesta inesperada al consultar detalle de placa:', response);
+                console.warn('Respuesta inesperada al consultar detalle de placas:', response);
             }
         } catch (err) {
-            console.error('Error al actualizar detalle de placa:', err);
+            console.error('Error al actualizar detalle de placas:', err);
         }
     },
 
-    _applyViewFromPayload(payload, placa, fecproceso) {
+    _applyViewFromPayload(payload, placa, fecproceso, selecciones = null) {
         this._ventasLoadSeq = (this._ventasLoadSeq || 0) + 1;
         this._ventasServerMode = false;
         this._ventasServerConfig = null;
@@ -1763,8 +1864,12 @@ window.DashAnalisisPlacasChart = {
         const cumpPlaca = cumpSec.tabla_placa || [];
         const cumpCod = cumpCodData.filas || [];
 
+        const esRestaurarBase = !placa && !(selecciones && selecciones.length);
         let meta;
-        if (placa) {
+        if (selecciones && selecciones.length) {
+            this.seleccionesPlacas = selecciones;
+            meta = this._buildMetaResumen();
+        } else if (placa) {
             meta = this._buildMetaFor(placa, fecFmt);
         } else {
             meta = {
@@ -1779,7 +1884,7 @@ window.DashAnalisisPlacasChart = {
             };
         }
 
-        if (!placa) {
+        if (esRestaurarBase) {
             this._base = {
                 ventas: ventas,
                 rutas: rutas,
@@ -1842,8 +1947,7 @@ window.DashAnalisisPlacasChart = {
                         tipo_grafico: 'DashAnalisisPlacas',
                         fecha_inicio: fechaInicio,
                         fecha_fin: fechaFin,
-                        placa_seleccionada: this.placaSeleccionada,
-                        fecproceso_seleccionada: this.fecProcesoSeleccionada,
+                        pares_placa_fecha: (this.seleccionesPlacas || []).map(s => this.clavePar(s.placa, s.fecproceso)),
                         incluir_liquidacion: false,
                         solo_ventas: true,
                         paginado_ventas: false
@@ -1861,21 +1965,21 @@ window.DashAnalisisPlacasChart = {
 
             const body = rows.map((f, i) => this._buildVentasRow(f, i, false)).join('');
             const foot = rows.length ? '<tfoot>' + this._buildVentasFootRows(this._computeVentasTotal(rows), false) + '</tfoot>' : '';
-            this._exportConDatos('tabla-analisis-placas-ventas', body, foot, `Ventas_Placa_${this.placaSeleccionada || 'Todas'}`, 'Analisis Ventas');
+            this._exportConDatos('tabla-analisis-placas-ventas', body, foot, `Ventas_${this.resumenSeleccion().sufijo}`, 'Analisis Ventas');
         });
 
         document.getElementById('btn-export-placas-rutas')?.addEventListener('click', () => {
             const rows = this._view.rutas || [];
             const placa = this._view.meta.rutasPlaca;
             const body = rows.map((r, i) => this._buildRutasRow(r, i, placa, false)).join('');
-            this._exportConDatos('tabla-analisis-placas-rutas', body, '', `Rutas_Placa_${this.placaSeleccionada || 'Todas'}`, 'Tiempos Ruta');
+            this._exportConDatos('tabla-analisis-placas-rutas', body, '', `Rutas_${this.resumenSeleccion().sufijo}`, 'Tiempos Ruta');
         });
 
         document.getElementById('btn-export-placas-agcausal')?.addEventListener('click', () => {
             const rows = this._view.causal || [];
             const meta = this._view.meta;
             const body = rows.map((c, i) => this._buildCausalRow(c, i, meta.causalFec, meta.causalPlaca, false)).join('');
-            this._exportConDatos('tabla-analisis-placas-agcausal', body, '', `Agente_Causal_Placa_${this.placaSeleccionada || 'Todas'}`, 'Agente Causal');
+            this._exportConDatos('tabla-analisis-placas-agcausal', body, '', `Agente_Causal_${this.resumenSeleccion().sufijo}`, 'Agente Causal');
         });
 
         document.getElementById('btn-export-placas-cumplimiento')?.addEventListener('click', () => {
@@ -1884,7 +1988,7 @@ window.DashAnalisisPlacasChart = {
             const total = this._view.cumpTotal || this._computeCumpTotal(rows);
             const body = rows.map((c, i) => this._buildCumpCodRow(c, i, meta.cumpFec, false)).join('');
             const foot = rows.length ? '<tfoot>' + this._buildCumpFootRows(total, false) + '</tfoot>' : '';
-            this._exportConDatos('tabla-cumplimiento-codigo', body, foot, `Cumplimiento_Placa_${this.placaSeleccionada || 'Todas'}`, 'Cumplimiento Objetivo');
+            this._exportConDatos('tabla-cumplimiento-codigo', body, foot, `Cumplimiento_${this.resumenSeleccion().sufijo}`, 'Cumplimiento Objetivo');
         });
     },
 

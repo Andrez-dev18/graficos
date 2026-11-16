@@ -50,6 +50,40 @@ class DashAnalisisPlacasHandler
         $placaSeleccionada = !empty($filtros['placa_seleccionada']) ? trim($filtros['placa_seleccionada']) : null;
         $fecProcesoSeleccionada = !empty($filtros['fecproceso_seleccionada']) ? trim($filtros['fecproceso_seleccionada']) : null;
 
+        $paresSeleccionados = self::normalizarParesSeleccionados($filtros);
+        $esSeleccionMultiple = count($paresSeleccionados) > 0;
+        if ($esSeleccionMultiple) {
+            $placaSeleccionada = null;
+            $fecProcesoSeleccionada = null;
+        }
+
+        $placasUnicasFiltro = [];
+        $fechasUnicasFiltro = [];
+        foreach ($paresSeleccionados as $parFiltro) {
+            $placasUnicasFiltro[$parFiltro['placa']] = true;
+            if (!empty($parFiltro['fecha'])) {
+                $fechasUnicasFiltro[$parFiltro['fecha']] = true;
+            }
+        }
+        $placaMeta = $placaSeleccionada ?? '(Todas)';
+        $fecMeta = $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}";
+        $fecFmtMeta = null;
+        if ($esSeleccionMultiple) {
+            $placasKeysFiltro = array_keys($placasUnicasFiltro);
+            $fechasKeysFiltro = array_keys($fechasUnicasFiltro);
+            $primeraPlacaFiltro = !empty($placasKeysFiltro) ? (string)$placasKeysFiltro[0] : '';
+            $primeraFechaFiltro = !empty($fechasKeysFiltro) ? (string)$fechasKeysFiltro[0] : '';
+            $placaMeta = count($placasUnicasFiltro) === 1
+                ? $primeraPlacaFiltro
+                : count($placasUnicasFiltro) . ' placas';
+            $fecMeta = count($fechasUnicasFiltro) === 1
+                ? $primeraFechaFiltro
+                : count($fechasUnicasFiltro) . ' fechas';
+            $fecFmtMeta = count($fechasUnicasFiltro) === 1
+                ? date('Y/m/d', strtotime($primeraFechaFiltro))
+                : 'Selección múltiple';
+        }
+
         $incluirLiquidacion = true;
         if (array_key_exists('incluir_liquidacion', $filtros)) {
             $flag = $filtros['incluir_liquidacion'];
@@ -113,6 +147,10 @@ class DashAnalisisPlacasHandler
                 }
                 $whereLiq[] = "COALESCE(NULLIF(TRIM(m.tplaca), ''), '0') IN (" . implode(',', $phList) . ")";
             }
+        }
+
+        if ($esSeleccionMultiple) {
+            $whereLiq[] = self::buildParesWhere($paresSeleccionados, 'm.tplaca', 'm.tfecfac', 'liq', $paramsLiq);
         }
 
         $whereLiqSql = implode(' AND ', $whereLiq);
@@ -334,6 +372,10 @@ class DashAnalisisPlacasHandler
             $paramsVentas[':fec_fin'] = $fechaFin;
         }
 
+        if ($esSeleccionMultiple) {
+            $whereVentas[] = self::buildParesWhere($paresSeleccionados, 's.placa', 's.tfecfac', 'ven', $paramsVentas);
+        }
+
         $whereVentasSql = implode(' AND ', $whereVentas);
 
         $ventasSelectPrefix = $paginadoVentas ? 'SQL_CALC_FOUND_ROWS ' : '';
@@ -434,6 +476,9 @@ class DashAnalisisPlacasHandler
         $fecprocesoFmt = ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '')
             ? date('Y/m/d', strtotime($fecProcesoSeleccionada))
             : (date('Y/m/d', strtotime($fechaInicio)) . ' al ' . date('Y/m/d', strtotime($fechaFin)));
+        if ($esSeleccionMultiple && $fecFmtMeta !== null) {
+            $fecprocesoFmt = $fecFmtMeta;
+        }
 
         $ventasCompleto = !$paginadoVentas && count($ventasRows) <= $maxFilasSeccion;
         if (!$paginadoVentas && !$ventasCompleto) {
@@ -441,8 +486,8 @@ class DashAnalisisPlacasHandler
         }
 
         $seccionVentas = [
-            'placa' => $placaSeleccionada ?? '(Todas)',
-            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'placa' => $placaMeta,
+            'fecproceso' => $fecMeta,
             'fecproceso_formateada' => $fecprocesoFmt,
             'filas' => $ventasRows,
             'completo' => $ventasCompleto,
@@ -489,6 +534,10 @@ class DashAnalisisPlacasHandler
             $paramsRutas[':placa_clean'] = $cleanPlaca;
         }
 
+        if ($esSeleccionMultiple) {
+            $whereRutas[] = self::buildParesWhere($paresSeleccionados, 'r.placa', 'r.fechaproceso', 'rut', $paramsRutas);
+        }
+
         $whereRutasSql = implode(' AND ', $whereRutas);
         $sqlRutas = "
             SELECT 
@@ -519,10 +568,13 @@ class DashAnalisisPlacasHandler
         $rutasFecFmt = ($fecProcesoSeleccionada !== null && $fecProcesoSeleccionada !== '')
             ? date('Y/m/d', strtotime($fecProcesoSeleccionada))
             : (date('Y/m/d', strtotime($fechaInicio)) . ' al ' . date('Y/m/d', strtotime($fechaFin)));
+        if ($esSeleccionMultiple && $fecFmtMeta !== null) {
+            $rutasFecFmt = $fecFmtMeta;
+        }
 
         $seccionTiemposRuta = [
-            'placa' => $placaSeleccionada ?? '(Todas)',
-            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'placa' => $placaMeta,
+            'fecproceso' => $fecMeta,
             'fecproceso_formateada' => $rutasFecFmt,
             'filas' => $rutasRows,
             'completo' => $rutasCompleto
@@ -551,6 +603,10 @@ class DashAnalisisPlacasHandler
             $whereAg[] = "a.fechaproceso BETWEEN :fec_ini AND :fec_fin";
             $paramsAg[':fec_ini'] = $fechaInicio;
             $paramsAg[':fec_fin'] = $fechaFin;
+        }
+
+        if ($esSeleccionMultiple) {
+            $whereAg[] = self::buildParesWhere($paresSeleccionados, 'a.placa', 'a.fechaproceso', 'ag', $paramsAg);
         }
 
         $whereAgSql = implode(' AND ', $whereAg);
@@ -582,8 +638,8 @@ class DashAnalisisPlacasHandler
         }
 
         $seccionAgcausal = [
-            'placa' => $placaSeleccionada ?? '(Todas)',
-            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'placa' => $placaMeta,
+            'fecproceso' => $fecMeta,
             'fecproceso_formateada' => $fecprocesoFmt,
             'filas' => $agcausalRows,
             'completo' => $agcausalCompleto
@@ -616,6 +672,10 @@ class DashAnalisisPlacasHandler
             $whereMermas[] = "m.fechaproceso BETWEEN :fec_ini AND :fec_fin";
             $paramsMermas[':fec_ini'] = $fechaInicio;
             $paramsMermas[':fec_fin'] = $fechaFin;
+        }
+
+        if ($esSeleccionMultiple) {
+            $whereMermas[] = self::buildParesWhere($paresSeleccionados, 'm.placa', 'm.fechaproceso', 'mer', $paramsMermas);
         }
 
         $whereMermasSql = implode(' AND ', $whereMermas);
@@ -728,8 +788,8 @@ class DashAnalisisPlacasHandler
         }
 
         $seccionCumplimiento = [
-            'placa' => $placaSeleccionada ?? '(Todas)',
-            'fecproceso' => $fecProcesoSeleccionada ?? "{$fechaInicio} al {$fechaFin}",
+            'placa' => $placaMeta,
+            'fecproceso' => $fecMeta,
             'fecproceso_formateada' => $fecprocesoFmt,
             'completo' => $cumpCompleto,
             'tabla_placa' => $tablaPlaca,
@@ -754,7 +814,8 @@ class DashAnalisisPlacasHandler
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,
                 'placa_seleccionada' => $placaSeleccionada,
-                'fecproceso_seleccionada' => $fecProcesoSeleccionada
+                'fecproceso_seleccionada' => $fecProcesoSeleccionada,
+                'pares_placa_fecha' => $paresSeleccionados
             ],
             'placas_disponibles' => array_keys($placasEncontradas),
             'seccion_liquidacion' => $seccionLiquidacion,
@@ -763,5 +824,87 @@ class DashAnalisisPlacasHandler
             'seccion_agente_causal' => $seccionAgcausal,
             'seccion_cumplimiento' => $seccionCumplimiento
         ];
+    }
+
+    /**
+     * Normaliza las selecciones placa+fecha enviadas por el frontend.
+     * Acepta "PLACA||YYYY-MM-DD", objetos {placa, fecproceso} y los filtros simples anteriores.
+     */
+    private static function normalizarParesSeleccionados(array $filtros): array
+    {
+        $pares = [];
+        $raw = $filtros['pares_placa_fecha'] ?? null;
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            }
+        }
+
+        if (is_array($raw)) {
+            foreach ($raw as $item) {
+                $placa = '';
+                $fecha = '';
+
+                if (is_array($item)) {
+                    $placa = trim((string)($item['placa'] ?? ''));
+                    $fecha = trim((string)($item['fecproceso'] ?? $item['fecha'] ?? ''));
+                } else {
+                    $partes = explode('||', (string)$item, 2);
+                    $placa = trim($partes[0] ?? '');
+                    $fecha = trim($partes[1] ?? '');
+                }
+
+                if ($placa === '') {
+                    continue;
+                }
+
+                $fecha = $fecha !== '' ? substr($fecha, 0, 10) : '';
+                $key = $placa . '||' . $fecha;
+                $pares[$key] = ['placa' => $placa, 'fecha' => $fecha];
+            }
+        }
+
+        $placaUnica = trim((string)($filtros['placa_seleccionada'] ?? ''));
+        if ($placaUnica !== '') {
+            $fechaUnica = substr(trim((string)($filtros['fecproceso_seleccionada'] ?? '')), 0, 10);
+            $key = $placaUnica . '||' . $fechaUnica;
+            if (!isset($pares[$key])) {
+                $pares[$key] = ['placa' => $placaUnica, 'fecha' => $fechaUnica];
+            }
+        }
+
+        return array_values($pares);
+    }
+
+    /**
+     * Genera la condición SQL para una lista de pares placa+fecha.
+     */
+    private static function buildParesWhere(array $pares, string $placaCol, string $fechaCol, string $prefix, array &$params): string
+    {
+        $conditions = [];
+
+        foreach ($pares as $idx => $par) {
+            $placa = (string)$par['placa'];
+            $fecha = (string)($par['fecha'] ?? '');
+            $cleanPlaca = str_replace('-', '', $placa);
+
+            $pPlaca = ":{$prefix}_placa_{$idx}";
+            $pClean = ":{$prefix}_clean_{$idx}";
+            $pFecha = ":{$prefix}_fecha_{$idx}";
+
+            $params[$pPlaca] = $placa;
+            $params[$pClean] = $cleanPlaca;
+
+            if ($fecha !== '') {
+                $params[$pFecha] = $fecha;
+                $conditions[] = "(({$placaCol} = {$pPlaca} OR REPLACE({$placaCol}, '-', '') = {$pClean}) AND {$fechaCol} = {$pFecha})";
+            } else {
+                $conditions[] = "({$placaCol} = {$pPlaca} OR REPLACE({$placaCol}, '-', '') = {$pClean})";
+            }
+        }
+
+        return $conditions ? ' (' . implode(' OR ', $conditions) . ') ' : '';
     }
 }
