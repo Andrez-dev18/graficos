@@ -18,7 +18,7 @@ window.DashRegaloELSChart = {
     multiCliente: null,
     multiProvincia: null,
     multiZona: null,
-    corporativoSeleccionado: null,
+    corporativosSeleccionados: [],
 
     chartTendencia: null,
     chartComparativo: null,
@@ -27,7 +27,7 @@ window.DashRegaloELSChart = {
     render(controller, data) {
         this.controllerRef = controller;
         this.datosBackend = data || {};
-        this.corporativoSeleccionado = null;
+        this.corporativosSeleccionados = [];
 
         this.hideTooltip();
         this.destroyCharts();
@@ -97,7 +97,47 @@ window.DashRegaloELSChart = {
             this.multiProvincia.updateLabel(false);
             this.multiProvincia.render();
         }
-        this.corporativoSeleccionado = null;
+        this.corporativosSeleccionados = [];
+    },
+
+    esCorporativoSeleccionado(nombre) {
+        return (this.corporativosSeleccionados || []).some(c => String(c) === String(nombre));
+    },
+
+    haySeleccionCorporativos() {
+        return (this.corporativosSeleccionados || []).length > 0;
+    },
+
+    alternarCorporativo(nombre, conCtrl = false) {
+        if (!nombre) return;
+
+        const key = String(nombre);
+        const actuales = this.corporativosSeleccionados || [];
+
+        if (!conCtrl) {
+            const soloEste = actuales.length === 1 && String(actuales[0]) === key;
+            this.corporativosSeleccionados = soloEste ? [] : [nombre];
+            return;
+        }
+
+        const idx = actuales.findIndex(c => String(c) === key);
+        if (idx >= 0) {
+            actuales.splice(idx, 1);
+        } else {
+            actuales.push(nombre);
+        }
+        this.corporativosSeleccionados = actuales;
+    },
+
+    resumenSeleccionCorporativos() {
+        const seleccionados = this.corporativosSeleccionados || [];
+        if (seleccionados.length === 1) return seleccionados[0];
+        if (seleccionados.length > 1) return `${seleccionados.length} corporativos`;
+        return '';
+    },
+
+    limpiarSeleccionCorporativos() {
+        this.corporativosSeleccionados = [];
     },
 
     getSelectedFilters() {
@@ -303,7 +343,7 @@ window.DashRegaloELSChart = {
                 const pctImp  = Math.min(100, Math.max(0, (row.importe / scaleMaxImporte) * 100)).toFixed(1);
                 const pctPorc = Math.min(100, Math.max(0, (row.porcPeso / scaleMaxPorc) * 100)).toFixed(1);
 
-                const isSelected = (this.corporativoSeleccionado === row.nomCorporativo);
+                const isSelected = this.esCorporativoSeleccionado(row.nomCorporativo);
                 const rowDataJson = JSON.stringify(row).replace(/"/g, '&quot;');
 
                 paretoRowsHtml += `
@@ -358,8 +398,9 @@ window.DashRegaloELSChart = {
 
         // 2. Construir Filas de PrecioVentas
         const rawPrecios = this.datosBackend.precio_ventas || [];
-        const preciosFiltrados = this.corporativoSeleccionado 
-            ? rawPrecios.filter(p => p.nomCorporativo === this.corporativoSeleccionado)
+        const corporativosSet = new Set((this.corporativosSeleccionados || []).map(String));
+        const preciosFiltrados = corporativosSet.size
+            ? rawPrecios.filter(p => corporativosSet.has(String(p.nomCorporativo)))
             : rawPrecios;
 
         let preciosRowsHtml = '';
@@ -388,8 +429,8 @@ window.DashRegaloELSChart = {
 
         // 3. Construir Filas de MotivosNCVentas
         const rawMotivos = this.datosBackend.motivos_nc_ventas || [];
-        const motivosFiltrados = this.corporativoSeleccionado 
-            ? rawMotivos.filter(m => m.nomCorporativo === this.corporativoSeleccionado)
+        const motivosFiltrados = corporativosSet.size
+            ? rawMotivos.filter(m => corporativosSet.has(String(m.nomCorporativo)))
             : rawMotivos;
 
         let motivosRowsHtml = '';
@@ -434,9 +475,9 @@ window.DashRegaloELSChart = {
                                     <h2 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight">ParetoVentas</h2>
                                     <span class="text-[11px] text-slate-400 font-medium">Ranking comparativo por Corporativo</span>
                                 </div>
-                                ${this.corporativoSeleccionado ? `
+                                ${this.haySeleccionCorporativos() ? `
                                     <button id="btn-limpiar-seleccion-corp" type="button" class="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition-all">
-                                        Ver todos (${this.corporativoSeleccionado}) ✕
+                                        Ver todos (${this.resumenSeleccionCorporativos()}) ✕
                                     </button>
                                 ` : ''}
                             </div>
@@ -917,13 +958,13 @@ window.DashRegaloELSChart = {
     attachInteractiveListeners() {
         const rows = document.querySelectorAll('.pareto-row');
         rows.forEach(row => {
-            row.addEventListener('click', () => {
+            row.addEventListener('click', (e) => {
                 const corp = row.getAttribute('data-corp');
-                if (this.corporativoSeleccionado === corp) {
-                    this.corporativoSeleccionado = null;
-                } else {
-                    this.corporativoSeleccionado = corp;
-                }
+                if (!corp) return;
+
+                const conCtrl = !!(e.ctrlKey || e.metaKey);
+                this.alternarCorporativo(corp, conCtrl);
+
                 this.destroyCharts();
                 this.renderDashboardLayout();
                 this.renderLineCharts();
@@ -935,7 +976,8 @@ window.DashRegaloELSChart = {
 
         document.getElementById('btn-limpiar-seleccion-corp')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.corporativoSeleccionado = null;
+            this.limpiarSeleccionCorporativos();
+
             this.destroyCharts();
             this.renderDashboardLayout();
             this.renderLineCharts();
@@ -1145,8 +1187,9 @@ window.DashRegaloELSChart = {
         if (btnExportPrecios) {
             btnExportPrecios.addEventListener('click', () => {
                 const rawPrecios = (this.datosBackend && this.datosBackend.precio_ventas) ? this.datosBackend.precio_ventas : [];
-                const precioFilas = this.corporativoSeleccionado
-                    ? rawPrecios.filter(p => p.nomCorporativo === this.corporativoSeleccionado)
+                const corporativosSet = new Set((this.corporativosSeleccionados || []).map(String));
+                const precioFilas = corporativosSet.size
+                    ? rawPrecios.filter(p => corporativosSet.has(String(p.nomCorporativo)))
                     : rawPrecios;
 
                 if (!precioFilas.length) {
@@ -1175,7 +1218,11 @@ window.DashRegaloELSChart = {
                 wsPrecios['!cols'] = colsPrecios.map(c => ({ wch: c.width }));
                 XLSX.utils.book_append_sheet(wb, wsPrecios, 'PrecioVentas');
 
-                const sufijo = this.corporativoSeleccionado ? `_${this.corporativoSeleccionado.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+                const sufijo = this.haySeleccionCorporativos()
+                    ? (this.corporativosSeleccionados.length === 1
+                        ? `_${String(this.corporativosSeleccionados[0]).replace(/[^a-zA-Z0-9]/g, '_')}`
+                        : `_${this.corporativosSeleccionados.length}_CORPORATIVOS`)
+                    : '';
                 XLSX.writeFile(wb, `PrecioVentas${sufijo}_${fechaStr}.xlsx`);
             });
         }
@@ -1185,8 +1232,9 @@ window.DashRegaloELSChart = {
         if (btnExportMotivos) {
             btnExportMotivos.addEventListener('click', () => {
                 const rawMotivos = (this.datosBackend && this.datosBackend.motivos_nc_ventas) ? this.datosBackend.motivos_nc_ventas : [];
-                const motivosFilas = this.corporativoSeleccionado
-                    ? rawMotivos.filter(m => m.nomCorporativo === this.corporativoSeleccionado)
+                const corporativosSet = new Set((this.corporativosSeleccionados || []).map(String));
+                const motivosFilas = corporativosSet.size
+                    ? rawMotivos.filter(m => corporativosSet.has(String(m.nomCorporativo)))
                     : rawMotivos;
 
                 if (!motivosFilas.length) {
@@ -1218,7 +1266,11 @@ window.DashRegaloELSChart = {
                 wsMotivos['!cols'] = colsMotivos.map(c => ({ wch: c.width }));
                 XLSX.utils.book_append_sheet(wb, wsMotivos, 'MotivosNCVentas');
 
-                const sufijo = this.corporativoSeleccionado ? `_${this.corporativoSeleccionado.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+                const sufijo = this.haySeleccionCorporativos()
+                    ? (this.corporativosSeleccionados.length === 1
+                        ? `_${String(this.corporativosSeleccionados[0]).replace(/[^a-zA-Z0-9]/g, '_')}`
+                        : `_${this.corporativosSeleccionados.length}_CORPORATIVOS`)
+                    : '';
                 XLSX.writeFile(wb, `MotivosNCVentas${sufijo}_${fechaStr}.xlsx`);
             });
         }
