@@ -296,12 +296,10 @@ class TomasDescisionesController {
 
         this.cargando = true;
         this.setBotonCargando(true);
-        contenedor.innerHTML = `
-            <div class="dash-card p-10 text-center text-slate-500">
-                <i class="fa-solid fa-spinner fa-spin text-blue-600 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold">Consultando proyección de ventas...</p>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor(contenedor, {
+            titulo: 'Consultando proyección de ventas...',
+            subtitulo: 'Obteniendo información del dashboard'
+        });
 
         try {
             const data = await this.service.obtenerProyectadoVentasIndicador(filtros);
@@ -315,6 +313,7 @@ class TomasDescisionesController {
                 </div>
             `;
         } finally {
+            LoadingHelper.ocultarEnContenedor(contenedor);
             this.cargando = false;
             this.setBotonCargando(false);
             this.procesarRecargaPendiente();
@@ -329,12 +328,10 @@ class TomasDescisionesController {
 
         this.cargando = true;
         this.setBotonCargando(true);
-        contenedor.innerHTML = `
-            <div class="dash-card p-10 text-center text-slate-500">
-                <i class="fa-solid fa-spinner fa-spin text-blue-600 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold">Consultando tasas de interés...</p>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor(contenedor, {
+            titulo: 'Consultando tasas de interés...',
+            subtitulo: 'Obteniendo información del dashboard'
+        });
 
         try {
             const data = await this.service.obtenerTasasInteres();
@@ -348,6 +345,7 @@ class TomasDescisionesController {
                 </div>
             `;
         } finally {
+            LoadingHelper.ocultarEnContenedor(contenedor);
             this.cargando = false;
             this.setBotonCargando(false);
             this.procesarRecargaPendiente();
@@ -382,12 +380,10 @@ class TomasDescisionesController {
 
         this.cargando = true;
         this.setBotonCargando(true);
-        contenedor.innerHTML = `
-            <div class="dash-card p-10 text-center text-slate-500">
-                <i class="fa-solid fa-spinner fa-spin text-blue-600 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold">Consultando comparativos proyectados vs real...</p>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor(contenedor, {
+            titulo: 'Consultando comparativos proyectados vs real...',
+            subtitulo: 'Obteniendo información del dashboard'
+        });
 
         try {
             const data = await this.service.obtenerGraficasProyectadosVSReal(filtros);
@@ -401,6 +397,7 @@ class TomasDescisionesController {
                 </div>
             `;
         } finally {
+            LoadingHelper.ocultarEnContenedor(contenedor);
             this.cargando = false;
             this.setBotonCargando(false);
             this.procesarRecargaPendiente();
@@ -435,12 +432,10 @@ class TomasDescisionesController {
 
         this.cargando = true;
         this.setBotonCargando(true);
-        contenedor.innerHTML = `
-            <div class="dash-card p-10 text-center text-slate-500">
-                <i class="fa-solid fa-spinner fa-spin text-blue-600 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold">Consultando comparativos diarios proyectados vs real...</p>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor(contenedor, {
+            titulo: 'Consultando comparativos diarios proyectados vs real...',
+            subtitulo: 'Obteniendo información del dashboard'
+        });
 
         try {
             const data = await this.service.obtenerGraficasProyectadosDias(filtros);
@@ -454,6 +449,7 @@ class TomasDescisionesController {
                 </div>
             `;
         } finally {
+            LoadingHelper.ocultarEnContenedor(contenedor);
             this.cargando = false;
             this.setBotonCargando(false);
             this.procesarRecargaPendiente();
@@ -500,15 +496,12 @@ class TomasDescisionesController {
 
     setBotonCargando(estado) {
         const boton = document.getElementById('btn-cargar');
-        if (!boton) return;
+        if (!boton || typeof LoadingHelper === 'undefined') return;
 
         if (estado) {
-            boton.dataset.html = boton.innerHTML;
-            boton.disabled = true;
-            boton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Cargando...</span>';
+            LoadingHelper.iniciarBoton(boton, { texto: 'Cargando...' });
         } else {
-            boton.disabled = false;
-            if (boton.dataset.html) boton.innerHTML = boton.dataset.html;
+            LoadingHelper.restaurarBoton(boton);
         }
     }
 

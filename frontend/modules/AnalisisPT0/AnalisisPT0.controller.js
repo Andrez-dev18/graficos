@@ -729,36 +729,28 @@ class AnalisisPT0Controller {
     }
 
     mostrarLoader(mostrar) {
-        if (!this.loaderInicial) return;
+        if (typeof LoadingHelper === 'undefined') {
+            if (this.loaderInicial) this.loaderInicial.classList.toggle('hidden', !mostrar);
+            return;
+        }
 
         if (mostrar) {
-            this.loaderInicial.classList.remove('hidden');
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Análisis PT0',
+                subtitulo: 'Obteniendo fechas y movimientos...'
+            });
         } else {
-            this.loaderInicial.classList.add('hidden');
+            LoadingHelper.ocultarInicial();
         }
     }
 
     setBotonCargando(cargando) {
-        if (!this.btnCargar) return;
+        if (!this.btnCargar || typeof LoadingHelper === 'undefined') return;
 
         if (cargando) {
-            this.btnCargar.dataset.htmlOriginal = this.btnCargar.innerHTML;
-            this.btnCargar.disabled = true;
-            this.btnCargar.classList.add('opacity-75', 'cursor-not-allowed');
-            this.btnCargar.innerHTML = `
-                <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Cargando...</span>
-            `;
+            LoadingHelper.iniciarBoton(this.btnCargar, { texto: 'Cargando...' });
         } else {
-            this.btnCargar.disabled = false;
-            this.btnCargar.classList.remove('opacity-75', 'cursor-not-allowed');
-            this.btnCargar.innerHTML = this.btnCargar.dataset.htmlOriginal || `
-                <i class="fas fa-rotate-right text-xs"></i>
-                <span>Cargar</span>
-            `;
+            LoadingHelper.restaurarBoton(this.btnCargar);
         }
     }
 

@@ -259,9 +259,8 @@ class AsoGallinaController {
         this.cargando = true;
         this.limpiarError();
 
-        if (this.btnCargar) {
-            this.btnCargar.disabled = true;
-            this.btnCargar.classList.add('opacity-75', 'cursor-not-allowed');
+        if (this.btnCargar && typeof LoadingHelper !== 'undefined') {
+            LoadingHelper.iniciarBoton(this.btnCargar, { texto: 'Cargando...' });
         }
 
         if (!esCargaInicial) {
@@ -293,9 +292,8 @@ class AsoGallinaController {
             this.cargando = false;
             this.mostrarLoader(false);
 
-            if (this.btnCargar) {
-                this.btnCargar.disabled = false;
-                this.btnCargar.classList.remove('opacity-75', 'cursor-not-allowed');
+            if (this.btnCargar && typeof LoadingHelper !== 'undefined') {
+                LoadingHelper.restaurarBoton(this.btnCargar);
             }
         }
     }
@@ -321,16 +319,20 @@ class AsoGallinaController {
     }
 
     mostrarLoader(mostrar) {
-        if (this.loaderInicial) {
-            if (mostrar) {
-                this.loaderInicial.classList.remove('hidden');
-                this.loaderInicial.style.opacity = '1';
-            } else {
-                this.loaderInicial.style.opacity = '0';
-                setTimeout(() => {
-                    this.loaderInicial.classList.add('hidden');
-                }, 200);
+        if (typeof LoadingHelper === 'undefined') {
+            if (this.loaderInicial) {
+                this.loaderInicial.classList.toggle('hidden', !mostrar);
             }
+            return;
+        }
+
+        if (mostrar) {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Aso Gallina',
+                subtitulo: 'Obteniendo datos de producción y pesos...'
+            });
+        } else {
+            LoadingHelper.ocultarInicial();
         }
     }
 }

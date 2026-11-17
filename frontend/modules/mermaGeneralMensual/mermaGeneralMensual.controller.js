@@ -54,13 +54,11 @@ class MermaGeneralMensualController {
 
     setBotonCargando(cargando) {
         const btnAplicar = document.getElementById('btn-aplicar');
-        if (btnAplicar) {
-            btnAplicar.disabled = cargando;
-            const icon = btnAplicar.querySelector('i');
-            if (icon) {
-                icon.className = cargando
-                    ? 'fa-solid fa-spinner fa-spin'
-                    : 'fa-solid fa-rotate';
+        if (btnAplicar && typeof LoadingHelper !== 'undefined') {
+            if (cargando) {
+                LoadingHelper.iniciarBoton(btnAplicar, { texto: 'Cargando...' });
+            } else {
+                LoadingHelper.restaurarBoton(btnAplicar);
             }
         }
 
@@ -230,12 +228,10 @@ class MermaGeneralMensualController {
         this.cargando = true;
         this.setBotonCargando(true);
 
-        contenedor.innerHTML = `
-            <div class="p-10 bg-white border border-slate-200 rounded-2xl flex flex-col items-center gap-3 text-slate-500">
-                <i class="fa-solid fa-spinner fa-spin text-blue-600 text-2xl"></i>
-                <span class="text-sm font-semibold">Consultando merma general mensual...</span>
-            </div>
-        `;
+        LoadingHelper.mostrarEnContenedor(contenedor, {
+            titulo: 'Consultando merma general mensual...',
+            subtitulo: 'Obteniendo información del período'
+        });
 
         try {
             const data = await this.service.obtenerDashboard(filtros || {});
@@ -271,6 +267,7 @@ class MermaGeneralMensualController {
                 this.cargar(this.filtrosInicializados ? this.construirFiltros() : {});
             });
         } finally {
+            LoadingHelper.ocultarEnContenedor(contenedor);
             this.cargando = false;
             this.setBotonCargando(false);
         }

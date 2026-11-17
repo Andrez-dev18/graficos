@@ -223,7 +223,7 @@ class LogController {
             responsive: false,
             scrollX: true,
             order: [[11, 'desc']], 
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            language: { url: 'https://cdn.datatables.net/plug-ins/2.0.8/i18n/es-ES.json' },
             ajax: async (data, callback, settings) => {
 
                 // 1. Extraemos las fechas de tu función

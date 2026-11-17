@@ -316,33 +316,28 @@ class TamanoMercadoController {
     }
 
     mostrarLoader(mostrar) {
-        if (this.loaderInicial) {
-            if (mostrar) {
-                this.loaderInicial.classList.remove('opacity-0', 'pointer-events-none');
-            } else {
-                this.loaderInicial.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => {
-                    this.loaderInicial.style.display = 'none';
-                }, 300);
-            }
+        if (typeof LoadingHelper === 'undefined') {
+            if (this.loaderInicial) this.loaderInicial.classList.toggle('hidden', !mostrar);
+            return;
+        }
+
+        if (mostrar) {
+            LoadingHelper.mostrarInicial({
+                titulo: 'Cargando Tamaño de Mercado',
+                subtitulo: 'Obteniendo datos de participación y mercado...'
+            });
+        } else {
+            LoadingHelper.ocultarInicial();
         }
     }
 
     mostrarBotonCargando(cargando) {
-        if (!this.btnCargar) return;
-        const icono = this.btnCargar.querySelector('svg');
-        const texto = this.btnCargar.querySelector('span');
+        if (!this.btnCargar || typeof LoadingHelper === 'undefined') return;
 
         if (cargando) {
-            this.btnCargar.disabled = true;
-            this.btnCargar.classList.add('opacity-75', 'cursor-not-allowed');
-            if (icono) icono.classList.add('animate-spin');
-            if (texto) texto.textContent = 'Cargando...';
+            LoadingHelper.iniciarBoton(this.btnCargar, { texto: 'Cargando...' });
         } else {
-            this.btnCargar.disabled = false;
-            this.btnCargar.classList.remove('opacity-75', 'cursor-not-allowed');
-            if (icono) icono.classList.remove('animate-spin');
-            if (texto) texto.textContent = 'Cargar';
+            LoadingHelper.restaurarBoton(this.btnCargar);
         }
     }
 
