@@ -2,13 +2,18 @@
  * LoadingHelper - Componente reutilizable para gestión de estados de carga (UX) en gráficos
  * 
  * Permite:
- * 1. Overlay de carga inicial de página (mientras se obtienen los filtros iniciales).
- * 2. Spinner y mensajes de carga en el contenedor principal de gráficos.
+ * 1. Overlay de carga inicial de página con barra y porcentaje de progreso.
+ * 2. Spinner, barra de progreso y mensajes de carga en el contenedor principal de gráficos.
  * 3. Feedback visual interactivo en botones de consulta / recarga (deshabilitar + animación spinner).
  * 4. Mensajes estandarizados de estados vacíos y errores.
+ *
+ * El progreso es estimado por defecto y se puede sobrescribir por etapas con
+ * actualizarProgreso() / actualizarProgresoInicial().
  */
 const LoadingHelper = {
     _botonesOriginales: new WeakMap(),
+    _progresos: new Map(),
+    _overlayHideTimer: null,
     _idOverlayInicial: 'loader-inicial-pagina',
     _idLoaderContenedor: 'loader-graficos',
 
@@ -24,6 +29,136 @@ const LoadingHelper = {
         return elementoOId instanceof HTMLElement ? elementoOId : null;
     },
 
+    _detenerProgreso(id) {
+        const entrada = this._progresos.get(id);
+        if (!entrada) return;
+
+        if (entrada.interval) clearInterval(entrada.interval);
+        this._progresos.delete(id);
+    },
+
+    _detenerProgresosEn(contenedor) {
+        if (!contenedor) return;
+
+        for (const [id, entrada] of this._progresos) {
+            const loader = entrada.loader;
+            if (!loader || loader === contenedor || contenedor.contains(loader)) {
+                if (entrada.interval) clearInterval(entrada.interval);
+                this._progresos.delete(id);
+            }
+        }
+    },
+
+    _fijarProgreso(loader, porcentaje, mensaje = null) {
+        if (!loader) return 0;
+
+        const numero = Number(porcentaje);
+        const pct = Number.isFinite(numero) ? Math.max(0, Math.min(100, numero)) : 0;
+        const redondeado = Math.round(pct);
+        const barra = loader.querySelector('[data-loading-bar]');
+        const textoPct = loader.querySelector('[data-loading-pct]');
+        const textoMsg = loader.querySelector('[data-loading-msg]');
+        const progressbar = loader.querySelector('[role="progressbar"]');
+
+        if (barra) barra.style.width = `${pct}%`;
+        if (textoPct) textoPct.textContent = `${redondeado}%`;
+        if (textoMsg && mensaje) textoMsg.textContent = mensaje;
+        if (progressbar) progressbar.setAttribute('aria-valuenow', String(redondeado));
+
+        return pct;
+    },
+
+    _asegurarProgresoInicial(overlay) {
+        if (!overlay) return;
+
+        if (overlay.querySelector('[data-loading-progress]')) return;
+
+        const card = overlay.querySelector('.max-w-xs') || overlay.firstElementChild;
+        if (!card) return;
+
+        const bloque = document.createElement('div');
+        bloque.className = 'w-full max-w-[220px]';
+        bloque.setAttribute('data-loading-progress', '');
+        bloque.innerHTML = `
+            <div class="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-1.5">
+                <span data-loading-msg>Preparando...</span>
+                <span data-loading-pct>0%</span>
+            </div>
+            <div class="h-1.5 w-full bg-blue-100 rounded-full overflow-hidden" role="progressbar"
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div data-loading-bar class="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%;"></div>
+            </div>
+        `;
+
+        card.appendChild(bloque);
+    },
+
+    _iniciarProgreso(id, loader, options = {}) {
+        if (!loader) return;
+
+        this._detenerProgreso(id);
+
+        const inicial = Number.isFinite(Number(options.progreso)) ? Number(options.progreso) : 0;
+        let actual = this._fijarProgreso(loader, inicial, options.mensaje || null);
+
+        if (options.simularProgreso === false || actual >= 100) {
+            this._progresos.set(id, { loader, interval: null, actual });
+            return;
+        }
+
+        const duracion = Number(options.duracionEstimada) > 0
+            ? Number(options.duracionEstimada)
+            : (id === this._idOverlayInicial ? 5000 : 9000);
+        const pasoBase = Math.max(0.35, Math.min(2.2, 9000 / duracion));
+
+        const interval = setInterval(() => {
+            actual = Math.min(94, actual + Math.max(pasoBase, (94 - actual) * 0.035));
+            actual = this._fijarProgreso(loader, actual);
+            const entrada = this._progresos.get(id);
+
+            if (entrada) entrada.actual = actual;
+            if (actual >= 93.5 && entrada) {
+                clearInterval(interval);
+                entrada.interval = null;
+            }
+        }, 150);
+
+        this._progresos.set(id, { loader, interval, actual });
+    },
+
+    /**
+     * Actualiza manualmente el progreso de un loader de contenedor.
+     * Al usarse, se detiene la simulación automática de ese loader.
+     */
+    actualizarProgreso(contenedorOId, porcentaje, mensaje = null, idLoader = null) {
+        const contenedor = this._resolverElemento(contenedorOId);
+        let loader = idLoader ? document.getElementById(idLoader) : null;
+
+        if (!loader && contenedor) {
+            loader = contenedor.querySelector('[data-loading-progress]');
+        }
+        if (!loader) {
+            loader = document.getElementById(this._idLoaderContenedor);
+        }
+        if (!loader) return;
+
+        const id = loader.id || this._idLoaderContenedor;
+        this._detenerProgreso(id);
+        this._fijarProgreso(loader, porcentaje, mensaje);
+    },
+
+    /**
+     * Actualiza manualmente el progreso del overlay inicial.
+     */
+    actualizarProgresoInicial(porcentaje, mensaje = null) {
+        const overlay = document.getElementById(this._idOverlayInicial);
+        if (!overlay) return;
+
+        this._asegurarProgresoInicial(overlay);
+        this._detenerProgreso(this._idOverlayInicial);
+        this._fijarProgreso(overlay, porcentaje, mensaje);
+    },
+
     // =========================================================================
     // 1. OVERLAY DE CARGA INICIAL (PÁGINA COMPLETA / FILTROS)
     // =========================================================================
@@ -37,6 +172,11 @@ const LoadingHelper = {
     mostrarInicial(options = {}) {
         const titulo = options.titulo || 'Cargando módulo';
         const subtitulo = options.subtitulo || 'Obteniendo filtros y configuración inicial...';
+
+        if (this._overlayHideTimer) {
+            clearTimeout(this._overlayHideTimer);
+            this._overlayHideTimer = null;
+        }
 
         let overlay = document.getElementById(this._idOverlayInicial);
 
@@ -56,9 +196,19 @@ const LoadingHelper = {
                             </svg>
                         </div>
                     </div>
-                    <div>
+                    <div class="w-full">
                         <h3 class="text-sm font-bold text-slate-800" id="${this._idOverlayInicial}-titulo">${titulo}</h3>
                         <p class="text-xs text-slate-500 mt-1" id="${this._idOverlayInicial}-subtitulo">${subtitulo}</p>
+                    </div>
+                    <div class="w-full max-w-[220px]" data-loading-progress>
+                        <div class="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-1.5">
+                            <span data-loading-msg>Preparando...</span>
+                            <span data-loading-pct>0%</span>
+                        </div>
+                        <div class="h-1.5 w-full bg-blue-100 rounded-full overflow-hidden" role="progressbar"
+                            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div data-loading-bar class="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%;"></div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -70,6 +220,9 @@ const LoadingHelper = {
             if (elSubtitulo && options.subtitulo) elSubtitulo.textContent = options.subtitulo;
             overlay.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
         }
+
+        this._asegurarProgresoInicial(overlay);
+        this._iniciarProgreso(this._idOverlayInicial, overlay, options);
     },
 
     /**
@@ -79,11 +232,15 @@ const LoadingHelper = {
         const overlay = document.getElementById(this._idOverlayInicial);
         if (!overlay) return;
 
+        this._detenerProgreso(this._idOverlayInicial);
+        this._fijarProgreso(overlay, 100);
+
         overlay.classList.add('opacity-0', 'pointer-events-none');
-        setTimeout(() => {
+        this._overlayHideTimer = setTimeout(() => {
             if (overlay.parentNode) {
                 overlay.remove();
             }
+            this._overlayHideTimer = null;
         }, 300);
     },
 
@@ -108,13 +265,25 @@ const LoadingHelper = {
         const idLoader = options.id || this._idLoaderContenedor;
         const reemplazar = options.reemplazarContenido !== false;
 
+        this._detenerProgresosEn(contenedor);
+
         const htmlLoader = `
-            <div id="${idLoader}" class="col-span-full py-16 px-6 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/90 shadow-xs text-center animate-in fade-in duration-200">
+            <div id="${idLoader}" data-loading-progress class="col-span-full py-16 px-6 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/90 shadow-xs text-center animate-in fade-in duration-200">
                 <div class="relative flex items-center justify-center mb-3">
                     <div class="w-10 h-10 rounded-full border-3 border-blue-100 border-t-blue-600 animate-spin"></div>
                 </div>
                 <h4 class="text-sm font-bold text-slate-800">${titulo}</h4>
                 <p class="text-xs text-slate-500 mt-1">${subtitulo}</p>
+                <div class="w-full max-w-[280px] mt-3" data-loading-progress>
+                    <div class="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-1.5">
+                        <span data-loading-msg>Procesando...</span>
+                        <span data-loading-pct>0%</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-blue-100 rounded-full overflow-hidden" role="progressbar"
+                        aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div data-loading-bar class="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%;"></div>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -122,9 +291,13 @@ const LoadingHelper = {
             contenedor.innerHTML = htmlLoader;
         } else {
             // Remueve loader previo si existiese y agrega el nuevo
-            this.ocultarEnContenedor(contenedor, idLoader);
+            const previo = document.getElementById(idLoader);
+            if (previo) previo.remove();
             contenedor.insertAdjacentHTML('afterbegin', htmlLoader);
         }
+
+        const loader = document.getElementById(idLoader);
+        this._iniciarProgreso(idLoader, loader, options);
     },
 
     /**
@@ -135,9 +308,16 @@ const LoadingHelper = {
     ocultarEnContenedor(contenedorOId, idLoader = null) {
         const targetId = idLoader || this._idLoaderContenedor;
         const loader = document.getElementById(targetId);
-        if (loader) {
-            loader.remove();
-        }
+
+        this._detenerProgreso(targetId);
+        if (!loader) return;
+
+        this._fijarProgreso(loader, 100);
+        setTimeout(() => {
+            if (loader.parentNode && document.getElementById(targetId) === loader) {
+                loader.remove();
+            }
+        }, 180);
     },
 
     // =========================================================================
@@ -222,6 +402,7 @@ const LoadingHelper = {
         const mensaje = options.mensaje || 'No hay datos seleccionados para consultar.';
         const subtitulo = options.subtitulo || '';
 
+        this._detenerProgresosEn(contenedor);
         contenedor.innerHTML = `
             <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 font-medium shadow-xs animate-in fade-in duration-200">
                 <div class="flex flex-col items-center justify-center gap-1.5">
@@ -251,6 +432,7 @@ const LoadingHelper = {
         const mensaje = options.mensaje || 'Ocurrió un error al consultar el servidor.';
         const detalle = options.detalle || 'Por favor, verifique su conexión o intente nuevamente.';
 
+        this._detenerProgresosEn(contenedor);
         contenedor.innerHTML = `
             <div class="col-span-full p-8 text-center bg-white rounded-2xl border border-rose-100 bg-rose-50/20 text-rose-600 font-medium shadow-xs animate-in fade-in duration-200">
                 <div class="flex flex-col items-center justify-center gap-1.5">
