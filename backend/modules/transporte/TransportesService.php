@@ -14,6 +14,7 @@ class TransportesService
     public function obtenerDashboardCompleto(array $filtros): array
     {
         $metricas = $this->repo->getMetricasDiarias($filtros);
+        $metricasGranulares = $this->repo->getMetricasGranulares($filtros);
         $hojasRuta = $this->repo->getHojasRuta($filtros);
         $detalleRuta = $this->repo->getDetalleEventosRuta($filtros);
 
@@ -28,10 +29,11 @@ class TransportesService
         unset($d);
 
         return [
-            'status'         => 'success',
-            'metricas'       => $metricas,
-            'hojas_ruta'     => $hojasRuta,
-            'detalle_eventos'=> $detalleRuta
+            'status'             => 'success',
+            'metricas'           => $metricas,
+            'metricas_granulares'=> $metricasGranulares,
+            'hojas_ruta'         => $hojasRuta,
+            'detalle_eventos'    => $detalleRuta
         ];
     }
 

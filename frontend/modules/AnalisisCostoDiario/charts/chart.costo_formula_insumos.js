@@ -7,21 +7,20 @@
  *    * Eje Y: PU (Costo Unitario promedio diario)
  *    * Línea continua con gradiente de color divergente (verde en PU bajo -> rojo en PU alto)
  *    * Puntos con etiquetas numéricas (1,538, etc.)
- *    * Interactividad: Clic en punto filtra "Detalle de Insumos" para mostrar únicamente esa fecha seleccionada.
+ *    * Interactividad: Clic en punto filtra "Detalle de Insumos" por la unión de fechas seleccionadas.
  *      (NO afecta a Tendencia de Insumos).
  * 
  * 2. Vista Inferior Izquierda: Matriz "Detalle de Insumos" (histcostdiaalim)
  *    * Cabecera con estilo bg-blue-600 y text-white.
- *    * Columnas: tipo, Item, Fechas diarias (o fecha única cuando está filtrado).
+ *    * Columnas: tipo, Item, fechas diarias (o unión de fechas seleccionadas).
  *    * Exportación a Excel estilizada (.xlsx con cabecera bg-blue-600 y texto blanco).
  *    * Celdas: PU unitario (3 decimales).
- *    * Interactividad: Clic en fila/celda de insumo filtra "Tendencia de Insumos" para ese insumo específico.
+ *    * Interactividad: Clic en fila/celda de insumo filtra "Tendencia de Insumos" por la unión de insumos seleccionados.
  * 
  * 3. Vista Inferior Derecha: "Tendencia de Insumos" (histcostdiaalim)
- *    * Cabecera con estilo bg-blue-600 y text-white.
- *    * Filtro propio de fechas (Fecha Inicio y Fin) ubicado en la parte SUPERIOR para ahorrar espacio.
- *    * Modo Multidimensional: Renderizado virtualizado/por lotes con columnas fijas 100% opacas.
- *    * Modo Filtrado (Insumo individual): Gráfica expandida para el insumo seleccionado con eje Y adaptativo.
+ *    * Crosstab de Item × fechas con PU y color por tipo, fiel a Insumos3 de Tableau.
+ *    * Filtro propio de fechas (Fecha Inicio y Fin) ubicado en la parte SUPERIOR.
+ *    * Renderizado virtualizado/por lotes para grandes volúmenes.
  */
 
 window.ChartRegistry = window.ChartRegistry || {};
@@ -31,11 +30,10 @@ window.ChartCostoFormulaInsumos = {
     datosBackend: null,
     containerRef: null,
     chartGeneralInstance: null,
-    chartSingleTendenciaInstance: null,
     
     // Estado local
-    insumoSeleccionado: null,
-    fechaSeleccionada: null,
+    insumosSeleccionados: [],
+    fechasSeleccionadas: [],
     filtroTendenciaInicio: null,
     filtroTendenciaFin: null,
 
@@ -61,14 +59,41 @@ window.ChartCostoFormulaInsumos = {
         }).format(val);
     },
 
+    alternarEnLista(lista, valor, aditivo) {
+        const existe = lista.includes(valor);
+
+        if (!aditivo) {
+            if (lista.length === 1 && existe) return [];
+            return [valor];
+        }
+
+        return existe ? lista.filter(v => v !== valor) : lista.concat([valor]);
+    },
+
+    colorConAlpha(hex, alpha) {
+        const limpio = String(hex || '').replace('#', '');
+        if (limpio.length !== 6) return hex;
+        const r = parseInt(limpio.slice(0, 2), 16);
+        const g = parseInt(limpio.slice(2, 4), 16);
+        const b = parseInt(limpio.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
+    colorTipoInsumo(tipo) {
+        const clave = String(tipo || '').trim().toUpperCase();
+        const mapa = {
+            INSUMO: '#2563eb',
+            FABRICACIO: '#059669',
+            'FABRICACIÓN': '#059669',
+            FORMULA: '#d97706'
+        };
+        return mapa[clave] || '#64748b';
+    },
+
     destroyCharts() {
         if (this.chartGeneralInstance) {
             this.chartGeneralInstance.destroy();
             this.chartGeneralInstance = null;
-        }
-        if (this.chartSingleTendenciaInstance) {
-            this.chartSingleTendenciaInstance.destroy();
-            this.chartSingleTendenciaInstance = null;
         }
     },
 
@@ -81,8 +106,8 @@ window.ChartCostoFormulaInsumos = {
         // Inicializar filtros propios de fecha para Tendencia de Insumos
         this.filtroTendenciaInicio = this.datosBackend.fecha_inicio || '2026-03-01';
         this.filtroTendenciaFin = this.datosBackend.fecha_fin || '2026-03-31';
-        this.fechaSeleccionada = null;
-        this.insumoSeleccionado = null;
+        this.fechasSeleccionadas = [];
+        this.insumosSeleccionados = [];
 
         this.destroyCharts();
         this.renderView();
@@ -235,10 +260,11 @@ window.ChartCostoFormulaInsumos = {
     renderTablaMatriz(matriz) {
         const todasColumnas = matriz.columnas_fechas || [];
         const items = matriz.items || [];
+        const fechasSeleccionadas = new Set(this.fechasSeleccionadas);
 
-        // Si hay una fecha seleccionada en el gráfico general, filtrar solo esa fecha
-        const columnas = this.fechaSeleccionada 
-            ? todasColumnas.filter(c => c.fecha === this.fechaSeleccionada)
+        // Si hay fechas seleccionadas en el gráfico general, mostrar la unión
+        const columnas = this.fechasSeleccionadas.length
+            ? todasColumnas.filter(c => fechasSeleccionadas.has(c.fecha))
             : todasColumnas;
 
         if (items.length === 0) {
@@ -262,7 +288,7 @@ window.ChartCostoFormulaInsumos = {
         `;
 
         columnas.forEach(col => {
-            const isSingle = !!this.fechaSeleccionada;
+            const isSingle = this.fechasSeleccionadas.length > 0;
             html += `
                 <th class="py-2 px-3 text-center whitespace-nowrap min-w-[85px] border-r border-blue-500 text-[10.5px] text-white ${isSingle ? 'bg-blue-700' : ''}" style="background-color: ${isSingle ? '#1d4ed8' : '#2563eb'};">
                     <div class="text-[10px] text-blue-100 font-medium">${isSingle ? 'Día de fecha..' : ''}</div>
@@ -281,7 +307,7 @@ window.ChartCostoFormulaInsumos = {
         let currentTipo = '';
 
         items.forEach((it, idx) => {
-            const isSelected = (this.insumoSeleccionado === it.coditem);
+            const isSelected = this.insumosSeleccionados.includes(it.coditem);
             const isFirstOfTipo = (it.tipo !== currentTipo);
             if (isFirstOfTipo) currentTipo = it.tipo;
 
@@ -327,26 +353,20 @@ window.ChartCostoFormulaInsumos = {
     },
 
     renderTendenciaContent() {
-        if (this.insumoSeleccionado) {
-            this.renderTendenciaSingleItem();
-        } else {
-            this.renderTendenciaStackedView();
-        }
+        this.renderTendenciaCrosstab();
     },
 
-    renderTendenciaStackedView() {
+    renderTendenciaCrosstab() {
         const contScroll = document.getElementById('contenedor-tendencias-insumos-scroll');
         if (!contScroll) return;
-
-        if (this.chartSingleTendenciaInstance) {
-            this.chartSingleTendenciaInstance.destroy();
-            this.chartSingleTendenciaInstance = null;
-        }
 
         const data = this.datosBackend || {};
         const matriz = data.insumos_matriz || { columnas_fechas: [], items: [] };
         const todasFechas = matriz.columnas_fechas || [];
-        const items = matriz.items || [];
+        const seleccionados = new Set(this.insumosSeleccionados);
+        const items = seleccionados.size
+            ? (matriz.items || []).filter(it => seleccionados.has(it.coditem))
+            : (matriz.items || []);
 
         // Filtrar fechas según filtro propio de Tendencia de Insumos
         const fIni = this.filtroTendenciaInicio || (todasFechas[0] ? todasFechas[0].fecha : '');
@@ -366,48 +386,37 @@ window.ChartCostoFormulaInsumos = {
             return;
         }
 
-        const itemWidth = Math.max(540, fechasFiltradas.length * 36);
+        const itemWidth = 260;
+        const fechaWidth = 88;
+        const minWidth = itemWidth + fechasFiltradas.length * fechaWidth;
 
-        // Estructura fija con Cabecera bg-blue-600 y text-white
+        const headersFechas = fechasFiltradas.map(f => `
+            <th class="px-2 py-2 text-center border-r border-blue-500 text-[10px] whitespace-nowrap" style="background-color: #2563eb; min-width: ${fechaWidth}px;">
+                <div class="text-[9px] font-medium text-blue-100">${f.dia_semana || ''}</div>
+                <div class="font-bold text-white">${f.ymd || String(f.fecha || '').replace(/-/g, '/')}</div>
+            </th>
+        `).join('');
+
         contScroll.innerHTML = `
-            <div style="min-width: ${170 + 45 + itemWidth}px;" class="select-none relative">
-                
-                <!-- HEADER SUPERIOR DE TENDENCIA: Item (Izquierda) + PU + Día de fechahisto (Derecha) -->
-                <div class="flex items-center text-white font-bold text-[11px] sticky top-0 shadow-2xs" style="background-color: #2563eb; z-index: 35;">
-                    <div class="w-[170px] min-w-[170px] py-2.5 px-3 border-r border-blue-500 sticky left-0 text-white" style="background-color: #2563eb; z-index: 38;">
-                        Item
-                    </div>
-                    <div class="w-[45px] min-w-[45px] py-2.5 px-1 text-center border-r border-blue-500 sticky left-[170px] text-[10px] text-blue-100" style="background-color: #2563eb; z-index: 38;">
-                        PU
-                    </div>
-                    <div class="py-2.5 px-3 text-center grow font-bold text-white" style="background-color: #2563eb;">
-                        Día de fechahisto
-                    </div>
-                </div>
-
-                <!-- CONTENEDOR DE FILAS DE INSUMOS APILADAS -->
-                <div id="lista-filas-tendencia-items" class="divide-y divide-slate-200 bg-white">
-                </div>
-
-                <!-- EJE X INFERIOR CON FECHAS -->
-                <div class="flex items-start border-t border-slate-200 sticky bottom-0 shadow-2xs" style="background-color: #f8fafc; z-index: 35;">
-                    <div class="w-[170px] min-w-[170px] sticky left-0 border-r border-slate-200" style="background-color: #f8fafc; z-index: 38;"></div>
-                    <div class="w-[45px] min-w-[45px] sticky left-[170px] border-r border-slate-200" style="background-color: #f8fafc; z-index: 38;"></div>
-                    
-                    <div class="grow h-[85px] relative" style="background-color: #f8fafc;">
-                        <svg width="${itemWidth}" height="85" viewBox="0 0 ${itemWidth} 85" class="w-full h-full block">
-                            ${this.generarSvgEjeXFechas(fechasFiltradas, itemWidth)}
-                        </svg>
-                    </div>
-                </div>
-
+            <div style="min-width: ${minWidth}px;" class="select-none relative">
+                <table class="w-full border-collapse text-xs bg-white">
+                    <thead class="sticky top-0 z-30">
+                        <tr class="bg-blue-600 text-white">
+                            <th class="sticky left-0 z-40 px-3 py-2 text-left font-bold border-r border-blue-500" style="background-color: #2563eb; min-width: ${itemWidth}px;">
+                                Item
+                            </th>
+                            ${headersFechas}
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-tendencia-insumos" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
             </div>
         `;
 
         // Renderizar primer lote de filas inmediatamente
         this.renderSiguienteLoteTendencia();
 
-        // Escuchar scroll para renderizado infinito / incremental bajo demanda
+        // Escuchar scroll para renderizado incremental bajo demanda
         contScroll.onscroll = () => {
             if (contScroll.scrollTop + contScroll.clientHeight >= contScroll.scrollHeight - 300) {
                 this.renderSiguienteLoteTendencia();
@@ -415,31 +424,9 @@ window.ChartCostoFormulaInsumos = {
         };
     },
 
-    generarSvgEjeXFechas(fechas, itemWidth) {
-        const padLeft = 18;
-        const padRight = 18;
-        const drawWidth = itemWidth - padLeft - padRight;
-        const stepX = fechas.length > 1 ? drawWidth / (fechas.length - 1) : drawWidth;
-
-        let svg = '';
-        fechas.forEach((f, idx) => {
-            const x = padLeft + idx * stepX;
-            const labelFecha = f.ymd || f.fecha.replace(/-/g, '/');
-            svg += `
-                <text x="${x.toFixed(1)}" y="10" 
-                    transform="rotate(-90 ${x.toFixed(1)} 10)" 
-                    text-anchor="end" font-size="9.5" font-family="sans-serif" 
-                    font-weight="500" fill="#64748b">
-                    ${labelFecha}..
-                </text>
-            `;
-        });
-        return svg;
-    },
-
     renderSiguienteLoteTendencia() {
-        const listaCont = document.getElementById('lista-filas-tendencia-items');
-        if (!listaCont) return;
+        const tbody = document.getElementById('tbody-tendencia-insumos');
+        if (!tbody) return;
 
         const totalItems = this.itemsTendenciaFiltrados.length;
         if (this.indiceLoteTendencia >= totalItems) return;
@@ -449,298 +436,46 @@ window.ChartCostoFormulaInsumos = {
         this.indiceLoteTendencia = finLote;
 
         const fechas = this.fechasTendenciaFiltradas;
-        const itemWidth = Math.max(540, fechas.length * 36);
-        const itemHeight = 78;
-        const padTop = 22;
-        const padBottom = 8;
-        const padLeft = 18;
-        const padRight = 18;
-        const drawWidth = itemWidth - padLeft - padRight;
-        const drawHeight = itemHeight - padTop - padBottom;
-        const stepX = fechas.length > 1 ? drawWidth / (fechas.length - 1) : drawWidth;
-
-        const getY = (pu) => {
-            const clamped = Math.min(40, Math.max(0, pu));
-            return padTop + drawHeight - (clamped / 40) * drawHeight;
-        };
-
-        const y40 = getY(40);
-        const y20 = getY(20);
-        const y0 = getY(0);
-
         const fragment = document.createDocumentFragment();
 
         lote.forEach(it => {
-            const isSelected = (this.insumoSeleccionado === it.coditem);
-            const stickyBg = isSelected ? '#dbeafe' : '#ffffff';
+            const color = this.colorTipoInsumo(it.tipo);
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/70 transition-colors';
+            tr.setAttribute('data-coditem', it.coditem);
 
-            let pathD = '';
-            let pointsSvg = '';
-            let hasFirst = false;
-
-            fechas.forEach((f, fIdx) => {
-                const x = padLeft + fIdx * stepX;
-                const valObj = it.valores_por_dia ? it.valores_por_dia[f.fecha] : null;
-
-                if (valObj && valObj.pu !== null && valObj.pu !== undefined) {
-                    const pu = valObj.pu;
-                    const y = getY(pu);
-
-                    if (!hasFirst) {
-                        pathD += `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-                        hasFirst = true;
-                    } else {
-                        pathD += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-                    }
-
-                    const labelText = this.formatDecimal(pu, 3);
-
-                    pointsSvg += `
-                        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" 
-                            fill="#2563eb" stroke="#ffffff" stroke-width="1.2" 
-                            class="transition-all cursor-pointer">
-                            <title>${it.item}\nFecha: ${f.ymd || f.fecha}\nPU: ${labelText}\nPeso: ${this.formatDecimal(valObj.peso, 2)} kg\nValor: S/ ${this.formatDecimal(valObj.valor, 2)}</title>
-                        </circle>
-                        <text x="${x.toFixed(1)}" y="${(y - 4).toFixed(1)}" 
-                            transform="rotate(-90 ${x.toFixed(1)} ${(y - 4).toFixed(1)})" 
-                            text-anchor="start" font-size="8.5" font-family="sans-serif" font-weight="700" 
-                            fill="#1e293b">${labelText}</text>
-                    `;
-                }
-            });
-
-            const rowDiv = document.createElement('div');
-            rowDiv.id = `tendencia-row-${it.coditem}`;
-            rowDiv.className = `flex items-center row-tendencia-item ${isSelected ? 'bg-blue-100 ring-2 ring-blue-500' : 'bg-white hover:bg-slate-50/60'} transition-colors cursor-pointer`;
-            rowDiv.setAttribute('data-coditem', it.coditem);
-
-            rowDiv.innerHTML = `
-                <!-- 1. Columna Item (Sticky Izquierda, 100% Opaco) -->
-                <div class="w-[170px] min-w-[170px] p-2.5 sticky left-0 border-r border-slate-200 flex flex-col justify-center" style="background-color: ${stickyBg}; z-index: 25;">
-                    <span class="text-[11px] font-semibold text-slate-800 leading-snug line-clamp-3" title="${it.item}">
-                        ${it.item}
-                    </span>
-                </div>
-
-                <!-- 2. Columna Eje Y PU (0, 20, 40) (Sticky Izquierda, 100% Opaco) -->
-                <div class="w-[45px] min-w-[45px] h-[${itemHeight}px] sticky left-[170px] border-r border-slate-200 flex flex-col justify-between items-end py-1.5 px-1.5 text-[9.5px] font-semibold text-slate-400 select-none" style="background-color: ${stickyBg}; z-index: 25;">
-                    <span>40</span>
-                    <span>20</span>
-                    <span>0</span>
-                </div>
-
-                <!-- 3. Área de Gráfica SVG -->
-                <div class="grow h-[${itemHeight}px] relative bg-transparent overflow-hidden" style="z-index: 10;">
-                    <svg width="${itemWidth}" height="${itemHeight}" viewBox="0 0 ${itemWidth} ${itemHeight}" class="w-full h-full block">
-                        <!-- Líneas de cuadrícula a 40, 20 y 0 -->
-                        <line x1="0" y1="${y40.toFixed(1)}" x2="${itemWidth}" y2="${y40.toFixed(1)}" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="2 2" />
-                        <line x1="0" y1="${y20.toFixed(1)}" x2="${itemWidth}" y2="${y20.toFixed(1)}" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="2 2" />
-                        <line x1="0" y1="${y0.toFixed(1)}" x2="${itemWidth}" y2="${y0.toFixed(1)}" stroke="#e2e8f0" stroke-width="1" />
-                        
-                        <!-- Línea de datos -->
-                        ${pathD ? `<path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />` : ''}
-                        
-                        <!-- Puntos y etiquetas -->
-                        ${pointsSvg}
-                    </svg>
-                </div>
+            let html = `
+                <td class="sticky left-0 z-20 px-3 py-2 border-r border-slate-200 bg-white" style="background-color: #ffffff;">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color};"></span>
+                        <div class="flex flex-col min-w-0">
+                            <span class="text-[11px] font-semibold text-slate-800 truncate" title="${it.item}">${it.item}</span>
+                            <span class="text-[9px] text-slate-400 uppercase">${it.tipo || ''}</span>
+                        </div>
+                    </div>
+                </td>
             `;
 
-            rowDiv.onclick = () => {
-                this.onInsumoSelect(it.coditem);
-            };
+            fechas.forEach(f => {
+                const valObj = it.valores_por_dia ? it.valores_por_dia[f.fecha] : null;
+                const tieneDato = valObj && valObj.pu !== null && valObj.pu !== undefined;
+                const texto = tieneDato ? this.formatDecimal(valObj.pu, 3) : '';
+                const fondo = tieneDato ? this.colorConAlpha(color, 0.08) : '#ffffff';
+                const colorTexto = tieneDato ? color : '#cbd5e1';
 
-            fragment.appendChild(rowDiv);
+                html += `
+                    <td class="px-2 py-1.5 text-right border-r border-slate-100 font-mono text-[10.5px] whitespace-nowrap"
+                        style="background-color: ${fondo}; color: ${colorTexto};">
+                        ${texto}
+                    </td>
+                `;
+            });
+
+            tr.innerHTML = html;
+            fragment.appendChild(tr);
         });
 
-        listaCont.appendChild(fragment);
-    },
-
-    renderTendenciaSingleItem() {
-        const contScroll = document.getElementById('contenedor-tendencias-insumos-scroll');
-        if (!contScroll) return;
-
-        if (this.chartSingleTendenciaInstance) {
-            this.chartSingleTendenciaInstance.destroy();
-            this.chartSingleTendenciaInstance = null;
-        }
-
-        const data = this.datosBackend || {};
-        const matriz = data.insumos_matriz || { columnas_fechas: [], items: [] };
-        const todasFechas = matriz.columnas_fechas || [];
-        const items = matriz.items || [];
-
-        const found = items.find(it => it.coditem === this.insumoSeleccionado);
-        if (!found) {
-            this.renderTendenciaStackedView();
-            return;
-        }
-
-        // Filtrar fechas según filtro propio de Tendencia de Insumos
-        const fIni = this.filtroTendenciaInicio || (todasFechas[0] ? todasFechas[0].fecha : '');
-        const fFin = this.filtroTendenciaFin || (todasFechas[todasFechas.length - 1] ? todasFechas[todasFechas.length - 1].fecha : '');
-        const fechasFiltradas = todasFechas.filter(f => (!fIni || f.fecha >= fIni) && (!fFin || f.fecha <= fFin));
-
-        const labels = [];
-        const dataValues = [];
-        const pointMeta = [];
-        let minPu = null;
-        let maxPu = null;
-
-        fechasFiltradas.forEach(f => {
-            const valObj = found.valores_por_dia ? found.valores_por_dia[f.fecha] : null;
-            labels.push(`${f.ymd || f.fecha}, ${f.dia_corto || f.dia_semana || ''}`);
-            
-            if (valObj && valObj.pu !== null && valObj.pu !== undefined) {
-                const pu = valObj.pu;
-                dataValues.push(pu);
-                pointMeta.push(valObj);
-                if (minPu === null || pu < minPu) minPu = pu;
-                if (maxPu === null || pu > maxPu) maxPu = pu;
-            } else {
-                dataValues.push(null);
-                pointMeta.push(null);
-            }
-        });
-
-        // Escala Y adaptativa de alta resolución (como en filtro2.png)
-        let yMin = 0;
-        let yMax = 40;
-        if (minPu !== null && maxPu !== null) {
-            const diff = maxPu - minPu;
-            if (diff <= 0.05) {
-                yMin = Math.floor((minPu - 0.01) * 100) / 100;
-                yMax = Math.ceil((maxPu + 0.01) * 100) / 100;
-            } else {
-                yMin = Math.floor((minPu - diff * 0.1) * 100) / 100;
-                yMax = Math.ceil((maxPu + diff * 0.1) * 100) / 100;
-            }
-            if (yMin < 0) yMin = 0;
-        }
-
-        const minWidth = Math.max(500, fechasFiltradas.length * 36);
-
-        contScroll.innerHTML = `
-            <div class="p-4 flex flex-col gap-2">
-                <!-- CABECERA ITEM INDIVIDUAL -->
-                <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
-                    <div class="flex flex-col">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Item Seleccionado</span>
-                        <h4 class="text-sm font-bold text-slate-900">${found.item}</h4>
-                    </div>
-                    <span class="text-[10px] font-semibold text-slate-400 uppercase">Día de fechahisto</span>
-                </div>
-
-                <!-- CANVAS DE ALTA RESOLUCIÓN -->
-                <div class="w-full overflow-x-auto custom-scrollbar">
-                    <div style="min-width: ${minWidth}px; height: 380px; position: relative;">
-                        <canvas id="canvas-tendencia-single-insumo"></canvas>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const canvas = document.getElementById('canvas-tendencia-single-insumo');
-        if (!canvas || typeof Chart === 'undefined') return;
-
-        this.chartSingleTendenciaInstance = new Chart(canvas, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'PU',
-                    data: dataValues,
-                    borderColor: '#2563eb',
-                    borderWidth: 2.2,
-                    backgroundColor: 'rgba(37, 99, 235, 0.04)',
-                    fill: false,
-                    tension: 0.1,
-                    pointBackgroundColor: '#2563eb',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 1.5,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    pointHoverBackgroundColor: '#1d4ed8',
-                    spanGaps: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: {
-                    padding: { top: 25, bottom: 5, left: 10, right: 15 }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#ffffff',
-                        titleColor: '#0f172a',
-                        bodyColor: '#334155',
-                        borderColor: '#cbd5e1',
-                        borderWidth: 1,
-                        padding: 10,
-                        cornerRadius: 6,
-                        displayColors: false,
-                        titleFont: { size: 11, weight: 'bold' },
-                        bodyFont: { size: 10.5 },
-                        callbacks: {
-                            beforeTitle: () => '✓ Mantener solamente   ⊘ Excluir',
-                            title: (items) => `Día de fecha: ${fechasFiltradas[items[0].dataIndex]?.label_largo || items[0].label}`,
-                            label: (ctx) => {
-                                const idx = ctx.dataIndex;
-                                const p = pointMeta[idx] || {};
-                                return [
-                                    `Item: ${found.item}`,
-                                    `tipo: ${found.tipo}`,
-                                    `PU:   ${this.formatDecimal(p.pu, 3)}`
-                                ];
-                            }
-                        }
-                    },
-                    datalabels: {
-                        display: true,
-                        align: 'top',
-                        anchor: 'end',
-                        rotation: -90,
-                        offset: 4,
-                        color: '#1e293b',
-                        font: { size: 9, weight: 'bold' },
-                        formatter: (val) => val !== null ? this.formatDecimal(val, 3) : ''
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: {
-                            color: '#64748b',
-                            font: { size: 9, weight: '500' },
-                            maxRotation: 90,
-                            minRotation: 90
-                        }
-                    },
-                    y: {
-                        min: yMin,
-                        max: yMax,
-                        title: {
-                            display: true,
-                            text: 'PU',
-                            color: '#64748b',
-                            font: { size: 11, weight: 'bold' }
-                        },
-                        grid: {
-                            color: '#f1f5f9',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: { size: 10 },
-                            callback: (v) => this.formatDecimal(v, 2)
-                        }
-                    }
-                }
-            },
-            plugins: [ChartDataLabels]
-        });
+        tbody.appendChild(fragment);
     },
 
     initChartGeneral(generalData) {
@@ -793,9 +528,9 @@ window.ChartCostoFormulaInsumos = {
                     fill: false,
                     tension: 0.1,
                     pointBackgroundColor: pointColors,
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 1.5,
-                    pointRadius: 4.5,
+                    pointBorderColor: generalData.map(d => this.fechasSeleccionadas.includes(d.fecha) ? '#0f172a' : '#ffffff'),
+                    pointBorderWidth: generalData.map(d => this.fechasSeleccionadas.includes(d.fecha) ? 2.5 : 1.5),
+                    pointRadius: generalData.map(d => this.fechasSeleccionadas.length === 0 ? 4.5 : (this.fechasSeleccionadas.includes(d.fecha) ? 7 : 3)),
                     pointHoverRadius: 7,
                     pointHoverBackgroundColor: '#2563eb'
                 }]
@@ -880,7 +615,9 @@ window.ChartCostoFormulaInsumos = {
                         const idx = elements[0].index;
                         const pt = generalData[idx];
                         if (pt && pt.fecha) {
-                            this.onFechaGeneralClick(pt.fecha);
+                            const native = event?.native || event;
+                            const aditivo = !!(native && (native.ctrlKey || native.metaKey));
+                            this.onFechaGeneralClick(pt.fecha, aditivo);
                         }
                     }
                 }
@@ -889,59 +626,87 @@ window.ChartCostoFormulaInsumos = {
         });
     },
 
-    onFechaGeneralClick(fecha) {
-        if (this.fechaSeleccionada === fecha) {
-            this.fechaSeleccionada = null; // Toggle off para mostrar todas las fechas
-        } else {
-            this.fechaSeleccionada = fecha; // Filtra ÚNICAMENTE Detalle de Insumos
-        }
+    onFechaGeneralClick(fecha, aditivo = false) {
+        this.fechasSeleccionadas = this.alternarEnLista(this.fechasSeleccionadas, fecha, aditivo);
+        this.actualizarEstilosGeneral();
+        this.actualizarTablaMatriz();
+        this.actualizarBadgeFechas();
+    },
 
-        // 1. Actualización quirúrgica del DOM de Detalle de Insumos
+    actualizarEstilosGeneral() {
+        const instancia = this.chartGeneralInstance;
+        if (!instancia) return;
+
+        const generalData = this.datosBackend?.alimento_general || [];
+        const seleccion = new Set(this.fechasSeleccionadas);
+        const dataset = instancia.data.datasets[0];
+
+        if (!dataset) return;
+
+        dataset.pointBorderColor = generalData.map(d => seleccion.has(d.fecha) ? '#0f172a' : '#ffffff');
+        dataset.pointBorderWidth = generalData.map(d => seleccion.has(d.fecha) ? 2.5 : 1.5);
+        dataset.pointRadius = generalData.map(d => {
+            if (!this.fechasSeleccionadas.length) return 4.5;
+            return seleccion.has(d.fecha) ? 7 : 3;
+        });
+
+        instancia.update();
+    },
+
+    actualizarTablaMatriz() {
         const cont = document.getElementById('contenedor-tabla-matriz-insumos');
-        if (cont && this.datosBackend.insumos_matriz) {
-            cont.innerHTML = this.renderTablaMatriz(this.datosBackend.insumos_matriz);
-            this.bindTableEvents();
+        if (!cont || !this.datosBackend?.insumos_matriz) return;
+
+        cont.innerHTML = this.renderTablaMatriz(this.datosBackend.insumos_matriz);
+        this.bindTableEvents();
+    },
+
+    actualizarBadgeFechas() {
+        const badgeCont = document.getElementById('badge-filtro-fecha-contenedor');
+        if (!badgeCont) return;
+
+        const n = this.fechasSeleccionadas.length;
+        if (!n) {
+            badgeCont.innerHTML = '';
+            return;
         }
 
-        // 2. Actualizar badge de filtro de fecha en la cabecera de Detalle de Insumos
-        const badgeCont = document.getElementById('badge-filtro-fecha-contenedor');
-        if (badgeCont) {
-            if (this.fechaSeleccionada) {
-                badgeCont.innerHTML = `
-                    <button id="btn-quitar-filtro-fecha" type="button"
-                        class="flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2 py-0.5 transition-all cursor-pointer shadow-2xs"
-                        title="Mostrar todas las fechas">
-                        <span>Fecha: ${this.fechaSeleccionada}</span>
-                        <i class="fas fa-times text-[10px]"></i>
-                    </button>
-                `;
-                const btnQuitar = document.getElementById('btn-quitar-filtro-fecha');
-                if (btnQuitar) {
-                    btnQuitar.onclick = (e) => {
-                        e.stopPropagation();
-                        this.onFechaGeneralClick(this.fechaSeleccionada);
-                    };
-                }
-            } else {
-                badgeCont.innerHTML = '';
-            }
+        badgeCont.innerHTML = `
+            <button id="btn-quitar-filtro-fechas" type="button"
+                class="flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2 py-0.5 transition-all cursor-pointer shadow-2xs"
+                title="Mostrar todas las fechas">
+                <span>Fechas: ${n}</span>
+                <i class="fas fa-times text-[10px]"></i>
+            </button>
+        `;
+
+        const btnQuitar = document.getElementById('btn-quitar-filtro-fechas');
+        if (btnQuitar) {
+            btnQuitar.onclick = (event) => {
+                event.stopPropagation();
+                this.fechasSeleccionadas = [];
+                this.actualizarEstilosGeneral();
+                this.actualizarTablaMatriz();
+                this.actualizarBadgeFechas();
+            };
         }
     },
 
-    onInsumoSelect(coditem) {
-        if (this.insumoSeleccionado === coditem) {
-            this.insumoSeleccionado = null; // Toggle para ver todos los insumos
-        } else {
-            this.insumoSeleccionado = coditem; // Filtra Tendencia de Insumos a este insumo
-        }
+    onInsumoSelect(coditem, aditivo = false) {
+        this.insumosSeleccionados = this.alternarEnLista(this.insumosSeleccionados, coditem, aditivo);
+        this.actualizarSeleccionVisualMatriz();
+        this.actualizarBotonInsumos();
+        this.renderTendenciaContent();
+    },
 
-        // 1. Actualizar selección visual en Detalle de Insumos
+    actualizarSeleccionVisualMatriz() {
         const rows = document.querySelectorAll('.row-insumo');
         rows.forEach(r => {
             const itemCode = r.getAttribute('data-coditem');
-            const isSelected = (this.insumoSeleccionado === itemCode);
+            const isSelected = this.insumosSeleccionados.includes(itemCode);
             const col1 = r.children[0];
             const col2 = r.children[1];
+
             if (isSelected) {
                 r.className = 'transition-colors cursor-pointer row-insumo bg-blue-100 font-semibold ring-2 ring-blue-500';
                 if (col1) col1.style.backgroundColor = '#dbeafe';
@@ -952,31 +717,35 @@ window.ChartCostoFormulaInsumos = {
                 if (col2) col2.style.backgroundColor = '#ffffff';
             }
         });
+    },
 
-        // 2. Actualizar botón "Ver todos los insumos" en la cabecera de tendencia
-        const btnQuitarInsumoCont = document.getElementById('contenedor-btn-quitar-insumo');
-        if (btnQuitarInsumoCont) {
-            if (this.insumoSeleccionado) {
-                btnQuitarInsumoCont.innerHTML = `
-                    <button id="btn-quitar-filtro-insumo" type="button"
-                        class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-all cursor-pointer shadow-2xs">
-                        <i class="fas fa-list text-[10px]"></i>
-                        <span>Ver todos los insumos</span>
-                    </button>
-                `;
-                const btnQ = document.getElementById('btn-quitar-filtro-insumo');
-                if (btnQ) {
-                    btnQ.onclick = () => {
-                        this.onInsumoSelect(this.insumoSeleccionado);
-                    };
-                }
-            } else {
-                btnQuitarInsumoCont.innerHTML = '';
-            }
+    actualizarBotonInsumos() {
+        const cont = document.getElementById('contenedor-btn-quitar-insumo');
+        if (!cont) return;
+
+        const n = this.insumosSeleccionados.length;
+        if (!n) {
+            cont.innerHTML = '';
+            return;
         }
 
-        // 3. Renderizar Tendencia de Insumos (vista individual adaptativa o apilada)
-        this.renderTendenciaContent();
+        cont.innerHTML = `
+            <button id="btn-quitar-filtro-insumo" type="button"
+                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-all cursor-pointer shadow-2xs">
+                <i class="fas fa-list text-[10px]"></i>
+                <span>Ver todos los insumos (${n})</span>
+            </button>
+        `;
+
+        const btn = document.getElementById('btn-quitar-filtro-insumo');
+        if (btn) {
+            btn.onclick = () => {
+                this.insumosSeleccionados = [];
+                this.actualizarSeleccionVisualMatriz();
+                this.actualizarBotonInsumos();
+                this.renderTendenciaContent();
+            };
+        }
     },
 
     setupEventListeners() {
@@ -1014,21 +783,8 @@ window.ChartCostoFormulaInsumos = {
             btnReset.addEventListener('click', () => {
                 this.filtroTendenciaInicio = this.datosBackend.fecha_inicio || '2026-03-01';
                 this.filtroTendenciaFin = this.datosBackend.fecha_fin || '2026-03-31';
-                this.insumoSeleccionado = null;
                 if (inputIni) inputIni.value = this.filtroTendenciaInicio;
                 if (inputFin) inputFin.value = this.filtroTendenciaFin;
-
-                const btnQuitarInsumoCont = document.getElementById('contenedor-btn-quitar-insumo');
-                if (btnQuitarInsumoCont) btnQuitarInsumoCont.innerHTML = '';
-
-                // Desmarcar filas seleccionadas en la matriz
-                const rows = document.querySelectorAll('.row-insumo');
-                rows.forEach(r => {
-                    r.className = 'transition-colors cursor-pointer row-insumo bg-white hover:bg-slate-50';
-                    if (r.children[0]) r.children[0].style.backgroundColor = '#ffffff';
-                    if (r.children[1]) r.children[1].style.backgroundColor = '#ffffff';
-                });
-
                 this.renderTendenciaContent();
             });
         }
@@ -1037,10 +793,10 @@ window.ChartCostoFormulaInsumos = {
     bindTableEvents() {
         const rows = document.querySelectorAll('.row-insumo');
         rows.forEach(r => {
-            r.onclick = () => {
+            r.onclick = (event) => {
                 const coditem = r.getAttribute('data-coditem');
                 if (coditem) {
-                    this.onInsumoSelect(coditem);
+                    this.onInsumoSelect(coditem, event.ctrlKey || event.metaKey);
                 }
             };
         });
@@ -1054,8 +810,9 @@ window.ChartCostoFormulaInsumos = {
             return;
         }
 
-        const columnas = this.fechaSeleccionada 
-            ? (matriz.columnas_fechas || []).filter(c => c.fecha === this.fechaSeleccionada)
+        const fechasSeleccionadas = new Set(this.fechasSeleccionadas);
+        const columnas = this.fechasSeleccionadas.length
+            ? (matriz.columnas_fechas || []).filter(c => fechasSeleccionadas.has(c.fecha))
             : (matriz.columnas_fechas || []);
 
         // 1. Estilos Oficiales bg-blue-600 para Cabeceras Excel (xlsx-js-style)

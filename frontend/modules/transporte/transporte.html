@@ -128,7 +128,10 @@
                     <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">TOTALES DIARIOS</h2>
                     <p class="text-xs text-slate-500 mt-0.5">Distribución porcentual por fecha y estado</p>
                 </div>
-                
+                <button id="btn-limpiar-totales" type="button"
+                    class="hidden text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2.5 py-1 transition-colors cursor-pointer">
+                    Ver todos
+                </button>
             </div>
 
             <div class="flex-1 overflow-auto custom-scrollbar w-full bg-white" id="contenedor-totales-diarios">
@@ -144,15 +147,22 @@
                     <p class="text-xs text-slate-500 mt-0.5">Evolución temporal del % Completo vs Incompleto</p>
                 </div>
                 
-                <!-- LEYENDA TABLEAU -->
-                <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-3 py-1 rounded-lg text-xs font-semibold">
-                    <span class="text-slate-400 uppercase tracking-wider text-[10px]">validador</span>
-                    <span class="inline-flex items-center gap-1.5 text-slate-700">
-                        <span class="w-3 h-3 rounded-xs bg-[#59A14F]"></span>completo
-                    </span>
-                    <span class="inline-flex items-center gap-1.5 text-slate-700">
-                        <span class="w-3 h-3 rounded-xs bg-[#E15759]"></span>incompleto
-                    </span>
+                <div class="flex items-center gap-2">
+                    <button id="btn-limpiar-tendencia" type="button"
+                        class="hidden text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2.5 py-1 transition-colors cursor-pointer">
+                        Ver todos
+                    </button>
+
+                    <!-- LEYENDA TABLEAU -->
+                    <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-3 py-1 rounded-lg text-xs font-semibold">
+                        <span class="text-slate-400 uppercase tracking-wider text-[10px]">validador</span>
+                        <span class="inline-flex items-center gap-1.5 text-slate-700">
+                            <span class="w-3 h-3 rounded-xs bg-[#59A14F]"></span>completo
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-slate-700">
+                            <span class="w-3 h-3 rounded-xs bg-[#E15759]"></span>incompleto
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -170,6 +180,10 @@
                         0 despachos
                     </span>
                 </div>
+                <button id="btn-limpiar-hojas" type="button"
+                    class="hidden text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2.5 py-1 transition-colors cursor-pointer">
+                    Ver todos
+                </button>
             </div>
 
             <div class="flex-1 overflow-auto custom-scrollbar w-full">
@@ -198,8 +212,8 @@
                         0 eventos
                     </span>
                 </div>
-                <span id="label-placa-filtrada" class="text-[10px] font-mono font-semibold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded hidden">
-                    Todas las placas
+                <span id="resumen-filtro-cruzado" class="text-[10px] font-mono font-semibold text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded hidden">
+                    Selección activa
                 </span>
             </div>
 
@@ -234,7 +248,7 @@
 
     <script src="../../assets/utils-graficos/periodo-helper.js"></script>
     <script src="transportes.service.js?v=20260909_3"></script>
-    <script src="transportes.controller.js?v=20260910_1"></script>
+    <script src="transportes.controller.js?v=20261116_1"></script>
 </body>
 
 </html>

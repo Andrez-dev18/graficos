@@ -648,7 +648,13 @@
                             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Cumplimiento por Zona
                                 Fiscal</h4>
                         </div>
-                        <span class="text-[10px] text-slate-500 font-medium">Diario y Acumulado</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-slate-500 font-medium">Diario y Acumulado</span>
+                            <button id="btn-limpiar-plan-real" type="button"
+                                class="hidden text-[10px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 transition-colors cursor-pointer">
+                                Ver todos
+                            </button>
+                        </div>
                     </div>
                     <div class="flex-1 overflow-auto custom-scrollbar">
                         <table class="w-full text-left text-xs border-separate border-spacing-0">
@@ -866,7 +872,7 @@
     <script src="../../assets/utils-graficos/modal-schemas.js?v=20260907_4"></script>
 
     <script src="ventasResumen.service.js?v=20260907_4"></script>
-    <script src="ventasResumen.controller.js?v=20260907_4"></script>
+    <script src="ventasResumen.controller.js?v=20261115_2"></script>
 
 </body>
 

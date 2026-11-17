@@ -582,25 +582,47 @@ class AnalisisPT0Controller {
     }
 
     obtenerBasePara(tabla) {
-        if (!this.seleccion || this.seleccion.source === tabla) {
+        if (!this.seleccion || !this.seleccion.items || !this.seleccion.items.length) {
             return this.base;
         }
 
-        const dims = this.seleccion.dims || {};
-        const tipo = this.seleccion.tipo;
+        if (this.seleccion.source === tabla) {
+            return this.base;
+        }
 
-        return this.base.filter(fila => {
-            for (const [key, value] of Object.entries(dims)) {
-                if (String(fila[key]) !== String(value)) return false;
-            }
+        return this.base.filter(fila =>
+            this.seleccion.items.some(item => this.coincideItem(fila, item))
+        );
+    }
 
-            if (tipo && fila.tipo !== tipo) return false;
+    coincideItem(fila, item) {
+        const dims = item.dims || {};
 
-            return true;
+        for (const [key, value] of Object.entries(dims)) {
+            if (String(fila[key]) !== String(value)) return false;
+        }
+
+        if (item.tipo && fila.tipo !== item.tipo) return false;
+
+        return true;
+    }
+
+    claveSeleccion(item) {
+        const dims = item.dims || {};
+        const keys = Object.keys(dims).sort();
+        const normalizado = {};
+
+        keys.forEach(key => {
+            normalizado[key] = dims[key];
+        });
+
+        return JSON.stringify({
+            tipo: item.tipo || null,
+            dims: normalizado
         });
     }
 
-    seleccionar(source, values, tipo) {
+    seleccionar(source, values, tipo = null, aditivo = false) {
         const dimensionesPorFuente = {
             detalle_fecha: ['anio_mes', 'fecha'],
             detalle_cliente: ['anio_mes', 'fecha', 'cliente'],
@@ -615,50 +637,85 @@ class AnalisisPT0Controller {
             dims[key] = values[key];
         });
 
-        const nuevaSeleccion = {
-            source,
+        const item = {
             dims,
-            tipo: tipo || null
+            tipo: (tipo === 'Entrada' || tipo === 'Salida') ? tipo : null
         };
 
-        const esMismaSeleccion = this.seleccion
-            && this.seleccion.source === nuevaSeleccion.source
-            && this.seleccion.tipo === nuevaSeleccion.tipo
-            && JSON.stringify(this.seleccion.dims) === JSON.stringify(nuevaSeleccion.dims);
+        if (!this.seleccion || this.seleccion.source !== source) {
+            this.seleccion = { source, items: [] };
+            aditivo = false;
+        }
 
-        this.seleccion = esMismaSeleccion ? null : nuevaSeleccion;
+        const items = this.seleccion.items;
+        const clave = this.claveSeleccion(item);
+        const existe = items.some(actual => this.claveSeleccion(actual) === clave);
+        const soloEste = items.length === 1 && existe;
+
+        if (!aditivo) {
+            if (soloEste) {
+                this.seleccion = null;
+                this.renderTablas();
+                return;
+            }
+
+            this.seleccion.items = [item];
+        } else if (existe) {
+            this.seleccion.items = items.filter(actual => this.claveSeleccion(actual) !== clave);
+        } else {
+            this.seleccion.items = items.concat([item]);
+        }
+
+        if (!this.seleccion.items.length) {
+            this.seleccion = null;
+        }
+
         this.renderTablas();
     }
 
     actualizarChipFiltro() {
         if (!this.chipFiltro || !this.chipFiltroTexto) return;
 
-        if (!this.seleccion) {
+        if (!this.seleccion || !this.seleccion.items || !this.seleccion.items.length) {
             this.chipFiltro.classList.add('hidden');
             return;
         }
 
+        const items = this.seleccion.items;
         const partes = [];
-        const dims = this.seleccion.dims || {};
 
         if (this.seleccion.source) {
             partes.push(this.sourceLabels[this.seleccion.source] || this.seleccion.source);
         }
 
-        if (dims.fecha) {
-            partes.push(this.formatearFecha(dims.fecha));
-        }
+        if (items.length === 1) {
+            const dims = items[0].dims || {};
 
-        if (dims.cliente) {
-            partes.push(`Cliente ${dims.cliente}`);
-        }
+            if (dims.fecha) {
+                partes.push(this.formatearFecha(dims.fecha));
+            }
 
-        if (dims.tran) {
-            partes.push(`Tran ${dims.tran}`);
-        }
+            if (dims.cliente) {
+                partes.push(`Cliente ${dims.cliente}`);
+            }
 
-        if (this.seleccion.tipo) {
-            partes.push(this.seleccion.tipo);
+            if (dims.tran) {
+                partes.push(`Tran ${dims.tran}`);
+            }
+
+            if (items[0].tipo) {
+                partes.push(items[0].tipo);
+            }
+        } else {
+            partes.push(`${items.length} selecciones`);
+
+            const fechas = new Set(
+                items.map(item => item.dims && item.dims.fecha).filter(Boolean)
+            );
+
+            if (fechas.size) {
+                partes.push(`${fechas.size} fecha${fechas.size === 1 ? '' : 's'}`);
+            }
         }
 
         this.chipFiltroTexto.textContent = partes.join(' · ');

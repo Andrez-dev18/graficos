@@ -341,25 +341,25 @@ window.AnalisisPT0Helper = {
 
             const coincide = this.coincideSeleccion(fila.values, seleccion, sourceKey);
 
-            if (coincide && seleccion) {
+            if (coincide) {
                 tr.classList.add('bg-blue-50', 'ring-1', 'ring-inset', 'ring-blue-200');
             }
 
             tr.style.cursor = 'pointer';
             tr.addEventListener('click', (event) => {
                 if (event.target.closest('.celda-medida')) return;
-                controller.seleccionar(sourceKey, fila.values, null);
+                controller.seleccionar(sourceKey, fila.values, null, event.ctrlKey || event.metaKey);
             });
 
             tr.querySelectorAll('.celda-medida').forEach(celda => {
                 const tipo = celda.getAttribute('data-tipo');
-                if (coincide && seleccion && seleccion.tipo === tipo) {
+                if (this.coincideSeleccion(fila.values, seleccion, sourceKey, tipo)) {
                     celda.classList.add('bg-blue-100', 'text-blue-900');
                 }
 
                 celda.addEventListener('click', (event) => {
                     event.stopPropagation();
-                    controller.seleccionar(sourceKey, fila.values, tipo);
+                    controller.seleccionar(sourceKey, fila.values, tipo, event.ctrlKey || event.metaKey);
                 });
             });
         });
@@ -416,11 +416,21 @@ window.AnalisisPT0Helper = {
         return this.escapeHtml(valor);
     },
 
-    coincideSeleccion(values, seleccion, sourceKey) {
+    coincideSeleccion(values, seleccion, sourceKey, tipo) {
         if (!seleccion || seleccion.source !== sourceKey) return false;
 
-        return Object.entries(seleccion.dims || {}).every(([key, value]) => {
-            return String(values[key]) === String(value);
+        const items = seleccion.items || [];
+
+        return items.some(item => {
+            const dims = item.dims || {};
+            const coincideDims = Object.entries(dims).every(([key, value]) => {
+                return String(values[key]) === String(value);
+            });
+
+            if (!coincideDims) return false;
+            if (tipo !== undefined && item.tipo !== tipo) return false;
+
+            return true;
         });
     },
 

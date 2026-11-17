@@ -17,7 +17,7 @@ class VentasResumenController {
         this.analisisSecundarioState = {
             clientes: [],
             devoluciones: [],
-            clienteSeleccionado: null,
+            clientesSeleccionados: [],
             filtroTipo: 'TODO'
         };
 
@@ -30,7 +30,7 @@ class VentasResumenController {
         };
 
         // Estado de selección cruzada Plan vs Real
-        this.planRealFiltroActivo = null; // { zona: 'AREQUIPA', fecha: '2026-08-31' }
+        this.planRealSelecciones = []; // [{ zona: 'AREQUIPA', fecha: '2026-08-31' }]
         this.cachePlanRealData = { porZona: [], porItem: [] };
 
         this.init();
@@ -223,7 +223,7 @@ class VentasResumenController {
         });
 
         btnDeseleccionar?.addEventListener('click', () => {
-            this.seleccionarClienteAnalisis(null);
+            this.limpiarClientesSeleccionados();
         });
 
         // Modal Plan vs Real (06VentasSaca)
@@ -238,6 +238,10 @@ class VentasResumenController {
 
         btnCerrarPlanReal?.addEventListener('click', () => {
             modalPlanReal?.classList.add('hidden');
+        });
+
+        document.getElementById('btn-limpiar-plan-real')?.addEventListener('click', () => {
+            this.limpiarSeleccionPlanReal();
         });
 
         // Modal Detalle Devolución (Ranking + Tendencia)
@@ -1169,9 +1173,10 @@ class VentasResumenController {
             if (res && res.success && res.payload) {
                 this.analisisSecundarioState.clientes = res.payload.clientes || [];
                 this.analisisSecundarioState.devoluciones = res.payload.devoluciones || [];
-                this.analisisSecundarioState.clienteSeleccionado = null;
+                this.analisisSecundarioState.clientesSeleccionados = [];
                 this.analisisSecundarioState.filtroTipo = document.getElementById('select-filtro-tipo-secundario')?.value || 'TODO';
 
+                this.actualizarFiltroClienteUI();
                 this.renderizarTablaClientes();
                 this.renderizarTablaDevoluciones();
 
@@ -1195,7 +1200,7 @@ class VentasResumenController {
         const contenedor = document.getElementById('lista-analisis-ventas');
         if (!contenedor) return;
 
-        const { clientes, clienteSeleccionado, filtroTipo } = this.analisisSecundarioState;
+        const { clientes, filtroTipo } = this.analisisSecundarioState;
 
         if (!clientes || clientes.length === 0) {
             contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No se encontraron clientes para esta fecha.</div>`;
@@ -1230,7 +1235,7 @@ class VentasResumenController {
 
         contenedor.innerHTML = clientes.map(c => {
             const nom = c.corporativo || c.nomcliente || 'SIN NOMBRE';
-            const esActivo = (clienteSeleccionado === nom);
+            const esActivo = this.esClienteSeleccionado(nom);
             const fondoNom = esActivo ? 'bg-sky-200 text-slate-900 font-bold' : 'text-slate-700 hover:bg-slate-50';
 
             // Determinar valores a mostrar según filtroTipo
@@ -1306,9 +1311,10 @@ class VentasResumenController {
 
         // Event listener de selección de fila
         contenedor.querySelectorAll('.cliente-item').forEach(el => {
-            el.addEventListener('click', () => {
+            el.addEventListener('click', (e) => {
                 const nom = decodeURIComponent(el.getAttribute('data-cliente'));
-                this.seleccionarClienteAnalisis(nom);
+                const conCtrl = !!(e.ctrlKey || e.metaKey);
+                this.alternarClienteAnalisis(nom, conCtrl);
             });
         });
     }
@@ -1322,11 +1328,12 @@ class VentasResumenController {
         const footerTotales = document.getElementById('footer-totales-devoluciones');
         if (!contenedor) return;
 
-        const { devoluciones, clienteSeleccionado } = this.analisisSecundarioState;
+        const { devoluciones } = this.analisisSecundarioState;
+        const clientesSel = new Set((this.analisisSecundarioState.clientesSeleccionados || []).map(String));
 
-        // Filtrar por cliente si hay uno seleccionado
-        const devsFiltradas = clienteSeleccionado
-            ? devoluciones.filter(d => (d.corporativo || d.nomcliente) === clienteSeleccionado)
+        // Filtrar por los clientes seleccionados
+        const devsFiltradas = clientesSel.size
+            ? devoluciones.filter(d => clientesSel.has(String(d.corporativo || d.nomcliente)))
             : devoluciones;
 
         if (badgeContador) {
@@ -1334,7 +1341,7 @@ class VentasResumenController {
         }
 
         if (devsFiltradas.length === 0) {
-            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No se encontraron devoluciones para este cliente.</div>`;
+            contenedor.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No se encontraron devoluciones para los clientes seleccionados.</div>`;
             if (footerTotales) footerTotales.innerHTML = '';
             return;
         }
@@ -1438,26 +1445,64 @@ class VentasResumenController {
     /**
      * Selecciona o deselecciona un cliente/corporativo reactivamente en el modal
      */
-    seleccionarClienteAnalisis(nomCliente) {
-        if (this.analisisSecundarioState.clienteSeleccionado === nomCliente) {
-            this.analisisSecundarioState.clienteSeleccionado = null;
+    esClienteSeleccionado(nombre) {
+        return (this.analisisSecundarioState.clientesSeleccionados || []).some(c => String(c) === String(nombre));
+    }
+
+    alternarClienteAnalisis(nomCliente, conCtrl = false) {
+        if (!nomCliente) return;
+
+        const key = String(nomCliente);
+        const actuales = this.analisisSecundarioState.clientesSeleccionados || [];
+
+        if (!conCtrl) {
+            const soloEste = actuales.length === 1 && String(actuales[0]) === key;
+            this.analisisSecundarioState.clientesSeleccionados = soloEste ? [] : [nomCliente];
         } else {
-            this.analisisSecundarioState.clienteSeleccionado = nomCliente;
+            const idx = actuales.findIndex(c => String(c) === key);
+            if (idx >= 0) {
+                actuales.splice(idx, 1);
+            } else {
+                actuales.push(nomCliente);
+            }
+            this.analisisSecundarioState.clientesSeleccionados = actuales;
         }
 
+        this.actualizarFiltroClienteUI();
+        this.renderizarTablaClientes();
+        this.renderizarTablaDevoluciones();
+    }
+
+    limpiarClientesSeleccionados() {
+        this.analisisSecundarioState.clientesSeleccionados = [];
+        this.actualizarFiltroClienteUI();
+        this.renderizarTablaClientes();
+        this.renderizarTablaDevoluciones();
+    }
+
+    actualizarFiltroClienteUI() {
+        const clientes = this.analisisSecundarioState.clientesSeleccionados || [];
         const btnDeseleccionar = document.getElementById('btn-deseleccionar-cliente');
         const labelActivo = document.getElementById('label-filtro-cliente-activo');
 
-        if (this.analisisSecundarioState.clienteSeleccionado) {
+        if (clientes.length > 0) {
             btnDeseleccionar?.classList.remove('hidden');
-            if (labelActivo) labelActivo.textContent = `Filtrado por: ${this.analisisSecundarioState.clienteSeleccionado}`;
+            if (labelActivo) {
+                if (clientes.length === 1) {
+                    labelActivo.textContent = `Filtrado por: ${clientes[0]}`;
+                    labelActivo.title = clientes[0];
+                } else {
+                    labelActivo.textContent = `Filtrado por: ${clientes.length} clientes`;
+                    labelActivo.title = clientes.join(', ');
+                }
+            }
         } else {
             btnDeseleccionar?.classList.add('hidden');
-            if (labelActivo) labelActivo.textContent = 'Todos los clientes';
+            if (labelActivo) {
+                labelActivo.textContent = 'Todos los clientes';
+                labelActivo.title = '';
+            }
         }
-
-        this.renderizarTablaClientes();
-        this.renderizarTablaDevoluciones();
     }
 
     /**
@@ -1600,7 +1645,7 @@ class VentasResumenController {
 
             if (res && res.success && res.payload && res.payload.data) {
                 this.cachePlanRealData = res.payload.data;
-                this.planRealFiltroActivo = null; // Reiniciar selección
+                this.planRealSelecciones = []; // Reiniciar selección
 
                 this.renderizarMatrizPlanRealZonas(this.cachePlanRealData.porZona || []);
                 this.renderizarMatrizPlanRealItems(this.cachePlanRealData.porItem || []);
@@ -1693,6 +1738,53 @@ class VentasResumenController {
         `;
     }
 
+    claveParPlanReal(zona, fecha) {
+        return `${String(zona === null || zona === undefined ? '' : zona).trim()}||${String(fecha || '')}`;
+    }
+
+    esParPlanRealSeleccionado(zona, fecha) {
+        const key = this.claveParPlanReal(zona, fecha);
+        return (this.planRealSelecciones || []).some(s => this.claveParPlanReal(s.zona, s.fecha) === key);
+    }
+
+    alternarParPlanReal(zona, fecha, conCtrl = false) {
+        const z = String(zona === null || zona === undefined ? '' : zona).trim();
+        const f = String(fecha || '');
+        if (!z || !f) return;
+
+        const key = this.claveParPlanReal(z, f);
+        const actuales = this.planRealSelecciones || [];
+
+        if (!conCtrl) {
+            const soloEste = actuales.length === 1 && this.claveParPlanReal(actuales[0].zona, actuales[0].fecha) === key;
+            this.planRealSelecciones = soloEste ? [] : [{ zona: z, fecha: f }];
+            return;
+        }
+
+        const idx = actuales.findIndex(s => this.claveParPlanReal(s.zona, s.fecha) === key);
+        if (idx >= 0) {
+            actuales.splice(idx, 1);
+        } else {
+            actuales.push({ zona: z, fecha: f });
+        }
+        this.planRealSelecciones = actuales;
+    }
+
+    limpiarSeleccionPlanReal() {
+        this.planRealSelecciones = [];
+        this.renderizarMatrizPlanRealZonas(this.cachePlanRealData.porZona || []);
+        this.renderizarMatrizPlanRealItems(this.cachePlanRealData.porItem || []);
+        this.actualizarBotonPlanReal();
+    }
+
+    actualizarBotonPlanReal() {
+        const btn = document.getElementById('btn-limpiar-plan-real');
+        if (!btn) return;
+        const n = (this.planRealSelecciones || []).length;
+        btn.classList.toggle('hidden', n === 0);
+        btn.textContent = n > 0 ? `Ver todos (${n})` : 'Ver todos';
+    }
+
     /**
      * Renderiza la tabla superior con acción de selección cruzada estilo Tableau
      */
@@ -1720,7 +1812,9 @@ class VentasResumenController {
         });
 
         const zonasRenderizadas = new Set();
-        const seleccion = this.planRealFiltroActivo;
+        const selecciones = this.planRealSelecciones || [];
+        const haySeleccion = selecciones.length > 0;
+        this.actualizarBotonPlanReal();
 
         tbody.innerHTML = filas.map(r => {
             const esPrimeraFilaZona = !zonasRenderizadas.has(r.zona);
@@ -1738,8 +1832,7 @@ class VentasResumenController {
                 `;
             }
 
-            const estaSeleccionada = seleccion && seleccion.zona === r.zona && seleccion.fecha === r.fecha;
-            const haySeleccion = seleccion !== null;
+            const estaSeleccionada = this.esParPlanRealSeleccionado(r.zona, r.fecha);
 
             const opacidadClase = (haySeleccion && !estaSeleccionada) ? 'opacity-30 transition-opacity' : 'opacity-100 transition-opacity';
             const filaBorde = estaSeleccionada
@@ -1766,15 +1859,12 @@ class VentasResumenController {
         }).join('');
 
         tbody.querySelectorAll('.fila-zona-click').forEach(fila => {
-            fila.addEventListener('click', () => {
+            fila.addEventListener('click', (e) => {
                 const z = fila.getAttribute('data-zona');
                 const f = fila.getAttribute('data-fecha');
+                const conCtrl = !!(e.ctrlKey || e.metaKey);
 
-                if (this.planRealFiltroActivo && this.planRealFiltroActivo.zona === z && this.planRealFiltroActivo.fecha === f) {
-                    this.planRealFiltroActivo = null;
-                } else {
-                    this.planRealFiltroActivo = { zona: z, fecha: f };
-                }
+                this.alternarParPlanReal(z, f, conCtrl);
 
                 this.renderizarMatrizPlanRealZonas(this.cachePlanRealData.porZona || []);
                 this.renderizarMatrizPlanRealItems(this.cachePlanRealData.porItem || []);
@@ -1794,47 +1884,151 @@ class VentasResumenController {
             return;
         }
 
-        let zonaActiva = (this.planRealFiltroActivo?.zona || document.getElementById('select-zonafiscal')?.value || 'AREQUIPA').trim();
-        if (!zonaActiva || zonaActiva === 'TODO') {
-            zonaActiva = 'AREQUIPA';
+        const selecciones = this.planRealSelecciones || [];
+        const haySeleccion = selecciones.length > 0;
+        const grupos = [];
+
+        if (haySeleccion) {
+            const keys = new Set(selecciones.map(s => this.claveParPlanReal(s.zona, s.fecha)));
+            const filasSeleccionadas = filas.filter(f => !f.es_total && keys.has(this.claveParPlanReal(f.zona, f.fecha)));
+            const zonasMap = new Map();
+
+            filasSeleccionadas.forEach(r => {
+                const z = String(r.zona || '').trim();
+                if (!zonasMap.has(z)) zonasMap.set(z, []);
+                zonasMap.get(z).push(r);
+            });
+
+            zonasMap.forEach((rowsZona, zona) => {
+                const grupo = this.construirGrupoPlanRealItem(zona, rowsZona);
+                if (grupo.filas.length) grupos.push(grupo);
+            });
+        } else {
+            let zonaActiva = (document.getElementById('select-zonafiscal')?.value || 'AREQUIPA').trim();
+            if (!zonaActiva || zonaActiva === 'TODO') {
+                zonaActiva = 'AREQUIPA';
+            }
+
+            const rowsZona = filas.filter(f => !f.es_total && String(f.zona || '').trim() === zonaActiva);
+            const grupo = this.construirGrupoPlanRealItem(zonaActiva, rowsZona);
+            if (grupo.filas.length) grupos.push(grupo);
         }
 
-        const fechaActiva = this.planRealFiltroActivo?.fecha || null;
-
-        let baseItems = filas.filter(f => (f.zona || '').trim() === zonaActiva && !f.es_total);
-
-        if (fechaActiva) {
-            baseItems = baseItems.filter(f => f.fecha === fechaActiva);
-        }
-
-        if (baseItems.length === 0) {
+        if (grupos.length === 0) {
             tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-xs text-slate-400">Sin registros de items para la selección.</td></tr>`;
             return;
         }
 
+        const todasFilas = grupos.reduce((acc, g) => acc.concat(g.filas), []);
+        const maxPlan = Math.max(...todasFilas.map(f => f.plan_diario || 0), 1);
+        const maxReal = Math.max(...todasFilas.map(f => f.real_diario || 0), 1);
+        const totalGeneralPlan = grupos.reduce((acc, g) => acc + g.totalPlan, 0);
+        const totalGeneralReal = grupos.reduce((acc, g) => acc + g.totalReal, 0);
+
+        let html = '';
+
+        grupos.forEach(grupo => {
+            const conteoPorItem = {};
+            grupo.filas.forEach(r => {
+                const key = `${grupo.zona}|${r.coditem}`;
+                conteoPorItem[key] = (conteoPorItem[key] || 0) + 1;
+            });
+
+            const itemsRenderizados = new Set();
+            let zonaYaRenderizada = false;
+            const totalFilasZona = grupo.filas.length;
+
+            grupo.filas.forEach(r => {
+                const esTotal = !!r.es_total;
+
+                let celdaZona = '';
+                if (!zonaYaRenderizada) {
+                    zonaYaRenderizada = true;
+                    celdaZona = `
+                        <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top text-center uppercase tracking-wider text-[11px]">
+                            <div class="sticky top-[36px] z-10 py-1 inline-block font-bold text-slate-800">
+                                ${grupo.zona}
+                            </div>
+                        </td>
+                    `;
+                }
+
+                let celdaItem = '';
+                const itemKey = `${grupo.zona}|${r.coditem}`;
+                if (!itemsRenderizados.has(itemKey)) {
+                    itemsRenderizados.add(itemKey);
+                    const spanItem = conteoPorItem[itemKey];
+                    celdaItem = `
+                        <td rowspan="${spanItem}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-top text-left text-[11px]">
+                            <div class="sticky top-[36px] z-10 py-1 font-semibold text-slate-800">
+                                ${r.item}
+                            </div>
+                        </td>
+                    `;
+                }
+
+                const fechaTxt = esTotal ? 'Total' : this.formatearFechaCortaTableau(r.fecha);
+                const filaEstilo = esTotal
+                    ? 'bg-slate-50/80 font-bold border-b-2 border-slate-200 text-slate-800'
+                    : 'hover:bg-slate-50/60 border-b border-slate-100 text-slate-700';
+
+                html += `
+                    <tr class="${filaEstilo} text-[11px] transition-colors">
+                        ${celdaZona}
+                        ${celdaItem}
+                        <td class="px-3 py-1.5 whitespace-nowrap text-center font-medium border-r border-b border-slate-100 ${esTotal ? 'font-bold text-slate-900' : 'text-slate-600'}">
+                            ${fechaTxt}
+                        </td>
+                        <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
+                        <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
+                        <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaIndicador(r.ind_diario, esTotal)}</td>
+                    </tr>
+                `;
+            });
+        });
+
+        if (haySeleccion) {
+            const indGlobal = (totalGeneralPlan > 0) ? ((totalGeneralReal - totalGeneralPlan) / totalGeneralPlan) * 100 : 0;
+            html += `
+                <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-[11px]">
+                    <td colspan="3" class="px-3 py-2 text-left uppercase tracking-wider font-bold border-r border-b border-slate-200">
+                        Total general
+                    </td>
+                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaBarra(totalGeneralPlan, maxPlan, '#59a14f')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaBarra(totalGeneralReal, maxReal, '#4e79a7')}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaIndicador(indGlobal, true)}</td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+    }
+
+    construirGrupoPlanRealItem(zona, rows) {
         const itemsMap = new Map();
-        baseItems.forEach(r => {
+
+        (rows || []).forEach(r => {
             if (!itemsMap.has(r.coditem)) {
                 itemsMap.set(r.coditem, {
                     coditem: r.coditem,
                     item: r.item,
-                    zona: r.zona,
+                    zona,
                     dias: []
                 });
             }
             itemsMap.get(r.coditem).dias.push(r);
         });
 
-        let filasFinales = [];
-        let totalGeneralPlan = 0;
-        let totalGeneralReal = 0;
-
         const itemsOrdenados = Array.from(itemsMap.values()).sort((a, b) =>
-            a.coditem.localeCompare(b.coditem, undefined, { numeric: true })
+            String(a.coditem).localeCompare(String(b.coditem), undefined, { numeric: true })
         );
 
+        const filas = [];
+        let totalPlan = 0;
+        let totalReal = 0;
+
         itemsOrdenados.forEach(prod => {
-            prod.dias.sort((a, b) => a.fecha.localeCompare(b.fecha));
+            prod.dias.sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
 
             let subPlan = 0;
             let subReal = 0;
@@ -1842,19 +2036,19 @@ class VentasResumenController {
             prod.dias.forEach(d => {
                 subPlan += Number(d.plan_diario || 0);
                 subReal += Number(d.real_diario || 0);
-                filasFinales.push({
+                filas.push({
                     ...d,
                     es_total: false
                 });
             });
 
-            totalGeneralPlan += subPlan;
-            totalGeneralReal += subReal;
+            totalPlan += subPlan;
+            totalReal += subReal;
 
             const subInd = (subPlan > 0) ? ((subReal - subPlan) / subPlan) * 100 : 0;
 
-            filasFinales.push({
-                zona: prod.zona,
+            filas.push({
+                zona,
                 coditem: prod.coditem,
                 item: prod.item,
                 fecha: 'Total',
@@ -1865,80 +2059,7 @@ class VentasResumenController {
             });
         });
 
-        const maxPlan = Math.max(...filasFinales.map(f => f.plan_diario || 0), totalGeneralPlan, 1);
-        const maxReal = Math.max(...filasFinales.map(f => f.real_diario || 0), totalGeneralReal, 1);
-
-        const conteoPorItem = {};
-        filasFinales.forEach(f => {
-            conteoPorItem[f.coditem] = (conteoPorItem[f.coditem] || 0) + 1;
-        });
-
-        const totalFilasZona = filasFinales.length + (fechaActiva ? 1 : 0);
-        const itemsRenderizados = new Set();
-        let zonaYaRenderizada = false;
-
-        let html = filasFinales.map(r => {
-            const esTotal = r.es_total;
-
-            let celdaZona = '';
-            if (!zonaYaRenderizada) {
-                zonaYaRenderizada = true;
-                celdaZona = `
-                    <td rowspan="${totalFilasZona}" class="px-3 py-2 font-bold text-slate-800 bg-slate-50 border-r border-b border-slate-200 align-top text-center uppercase tracking-wider text-[11px]">
-                        <div class="sticky top-[36px] z-10 py-1 inline-block font-bold text-slate-800">
-                            ${r.zona}
-                        </div>
-                    </td>
-                `;
-            }
-
-            let celdaItem = '';
-            if (!itemsRenderizados.has(r.coditem)) {
-                itemsRenderizados.add(r.coditem);
-                const spanItem = conteoPorItem[r.coditem];
-                celdaItem = `
-                    <td rowspan="${spanItem}" class="px-3 py-2 font-semibold text-slate-800 bg-white border-r border-b-2 border-slate-200 align-top text-left text-[11px]">
-                        <div class="sticky top-[36px] z-10 py-1 font-semibold text-slate-800">
-                            ${r.item}
-                        </div>
-                    </td>
-                `;
-            }
-
-            const fechaTxt = esTotal ? 'Total' : this.formatearFechaCortaTableau(r.fecha);
-            const filaEstilo = esTotal
-                ? 'bg-slate-50/80 font-bold border-b-2 border-slate-200 text-slate-800'
-                : 'hover:bg-slate-50/60 border-b border-slate-100 text-slate-700';
-
-            return `
-                <tr class="${filaEstilo} text-[11px] transition-colors">
-                    ${celdaZona}
-                    ${celdaItem}
-                    <td class="px-3 py-1.5 whitespace-nowrap text-center font-medium border-r border-b border-slate-100 ${esTotal ? 'font-bold text-slate-900' : 'text-slate-600'}">
-                        ${fechaTxt}
-                    </td>
-                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.plan_diario, maxPlan, '#59a14f')}</td>
-                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaBarra(r.real_diario, maxReal, '#4e79a7')}</td>
-                    <td class="px-3 py-1.5 border-b border-slate-100">${this.generarCeldaIndicador(r.ind_diario, esTotal)}</td>
-                </tr>
-            `;
-        }).join('');
-
-        if (fechaActiva) {
-            const indGlobal = (totalGeneralPlan > 0) ? ((totalGeneralReal - totalGeneralPlan) / totalGeneralPlan) * 100 : 0;
-            html += `
-                <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-[11px]">
-                    <td colspan="2" class="px-3 py-2 text-left uppercase tracking-wider font-bold border-r border-b border-slate-200">
-                        Total
-                    </td>
-                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaBarra(totalGeneralPlan, maxPlan, '#59a14f')}</td>
-                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaBarra(totalGeneralReal, maxReal, '#4e79a7')}</td>
-                    <td class="px-3 py-1.5 border-b border-slate-200">${this.generarCeldaIndicador(indGlobal, true)}</td>
-                </tr>
-            `;
-        }
-
-        tbody.innerHTML = html;
+        return { zona, filas, totalPlan, totalReal };
     }
 
     formatearFechaCortaTableau(fechaStr) {

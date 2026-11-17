@@ -41,6 +41,48 @@ class TransportesRepo
     }
 
     /**
+     * Consulta métricas granulares para reproducir el filtro cruzado de Tableau.
+     * Permite recalcular Totales/Tendencia cuando el origen es una fila de HOJAS DE RUTA.
+     */
+    public function getMetricasGranulares(array $filtros): array
+    {
+        $fechaInicio = $filtros['fecha_inicio'] ?? date('Y-m-d', strtotime('-7 days'));
+        $fechaFin    = $filtros['fecha_fin'] ?? date('Y-m-d');
+
+        $sql = "SELECT
+                    fechaproceso,
+                    COALESCE(NULLIF(TRIM(zona), ''), 'SIN ZONA') AS zona,
+                    TRIM(transportista) AS transportista,
+                    TRIM(chofer) AS chofer,
+                    TRIM(placa) AS placa,
+                    LOWER(TRIM(validador)) AS validador,
+                    COUNT(*) AS conteo
+                FROM dmtransporte
+                WHERE fechaproceso BETWEEN :f_ini AND :f_fin
+                  AND validador IS NOT NULL
+                  AND TRIM(validador) != ''
+                GROUP BY fechaproceso,
+                         COALESCE(NULLIF(TRIM(zona), ''), 'SIN ZONA'),
+                         TRIM(transportista),
+                         TRIM(chofer),
+                         TRIM(placa),
+                         LOWER(TRIM(validador))
+                ORDER BY fechaproceso ASC,
+                         COALESCE(NULLIF(TRIM(zona), ''), 'SIN ZONA') ASC,
+                         TRIM(transportista) ASC,
+                         TRIM(chofer) ASC,
+                         TRIM(placa) ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([
+            ':f_ini' => $fechaInicio,
+            ':f_fin' => $fechaFin
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Consulta la tabla maestra Hojas de Ruta agrupando duplicados (Nivel 2)
      */
     public function getHojasRuta(array $filtros): array
@@ -125,6 +167,8 @@ class TransportesRepo
         $sql = "SELECT 
                     fechaproceso,
                     COALESCE(NULLIF(TRIM(zona), ''), 'SIN ZONA') AS zona,
+                    TRIM(transportista) AS transportista,
+                    TRIM(chofer) AS chofer,
                     TRIM(placa) AS placa,
                     dia,
                     hora,

@@ -24,7 +24,8 @@ window.ChartCostoFormulaPorTipoAABB = {
     containerRef: null,
     chartGeneralInstance: null,
     chartDetalleInstance: null,
-    fechaSeleccionada: null,
+    fechasSeleccionadas: [],
+    tiposSeleccionados: [],
 
     coloresTipo: {
         '21 PRE INICIO':     '#78b5e3', // Azul claro
@@ -54,6 +55,26 @@ window.ChartCostoFormulaPorTipoAABB = {
         }).format(val);
     },
 
+    alternarEnLista(lista, valor, aditivo) {
+        const existe = lista.includes(valor);
+
+        if (!aditivo) {
+            if (lista.length === 1 && existe) return [];
+            return [valor];
+        }
+
+        return existe ? lista.filter(v => v !== valor) : lista.concat([valor]);
+    },
+
+    colorConAlpha(hex, alpha) {
+        const limpio = String(hex || '').replace('#', '');
+        if (limpio.length !== 6) return hex;
+        const r = parseInt(limpio.slice(0, 2), 16);
+        const g = parseInt(limpio.slice(2, 4), 16);
+        const b = parseInt(limpio.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
     destroyCharts() {
         if (this.chartGeneralInstance) {
             this.chartGeneralInstance.destroy();
@@ -70,6 +91,9 @@ window.ChartCostoFormulaPorTipoAABB = {
         this.datosBackend = data || {};
         this.containerRef = (typeof targetContainer === 'string' ? document.getElementById(targetContainer) : targetContainer) 
             || document.getElementById('contenedor-graficos-lista');
+
+        this.fechasSeleccionadas = [];
+        this.tiposSeleccionados = [];
 
         this.destroyCharts();
         this.renderView();
@@ -88,6 +112,7 @@ window.ChartCostoFormulaPorTipoAABB = {
         const data = this.datosBackend || {};
         const generalData = data.alimento_general || [];
         const detalleData = data.alimento_detalle || [];
+        const detalleFiltrado = this.obtenerDetalleFiltrado();
         const resumen = data.resumen_general || {};
 
         if (generalData.length === 0 && detalleData.length === 0) {
@@ -102,7 +127,7 @@ window.ChartCostoFormulaPorTipoAABB = {
         }
 
         const minWidthGeneral = Math.max(900, generalData.length * 44);
-        const minWidthDetalle = this.getDetalleWidth(detalleData.length);
+        const minWidthDetalle = this.getDetalleWidth(detalleFiltrado.length);
 
         contenedor.innerHTML = `
             <div class="flex flex-col gap-6 w-full">
@@ -122,6 +147,10 @@ window.ChartCostoFormulaPorTipoAABB = {
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
+                            <button id="btn-ver-todas-fechas-aabb" type="button"
+                                class="hidden text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2.5 py-1 transition-colors cursor-pointer">
+                                Ver todas las fechas
+                            </button>
                             <div class="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
                                 <span class="text-slate-500">Mín: <strong class="text-emerald-600">${this.formatDecimal(resumen.min_pu, 3)}</strong></span>
                                 <span class="text-slate-300">|</span>
@@ -177,6 +206,10 @@ window.ChartCostoFormulaPorTipoAABB = {
                         <!-- LEYENDA DE TIPOS DE ALIMENTO TABLEAU -->
                         <div class="mt-4 pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-slate-700 select-none">
                             <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">tipo:</span>
+                            <button id="btn-ver-todos-tipos-aabb" type="button"
+                                class="hidden text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md px-2.5 py-1 transition-colors cursor-pointer">
+                                Ver todos los tipos
+                            </button>
                             ${this.renderLeyendaTipos()}
                         </div>
                     </div>
@@ -186,18 +219,20 @@ window.ChartCostoFormulaPorTipoAABB = {
         `;
 
         this.initChartGeneral(generalData);
-        this.initChartDetalle(detalleData);
+        this.initChartDetalle(detalleFiltrado);
         this.setupEventListeners();
+        this.actualizarEstadoSeleccion();
     },
 
     renderLeyendaTipos() {
         return Object.entries(this.coloresTipo)
             .filter(([k]) => k !== 'SIN TIPO')
             .map(([tipo, color]) => `
-                <div class="flex items-center gap-1.5">
+                <button type="button" data-tipo="${tipo}"
+                    class="leyenda-tipo flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-all cursor-pointer hover:bg-slate-100">
                     <span class="w-3 h-3 rounded-xs inline-block" style="background-color: ${color};"></span>
                     <span class="text-[11px] font-semibold text-slate-700">${tipo}</span>
-                </div>
+                </button>
             `).join('');
     },
 
@@ -250,9 +285,9 @@ window.ChartCostoFormulaPorTipoAABB = {
                     fill: false,
                     tension: 0.1,
                     pointBackgroundColor: pointColors,
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 1.5,
-                    pointRadius: 4.5,
+                    pointBorderColor: generalData.map(d => this.fechasSeleccionadas.includes(d.fecha) ? '#0f172a' : '#ffffff'),
+                    pointBorderWidth: generalData.map(d => this.fechasSeleccionadas.includes(d.fecha) ? 2.5 : 1.5),
+                    pointRadius: generalData.map(d => this.fechasSeleccionadas.length === 0 ? 4.5 : (this.fechasSeleccionadas.includes(d.fecha) ? 7 : 3)),
                     pointHoverRadius: 7,
                     pointHoverBackgroundColor: '#2563eb'
                 }]
@@ -331,7 +366,9 @@ window.ChartCostoFormulaPorTipoAABB = {
                         const idx = elements[0].index;
                         const pt = generalData[idx];
                         if (pt && pt.fecha) {
-                            this.onFechaGeneralClick(pt.fecha);
+                            const native = event?.native || event;
+                            const aditivo = !!(native && (native.ctrlKey || native.metaKey));
+                            this.onFechaGeneralClick(pt.fecha, aditivo);
                         }
                     }
                 }
@@ -373,7 +410,7 @@ window.ChartCostoFormulaPorTipoAABB = {
         // Generate unique category labels per bar to prevent Chart.js from grouping same-date items
         const labels = detalleData.map((d, i) => `${i}__${d.fecha}`);
         const dataValues = detalleData.map(d => d.pu);
-        const bgColors = detalleData.map(d => this.coloresTipo[d.tipo] || '#94a3b8');
+        const bgColors = this.calcularColoresDetalle(detalleData);
 
         const self = this;
         const itemHeadersPlugin = {
@@ -510,6 +547,16 @@ window.ChartCostoFormulaPorTipoAABB = {
                         formatter: (val) => val ? self.formatDecimal(val, 3) : ''
                     }
                 },
+                onClick: (event, elements) => {
+                    if (!elements || elements.length === 0) return;
+
+                    const d = detalleData[elements[0].index];
+                    if (!d || !d.tipo) return;
+
+                    const native = event?.native || event;
+                    const aditivo = !!(native && (native.ctrlKey || native.metaKey));
+                    this.onTipoClick(d.tipo, aditivo);
+                },
                 scales: {
                     x: {
                         grid: { display: false },
@@ -551,23 +598,105 @@ window.ChartCostoFormulaPorTipoAABB = {
         });
     },
 
-    onFechaGeneralClick(fecha) {
-        if (this.fechaSeleccionada === fecha) {
-            this.fechaSeleccionada = null; // Toggle off
-        } else {
-            this.fechaSeleccionada = fecha;
-        }
+    obtenerDetalleFiltrado() {
+        const detalle = this.datosBackend?.alimento_detalle || [];
+        if (!this.fechasSeleccionadas.length) return detalle;
 
-        const detalleData = this.datosBackend.alimento_detalle || [];
-        const filtered = this.fechaSeleccionada 
-            ? detalleData.filter(d => d.fecha === this.fechaSeleccionada)
-            : detalleData;
+        const seleccion = new Set(this.fechasSeleccionadas);
+        return detalle.filter(d => seleccion.has(d.fecha));
+    },
+
+    onFechaGeneralClick(fecha, aditivo = false) {
+        this.fechasSeleccionadas = this.alternarEnLista(this.fechasSeleccionadas, fecha, aditivo);
+        this.actualizarEstilosGeneral();
+        this.reiniciarDetalle();
+        this.actualizarEstadoSeleccion();
+    },
+
+    onTipoClick(tipo, aditivo = false) {
+        this.tiposSeleccionados = this.alternarEnLista(this.tiposSeleccionados, tipo, aditivo);
+        this.actualizarColoresDetalle();
+        this.actualizarEstadoSeleccion();
+    },
+
+    calcularColoresDetalle(detalleData) {
+        return detalleData.map(d => {
+            const base = this.coloresTipo[d.tipo] || '#94a3b8';
+            if (this.tiposSeleccionados.length === 0) return base;
+            return this.tiposSeleccionados.includes(d.tipo) ? base : this.colorConAlpha(base, 0.18);
+        });
+    },
+
+    actualizarColoresDetalle() {
+        const instancia = this.chartDetalleInstance;
+        if (!instancia) return;
+
+        const detalleData = this.obtenerDetalleFiltrado();
+        const colores = this.calcularColoresDetalle(detalleData);
+        const dataset = instancia.data.datasets[0];
+
+        if (!dataset) return;
+
+        dataset.backgroundColor = colores;
+        dataset.borderColor = colores;
+        instancia.update();
+    },
+
+    reiniciarDetalle() {
+        const filtrado = this.obtenerDetalleFiltrado();
 
         if (this.chartDetalleInstance) {
             this.chartDetalleInstance.destroy();
             this.chartDetalleInstance = null;
         }
-        this.initChartDetalle(filtered);
+
+        this.initChartDetalle(filtrado);
+    },
+
+    actualizarEstilosGeneral() {
+        const instancia = this.chartGeneralInstance;
+        if (!instancia) return;
+
+        const generalData = this.datosBackend?.alimento_general || [];
+        const seleccion = new Set(this.fechasSeleccionadas);
+        const dataset = instancia.data.datasets[0];
+
+        if (!dataset) return;
+
+        dataset.pointBorderColor = generalData.map(d => seleccion.has(d.fecha) ? '#0f172a' : '#ffffff');
+        dataset.pointBorderWidth = generalData.map(d => seleccion.has(d.fecha) ? 2.5 : 1.5);
+        dataset.pointRadius = generalData.map(d => {
+            if (!this.fechasSeleccionadas.length) return 4.5;
+            return seleccion.has(d.fecha) ? 7 : 3;
+        });
+
+        instancia.update();
+    },
+
+    actualizarEstadoSeleccion() {
+        const btnFechas = document.getElementById('btn-ver-todas-fechas-aabb');
+        if (btnFechas) {
+            const n = this.fechasSeleccionadas.length;
+            btnFechas.classList.toggle('hidden', n === 0);
+            if (n > 0) btnFechas.textContent = `Ver todas las fechas (${n})`;
+        }
+
+        const btnTipos = document.getElementById('btn-ver-todos-tipos-aabb');
+        if (btnTipos) {
+            const n = this.tiposSeleccionados.length;
+            btnTipos.classList.toggle('hidden', n === 0);
+            if (n > 0) btnTipos.textContent = `Ver todos los tipos (${n})`;
+        }
+
+        document.querySelectorAll('.leyenda-tipo').forEach(el => {
+            const tipo = el.getAttribute('data-tipo');
+            const seleccionado = this.tiposSeleccionados.includes(tipo);
+
+            el.classList.toggle('bg-blue-100', seleccionado);
+            el.classList.toggle('ring-1', seleccionado);
+            el.classList.toggle('ring-blue-400', seleccionado);
+            el.classList.toggle('opacity-40', this.tiposSeleccionados.length > 0 && !seleccionado);
+        });
     },
 
     setupEventListeners() {
@@ -578,6 +707,32 @@ window.ChartCostoFormulaPorTipoAABB = {
                 this.exportarExcel();
             };
         }
+
+        const btnFechas = document.getElementById('btn-ver-todas-fechas-aabb');
+        if (btnFechas) {
+            btnFechas.onclick = () => {
+                this.fechasSeleccionadas = [];
+                this.actualizarEstilosGeneral();
+                this.reiniciarDetalle();
+                this.actualizarEstadoSeleccion();
+            };
+        }
+
+        const btnTipos = document.getElementById('btn-ver-todos-tipos-aabb');
+        if (btnTipos) {
+            btnTipos.onclick = () => {
+                this.tiposSeleccionados = [];
+                this.actualizarColoresDetalle();
+                this.actualizarEstadoSeleccion();
+            };
+        }
+
+        document.querySelectorAll('.leyenda-tipo').forEach(el => {
+            el.onclick = (event) => {
+                const tipo = el.getAttribute('data-tipo');
+                this.onTipoClick(tipo, event.ctrlKey || event.metaKey);
+            };
+        });
     },
 
     exportarExcel() {
