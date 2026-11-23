@@ -641,7 +641,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderizarInputsFecha() {
         const hoy = new Date();
-        const haceUnAnio = new Date(hoy.getFullYear() - 1, hoy.getMonth(), hoy.getDate());
+        const haceUnAnio = new Date(hoy);
+        haceUnAnio.setFullYear(hoy.getFullYear() - 1);
         const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
         const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
 
@@ -650,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elDesde && elHasta) {
             if (!elDesde.value) elDesde.value = formatISOFecha(haceUnAnio);
             if (!elHasta.value) elHasta.value = formatISOFecha(hoy);
+            actualizarTextoResumenPeriodo();
             return;
         }
         if (!contenedorFechasDinamicas) return;
