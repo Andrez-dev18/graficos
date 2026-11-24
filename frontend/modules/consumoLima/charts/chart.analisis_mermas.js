@@ -422,6 +422,16 @@ window.ChartAnalisisMermas = {
         `;
     },
 
+    _exportButtonHtml(tableId, nombre, total) {
+        if (!total || typeof ExcelExportHelper === 'undefined') return '';
+
+        return `
+            <div data-export-table="${tableId}" data-export-name="${nombre}">
+                ${ExcelExportHelper.getBotonHtml(`btn-export-${tableId}`, 'Excel')}
+            </div>
+        `;
+    },
+
     _tablaTop() {
         const payload = this.datos?.mes_glo || { filas: [], total_general: {} };
         const meses = Array.isArray(this.datos?.meses) ? this.datos.meses : [];
@@ -451,11 +461,12 @@ window.ChartAnalisisMermas = {
 
         return `
             <section class="bg-white rounded-xl shadow-sm border border-slate-200/80 flex flex-col min-h-0 overflow-hidden">
-                <div class="shrink-0 px-4 py-2 border-b border-slate-200">
+                <div class="shrink-0 px-4 py-2 border-b border-slate-200 flex items-center justify-between gap-2">
                     <h2 class="text-[13px] font-bold tracking-tight" style="color:${this._titulo('mes_glo')};">Mermas Por Mes</h2>
+                    ${this._exportButtonHtml('tabla-mermas-mes-glo', 'MermasPorMes', filas.length)}
                 </div>
                 <div class="flex-1 min-h-0 overflow-auto custom-scrollbar">
-                    <table class="text-left border-collapse" style="table-layout:fixed;width:${267 + meses.length * 160}px;">
+                    <table id="tabla-mermas-mes-glo" class="text-left border-collapse" style="table-layout:fixed;width:${267 + meses.length * 160}px;">
                         <colgroup>
                             <col style="width:82px;">
                             <col style="width:125px;">
@@ -506,13 +517,17 @@ window.ChartAnalisisMermas = {
 
         const totalGeneral = this._totalGeneral(periodos, payload.total_general, colspanDims);
 
+        const tableId = `tabla-mermas-${tipo.replace(/_/g, '-')}`;
+        const nombreExport = tipo === 'mes_lote' ? 'MermasPorMesLote' : 'MermasPorDiaLote';
+
         return `
             <section class="bg-white rounded-xl shadow-sm border border-slate-200/80 flex flex-col min-h-0 overflow-hidden">
-                <div class="shrink-0 px-4 py-2 border-b border-slate-200">
+                <div class="shrink-0 px-4 py-2 border-b border-slate-200 flex items-center justify-between gap-2">
                     <h2 class="text-[13px] font-bold tracking-tight" style="color:${this._titulo(tipo)};">${this.escapeHtml(titulo)}</h2>
+                    ${this._exportButtonHtml(tableId, nombreExport, filas.length)}
                 </div>
                 <div class="flex-1 min-h-0 overflow-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse" style="table-layout:fixed;min-width:${620 + periodos.length * 130}px;">
+                    <table id="${tableId}" class="w-full text-left border-collapse" style="table-layout:fixed;min-width:${620 + periodos.length * 130}px;">
                         <colgroup>
                             <col style="width:76px;">
                             <col style="width:110px;">

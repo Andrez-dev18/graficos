@@ -149,6 +149,24 @@ class ConsumoLimaController {
             if (label) label.textContent = oculto ? 'Mostrar filtros' : 'Ocultar filtros';
             if (icon) icon.style.transform = oculto ? 'rotate(180deg)' : 'rotate(0deg)';
         });
+
+        this._bindExportEvents();
+    }
+
+    _bindExportEvents() {
+        if (this._exportBound || !this.contenedorGraficos) return;
+        this._exportBound = true;
+
+        this.contenedorGraficos.addEventListener('click', event => {
+            const contenedorExport = event.target.closest?.('[data-export-table]');
+            if (!contenedorExport) return;
+
+            const tableId = contenedorExport.dataset.exportTable;
+            const nombre = contenedorExport.dataset.exportName;
+            if (tableId && typeof ExcelExportHelper !== 'undefined') {
+                ExcelExportHelper.exportarTabla(tableId, nombre || tableId);
+            }
+        });
     }
 
     async cargarFiltros() {

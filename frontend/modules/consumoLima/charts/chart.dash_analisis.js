@@ -463,7 +463,7 @@ window.ChartConsumoLimaDashAnalisis = {
 
         return `
             <div class="flex-1 min-h-0 overflow-auto custom-scrollbar">
-                <table class="w-full text-left border-collapse" style="table-layout:fixed;min-width:${esComprasAlmacen ? 780 : 700}px;">
+                <table id="tabla-consumo-${tipo}" class="w-full text-left border-collapse" style="table-layout:fixed;min-width:${esComprasAlmacen ? 780 : 700}px;">
                     <colgroup>
                         <col style="width:74px;">
                         <col style="width:68px;">
@@ -547,7 +547,7 @@ window.ChartConsumoLimaDashAnalisis = {
 
         return `
             <div class="flex-1 min-h-0 overflow-auto custom-scrollbar">
-                <table class="w-full text-left border-collapse" style="table-layout:fixed;min-width:1130px;">
+                <table id="tabla-consumo-compras_documentos" class="w-full text-left border-collapse" style="table-layout:fixed;min-width:1130px;">
                     <colgroup>
                         <col style="width:64px;">
                         <col style="width:96px;">
@@ -565,7 +565,7 @@ window.ChartConsumoLimaDashAnalisis = {
                         </tr>
                     </thead>
                     <tbody>${body}</tbody>
-                    <tfoot>
+                    <tfoot class="no-export">
                         <tr>
                             <td colspan="4" class="px-1 pt-1 pb-1 border-t border-slate-200" style="position:sticky;bottom:0;left:0;z-index:31;background:#fff;"></td>
                             ${footerMedidas}
@@ -602,6 +602,23 @@ window.ChartConsumoLimaDashAnalisis = {
         `;
     },
 
+    _exportButtonHtml(tipo, total) {
+        if (!total || typeof ExcelExportHelper === 'undefined') return '';
+
+        const nombres = {
+            consumos: 'Consumos',
+            compras_almacen: 'ComprasAlmacen',
+            compras_documentos: 'DocumentosCompras'
+        };
+        const tableId = `tabla-consumo-${tipo}`;
+
+        return `
+            <div data-export-table="${tableId}" data-export-name="${nombres[tipo] || tipo}">
+                ${ExcelExportHelper.getBotonHtml(`btn-export-${tipo}`, 'Excel')}
+            </div>
+        `;
+    },
+
     _renderCard(tipo) {
         const config = this._config[tipo];
         const payload = this.datos[tipo] || { filas: [], total: 0, page: 1, page_size: 50, total_paginas: 0 };
@@ -612,7 +629,10 @@ window.ChartConsumoLimaDashAnalisis = {
             <section id="consumo-card-${tipo}" class="bg-white rounded-xl shadow-sm border border-slate-200/80 flex flex-col min-h-0 ${esDocumentos ? 'xl:col-span-2' : ''}">
                 <div class="shrink-0 px-3 py-2 border-b border-slate-200 flex items-center justify-between gap-2">
                     <h2 class="text-[12px] font-bold tracking-tight" style="color:${config.color};">${config.titulo}</h2>
-                    <span class="text-[9px] font-semibold text-slate-400">${total.toLocaleString('es-PE')} registros</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-semibold text-slate-400">${total.toLocaleString('es-PE')} registros</span>
+                        ${this._exportButtonHtml(tipo, total)}
+                    </div>
                 </div>
                 ${esDocumentos ? this._tablaDocumentos() : this._tablaConsumos(tipo)}
                 ${this._renderPaginacion(tipo, payload)}
