@@ -33,6 +33,73 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        .antena-fila-activa > td {
+            background-color: #eff6ff !important;
+        }
+
+        .antena-fila-activa > td.antena-sticky,
+        .antena-grupo-activo {
+            background-color: #dbeafe !important;
+        }
+
+        .antena-col-activa {
+            background-color: #dbeafe !important;
+        }
+
+        .antena-sticky-last {
+            box-shadow: 3px 0 6px -2px rgba(15, 23, 42, 0.18);
+        }
+
+        .antena-fin-hora {
+            border-right-width: 2px !important;
+            border-right-color: #cbd5e1 !important;
+        }
+
+        th.antena-col-activa {
+            background-color: #1d4ed8 !important;
+            color: #ffffff !important;
+        }
+
+        th.antena-fecha-activa {
+            background-color: #1e40af !important;
+            color: #ffffff !important;
+        }
+
+        .antena-foco-fila > td {
+            background-color: #dbeafe !important;
+        }
+
+        .antena-foco-fila > td.antena-sticky,
+        .antena-foco-grupo {
+            background-color: #bfdbfe !important;
+        }
+
+        .antena-foco-col {
+            background-color: #bfdbfe !important;
+        }
+
+        th.antena-foco-col {
+            background-color: #1d4ed8 !important;
+            color: #ffffff !important;
+        }
+
+        th.antena-foco-fecha {
+            background-color: #1e40af !important;
+            color: #ffffff !important;
+        }
+
+        .antena-celda-foco {
+            outline: 2px solid #0f172a;
+            outline-offset: 1px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(15, 23, 42, 0.35);
+        }
+
+        .antena-contexto-fijo {
+            background-color: #eff6ff !important;
+            border-color: #bfdbfe !important;
+            color: #1e3a8a !important;
+        }
     </style>
 </head>
 
@@ -92,6 +159,48 @@
                     </div>
                     <div id="contenedor-inputs-periodo" class="flex items-end gap-2"></div>
 
+                    <div class="flex flex-col">
+                        <label for="select-filtro-granja"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">GRANJA</label>
+                        <select id="select-filtro-granja"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[170px]">
+                            <option value="">Todas las granjas</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-filtro-antena"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ANTENA</label>
+                        <select id="select-filtro-antena"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[170px]">
+                            <option value="">Todas las antenas</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="select-filtro-estado"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">ESTADO</label>
+                        <select id="select-filtro-estado"
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer min-w-[150px]">
+                            <option value="todos">Todos</option>
+                            <option value="fallas">Solo fallas</option>
+                            <option value="conectados">Solo conectados</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label for="input-busqueda-antena"
+                            class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5">BUSCAR</label>
+                        <input id="input-busqueda-antena" type="text" placeholder="Granja o antena..."
+                            class="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-w-[170px]">
+                    </div>
+
+                    <button id="btn-limpiar-vista" type="button" title="Limpia solo los filtros de vista"
+                        class="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-lg border border-slate-200 transition-all cursor-pointer">
+                        <i class="fa-solid fa-filter-circle-xmark"></i>
+                        <span>Limpiar vista</span>
+                    </button>
+
                     <div class="flex items-center gap-2 ml-auto">
                         <button id="btn-cargar" type="button"
                             class="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-lg shadow-md shadow-blue-500/20 transition-all cursor-pointer">
@@ -116,8 +225,8 @@
     <script src="../../assets/utils-graficos/periodo-helper.js?v=20261028_1"></script>
     <script src="../../assets/utils-graficos/loading-helper.js?v=20261117_2"></script>
     <script src="antenas.service.js?v=20261125_1"></script>
-    <script src="charts/chart.conectividad.js?v=20261125_2"></script>
-    <script src="antenas.controller.js?v=20261125_2"></script>
+    <script src="charts/chart.conectividad.js?v=20261125_8"></script>
+    <script src="antenas.controller.js?v=20261125_4"></script>
 </body>
 
 </html>

@@ -5,6 +5,13 @@ class AntenasController {
         this.datos = null;
         this.pageSizeDias = 7;
         this.page = 1;
+        this.filtrosVista = {
+            granja: '',
+            antena: '',
+            estado: 'todos',
+            busqueda: ''
+        };
+        this._busquedaTimer = null;
         this.init();
     }
 
@@ -35,6 +42,11 @@ class AntenasController {
         this.contenedorGraficos = document.getElementById('contenedor-antenas');
         this.btnCargar = document.getElementById('btn-cargar');
         this.btnLimpiar = document.getElementById('btn-limpiar');
+        this.selectFiltroGranja = document.getElementById('select-filtro-granja');
+        this.selectFiltroAntena = document.getElementById('select-filtro-antena');
+        this.selectFiltroEstado = document.getElementById('select-filtro-estado');
+        this.inputBusquedaAntena = document.getElementById('input-busqueda-antena');
+        this.btnLimpiarVista = document.getElementById('btn-limpiar-vista');
         this.mensajeError = document.getElementById('mensaje-error');
     }
 
@@ -69,6 +81,132 @@ class AntenasController {
             if (label) label.textContent = oculto ? 'Mostrar filtros' : 'Ocultar filtros';
             if (icon) icon.style.transform = oculto ? 'rotate(180deg)' : 'rotate(0deg)';
         });
+
+        this.selectFiltroGranja?.addEventListener('change', event => {
+            this.filtrosVista.granja = event.target.value || '';
+            this.filtrosVista.antena = '';
+            this._poblarFiltroAntenas();
+            this._actualizarVista();
+        });
+
+        this.selectFiltroAntena?.addEventListener('change', event => {
+            this.filtrosVista.antena = event.target.value || '';
+            this._actualizarVista();
+        });
+
+        this.selectFiltroEstado?.addEventListener('change', event => {
+            this.filtrosVista.estado = event.target.value || 'todos';
+            this._actualizarVista();
+        });
+
+        this.inputBusquedaAntena?.addEventListener('input', event => {
+            this.filtrosVista.busqueda = event.target.value || '';
+            clearTimeout(this._busquedaTimer);
+            this._busquedaTimer = setTimeout(() => this._actualizarVista(), 200);
+        });
+
+        this.btnLimpiarVista?.addEventListener('click', () => {
+            clearTimeout(this._busquedaTimer);
+            this._resetFiltrosVista();
+            this._poblarFiltroAntenas();
+            this._actualizarVista();
+        });
+
+        this._bindVistaEvents();
+    }
+
+    _bindVistaEvents() {
+        if (this._vistaBound || !this.contenedorGraficos) return;
+        this._vistaBound = true;
+
+        this.contenedorGraficos.addEventListener('click', event => {
+            const boton = event.target.closest?.('[data-antenas-solo-fallas]');
+            if (!boton) return;
+
+            this.filtrosVista.estado = 'fallas';
+            if (this.selectFiltroEstado) this.selectFiltroEstado.value = 'fallas';
+            this._actualizarVista();
+        });
+    }
+
+    _resetFiltrosVista() {
+        this.filtrosVista = {
+            granja: '',
+            antena: '',
+            estado: 'todos',
+            busqueda: ''
+        };
+
+        if (this.selectFiltroGranja) this.selectFiltroGranja.value = '';
+        if (this.selectFiltroAntena) this.selectFiltroAntena.value = '';
+        if (this.selectFiltroEstado) this.selectFiltroEstado.value = 'todos';
+        if (this.inputBusquedaAntena) this.inputBusquedaAntena.value = '';
+    }
+
+    _valoresUnicos(campo) {
+        const valores = [];
+        const vistos = new Set();
+
+        (this.datos?.filas || []).forEach(fila => {
+            const valor = fila?.[campo];
+            if (!valor || vistos.has(valor)) return;
+            vistos.add(valor);
+            valores.push(valor);
+        });
+
+        return valores;
+    }
+
+    _llenarSelect(select, opciones, valorActual, textoInicial) {
+        if (!select) return;
+
+        select.innerHTML = '';
+        select.add(new Option(textoInicial, ''));
+        opciones.forEach(opcion => select.add(new Option(opcion, opcion)));
+        select.value = opciones.includes(valorActual) ? valorActual : '';
+    }
+
+    _poblarFiltroGranjas() {
+        const granjas = this._valoresUnicos('granja');
+        const actual = granjas.includes(this.filtrosVista.granja) ? this.filtrosVista.granja : '';
+        this.filtrosVista.granja = actual;
+        this._llenarSelect(this.selectFiltroGranja, granjas, actual, 'Todas las granjas');
+    }
+
+    _poblarFiltroAntenas() {
+        const granja = this.filtrosVista.granja;
+        const filas = (this.datos?.filas || []).filter(fila => !granja || fila.granja === granja);
+        const antenas = [];
+        const vistos = new Set();
+
+        filas.forEach(fila => {
+            if (!fila.antena || vistos.has(fila.antena)) return;
+            vistos.add(fila.antena);
+            antenas.push(fila.antena);
+        });
+
+        const actual = antenas.includes(this.filtrosVista.antena) ? this.filtrosVista.antena : '';
+        this.filtrosVista.antena = actual;
+        this._llenarSelect(this.selectFiltroAntena, antenas, actual, 'Todas las antenas');
+    }
+
+    _actualizarOpcionesFiltros() {
+        this._poblarFiltroGranjas();
+        this._poblarFiltroAntenas();
+
+        if (this.selectFiltroEstado) {
+            this.selectFiltroEstado.value = this.filtrosVista.estado;
+        }
+
+        if (this.inputBusquedaAntena) {
+            this.inputBusquedaAntena.value = this.filtrosVista.busqueda;
+        }
+    }
+
+    _actualizarVista() {
+        const chart = window.ChartRegistry?.['ConectividadAntenas'];
+        if (!chart || typeof chart.render !== 'function' || !this.datos) return;
+        chart.render(this, this.datos, this.contenedorGraficos);
     }
 
     async cargarDashboard(page = 1) {
@@ -113,6 +251,7 @@ class AntenasController {
 
             this.datos = respuesta.payload;
             this.page = Number(this.datos?.page || this.page);
+            this._actualizarOpcionesFiltros();
 
             if (typeof LoadingHelper !== 'undefined') {
                 LoadingHelper.ocultarEnContenedor('contenedor-antenas');
@@ -159,6 +298,8 @@ class AntenasController {
             PeriodoHelper.renderizarInputs();
         }
 
+        clearTimeout(this._busquedaTimer);
+        this._resetFiltrosVista();
         this.page = 1;
         this.cargarDashboard(1);
     }
