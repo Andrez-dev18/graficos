@@ -11,6 +11,9 @@ class ConsumoLimaController {
             selecciones_mes_glo: [],
             selecciones_mes_lote: []
         };
+        this._seleccionesDocumentos = [];
+        this._origenDocumentos = '';
+        this._filtroDocumentosToken = 0;
         this._defaults = {
             almacen: 'MA1',
             articulo: 'M0000001',
@@ -265,6 +268,9 @@ class ConsumoLimaController {
             selecciones_mes_glo: [],
             selecciones_mes_lote: []
         };
+        this._seleccionesDocumentos = [];
+        this._origenDocumentos = '';
+        this._filtroDocumentosToken += 1;
 
         if (this.chartTipoActual === 'AnalisisMermas') {
             const chartMermasAnterior = window.ChartRegistry?.['AnalisisMermas'];
@@ -382,6 +388,76 @@ class ConsumoLimaController {
         }
     }
 
+    async aplicarFiltroDocumentos(documentos = [], origen = '') {
+        if (this.chartTipoActual !== 'DashAnalisis') return;
+        if (this.cargando || !this._payloadActual) return;
+
+        const selecciones = Array.from(new Set(
+            (Array.isArray(documentos) ? documentos : [])
+                .map(documento => String(documento))
+                .filter(documento => /^\d+$/.test(documento) && Number(documento) > 0)
+        ));
+        const origenValido = selecciones.length && ['consumos', 'compras_almacen'].includes(origen)
+            ? origen
+            : '';
+
+        this._seleccionesDocumentos = selecciones;
+        this._origenDocumentos = origenValido;
+
+        const token = this._filtroDocumentosToken + 1;
+        this._filtroDocumentosToken = token;
+        this.limpiarError();
+
+        const base = { ...this._payloadActual };
+        const paginaOrigen = selecciones.length
+            ? Math.max(1, Number(this.datos?.[origenValido]?.page || 1))
+            : 1;
+        const payloadTabla = tipo => {
+            const esOrigen = Boolean(selecciones.length && tipo === origenValido);
+            const payload = {
+                ...base,
+                page: esOrigen ? paginaOrigen : 1,
+                page_size: this.pageSize
+            };
+
+            if (selecciones.length && !esOrigen) {
+                payload.documentos = selecciones;
+            }
+
+            return payload;
+        };
+
+        try {
+            const [consumos, comprasAlmacen, comprasDocumentos] = await Promise.all([
+                this.service.obtenerConsumos(payloadTabla('consumos')),
+                this.service.obtenerComprasAlmacen(payloadTabla('compras_almacen')),
+                this.service.obtenerComprasDocumentos(payloadTabla('compras_documentos'))
+            ]);
+
+            if (token !== this._filtroDocumentosToken) return;
+
+            const error = [consumos, comprasAlmacen, comprasDocumentos].find(respuesta => !respuesta.success);
+            if (error) {
+                throw new Error(error.message || 'No se pudo aplicar el filtro por documento.');
+            }
+
+            this.datos = {
+                consumos: consumos.payload,
+                compras_almacen: comprasAlmacen.payload,
+                compras_documentos: comprasDocumentos.payload
+            };
+
+            const chart = window.ChartRegistry?.['DashAnalisis'];
+            if (chart && typeof chart.render === 'function') {
+                chart.render(this, this.datos, this.contenedorGraficos);
+            }
+        } catch (error) {
+            if (token === this._filtroDocumentosToken) {
+                this.mostrarError(error.message || 'No se pudo aplicar el filtro por documento.');
+            }
+        }
+    }
+
     async cambiarPagina(tipo, page) {
         if (this.chartTipoActual !== 'DashAnalisis') return;
         if (this.cargandoPagina || this.cargando || !this._payloadActual) return;
@@ -405,8 +481,12 @@ class ConsumoLimaController {
         this.limpiarError();
 
         try {
+            const documentos = (this._seleccionesDocumentos.length && tipo !== this._origenDocumentos)
+                ? this._seleccionesDocumentos
+                : null;
             const respuesta = await this.service[metodo]({
                 ...this._payloadActual,
+                ...(documentos ? { documentos } : {}),
                 page: pagina,
                 page_size: this.pageSize
             });

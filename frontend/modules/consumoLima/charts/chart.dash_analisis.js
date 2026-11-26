@@ -14,6 +14,7 @@ window.ChartConsumoLimaDashAnalisis = {
     _tooltipGlobalBound: false,
     _tooltipAbort: null,
     _paginationBound: false,
+    _selectionBound: false,
 
     _config: {
         consumos: {
@@ -41,6 +42,7 @@ window.ChartConsumoLimaDashAnalisis = {
         this._inicializarTooltip();
         this._bindTooltipEvents();
         this._bindPaginationEvents();
+        this._bindSelectionEvents();
         this.renderView();
     },
 
@@ -308,6 +310,89 @@ window.ChartConsumoLimaDashAnalisis = {
         });
     },
 
+    _documentosSeleccionados() {
+        return Array.isArray(this.controllerRef?._seleccionesDocumentos)
+            ? this.controllerRef._seleccionesDocumentos
+            : [];
+    },
+
+    _documentoSeleccionado(documento) {
+        const valor = String(documento ?? '');
+        return valor !== '' && this._documentosSeleccionados().includes(valor);
+    },
+
+    _documentoSeleccionable(fila) {
+        const documento = Number(fila?.documento);
+        return Number.isFinite(documento) && documento > 0;
+    },
+
+    _bindSelectionEvents() {
+        if (this._selectionBound || !this.containerRef) return;
+        this._selectionBound = true;
+
+        this.containerRef.addEventListener('click', event => {
+            const limpiar = event.target.closest?.('[data-doc-clear]');
+            if (limpiar) {
+                this.controllerRef?.aplicarFiltroDocumentos?.([], '');
+                return;
+            }
+
+            const celda = event.target.closest?.('[data-doc-select]');
+            if (!celda) return;
+
+            const documento = String(celda.dataset.docValue || '');
+            const tipo = celda.dataset.docTipo || '';
+            if (!documento || documento === '0') return;
+
+            const actuales = this._documentosSeleccionados().slice();
+            const existe = actuales.includes(documento);
+            const conCtrl = event.ctrlKey || event.metaKey;
+            let selecciones;
+
+            if (conCtrl) {
+                selecciones = existe
+                    ? actuales.filter(item => item !== documento)
+                    : actuales.concat([documento]);
+            } else {
+                selecciones = existe && actuales.length === 1 ? [] : [documento];
+            }
+
+            this.controllerRef?.aplicarFiltroDocumentos?.(
+                selecciones,
+                selecciones.length ? tipo : ''
+            );
+        });
+    },
+
+    _chipSeleccion() {
+        const selecciones = this._documentosSeleccionados();
+        if (!selecciones.length) return '';
+
+        const origen = this.controllerRef?._origenDocumentos === 'consumos'
+            ? 'Consumos'
+            : 'ComprasAlmacén';
+        const visibles = selecciones.slice(0, 5).map(documento => this.escapeHtml(documento)).join(', ');
+        const restantes = selecciones.length > 5 ? ` +${selecciones.length - 5}` : '';
+
+        return `
+            <div class="shrink-0 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-[10px]">
+                <span class="font-semibold">
+                    <i class="fa-solid fa-filter mr-1.5"></i>
+                    Filtro cruzado: ${selecciones.length} documento${selecciones.length === 1 ? '' : 's'}
+                    · Origen: ${this.escapeHtml(origen)}
+                    · ${visibles}${restantes}
+                </span>
+                <div class="flex items-center gap-2">
+                    <span class="text-[9px] text-blue-600">Ctrl+clic para varios</span>
+                    <button type="button" data-doc-clear="1"
+                        class="px-2 py-1 rounded border border-blue-200 bg-white/70 hover:bg-white font-bold text-blue-700 cursor-pointer">
+                        Quitar filtro
+                    </button>
+                </div>
+            </div>
+        `;
+    },
+
     _mostrarTooltip(elemento) {
         if (!this.tooltipEl) return;
 
@@ -436,20 +521,29 @@ window.ChartConsumoLimaDashAnalisis = {
                     const valor = this.formatMedida(medida, fila[medida]);
                     return `<td class="px-2 py-1 border-r border-slate-100 text-right font-mono text-[10px] whitespace-nowrap">${this.escapeHtml(valor)}</td>`;
                 }).join('');
+                const documento = this.formatDocumento(fila.documento);
+                const seleccionable = this._documentoSeleccionable(fila);
+                const activo = seleccionable && this._documentoSeleccionado(documento);
+                const docAttrs = seleccionable
+                    ? `data-doc-select="1" data-doc-tipo="${tipo}" data-doc-value="${this.escapeHtml(documento)}"`
+                    : '';
+                const docClase = seleccionable
+                    ? `cursor-pointer hover:underline ${activo ? 'bg-blue-100 text-blue-800 font-bold' : ''}`
+                    : '';
 
                 return `
-                    <tr class="hover:bg-blue-50/40" data-consumo-tt="1" data-consumo-tipo="${tipo}" data-consumo-index="${indice}">
+                    <tr class="hover:bg-blue-50/40${activo ? ' bg-blue-50/70' : ''}" data-consumo-tt="1" data-consumo-tipo="${tipo}" data-consumo-index="${indice}">
                         ${this._celda(this.escapeHtml(this.formatFecha(fila.fecha)), 'whitespace-nowrap text-slate-500')}
                         ${this._celda(this.escapeHtml(fila.codigo), 'font-mono whitespace-nowrap')}
                         ${this._celda(this.escapeHtml(fila.descripcion), 'truncate')}
                         ${this._celda(this.escapeHtml(fila.lote), 'font-mono whitespace-nowrap')}
                         ${this._celda(this.escapeHtml(fila.transaccion), 'text-center font-mono whitespace-nowrap')}
-                        ${this._celda(this.escapeHtml(this.formatDocumento(fila.documento)), 'font-mono whitespace-nowrap')}
+                        <td ${docAttrs} class="px-2 py-1 border-r border-slate-100 font-mono text-[10px] whitespace-nowrap ${docClase}" ${seleccionable ? 'title="Clic para filtrar por este documento. Ctrl+clic para varios."' : ''}>${this.escapeHtml(documento)}</td>
                         ${celdasMedidas}
                     </tr>
                 `;
             }).join('')
-            : `<tr><td colspan="${columnas}" class="px-3 py-8 text-center text-xs text-slate-400">Sin datos para los filtros seleccionados.</td></tr>`;
+            : `<tr><td colspan="${columnas}" class="px-3 py-8 text-center text-xs text-slate-400">${this._documentosSeleccionados().length ? 'Sin movimientos para los documentos seleccionados.' : 'Sin datos para los filtros seleccionados.'}</td></tr>`;
 
         const medidas = config.medidas.map(medida => {
             const titulos = {
@@ -475,12 +569,12 @@ window.ChartConsumoLimaDashAnalisis = {
                     </colgroup>
                     <thead class="sticky top-0 z-20 bg-blue-600 text-white">
                         <tr>
-                            <th class="px-2 py-1.5 border-r border-blue-500"></th>
-                            <th class="px-2 py-1.5 border-r border-blue-500"></th>
-                            <th class="px-2 py-1.5 border-r border-blue-500"></th>
-                            <th class="px-2 py-1.5 border-r border-blue-500"></th>
-                            <th class="px-2 py-1.5 border-r border-blue-500"></th>
-                            <th class="px-2 py-1.5 border-r border-blue-500"></th>
+                            <th class="px-2 py-1.5 text-left text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">Fecha</th>
+                            <th class="px-2 py-1.5 text-left text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">Código</th>
+                            <th class="px-2 py-1.5 text-left text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">Artículo</th>
+                            <th class="px-2 py-1.5 text-left text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">Lote</th>
+                            <th class="px-2 py-1.5 text-left text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">Trans.</th>
+                            <th class="px-2 py-1.5 text-left text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">NroDocumento</th>
                             ${medidas}
                         </tr>
                     </thead>
@@ -523,7 +617,7 @@ window.ChartConsumoLimaDashAnalisis = {
                     </tr>
                 `;
             }).join('')
-            : `<tr><td colspan="${4 + medidas.length}" class="px-3 py-8 text-center text-xs text-slate-400">Sin datos para los filtros seleccionados.</td></tr>`;
+            : `<tr><td colspan="${4 + medidas.length}" class="px-3 py-8 text-center text-xs text-slate-400">${this._documentosSeleccionados().length ? 'Sin detalle de compras para los documentos seleccionados.' : 'Sin datos para los filtros seleccionados.'}</td></tr>`;
 
         const cabecerasMedidas = medidas.map(medida => `
             <th class="px-2 py-1.5 text-right text-[9px] font-bold text-white border-r border-blue-500 whitespace-nowrap">${titulos[medida]}</th>
@@ -646,10 +740,13 @@ window.ChartConsumoLimaDashAnalisis = {
 
         this._ocultarTooltip();
         contenedor.innerHTML = `
-            <div class="grid h-full min-h-0 grid-cols-1 xl:grid-cols-2 xl:grid-rows-2 gap-3">
-                ${this._renderCard('consumos')}
-                ${this._renderCard('compras_almacen')}
-                ${this._renderCard('compras_documentos')}
+            <div class="flex h-full min-h-0 flex-col gap-2">
+                ${this._chipSeleccion()}
+                <div class="grid flex-1 min-h-0 grid-cols-1 xl:grid-cols-2 xl:grid-rows-2 gap-3">
+                    ${this._renderCard('consumos')}
+                    ${this._renderCard('compras_almacen')}
+                    ${this._renderCard('compras_documentos')}
+                </div>
             </div>
         `;
     }

@@ -924,6 +924,11 @@ class ConsumoLimaDashAnalisisHandler
             $where[] = 'TRIM(i.tlote) IN (' . self::marcadores($lotes, 'lote', $params) . ')';
         }
 
+        $documentos = self::normalizarDocumentos($filtros['documentos'] ?? null);
+        if ($documentos) {
+            $where[] = 'CAST(i.tnumfac AS UNSIGNED) IN (' . self::marcadores($documentos, 'documento_mov', $params) . ')';
+        }
+
         return [$where, $params];
     }
 
@@ -938,6 +943,11 @@ class ConsumoLimaDashAnalisisHandler
 
         $dalm = self::DALM_DOCUMENTOS;
         $where[] = 'TRIM(d.dalm) IN (' . self::marcadores($dalm, 'dalm', $params) . ')';
+
+        $documentos = self::normalizarDocumentos($filtros['documentos'] ?? null);
+        if ($documentos) {
+            $where[] = 'CAST(d.dnumfac AS UNSIGNED) IN (' . self::marcadores($documentos, 'documento_doc', $params) . ')';
+        }
 
         return [$where, $params];
     }
@@ -985,8 +995,27 @@ class ConsumoLimaDashAnalisisHandler
             'fecha_fin' => $fechaFin,
             'almacenes' => self::normalizarLista($filtros['almacenes'] ?? $filtros['almacen'] ?? null),
             'articulos' => self::normalizarLista($filtros['articulos'] ?? $filtros['articulo'] ?? null),
-            'lotes' => self::normalizarLista($filtros['lotes'] ?? $filtros['lote'] ?? null)
+            'lotes' => self::normalizarLista($filtros['lotes'] ?? $filtros['lote'] ?? null),
+            'documentos' => self::normalizarDocumentos($filtros['documentos'] ?? null)
         ];
+    }
+
+    private static function normalizarDocumentos($valor): array
+    {
+        $documentos = [];
+
+        foreach (self::normalizarLista($valor) as $item) {
+            if (!is_numeric($item)) {
+                continue;
+            }
+
+            $numero = (int)$item;
+            if ($numero > 0) {
+                $documentos[] = (string)$numero;
+            }
+        }
+
+        return array_values(array_unique($documentos));
     }
 
     private static function normalizarLista($valor): array
